@@ -1,0 +1,236 @@
+// Simple JavaScript for SellApp - Essential functionality only
+
+// Base path helper
+const getBasePath = () => {
+    if (typeof BASE !== 'undefined') return BASE;
+    if (typeof window.BASE !== 'undefined') return window.BASE;
+    if (typeof window.APP_BASE_PATH !== 'undefined') return window.APP_BASE_PATH;
+    return '';
+};
+
+const basePath = getBasePath();
+const apiBase = `${basePath}/api`;
+
+// Helper functions
+function getToken() {
+    return localStorage.getItem('sellapp_token') || localStorage.getItem('token');
+}
+
+function checkAuth() {
+    const token = getToken();
+    if (!token && window.location.pathname.includes('dashboard')) {
+        // Only redirect if we're not already on the login page
+        if (!window.location.pathname.includes('/login') && !window.location.pathname.endsWith('/')) {
+            window.location.href = `${basePath}/`;
+        }
+    }
+    return token;
+}
+
+async function apiCall(endpoint, options = {}) {
+    const token = getToken();
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers
+    };
+    
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const response = await fetch(`${apiBase}${endpoint}`, {
+        ...options,
+        headers,
+        credentials: 'same-origin' // Include session cookies as fallback
+    });
+    
+    // Only redirect on 401 if we're not already redirecting to prevent loops
+    if (response.status === 401) {
+        // Check if we're already on the login page to prevent redirect loops
+        if (!window.location.pathname.endsWith('/') && !window.location.pathname.includes('/login')) {
+            localStorage.removeItem('sellapp_token');
+            localStorage.removeItem('token');
+            localStorage.removeItem('sellapp_user');
+            // Use replace instead of href to prevent back button issues
+            window.location.replace(`${basePath}/`);
+        }
+        throw new Error('Unauthorized');
+    }
+    
+    return response;
+}
+
+// Login form handling
+const loginForm = document.getElementById('loginForm');
+if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const errorMessage = document.getElementById('errorMessage');
+        const loginBtn = document.getElementById('loginBtn');
+        
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Logging in...';
+        errorMessage.classList.add('hidden');
+
+        try {
+            const res = await fetch(`${apiBase}/auth/login`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username, password })
+            });
+            
+            const data = await res.json();
+
+            if (res.ok && data.success && data.data.token) {
+                localStorage.setItem('sellapp_token', data.data.token);
+                localStorage.setItem('token', data.data.token);
+                localStorage.setItem('sellapp_user', JSON.stringify(data.data.user));
+                
+                // Get redirect URL from query params or default to dashboard
+                const urlParams = new URLSearchParams(window.location.search);
+                const redirectUrl = urlParams.get('redirect') || '/dashboard';
+                
+                window.location.href = `${basePath}${redirectUrl}`;
+            } else {
+                errorMessage.textContent = data.error || 'Login failed. Please check your credentials.';
+                errorMessage.classList.remove('hidden');
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Login';
+            }
+        } catch (err) {
+            console.error('Login error:', err);
+            errorMessage.textContent = 'Server error. Please try again.';
+            errorMessage.classList.remove('hidden');
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Login';
+        }
+    });
+}
+
+// Dashboard stats loading
+async function loadDashboardStats() {
+    try {
+        const response = await apiCall('/dashboard/stats');
+        
+        // Check if response is ok before parsing JSON
+        if (!response.ok) {
+            // If 401, let apiCall handle the redirect
+            if (response.status === 401) {
+                return; // apiCall will handle redirect
+            }
+            // For other errors, just log and return
+            console.error('Failed to load dashboard stats:', response.status, response.statusText);
+            return;
+        }
+        
+        const data = await response.json();
+        
+        // Update elements safely
+        const elements = [
+            { id: 'total-revenue', value: '₵' + (data.total_revenue || 0).toFixed(2) },
+            { id: 'gross-profit', value: '₵' + (data.gross_profit || 0).toFixed(2) },
+            { id: 'profit-margin', value: (data.profit_margin || 0) + '% margin' },
+            { id: 'inventory-value', value: '₵' + (data.inventory_value || 0).toFixed(2) },
+            { id: 'total-products', value: (data.total_products || 0) + ' products' },
+            { id: 'total-sales', value: data.total_sales || 0 },
+            { id: 'average-sale', value: '₵' + (data.average_sale || 0).toFixed(2) + ' avg' },
+            { id: 'today-revenue', value: '₵' + (data.today_revenue || 0).toFixed(2) },
+            { id: 'today-sales', value: data.today_sales || 0 },
+            { id: 'month-revenue', value: '₵' + (data.month_revenue || 0).toFixed(2) },
+            { id: 'out-of-stock', value: data.out_of_stock_products || 0 },
+            { id: 'in-stock', value: data.in_stock_products || 0 },
+            { id: 'total-repairs', value: data.total_repairs || 0 },
+            { id: 'repairs-revenue', value: '₵' + (data.repairs_revenue || 0).toFixed(2) + ' revenue' },
+            { id: 'total-customers', value: data.total_customers || 0 },
+            { id: 'team-members', value: (data.total_users || 0) + ' team members' }
+        ];
+        
+        elements.forEach(element => {
+            const el = document.getElementById(element.id);
+            if (el && typeof el.textContent !== 'undefined') {
+                el.textContent = element.value;
+            }
+        });
+        
+        // Update top products if container exists
+        const topProductsContainer = document.getElementById('top-products-container');
+        if (topProductsContainer) {
+            updateTopProducts(data.top_products || []);
+        }
+        
+    } catch (err) {
+        console.error('Error loading stats:', err);
+    }
+}
+
+function updateTopProducts(products) {
+    const container = document.getElementById('top-products-container');
+    if (!container) return;
+    
+    if (!products || products.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-500 py-4">No sales data available</div>';
+        return;
+    }
+    
+    const productsHtml = products.map((product, index) => `
+        <div class="flex items-center justify-between p-3 border rounded-lg mb-2">
+            <div class="flex items-center">
+                <div class="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-bold mr-3">
+                    ${index + 1}
+                </div>
+                <div>
+                    <h4 class="font-semibold text-gray-800">${product.name}</h4>
+                    <p class="text-sm text-gray-600">${product.total_sold} units sold</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <p class="font-bold text-green-600">₵${parseFloat(product.total_revenue || 0).toFixed(2)}</p>
+                <p class="text-sm text-gray-500">revenue</p>
+            </div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = productsHtml;
+}
+
+// Load stats when dashboard loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Only check auth if we're on the main dashboard page
+    // Don't check on sub-pages like /dashboard/companies, /dashboard/analytics, etc.
+    // as those are already protected by server-side middleware
+    const pathname = window.location.pathname;
+    const basePath = getBasePath();
+    
+    // Remove base path from pathname for comparison
+    let cleanPath = pathname;
+    if (basePath && pathname.startsWith(basePath)) {
+        cleanPath = pathname.substring(basePath.length);
+    }
+    
+    // Normalize path - remove trailing slash
+    cleanPath = cleanPath.replace(/\/$/, '') || '/';
+    
+    // Check if this is exactly the main dashboard page (no sub-paths)
+    // Should be exactly '/dashboard' (after removing base path and trailing slash)
+    const isMainDashboard = cleanPath === '/dashboard';
+    
+    if (isMainDashboard) {
+        // Only check auth on main dashboard, let server-side handle other pages
+        const token = checkAuth();
+        
+        // Only load stats if we have a token to prevent unnecessary API calls
+        if (token) {
+            // Load stats with error handling to prevent redirect loops
+            loadDashboardStats().catch(err => {
+                console.error('Error loading dashboard stats:', err);
+                // Don't redirect on error - let server-side handle authentication
+            });
+        }
+    }
+    // For other dashboard sub-pages, don't call checkAuth()
+    // Server-side middleware handles authentication and prevents unwanted redirects
+});
+

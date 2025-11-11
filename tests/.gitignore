@@ -1,0 +1,4 @@
+# Test artifacts
+storage/test_files/
+*.log
+

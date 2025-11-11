@@ -1,0 +1,549 @@
+<?php
+
+namespace App\Models;
+
+use PDO;
+
+require_once __DIR__ . '/../../config/database.php';
+
+class POSSale {
+    private $conn;
+    private $table = 'pos_sales';
+
+    public function __construct() {
+        $this->conn = \Database::getInstance()->getConnection();
+    }
+
+    /**
+     * Create a new POS sale (Multi-tenant)
+     */
+    public function create($data) {
+        // Check if new columns exist, fallback to old schema if not
+        $columnsExist = $this->checkSwapColumnsExist();
+        
+        if ($columnsExist) {
+            $sql = "INSERT INTO {$this->table} (company_id, unique_id, customer_id, total_amount, discount, tax, final_amount, payment_method, payment_status, created_by_user_id, notes, swap_id, is_swap_mode)
+                    VALUES (:company_id, :unique_id, :customer_id, :total_amount, :discount, :tax, :final_amount, :payment_method, :payment_status, :created_by_user_id, :notes, :swap_id, :is_swap_mode)";
+        } else {
+            $sql = "INSERT INTO {$this->table} (company_id, unique_id, customer_id, total_amount, discount, tax, final_amount, payment_method, payment_status, created_by_user_id, notes)
+                    VALUES (:company_id, :unique_id, :customer_id, :total_amount, :discount, :tax, :final_amount, :payment_method, :payment_status, :created_by_user_id, :notes)";
+        }
+        
+        $stmt = $this->conn->prepare($sql);
+        
+        $discount = $data['discount'] ?? 0;
+        $tax = $data['tax'] ?? 0;
+        $totalAmount = $data['total_amount'] ?? $data['total'] ?? 0;
+        // Use provided final_amount if available, otherwise calculate it
+        $finalAmount = $data['final_amount'] ?? ($totalAmount - $discount + $tax);
+        
+        // Handle payment method - convert 'swap' to 'CASH' since swap is tracked via is_swap_mode
+        $paymentMethod = strtoupper($data['payment_method'] ?? 'CASH');
+        if ($paymentMethod === 'SWAP' || ($data['is_swap_mode'] ?? false)) {
+            $paymentMethod = 'CASH'; // Swap transactions use CASH as payment method since swap is tracked separately
+        }
+        
+        // Validate payment method is in allowed enum values
+        $allowedMethods = ['CASH', 'MOBILE_MONEY', 'CARD', 'BANK_TRANSFER'];
+        if (!in_array($paymentMethod, $allowedMethods)) {
+            $paymentMethod = 'CASH'; // Fallback to CASH if invalid
+        }
+        
+        $params = [
+            'company_id' => $data['company_id'],
+            'unique_id' => $data['unique_id'] ?? 'POS' . strtoupper(uniqid()),
+            'customer_id' => $data['customer_id'] ?? null,
+            'total_amount' => $totalAmount,
+            'discount' => $discount,
+            'tax' => $tax,
+            'final_amount' => $finalAmount,
+            'payment_method' => $paymentMethod,
+            'payment_status' => strtoupper($data['payment_status'] ?? 'PAID'),
+            'created_by_user_id' => $data['created_by_user_id'] ?? $data['cashier_id'] ?? 1,
+            'notes' => $data['notes'] ?? null
+        ];
+        
+        // Only add swap columns if they exist
+        if ($columnsExist) {
+            $params['swap_id'] = $data['swap_id'] ?? null;
+            $params['is_swap_mode'] = $data['is_swap_mode'] ?? false;
+        }
+        
+        try {
+            $stmt->execute($params);
+            return $this->conn->lastInsertId();
+        } catch (\PDOException $e) {
+            error_log("POSSale create error: " . $e->getMessage());
+            error_log("POSSale create SQL: " . $sql);
+            error_log("POSSale create params: " . json_encode($params));
+            throw new \Exception('Failed to create sale: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Check if swap columns exist in the table
+     */
+    private function checkSwapColumnsExist() {
+        try {
+            $sql = "SHOW COLUMNS FROM {$this->table} LIKE 'swap_id'";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute();
+            return $stmt->rowCount() > 0;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Find sale by ID
+     */
+    public function findById($id) {
+        $stmt = $this->conn->prepare("SELECT * FROM {$this->table} WHERE id = :id LIMIT 1");
+        $stmt->execute(['id' => $id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get all sales
+     */
+    public function all() {
+        return $this->conn->query("SELECT p.*, c.full_name as customer_name, u.username as cashier 
+                                   FROM {$this->table} p 
+                                   LEFT JOIN customers c ON p.customer_id = c.id 
+                                   LEFT JOIN users u ON p.created_by_user_id = u.id 
+                                   ORDER BY p.id DESC")->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get all sales by company (Multi-tenant filtering)
+     */
+    public function allByCompany($company_id) {
+        $stmt = $this->conn->prepare("SELECT p.*, c.full_name as customer_name, u.username as cashier 
+                                       FROM {$this->table} p 
+                                       LEFT JOIN customers c ON p.customer_id = c.id 
+                                       LEFT JOIN users u ON p.created_by_user_id = u.id 
+                                       WHERE p.company_id = :company_id 
+                                       ORDER BY p.id DESC");
+        $stmt->execute(['company_id' => $company_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get today's sales
+     */
+    public function today() {
+        $stmt = $this->conn->prepare("SELECT * FROM {$this->table} WHERE DATE(created_at) = CURDATE() ORDER BY id DESC");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get sales summary
+     */
+    public function summary($startDate = null, $endDate = null) {
+        $sql = "SELECT 
+                    COUNT(*) as total_sales,
+                    SUM(final_amount) as total_revenue,
+                    AVG(final_amount) as average_sale
+                FROM {$this->table}";
+        
+        if ($startDate && $endDate) {
+            $sql .= " WHERE DATE(created_at) BETWEEN :start AND :end";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute(['start' => $startDate, 'end' => $endDate]);
+        } else {
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute();
+        }
+        
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get sales summary by company (Multi-tenant filtering)
+     */
+    public function summaryByCompany($company_id, $startDate = null, $endDate = null) {
+        $sql = "SELECT 
+                    COUNT(*) as total_sales,
+                    SUM(final_amount) as total_revenue,
+                    AVG(final_amount) as average_sale
+                FROM {$this->table}
+                WHERE company_id = :company_id";
+        
+        if ($startDate && $endDate) {
+            $sql .= " AND DATE(created_at) BETWEEN :start AND :end";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute(['company_id' => $company_id, 'start' => $startDate, 'end' => $endDate]);
+        } else {
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute(['company_id' => $company_id]);
+        }
+        
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+
+    /**
+     * Find sale by ID and company
+     */
+    public function find($id, $company_id) {
+        $stmt = $this->conn->prepare("
+            SELECT p.*, c.full_name as customer_name, u.username as cashier 
+            FROM {$this->table} p 
+            LEFT JOIN customers c ON p.customer_id = c.id 
+            LEFT JOIN users u ON p.created_by_user_id = u.id 
+            WHERE p.id = :id AND p.company_id = :company_id 
+            LIMIT 1
+        ");
+        $stmt->execute(['id' => $id, 'company_id' => $company_id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Update sale
+     */
+    public function update($id, $data) {
+        $fields = [];
+        $params = ['id' => $id];
+        
+        foreach ($data as $key => $value) {
+            if ($key !== 'id') {
+                $fields[] = "$key = :$key";
+                $params[$key] = $value;
+            }
+        }
+        
+        if (empty($fields)) {
+            return false;
+        }
+        
+        $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE id = :id";
+        $stmt = $this->conn->prepare($sql);
+        return $stmt->execute($params);
+    }
+
+    /**
+     * Delete sale
+     */
+    public function delete($id, $company_id = null) {
+        if ($company_id !== null) {
+            $stmt = $this->conn->prepare("DELETE FROM {$this->table} WHERE id = :id AND company_id = :company_id");
+            return $stmt->execute(['id' => $id, 'company_id' => $company_id]);
+        } else {
+            $stmt = $this->conn->prepare("DELETE FROM {$this->table} WHERE id = :id");
+            return $stmt->execute(['id' => $id]);
+        }
+    }
+
+
+    /**
+     * Find sales by company
+     */
+    public function findByCompany($company_id, $limit = 100, $sale_type = null, $date_from = null, $date_to = null) {
+        // Determine which products table exists
+        $productsTable = 'products';
+        try {
+            $checkTable = $this->conn->query("SHOW TABLES LIKE 'products_new'");
+            if ($checkTable->rowCount() > 0) {
+                $productsTable = 'products_new';
+            } else {
+                $checkTable2 = $this->conn->query("SHOW TABLES LIKE 'products'");
+                if ($checkTable2->rowCount() === 0) {
+                    $productsTable = null;
+                }
+            }
+        } catch (\Exception $e) {
+            $productsTable = null;
+        }
+        
+        // Build product-related subqueries only if products table exists
+        $firstItemProductName = "NULL as first_item_product_name";
+        $firstItemCategory = "'' as first_item_category";
+        
+        if ($productsTable) {
+            // Check if categories table exists and if products has category_id
+            try {
+                $checkCategories = $this->conn->query("SHOW TABLES LIKE 'categories'");
+                $hasCategories = $checkCategories->rowCount() > 0;
+                
+                $checkCategoryId = $this->conn->query("SHOW COLUMNS FROM {$productsTable} LIKE 'category_id'");
+                $hasCategoryId = $checkCategoryId->rowCount() > 0;
+                
+                $checkCategory = $this->conn->query("SHOW COLUMNS FROM {$productsTable} LIKE 'category'");
+                $hasCategory = $checkCategory->rowCount() > 0;
+                
+                $firstItemProductName = "(SELECT p.name FROM pos_sale_items psi 
+                    LEFT JOIN {$productsTable} p ON psi.item_id = p.id 
+                    WHERE psi.pos_sale_id = s.id AND psi.item_id IS NOT NULL
+                    ORDER BY psi.id LIMIT 1) as first_item_product_name";
+                
+                if ($hasCategories && $hasCategoryId) {
+                    $firstItemCategory = "(SELECT COALESCE(cat.name, '') FROM pos_sale_items psi 
+                        LEFT JOIN {$productsTable} p ON psi.item_id = p.id 
+                        LEFT JOIN categories cat ON p.category_id = cat.id
+                        WHERE psi.pos_sale_id = s.id AND psi.item_id IS NOT NULL
+                        ORDER BY psi.id LIMIT 1) as first_item_category";
+                } elseif ($hasCategory) {
+                    $firstItemCategory = "(SELECT COALESCE(p.category, '') FROM pos_sale_items psi 
+                        LEFT JOIN {$productsTable} p ON psi.item_id = p.id 
+                        WHERE psi.pos_sale_id = s.id AND psi.item_id IS NOT NULL
+                        ORDER BY psi.id LIMIT 1) as first_item_category";
+                }
+            } catch (\Exception $e) {
+                // If there's an error checking columns, use simpler queries
+                error_log("POSSale::findByCompany: Error checking table structure: " . $e->getMessage());
+            }
+        }
+        
+        $sql = "
+            SELECT 
+                s.*, 
+                u.full_name as cashier_name, 
+                c.full_name as customer_name_from_table,
+                (SELECT COUNT(*) FROM pos_sale_items WHERE pos_sale_id = s.id) as item_count,
+                (SELECT item_description FROM pos_sale_items WHERE pos_sale_id = s.id ORDER BY id LIMIT 1) as first_item_name,
+                {$firstItemProductName},
+                {$firstItemCategory}
+            FROM {$this->table} s
+            LEFT JOIN users u ON s.created_by_user_id = u.id
+            LEFT JOIN customers c ON s.customer_id = c.id
+            WHERE s.company_id = ?
+        ";
+        
+        $params = [$company_id];
+        
+        if ($sale_type) {
+            $sql .= " AND s.sale_type = ?";
+            $params[] = $sale_type;
+        }
+        
+        if ($date_from) {
+            $sql .= " AND DATE(s.created_at) >= ?";
+            $params[] = $date_from;
+        }
+        
+        if ($date_to) {
+            $sql .= " AND DATE(s.created_at) <= ?";
+            $params[] = $date_to;
+        }
+        
+        $sql .= " ORDER BY s.created_at DESC LIMIT " . (int)$limit;
+        
+        try {
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\Exception $e) {
+            error_log("POSSale::findByCompany SQL Error: " . $e->getMessage());
+            error_log("SQL: " . $sql);
+            throw $e;
+        }
+    }
+
+    /**
+     * Find sales by cashier
+     */
+    public function findByCashier($cashier_id, $company_id, $date_from = null, $date_to = null) {
+        // Determine which products table exists
+        $productsTable = 'products';
+        try {
+            $checkTable = $this->conn->query("SHOW TABLES LIKE 'products_new'");
+            if ($checkTable->rowCount() > 0) {
+                $productsTable = 'products_new';
+            } else {
+                $checkTable2 = $this->conn->query("SHOW TABLES LIKE 'products'");
+                if ($checkTable2->rowCount() === 0) {
+                    $productsTable = null;
+                }
+            }
+        } catch (\Exception $e) {
+            $productsTable = null;
+        }
+        
+        // Build product-related subqueries only if products table exists
+        $firstItemProductName = "NULL as first_item_product_name";
+        $firstItemCategory = "'' as first_item_category";
+        
+        if ($productsTable) {
+            // Check if categories table exists and if products has category_id
+            try {
+                $checkCategories = $this->conn->query("SHOW TABLES LIKE 'categories'");
+                $hasCategories = $checkCategories->rowCount() > 0;
+                
+                $checkCategoryId = $this->conn->query("SHOW COLUMNS FROM {$productsTable} LIKE 'category_id'");
+                $hasCategoryId = $checkCategoryId->rowCount() > 0;
+                
+                $checkCategory = $this->conn->query("SHOW COLUMNS FROM {$productsTable} LIKE 'category'");
+                $hasCategory = $checkCategory->rowCount() > 0;
+                
+                $firstItemProductName = "(SELECT p.name FROM pos_sale_items psi 
+                    LEFT JOIN {$productsTable} p ON psi.item_id = p.id 
+                    WHERE psi.pos_sale_id = s.id AND psi.item_id IS NOT NULL
+                    ORDER BY psi.id LIMIT 1) as first_item_product_name";
+                
+                if ($hasCategories && $hasCategoryId) {
+                    $firstItemCategory = "(SELECT COALESCE(cat.name, '') FROM pos_sale_items psi 
+                        LEFT JOIN {$productsTable} p ON psi.item_id = p.id 
+                        LEFT JOIN categories cat ON p.category_id = cat.id
+                        WHERE psi.pos_sale_id = s.id AND psi.item_id IS NOT NULL
+                        ORDER BY psi.id LIMIT 1) as first_item_category";
+                } elseif ($hasCategory) {
+                    $firstItemCategory = "(SELECT COALESCE(p.category, '') FROM pos_sale_items psi 
+                        LEFT JOIN {$productsTable} p ON psi.item_id = p.id 
+                        WHERE psi.pos_sale_id = s.id AND psi.item_id IS NOT NULL
+                        ORDER BY psi.id LIMIT 1) as first_item_category";
+                }
+            } catch (\Exception $e) {
+                // If there's an error checking columns, use simpler queries
+                error_log("POSSale::findByCashier: Error checking table structure: " . $e->getMessage());
+            }
+        }
+        
+        $sql = "
+            SELECT 
+                s.*, 
+                u.full_name as cashier_name, 
+                c.full_name as customer_name_from_table,
+                (SELECT COUNT(*) FROM pos_sale_items WHERE pos_sale_id = s.id) as item_count,
+                (SELECT item_description FROM pos_sale_items WHERE pos_sale_id = s.id ORDER BY id LIMIT 1) as first_item_name,
+                {$firstItemProductName},
+                {$firstItemCategory}
+            FROM {$this->table} s
+            LEFT JOIN users u ON s.created_by_user_id = u.id
+            LEFT JOIN customers c ON s.customer_id = c.id
+            WHERE s.created_by_user_id = ? AND s.company_id = ?
+        ";
+        
+        $params = [$cashier_id, $company_id];
+        
+        if ($date_from) {
+            $sql .= " AND DATE(s.created_at) >= ?";
+            $params[] = $date_from;
+        }
+        
+        if ($date_to) {
+            $sql .= " AND DATE(s.created_at) <= ?";
+            $params[] = $date_to;
+        }
+        
+        $sql .= " ORDER BY s.created_at DESC";
+        
+        try {
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\Exception $e) {
+            error_log("POSSale::findByCashier SQL Error: " . $e->getMessage());
+            error_log("SQL: " . $sql);
+            throw $e;
+        }
+    }
+
+    /**
+     * Get sales statistics
+     */
+    public function getStats($company_id, $date_from = null, $date_to = null) {
+        $sql = "
+            SELECT 
+                COUNT(*) as total_sales,
+                SUM(final_amount) as total_revenue,
+                AVG(final_amount) as average_sale,
+                SUM(discount) as total_discount,
+                SUM(tax) as total_tax
+            FROM {$this->table}
+            WHERE company_id = ?
+        ";
+        
+        $params = [$company_id];
+        
+        if ($date_from) {
+            $sql .= " AND DATE(created_at) >= ?";
+            $params[] = $date_from;
+        }
+        
+        if ($date_to) {
+            $sql .= " AND DATE(created_at) <= ?";
+            $params[] = $date_to;
+        }
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get daily report
+     */
+    public function getDailyReport($company_id, $date) {
+        $sql = "
+            SELECT 
+                COUNT(*) as total_sales,
+                SUM(final_amount) as total_revenue,
+                AVG(final_amount) as average_sale,
+                SUM(discount) as total_discount,
+                SUM(tax) as total_tax
+            FROM {$this->table}
+            WHERE company_id = ? AND DATE(created_at) = ?
+        ";
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([$company_id, $date]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get total count of sales by company
+     */
+    public function getTotalCountByCompany($company_id, $date_from = null, $date_to = null) {
+        $sql = "SELECT COUNT(*) FROM {$this->table} WHERE company_id = ?";
+        $params = [$company_id];
+        
+        if ($date_from) {
+            $sql .= " AND DATE(created_at) >= ?";
+            $params[] = $date_from;
+        }
+        
+        if ($date_to) {
+            $sql .= " AND DATE(created_at) <= ?";
+            $params[] = $date_to;
+        }
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchColumn();
+    }
+
+    /**
+     * Find sales by company with pagination
+     */
+    public function findByCompanyPaginated($company_id, $page = 1, $limit = 20, $date_from = null, $date_to = null) {
+        $offset = ($page - 1) * $limit;
+        
+        $sql = "SELECT p.*, c.full_name as customer_name, u.username as cashier 
+                FROM {$this->table} p 
+                LEFT JOIN customers c ON p.customer_id = c.id 
+                LEFT JOIN users u ON p.created_by_user_id = u.id 
+                WHERE p.company_id = ?";
+        
+        $params = [$company_id];
+        
+        if ($date_from) {
+            $sql .= " AND DATE(p.created_at) >= ?";
+            $params[] = $date_from;
+        }
+        
+        if ($date_to) {
+            $sql .= " AND DATE(p.created_at) <= ?";
+            $params[] = $date_to;
+        }
+        
+        $sql .= " ORDER BY p.created_at DESC LIMIT ? OFFSET ?";
+        $params[] = $limit;
+        $params[] = $offset;
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+}
+

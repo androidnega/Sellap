@@ -1,0 +1,8 @@
+{
+    "backup_id": "company_2_20251102_131751",
+    "company_id": 2,
+    "type": "company_backup",
+    "created_at": "2025-11-02 13:17:51",
+    "database_file": "company_2_20251102_131751.sql",
+    "files_path": "files\/"
+}

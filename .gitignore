@@ -1,0 +1,55 @@
+# Environment files
+.env
+
+# Vendor directory (Composer dependencies)
+/vendor/
+vendor/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Log files
+*.log
+/storage/logs/*
+!/storage/logs/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Uploaded files (optional - adjust based on needs)
+/storage/uploads/*
+!/storage/uploads/.gitkeep
+
+# Compiled assets (if applicable)
+/public/build/
+/public/hot
+
+# Node modules (if using npm/yarn for frontend)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# PHP
+composer.phar
+composer.lock
+
+# Cache
+/storage/cache/*
+!/storage/cache/.gitkeep
+
+# Test files
+phpunit.xml
+.phpunit.result.cache
+
