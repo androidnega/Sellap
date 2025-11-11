@@ -1,5 +1,7 @@
 # Environment files
 .env
+.env.local
+.env.*.local
 
 # Vendor directory (Composer dependencies)
 /vendor/
@@ -10,16 +12,26 @@ vendor/
 .idea/
 *.sublime-project
 *.sublime-workspace
+*.code-workspace
 
 # OS files
 .DS_Store
 Thumbs.db
 desktop.ini
+*.lnk
 
 # Log files
 *.log
 /storage/logs/*
 !/storage/logs/.gitkeep
+/storage/logs/**/*
+!storage/logs/.gitkeep
+
+# Storage backups (sensitive data - database dumps, etc.)
+/storage/backups/*
+!/storage/backups/.gitkeep
+/storage/backups/**/*
+!/storage/backups/**/.gitkeep
 
 # Temporary files
 *.tmp
@@ -27,10 +39,17 @@ desktop.ini
 *.swp
 *.swo
 *~
+*.bak
+*.backup
 
-# Uploaded files (optional - adjust based on needs)
+# Uploaded files (user-generated content)
 /storage/uploads/*
 !/storage/uploads/.gitkeep
+/assets/images/products/*.jpg
+/assets/images/products/*.jpeg
+/assets/images/products/*.png
+/assets/images/products/*.gif
+!/assets/images/products/.gitkeep
 
 # Compiled assets (if applicable)
 /public/build/
@@ -40,16 +59,44 @@ desktop.ini
 node_modules/
 npm-debug.log
 yarn-error.log
+package-lock.json
+yarn.lock
 
 # PHP
 composer.phar
-composer.lock
+# Note: composer.lock should be committed for production apps
 
 # Cache
 /storage/cache/*
 !/storage/cache/.gitkeep
 
+# Session files
+/storage/sessions/*
+!/storage/sessions/.gitkeep
+
 # Test files
 phpunit.xml
 .phpunit.result.cache
+/coverage/
+
+# Database dumps and exports
+*.sql
+*.dump
+!database/schema.sql
+!database/migrations/*.sql
+
+# Configuration files with sensitive data
+config/database.local.php
+config/app.local.php
+
+# Large files
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# Error pages and debug files
+error_log
+debug.log
 
