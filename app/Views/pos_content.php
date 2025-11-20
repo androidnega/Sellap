@@ -36,7 +36,7 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
     <?php endif; ?>
 
     <!-- POS Stats Cards -->
-    <div id="posStatsCards" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div id="posStatsCards" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200 shadow-sm">
             <div class="flex items-center justify-between">
                 <div>
@@ -69,6 +69,30 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
                 </div>
                 <div class="p-3 bg-purple-200 rounded-lg">
                     <i class="fas fa-money-bill-wave text-2xl text-purple-700"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-5 border border-orange-200 shadow-sm">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-orange-700 mb-1">Swaps Today</p>
+                    <p class="text-3xl font-bold text-orange-900" id="posSwapsToday">0</p>
+                </div>
+                <div class="p-3 bg-orange-200 rounded-lg">
+                    <i class="fas fa-exchange-alt text-2xl text-orange-700"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-gradient-to-br from-teal-50 to-teal-100 rounded-xl p-5 border border-teal-200 shadow-sm">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-teal-700 mb-1">Swap Revenue</p>
+                    <p class="text-3xl font-bold text-teal-900" id="posSwapRevenueToday">₵0.00</p>
+                </div>
+                <div class="p-3 bg-teal-200 rounded-lg">
+                    <i class="fas fa-hand-holding-usd text-2xl text-teal-700"></i>
                 </div>
             </div>
         </div>
@@ -322,31 +346,31 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
     </div>
 
     <!-- Main Content Area -->
-    <div class="flex flex-col lg:flex-row gap-6">
+    <div class="flex flex-col lg:flex-row gap-6 overflow-x-hidden">
         <!-- Product Selection (Left Side) -->
-        <div class="w-full lg:w-2/3" id="productsSection">
-            <div class="bg-white rounded shadow">
+        <div class="w-full lg:w-2/3 min-w-0" id="productsSection">
+            <div class="bg-white rounded shadow overflow-x-hidden">
                 <div class="p-6 border-b border-gray-200">
                     <h3 class="text-lg font-semibold text-gray-800">Products</h3>
                 </div>
                 
                 <!-- Search and Filter -->
-                <div class="p-6 border-b border-gray-200">
-                    <div class="flex flex-col sm:flex-row gap-4">
-                        <div class="relative flex-grow">
+                <div class="p-4 sm:p-6 border-b border-gray-200 overflow-x-hidden">
+                    <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-wrap">
+                        <div class="relative flex-grow min-w-0 w-full sm:w-auto sm:flex-1">
                             <input type="text" id="productSearch" placeholder="Search products by name or brand..."
-                                   class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                   class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-0">
                             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                         </div>
-                        <select id="categoryFilter" class="w-full sm:w-auto border border-gray-300 rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <select id="categoryFilter" class="w-full sm:w-auto sm:min-w-[150px] border border-gray-300 rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent flex-shrink-0">
                             <option value="">All Categories</option>
                             <!-- Categories will be loaded here -->
                         </select>
-                        <select id="brandFilter" class="w-full sm:w-auto border border-gray-300 rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <select id="brandFilter" class="w-full sm:w-auto sm:min-w-[150px] border border-gray-300 rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent flex-shrink-0">
                             <option value="">All Brands</option>
                             <!-- Brands will be loaded here -->
                         </select>
-                        <select id="sortFilter" class="w-full sm:w-auto border border-gray-300 rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <select id="sortFilter" class="w-full sm:w-auto sm:min-w-[150px] border border-gray-300 rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent flex-shrink-0">
                             <option value="name_asc">Name A-Z</option>
                             <option value="name_desc">Name Z-A</option>
                             <option value="price_asc">Price Low-High</option>
@@ -364,7 +388,7 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
                         <i class="fas fa-boxes mr-2"></i>
                         <span id="productCountText">Loading products...</span>
                     </div>
-                    <div id="productsGrid" class="space-y-4">
+                    <div id="productsGrid" class="space-y-4 max-h-[calc(100vh-20rem)] overflow-y-auto products-scroll" style="scrollbar-width: none; -ms-overflow-style: none;">
                         <!-- Products will be loaded here -->
                     </div>
                 </div>
@@ -373,8 +397,8 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
 
         <!-- Cart and Checkout (Right Side) - Sticky -->
         <div class="w-full lg:w-1/3<?php echo (isset($isReadOnly) && $isReadOnly === 'true') ? ' hidden' : ''; ?>" id="cartSection">
-            <div class="lg:sticky lg:top-6 lg:max-h-screen lg:overflow-y-auto cart-scroll" style="scrollbar-width: none; -ms-overflow-style: none;">
-            <div class="bg-white rounded-lg shadow-lg">
+            <div class="sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto" style="position: -webkit-sticky; position: sticky; scrollbar-width: none; -ms-overflow-style: none;">
+            <div class="bg-white rounded-lg shadow-lg" style="scrollbar-width: none; -ms-overflow-style: none;">
                 <div class="p-6 border-b border-gray-200 bg-gray-50">
                     <h3 class="text-lg font-semibold text-gray-800 flex items-center">
                         <i class="fas fa-shopping-cart mr-2 text-blue-600"></i>
@@ -771,6 +795,8 @@ async function loadPOSQuickStats() {
             const totalItemsEl = document.getElementById('posTotalItems');
             const salesTodayEl = document.getElementById('posSalesToday');
             const revenueTodayEl = document.getElementById('posRevenueToday');
+            const swapsTodayEl = document.getElementById('posSwapsToday');
+            const swapRevenueTodayEl = document.getElementById('posSwapRevenueToday');
             
             if (totalItemsEl) {
                 totalItemsEl.textContent = data.data.total_items || 0;
@@ -780,6 +806,12 @@ async function loadPOSQuickStats() {
             }
             if (revenueTodayEl) {
                 revenueTodayEl.textContent = '₵' + (parseFloat(data.data.revenue_today || 0).toFixed(2));
+            }
+            if (swapsTodayEl) {
+                swapsTodayEl.textContent = data.data.swap_count_today || 0;
+            }
+            if (swapRevenueTodayEl) {
+                swapRevenueTodayEl.textContent = '₵' + (parseFloat(data.data.swap_revenue_today || 0).toFixed(2));
             }
         }
     } catch (error) {
@@ -833,6 +865,9 @@ async function loadProducts() {
 }
 
 // Initialize and wire up category/brand/sort filters
+// Use a flag to prevent duplicate event listeners
+let filtersInitialized = false;
+
 function initializeFilters(productsData) {
     const categorySelect = document.getElementById('categoryFilter');
     const brandSelect = document.getElementById('brandFilter');
@@ -845,29 +880,67 @@ function initializeFilters(productsData) {
     const categories = Array.from(new Set((productsData || []).map(p => (p.category_name || '').trim()).filter(Boolean))).sort();
     const brands = Array.from(new Set((productsData || []).map(p => (p.brand_name || '').trim()).filter(Boolean))).sort();
 
+    // Store currently selected values to preserve them if they still exist
+    const currentCategory = categorySelect.value;
+    const currentBrand = brandSelect.value;
+
     // Populate category select
     categorySelect.innerHTML = '<option value="">All Categories</option>' +
         categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
 
-    // Populate brand select (unfiltered initially)
+    // Restore category selection if it still exists
+    if (currentCategory && categories.includes(currentCategory)) {
+        categorySelect.value = currentCategory;
+    }
+
+    // Populate brand select based on current category filter
+    const selectedCategory = categorySelect.value;
+    const filteredForBrands = selectedCategory
+        ? (productsData || []).filter(p => (p.category_name || '') === selectedCategory)
+        : (productsData || []);
+    const brandsForCategory = Array.from(new Set(filteredForBrands.map(p => (p.brand_name || '').trim()).filter(Boolean))).sort();
+    
     brandSelect.innerHTML = '<option value="">All Brands</option>' +
-        brands.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+        brandsForCategory.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
 
-    // Update brands when category changes
-    categorySelect.addEventListener('change', () => {
-        const selectedCategory = categorySelect.value;
-        const filteredForBrands = selectedCategory
-            ? (products || []).filter(p => (p.category_name || '') === selectedCategory)
-            : (products || []);
-        const brandsForCategory = Array.from(new Set(filteredForBrands.map(p => (p.brand_name || '').trim()).filter(Boolean))).sort();
-        brandSelect.innerHTML = '<option value="">All Brands</option>' +
-            brandsForCategory.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
-        applyFiltersAndRender();
-    });
+    // Restore brand selection if it still exists in the filtered brands
+    if (currentBrand && brandsForCategory.includes(currentBrand)) {
+        brandSelect.value = currentBrand;
+    }
 
-    brandSelect.addEventListener('change', applyFiltersAndRender);
-    sortSelect.addEventListener('change', applyFiltersAndRender);
-    if (searchInput) searchInput.addEventListener('input', debounce(applyFiltersAndRender, 150));
+    // Only add event listeners once to prevent duplicates
+    if (!filtersInitialized) {
+        // Update brands when category changes and reset brand filter
+        categorySelect.addEventListener('change', () => {
+            const selectedCategory = categorySelect.value;
+            const filteredForBrands = selectedCategory
+                ? (products || []).filter(p => (p.category_name || '') === selectedCategory)
+                : (products || []);
+            const brandsForCategory = Array.from(new Set(filteredForBrands.map(p => (p.brand_name || '').trim()).filter(Boolean))).sort();
+            
+            // Reset brand filter when category changes
+            const previousBrand = brandSelect.value;
+            brandSelect.innerHTML = '<option value="">All Brands</option>' +
+                brandsForCategory.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+            
+            // Restore brand if it exists in the new category
+            if (previousBrand && brandsForCategory.includes(previousBrand)) {
+                brandSelect.value = previousBrand;
+            }
+            
+            applyFiltersAndRender();
+        });
+
+        brandSelect.addEventListener('change', applyFiltersAndRender);
+        sortSelect.addEventListener('change', applyFiltersAndRender);
+        
+        // Search input with debounce - respects all filters
+        if (searchInput) {
+            searchInput.addEventListener('input', debounce(applyFiltersAndRender, 150));
+        }
+        
+        filtersInitialized = true;
+    }
 }
 
 function escapeHtml(str) {
@@ -1215,7 +1288,7 @@ function renderProducts(productsToRender) {
         }
         
         cardClasses += isAvailable ? 'cursor-pointer hover:bg-gray-50 ' : 'cursor-not-allowed opacity-50 ';
-        cardClasses += isSelected ? 'ring-2 ring-blue-500 ' : '';
+        // Removed ring/border for selected products
         
         return `
             <div class="${cardClasses.trim()}" data-product-id="${productId}" data-is-swapped="${isSwappedItem ? 'true' : 'false'}" ${cardStyle ? `style="${cardStyle}"` : ''} ${isSwappedItem ? `onmouseover="this.style.backgroundColor='#e9d5ff'; this.style.borderColor='#8b5cf6';" onmouseout="this.style.backgroundColor='#f3e8ff'; this.style.borderColor='#a78bfa';"` : ''}>
@@ -2184,15 +2257,8 @@ function setupEventListeners() {
     document.getElementById('taxAmount').addEventListener('input', updateTotals);
     document.getElementById('taxType').addEventListener('change', updateTotals);
     
-    // Product search
-    document.getElementById('productSearch').addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase();
-        const filteredProducts = products.filter(product => 
-            product.name.toLowerCase().includes(searchTerm) ||
-            (product.brand_name && product.brand_name.toLowerCase().includes(searchTerm))
-        );
-        renderProducts(filteredProducts);
-    });
+    // Product search is handled by initializeFilters() to respect all filters (category, brand, sort)
+    // No need for duplicate listener here
     
     // Print last receipt button
     document.getElementById('printLastReceiptBtn').addEventListener('click', () => {
@@ -2498,6 +2564,55 @@ style.textContent = `
         scrollbar-width: none !important; /* Firefox */
         -ms-overflow-style: none !important; /* Internet Explorer 10+ */
         overflow-y: auto !important;
+    }
+    
+    /* Hide scrollbar for cart section wrapper */
+    #cartSection > div {
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+    }
+    
+    #cartSection > div::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+    
+    /* Hide scrollbar for cart content */
+    #cartSection .bg-white {
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+    }
+    
+    #cartSection .bg-white::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+    
+    /* Hide scrollbar for products grid */
+    .products-scroll {
+        scrollbar-width: none !important; /* Firefox */
+        -ms-overflow-style: none !important; /* Internet Explorer 10+ */
+        overflow-y: auto !important;
+    }
+    
+    .products-scroll::-webkit-scrollbar {
+        display: none !important; /* WebKit (Chrome, Safari, Edge) */
+        width: 0 !important;
+        height: 0 !important;
+    }
+    
+    .products-scroll::-webkit-scrollbar-track {
+        display: none !important;
+    }
+    
+    .products-scroll::-webkit-scrollbar-thumb {
+        display: none !important;
+    }
+    
+    .products-scroll::-webkit-scrollbar-corner {
+        display: none !important;
     }
     
     /* Apply scrollbar hiding to all cart containers */
@@ -2953,11 +3068,15 @@ function showReceiptModal(saleData) {
     
     content.innerHTML = receiptHtml;
     modal.classList.remove('hidden');
+    // Prevent body scrolling when modal is open
+    document.body.style.overflow = 'hidden';
 }
 
 function closeReceiptModal() {
     const modal = document.getElementById('receiptModal');
     modal.classList.add('hidden');
+    // Restore body scrolling when modal is closed
+    document.body.style.overflow = '';
 }
 
 // Swap Modal Functions
@@ -2986,6 +3105,8 @@ function openSwapModal(productId, productName, productPrice) {
     const brandNameInput = document.getElementById('swapCustomerBrand');
     if (brandSelect) {
         brandSelect.value = '';
+        // Reset loaded flag to allow reloading if needed
+        brandSelect.dataset.loaded = 'false';
     }
     if (brandNameInput) {
         brandNameInput.value = '';
@@ -2993,8 +3114,8 @@ function openSwapModal(productId, productName, productPrice) {
     document.getElementById('swapCustomerSpecsContainer').classList.add('hidden');
     document.getElementById('swapCustomerDynamicSpecs').innerHTML = '';
     
-    // Ensure brands are loaded
-    if (brandSelect && brandSelect.options.length <= 1) {
+    // Ensure brands are loaded (only if not already populated)
+    if (brandSelect && (brandSelect.options.length <= 1 || brandSelect.dataset.loaded !== 'true')) {
         loadSwapBrands();
     }
     
@@ -3006,6 +3127,8 @@ function openSwapModal(productId, productName, productPrice) {
     
     // Show modal
     document.getElementById('swapModal').classList.remove('hidden');
+    // Prevent body scrolling when modal is open
+    document.body.style.overflow = 'hidden';
 }
 
 // New Customer Modal Functions
@@ -3146,6 +3269,8 @@ function selectExistingCustomer(customerId, customerName, customerPhone) {
 function closeSwapModal() {
     document.getElementById('swapModal').classList.add('hidden');
     hideSwapModalError();
+    // Restore body scrolling when modal is closed
+    document.body.style.overflow = '';
 }
 
 function showSwapModalError(message) {
@@ -3179,13 +3304,23 @@ function updateSwapBalance() {
     document.getElementById('swapTopupValue').textContent = '₵' + topup.toFixed(2);
     
     // Update balance with color coding
+    // Balance = (Customer Device Value + Cash Top-up) - Company Product Price
+    // If balance is 0: Perfect match
+    // If balance > 0: Customer is giving more (overpayment)
+    // If balance < 0: Customer needs to pay more
     const balanceElement = document.getElementById('swapBalance');
-    if (balance >= 0) {
-        balanceElement.textContent = '₵' + balance.toFixed(2) + ' (Customer owes)';
-        balanceElement.className = 'text-lg text-red-600';
+    if (Math.abs(balance) < 0.01) {
+        // Balanced (within 0.01 rounding tolerance)
+        balanceElement.textContent = '₵0.00 ✓ Balanced';
+        balanceElement.className = 'text-lg text-green-600 font-semibold';
+    } else if (balance > 0) {
+        // Customer is giving more than product value
+        balanceElement.textContent = '₵' + balance.toFixed(2) + ' (Overpayment - adjust values)';
+        balanceElement.className = 'text-lg text-orange-600';
     } else {
-        balanceElement.textContent = '₵' + Math.abs(balance).toFixed(2) + ' (Company owes)';
-        balanceElement.className = 'text-lg text-green-600';
+        // Customer is giving less than product value
+        balanceElement.textContent = '₵' + Math.abs(balance).toFixed(2) + ' (Increase customer value or top-up)';
+        balanceElement.className = 'text-lg text-red-600';
     }
 }
 
@@ -3236,13 +3371,30 @@ function loadSwapBrands() {
     
     if (!brandSelect) return;
     
-    // Helper function to deduplicate brands by ID
+    // Track if brands have been loaded to prevent duplicate loading
+    if (brandSelect.dataset.loaded === 'true') {
+        return; // Already loaded, skip
+    }
+    
+    // Helper function to deduplicate brands by both ID and name
     function deduplicateBrands(brands) {
-        const seen = new Map();
+        const seenById = new Map();
+        const seenByName = new Set();
         return brands.filter(brand => {
-            if (!brand || !brand.id) return false;
-            if (seen.has(brand.id)) return false;
-            seen.set(brand.id, true);
+            if (!brand || !brand.id || !brand.name) return false;
+            
+            // Normalize brand name (trim and lowercase for comparison)
+            const normalizedName = brand.name.trim().toLowerCase();
+            
+            // Check for duplicate ID
+            if (seenById.has(brand.id)) return false;
+            
+            // Check for duplicate name (case-insensitive)
+            if (seenByName.has(normalizedName)) return false;
+            
+            // Add to seen sets
+            seenById.set(brand.id, true);
+            seenByName.add(normalizedName);
             return true;
         });
     }
@@ -3251,14 +3403,33 @@ function loadSwapBrands() {
     function populateBrandSelect(brands) {
         const uniqueBrands = deduplicateBrands(brands);
         if (uniqueBrands.length > 0) {
+            // Clear existing options first
             brandSelect.innerHTML = '<option value="">Select Brand</option>';
-            uniqueBrands.forEach(brand => {
-                const opt = document.createElement('option');
-                opt.value = brand.id;
-                opt.textContent = brand.name;
-                opt.dataset.brandName = brand.name;
-                brandSelect.appendChild(opt);
+            
+            // Sort brands alphabetically by name
+            uniqueBrands.sort((a, b) => {
+                const nameA = (a.name || '').trim().toLowerCase();
+                const nameB = (b.name || '').trim().toLowerCase();
+                return nameA.localeCompare(nameB);
             });
+            
+            uniqueBrands.forEach(brand => {
+                // Check if option already exists (prevent duplicates)
+                const existingOption = Array.from(brandSelect.options).find(
+                    opt => opt.value == brand.id || opt.textContent.trim().toLowerCase() === brand.name.trim().toLowerCase()
+                );
+                
+                if (!existingOption) {
+                    const opt = document.createElement('option');
+                    opt.value = brand.id;
+                    opt.textContent = brand.name.trim(); // Trim whitespace
+                    opt.dataset.brandName = brand.name.trim();
+                    brandSelect.appendChild(opt);
+                }
+            });
+            
+            // Mark as loaded
+            brandSelect.dataset.loaded = 'true';
             return true;
         }
         return false;
@@ -3331,6 +3502,40 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', function() {
     // Load brands on page load
     loadSwapBrands();
+    
+    // Close modals when clicking outside (on backdrop)
+    const receiptModal = document.getElementById('receiptModal');
+    const swapModal = document.getElementById('swapModal');
+    
+    if (receiptModal) {
+        receiptModal.addEventListener('click', function(e) {
+            // Close if clicking directly on the modal backdrop (not on the content)
+            if (e.target === receiptModal) {
+                closeReceiptModal();
+            }
+        });
+    }
+    
+    if (swapModal) {
+        swapModal.addEventListener('click', function(e) {
+            // Close if clicking directly on the modal backdrop (not on the content)
+            if (e.target === swapModal) {
+                closeSwapModal();
+            }
+        });
+    }
+    
+    // Close modals with ESC key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (receiptModal && !receiptModal.classList.contains('hidden')) {
+                closeReceiptModal();
+            }
+            if (swapModal && !swapModal.classList.contains('hidden')) {
+                closeSwapModal();
+            }
+        }
+    });
 });
 
 function loadSwapCustomerSpecs(brandId) {
@@ -3758,33 +3963,45 @@ function printReceipt() {
 }
 </script>
 
+<style>
+/* Hide scrollbar but keep scrolling functionality */
+#receiptModal > div::-webkit-scrollbar,
+#swapModal > div::-webkit-scrollbar {
+    display: none;
+}
+
+#receiptModal > div,
+#swapModal > div {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+</style>
+
 <!-- Receipt Modal -->
-<div id="receiptModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
-    <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold text-gray-800">Receipt</h3>
+<div id="receiptModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-start justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full mt-8 mb-4 max-h-[85vh] overflow-y-auto">
+            <div class="p-4">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-base font-semibold text-gray-800">Receipt</h3>
                     <button onclick="closeReceiptModal()" class="text-gray-400 hover:text-gray-600">
                         <i class="fas fa-times text-xl"></i>
                     </button>
                 </div>
                 
-                <div id="receiptContent" class="space-y-4">
+                <div id="receiptContent" class="space-y-3">
                     <!-- Receipt content will be populated here -->
                 </div>
                 
-                <div class="flex gap-3 mt-6">
-                    <button onclick="printReceipt()" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition">
-                        <i class="fas fa-print mr-2"></i>Print
+                <div class="flex gap-2 mt-4">
+                    <button onclick="printReceipt()" class="flex-1 bg-blue-600 text-white py-1.5 px-3 rounded text-sm hover:bg-blue-700 transition">
+                        <i class="fas fa-print mr-1.5"></i>Print
                     </button>
-                    <button onclick="closeReceiptModal()" class="flex-1 bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600 transition">
+                    <button onclick="closeReceiptModal()" class="flex-1 bg-gray-500 text-white py-1.5 px-3 rounded text-sm hover:bg-gray-600 transition">
                         Close
                     </button>
                 </div>
             </div>
         </div>
-    </div>
 </div>
 
 <!-- New Customer Modal -->
@@ -3833,19 +4050,18 @@ function printReceipt() {
 </div>
 
 <!-- Swap Modal -->
-<div id="swapModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
-    <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-xl font-semibold text-gray-800">Process Swap</h3>
+<div id="swapModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-start justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-lg shadow-xl max-w-xl w-full mt-8 mb-4 max-h-[85vh] overflow-y-auto">
+            <div class="p-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Process Swap</h3>
                     <button onclick="closeSwapModal()" class="text-gray-400 hover:text-gray-600">
                         <i class="fas fa-times text-xl"></i>
                     </button>
                 </div>
                 
                 <!-- Error Display Area -->
-                <div id="swapModalError" class="hidden mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div id="swapModalError" class="hidden mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                     <div class="flex items-start">
                         <i class="fas fa-exclamation-circle text-red-600 mt-0.5 mr-3"></i>
                         <div class="flex-1">
@@ -3864,9 +4080,9 @@ function printReceipt() {
                     <input type="hidden" id="swapProductPrice" name="product_price">
                     
                     <!-- Company Product Info -->
-                    <div class="bg-blue-50 rounded-lg p-4 mb-6">
-                        <h4 class="font-semibold text-blue-800 mb-2">Company Product</h4>
-                        <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div class="bg-blue-50 rounded-lg p-3 mb-4">
+                        <h4 class="font-semibold text-blue-800 mb-1.5 text-sm">Company Product</h4>
+                        <div class="grid grid-cols-2 gap-3 text-xs">
                             <div>
                                 <span class="text-gray-600">Product:</span>
                                 <span id="displayProductName" class="font-medium"></span>
@@ -3879,15 +4095,15 @@ function printReceipt() {
                     </div>
                     
                     <!-- Customer Information -->
-                    <div class="mb-6">
-                        <h4 class="font-semibold text-gray-800 mb-4">Customer Information</h4>
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-gray-800 mb-3 text-sm">Customer Information</h4>
                         
                         <!-- Customer Selection (single searchable dropdown) -->
-                        <div class="mb-4">
-                            <label for="swapCustomerCombo" class="block text-sm font-medium text-gray-700 mb-2">Select Customer *</label>
+                        <div class="mb-3">
+                            <label for="swapCustomerCombo" class="block text-xs font-medium text-gray-700 mb-1.5">Select Customer *</label>
                             <div class="relative">
                                 <input type="text" id="swapCustomerCombo" placeholder="Search customers..."
-                                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" autocomplete="off">
+                                       class="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" autocomplete="off">
                                 <div id="swapCustomerDropdown" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg hidden max-h-60 overflow-y-auto"></div>
                             </div>
                             <!-- Hidden select for form submission -->
@@ -3897,7 +4113,7 @@ function printReceipt() {
                         </div>
                         
                         <!-- Selected Customer Display -->
-                        <div id="swapSelectedCustomerInfo" class="hidden mb-4 p-3 bg-blue-50 rounded-lg">
+                        <div id="swapSelectedCustomerInfo" class="hidden mb-3 p-2.5 bg-blue-50 rounded-lg">
                             <div class="flex justify-between items-start">
                                 <div>
                                     <div class="font-medium text-blue-800" id="swapSelectedCustomerName">Customer Name</div>
@@ -3912,13 +4128,13 @@ function printReceipt() {
                     </div>
                     
                     <!-- Customer's Device -->
-                    <div class="mb-6">
-                        <h4 class="font-semibold text-gray-800 mb-4">Customer's Device</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-gray-800 mb-3 text-sm">Customer's Device</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
-                                <label for="swapCustomerBrandId" class="block text-sm font-medium text-gray-700 mb-1">Brand <span class="text-red-500">*</span></label>
+                                <label for="swapCustomerBrandId" class="block text-xs font-medium text-gray-700 mb-1">Brand <span class="text-red-500">*</span></label>
                                 <select id="swapCustomerBrandId" name="customer_brand_id" required
-                                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                       class="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <option value="">Select Brand</option>
                                     <!-- Brands will be loaded dynamically -->
                                 </select>
@@ -3926,20 +4142,20 @@ function printReceipt() {
                                 <input type="hidden" id="swapCustomerBrand" name="customer_brand">
                             </div>
                             <div>
-                                <label for="swapCustomerModel" class="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                                <label for="swapCustomerModel" class="block text-xs font-medium text-gray-700 mb-1">Model</label>
                                 <input type="text" id="swapCustomerModel" name="customer_model" 
-                                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       class="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                        placeholder="e.g. iPhone 12, Galaxy S21">
                             </div>
                             <div>
-                                <label for="swapCustomerImei" class="block text-sm font-medium text-gray-700 mb-1">IMEI (Optional)</label>
+                                <label for="swapCustomerImei" class="block text-xs font-medium text-gray-700 mb-1">IMEI (Optional)</label>
                                 <input type="text" id="swapCustomerImei" name="customer_imei" 
-                                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                       class="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
-                                <label for="swapCustomerCondition" class="block text-sm font-medium text-gray-700 mb-1">Condition</label>
+                                <label for="swapCustomerCondition" class="block text-xs font-medium text-gray-700 mb-1">Condition</label>
                                 <select id="swapCustomerCondition" name="customer_condition" 
-                                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        class="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <option value="used">Used</option>
                                     <option value="new">New</option>
                                     <option value="faulty">Faulty</option>
@@ -3948,75 +4164,74 @@ function printReceipt() {
                         </div>
                         
                         <!-- Dynamic Spec Fields Container -->
-                        <div id="swapCustomerSpecsContainer" class="mt-4 hidden">
-                            <h5 class="text-sm font-semibold text-gray-700 mb-3">Device Specifications</h5>
-                            <div id="swapCustomerDynamicSpecs" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div id="swapCustomerSpecsContainer" class="mt-3 hidden">
+                            <h5 class="text-xs font-semibold text-gray-700 mb-2">Device Specifications</h5>
+                            <div id="swapCustomerDynamicSpecs" class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <!-- Dynamic fields will be inserted here -->
                             </div>
                         </div>
                     </div>
                     
                     <!-- Swap Calculation -->
-                    <div class="mb-6">
-                        <h4 class="font-semibold text-gray-800 mb-4">Swap Calculation</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-gray-800 mb-3 text-sm">Swap Calculation</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
-                                <label for="swapEstimatedValue" class="block text-sm font-medium text-gray-700 mb-1">Estimated Value (₵)</label>
+                                <label for="swapEstimatedValue" class="block text-xs font-medium text-gray-700 mb-1">Estimated Value (₵)</label>
                                 <input type="number" id="swapEstimatedValue" name="customer_estimated_value" step="0.01" min="0" 
-                                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       class="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                        placeholder="0.00">
                             </div>
                             <div>
-                                <label for="swapTopup" class="block text-sm font-medium text-gray-700 mb-1">Cash Top-up (₵)</label>
+                                <label for="swapTopup" class="block text-xs font-medium text-gray-700 mb-1">Cash Top-up (₵)</label>
                                 <input type="number" id="swapTopup" name="customer_topup" step="0.01" min="0" 
-                                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       class="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                        placeholder="0.00">
                             </div>
                         </div>
                         
                         <!-- Balance Display -->
-                        <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-                            <div class="flex justify-between items-center text-sm">
+                        <div class="mt-3 p-3 bg-gray-50 rounded-lg">
+                            <div class="flex justify-between items-center text-xs">
                                 <span class="text-gray-600">Company Product Price:</span>
                                 <span id="swapCompanyPrice" class="font-medium">₵0.00</span>
                             </div>
-                            <div class="flex justify-between items-center text-sm">
+                            <div class="flex justify-between items-center text-xs">
                                 <span class="text-gray-600">Customer Device Value:</span>
                                 <span id="swapCustomerValue" class="font-medium">₵0.00</span>
                             </div>
-                            <div class="flex justify-between items-center text-sm">
+                            <div class="flex justify-between items-center text-xs">
                                 <span class="text-gray-600">Cash Top-up:</span>
                                 <span id="swapTopupValue" class="font-medium">₵0.00</span>
                             </div>
-                            <hr class="my-2">
-                            <div class="flex justify-between items-center font-bold">
+                            <hr class="my-1.5">
+                            <div class="flex justify-between items-center font-bold text-sm">
                                 <span>Balance:</span>
-                                <span id="swapBalance" class="text-lg"></span>
+                                <span id="swapBalance" class="text-base"></span>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Notes -->
-                    <div class="mb-6">
-                        <label for="swapNotes" class="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
-                        <textarea id="swapNotes" name="notes" rows="3" 
-                                  class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    <div class="mb-4">
+                        <label for="swapNotes" class="block text-xs font-medium text-gray-700 mb-1">Notes (Optional)</label>
+                        <textarea id="swapNotes" name="notes" rows="2" 
+                                  class="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                   placeholder="Any additional notes about the swap..."></textarea>
                     </div>
                     
                     <!-- Action Buttons -->
-                    <div class="flex justify-end space-x-4">
+                    <div class="flex justify-end space-x-2">
                         <button type="button" onclick="closeSwapModal()" 
-                                class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">
+                                class="px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">
                             Cancel
                         </button>
                         <button type="submit" id="swapSubmitBtn" 
-                                class="px-6 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors">
-                            <i class="fas fa-exchange-alt mr-2"></i>Process Swap
+                                class="px-4 py-1.5 text-sm bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors">
+                            <i class="fas fa-exchange-alt mr-1.5"></i>Process Swap
                         </button>
                     </div>
                 </form>
             </div>
         </div>
-    </div>
 </div>

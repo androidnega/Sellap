@@ -18,13 +18,30 @@ class Backup {
      * Create backup record
      */
     public function create(array $data) {
-        $stmt = $this->db->prepare("
-            INSERT INTO {$this->table}
-            (company_id, file_name, file_path, file_size, status, record_count, format, created_by, created_at)
-            VALUES (:company_id, :file_name, :file_path, :file_size, :status, :record_count, :format, :created_by, NOW())
-        ");
+        // Check if backup_type column exists
+        $hasBackupType = $this->columnExists('backup_type');
+        $hasDescription = $this->columnExists('description');
         
-        $stmt->execute([
+        $columns = ['company_id', 'file_name', 'file_path', 'file_size', 'status', 'record_count', 'format', 'created_by'];
+        $values = [':company_id', ':file_name', ':file_path', ':file_size', ':status', ':record_count', ':format', ':created_by'];
+        
+        if ($hasBackupType) {
+            $columns[] = 'backup_type';
+            $values[] = ':backup_type';
+        }
+        
+        if ($hasDescription) {
+            $columns[] = 'description';
+            $values[] = ':description';
+        }
+        
+        $columns[] = 'created_at';
+        $values[] = 'NOW()';
+        
+        $sql = "INSERT INTO {$this->table} (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $values) . ")";
+        $stmt = $this->db->prepare($sql);
+        
+        $params = [
             'company_id' => $data['company_id'],
             'file_name' => $data['file_name'],
             'file_path' => $data['file_path'],
@@ -33,9 +50,31 @@ class Backup {
             'record_count' => $data['record_count'] ?? null,
             'format' => $data['format'] ?? 'json',
             'created_by' => $data['created_by'] ?? null
-        ]);
+        ];
+        
+        if ($hasBackupType) {
+            $params['backup_type'] = $data['backup_type'] ?? 'manual';
+        }
+        
+        if ($hasDescription) {
+            $params['description'] = $data['description'] ?? null;
+        }
+        
+        $stmt->execute($params);
 
         return $this->db->lastInsertId();
+    }
+    
+    /**
+     * Check if a column exists in the table
+     */
+    private function columnExists($columnName) {
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM {$this->table} LIKE '{$columnName}'");
+            return $stmt->rowCount() > 0;
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     /**
@@ -46,9 +85,11 @@ class Backup {
             SELECT 
                 b.*,
                 u.username as created_by_name,
-                u.full_name as created_by_full_name
+                u.full_name as created_by_full_name,
+                c.name as company_name
             FROM {$this->table} b
             LEFT JOIN users u ON b.created_by = u.id
+            LEFT JOIN companies c ON b.company_id = c.id
             WHERE b.company_id = :company_id
             ORDER BY b.created_at DESC
             LIMIT :limit

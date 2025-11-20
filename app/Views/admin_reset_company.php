@@ -128,7 +128,7 @@ $content = '
                 To confirm this action, type the following exactly:
             </p>
             <div class="bg-white border-2 border-gray-300 rounded-lg p-3 mb-3">
-                <code class="text-lg font-mono font-semibold text-red-600" id="confirmPhrase">RESET COMPANY ' . htmlspecialchars($companyId) . '</code>
+                <code class="text-lg font-mono font-semibold text-red-600" id="confirmPhrase">Loading...</code>
             </div>
             <input type="text" id="confirmationInput" 
                    placeholder="Type confirmation phrase here" 
@@ -149,7 +149,7 @@ $content = '
                 <i class="fas fa-eye mr-2"></i>Preview (Dry Run)
             </button>
             <button id="resetBtn" onclick="executeReset()" 
-                    disabled
+                    disabled="disabled"
                     class="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed">
                 <i class="fas fa-exclamation-triangle mr-2"></i>Execute Reset
             </button>
@@ -184,40 +184,120 @@ $content = '
 // BASE is already declared in the layout
 // const BASE = window.APP_BASE_PATH || ""; // Removed - already in layout
 const companyId = ' . htmlspecialchars($companyId) . ';
-const expectedConfirm = "RESET COMPANY ' . htmlspecialchars($companyId) . '";
+let expectedConfirm = "";
 let backupReference = null;
+
+// Load confirmation code on page load
+async function loadConfirmCode() {
+    try {
+        const response = await fetch(BASE + "/api/admin/companies/" + companyId + "/reset/confirm-code", {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + getToken()
+            },
+            credentials: "same-origin"
+        });
+        
+        const data = await response.json();
+        if (data.success && data.confirm_code) {
+            expectedConfirm = data.confirm_code;
+            document.getElementById("confirmPhrase").textContent = expectedConfirm;
+            console.log("Confirmation code loaded:", expectedConfirm);
+        } else {
+            console.error("Failed to load confirmation code:", data.error);
+            // Fallback to old format
+            expectedConfirm = "RESET COMPANY " + companyId;
+            document.getElementById("confirmPhrase").textContent = expectedConfirm;
+        }
+    } catch (error) {
+        console.error("Error loading confirmation code:", error);
+        // Fallback to old format
+        expectedConfirm = "RESET COMPANY " + companyId;
+        document.getElementById("confirmPhrase").textContent = expectedConfirm;
+    } finally {
+        // Update buttons after confirmation code is loaded
+        updateButtons();
+    }
+}
 
 function getToken() {
     return localStorage.getItem("token") || localStorage.getItem("sellapp_token") || "";
 }
 
 function updateButtons() {
-    const confirmation = document.getElementById("confirmationInput").value.trim();
-    const backupChecked = document.getElementById("backupConfirmed").checked;
+    const confirmationInput = document.getElementById("confirmationInput");
+    const backupCheckbox = document.getElementById("backupConfirmed");
     const resetBtn = document.getElementById("resetBtn");
     
-    // Debug logging
+    if (!confirmationInput || !backupCheckbox || !resetBtn) {
+        console.error("Required elements not found");
+        return;
+    }
+    
+    const confirmation = confirmationInput.value.trim();
+    const backupChecked = backupCheckbox.checked;
+    
+    // Wait for confirmation code to load
+    if (!expectedConfirm) {
+        resetBtn.disabled = true;
+        resetBtn.title = "Loading confirmation code...";
+        return;
+    }
+    
+    // Check each condition separately for better debugging
+    const hasConfirmation = confirmation === expectedConfirm;
+    const hasBackup = !!backupReference;
+    const hasBackupChecked = backupChecked;
+    
+    // Debug logging with detailed breakdown
     console.log("updateButtons called:", {
         confirmation: confirmation,
         expectedConfirm: expectedConfirm,
-        backupChecked: backupChecked,
+        confirmationLength: confirmation.length,
+        expectedLength: expectedConfirm.length,
+        matches: hasConfirmation,
+        backupChecked: hasBackupChecked,
         backupReference: backupReference,
-        matches: confirmation === expectedConfirm
+        hasBackup: hasBackup,
+        canReset: hasConfirmation && hasBackupChecked && hasBackup
     });
     
-    const canReset = confirmation === expectedConfirm && backupChecked && backupReference;
-    resetBtn.disabled = !canReset;
+    const canReset = hasConfirmation && hasBackupChecked && hasBackup;
     
-    if (!backupReference) {
+    // Force update the button state - use removeAttribute for enabled, setAttribute for disabled
+    if (canReset) {
+        resetBtn.removeAttribute("disabled");
+        resetBtn.disabled = false;
+    } else {
+        resetBtn.setAttribute("disabled", "disabled");
+        resetBtn.disabled = true;
+    }
+    
+    // Update button styling based on state
+    if (canReset) {
+        resetBtn.classList.remove("disabled:opacity-50", "disabled:cursor-not-allowed");
+        resetBtn.classList.add("hover:bg-red-700");
+    } else {
+        resetBtn.classList.add("disabled:opacity-50", "disabled:cursor-not-allowed");
+    }
+    
+    // Set tooltip message
+    if (!hasBackup) {
         resetBtn.title = "Backup must be created first";
-    } else if (!backupChecked) {
+    } else if (!hasBackupChecked) {
         resetBtn.title = "Backup confirmation checkbox must be checked";
-    } else if (confirmation !== expectedConfirm) {
+    } else if (!hasConfirmation) {
         resetBtn.title = "Confirmation phrase must match exactly: " + expectedConfirm;
+        console.log("Confirmation mismatch - Typed:", confirmation, "Expected:", expectedConfirm);
+        console.log("Confirmation lengths - Typed:", confirmation.length, "Expected:", expectedConfirm.length);
     } else {
         resetBtn.title = "Ready to execute reset";
     }
 }
+
+// Load confirmation code when page loads
+loadConfirmCode();
 
 async function createBackup() {
     const btn = document.getElementById("createBackupBtn");
@@ -250,6 +330,7 @@ async function createBackup() {
         
         if (data.success) {
             backupReference = data.backup_id;
+            console.log("Backup created, backupReference set to:", backupReference);
             status.classList.remove("hidden");
             message.textContent = "Backup created successfully:";
             message.className = "text-sm text-green-700 font-semibold";
@@ -264,8 +345,16 @@ async function createBackup() {
             backupIdSpan.parentElement.appendChild(downloadLink);
             
             // Auto-check the backup confirmation checkbox
-            document.getElementById("backupConfirmed").checked = true;
-            updateButtons();
+            const backupCheckbox = document.getElementById("backupConfirmed");
+            if (backupCheckbox) {
+                backupCheckbox.checked = true;
+                console.log("Backup checkbox checked");
+            }
+            
+            // Update buttons after a short delay to ensure DOM is updated
+            setTimeout(() => {
+                updateButtons();
+            }, 100);
         } else {
             alert("Backup failed: " + (data.error || "Unknown error"));
         }
@@ -359,22 +448,47 @@ async function executeReset() {
     const statusLink = document.getElementById("statusLink");
     
     modal.classList.remove("hidden");
-    progressBar.style.width = "20%";
-    progressTitle.textContent = "Executing Reset...";
-    progressMessage.textContent = "This may take a few moments. Do not close this page.";
+    progressBar.style.width = "0%";
+    progressTitle.textContent = "Preparing Reset...";
+    progressMessage.textContent = "Initializing reset process...";
     progressDetails.innerHTML = "";
     progressActions.classList.add("hidden");
     
+    // Progress simulation steps
+    const steps = [
+        { percent: 5, message: "Validating backup..." },
+        { percent: 10, message: "Verifying confirmation code..." },
+        { percent: 15, message: "Preparing database transaction..." },
+        { percent: 20, message: "Saving company modules..." },
+        { percent: 25, message: "Deleting swap data..." },
+        { percent: 35, message: "Deleting POS sales..." },
+        { percent: 45, message: "Deleting repair records..." },
+        { percent: 55, message: "Deleting customer data..." },
+        { percent: 65, message: "Deleting product data..." },
+        { percent: 75, message: "Clearing logs and notifications..." },
+        { percent: 85, message: "Resetting SMS accounts..." },
+        { percent: 90, message: "Restoring company modules..." },
+        { percent: 95, message: "Finalizing transaction..." }
+    ];
+    
+    let currentStep = 0;
+    const updateProgress = () => {
+        if (currentStep < steps.length) {
+            const step = steps[currentStep];
+            progressBar.style.width = step.percent + "%";
+            progressMessage.textContent = step.message + " (" + step.percent + "%)";
+            progressDetails.innerHTML += `<div class="text-sm text-gray-600">${step.message}</div>`;
+            currentStep++;
+            if (currentStep < steps.length) {
+                setTimeout(updateProgress, 300);
+            }
+        }
+    };
+    
+    // Start progress simulation
+    updateProgress();
+    
     try {
-        progressBar.style.width = "40%";
-        progressDetails.innerHTML += "<div>✓ Backup verified</div>";
-        
-        progressBar.style.width = "60%";
-        progressDetails.innerHTML += "<div>✓ Confirmation verified</div>";
-        
-        progressBar.style.width = "80%";
-        progressDetails.innerHTML += "<div>⏳ Executing database reset...</div>";
-        
         const response = await fetch(BASE + "/api/admin/companies/" + companyId + "/reset", {
             method: "POST",
             headers: {
@@ -390,29 +504,38 @@ async function executeReset() {
         
         const data = await response.json();
         
+        // Complete progress
         progressBar.style.width = "100%";
+        progressMessage.textContent = "Reset completed!";
         
         if (data.success) {
             progressTitle.textContent = "Reset Completed Successfully";
-            progressMessage.textContent = "Company data has been reset. File cleanup is running in the background.";
-            progressDetails.innerHTML = `
-                <div class="text-green-700">✓ Database reset completed</div>
-                <div class="text-green-700">✓ ${data.total_affected_rows} rows deleted</div>
+            progressMessage.textContent = "Company data has been reset. Modules have been preserved.";
+            progressDetails.innerHTML += `
+                <div class="text-green-700 font-semibold mt-2">✓ Database reset completed</div>
+                <div class="text-green-700">✓ ${data.total_affected_rows || 0} rows deleted</div>
+                <div class="text-green-700">✓ Company modules preserved</div>
                 <div class="text-blue-700">⏳ File cleanup queued</div>
-                <div class="mt-2 text-sm">Action ID: ${data.action_id}</div>
+                <div class="mt-2 text-sm text-gray-600">Action ID: ${data.action_id || "N/A"}</div>
             `;
             
-            statusLink.href = BASE + "/dashboard/admin/reset/" + data.action_id;
-            progressActions.classList.remove("hidden");
-            
-            setTimeout(() => {
-                window.location.href = BASE + "/dashboard/admin/reset/" + data.action_id;
-            }, 3000);
+            if (data.action_id) {
+                statusLink.href = BASE + "/dashboard/admin/reset/" + data.action_id;
+                progressActions.classList.remove("hidden");
+                
+                setTimeout(() => {
+                    window.location.href = BASE + "/dashboard/admin/reset/" + data.action_id;
+                }, 3000);
+            } else {
+                setTimeout(() => {
+                    window.location.href = BASE + "/dashboard/companies";
+                }, 3000);
+            }
         } else {
             progressTitle.textContent = "Reset Failed";
             progressMessage.textContent = "An error occurred during the reset operation.";
-            progressDetails.innerHTML = `
-                <div class="text-red-700">✗ ${data.error || "Unknown error"}</div>
+            progressDetails.innerHTML += `
+                <div class="text-red-700 font-semibold mt-2">✗ ${data.error || "Unknown error"}</div>
                 ${data.action_id ? "<div class=\"mt-2 text-sm\">Action ID: " + data.action_id + "</div>" : ""}
             `;
             progressActions.classList.remove("hidden");
@@ -423,7 +546,7 @@ async function executeReset() {
     } catch (error) {
         progressTitle.textContent = "Reset Failed";
         progressMessage.textContent = "An error occurred: " + error.message;
-        progressDetails.innerHTML = "<div class=\"text-red-700\">✗ " + error.message + "</div>";
+        progressDetails.innerHTML += `<div class="text-red-700 font-semibold mt-2">✗ ${error.message}</div>`;
     }
 }
 </script>

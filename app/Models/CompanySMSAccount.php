@@ -61,6 +61,9 @@ class CompanySMSAccount {
                 }
             }
             
+            // Ensure SMS notification settings columns exist (run migration automatically)
+            $this->ensureSMSSettingsColumnsExist();
+            
             // Skip company verification for admin account (company_id = 0)
             if ($companyId !== 0) {
                 // Verify company exists in companies table
@@ -83,8 +86,8 @@ class CompanySMSAccount {
             
             // Create new account if doesn't exist
             $stmt = $this->conn->prepare("
-                INSERT INTO {$this->table} (company_id, total_sms, sms_used, status, custom_sms_enabled, sms_sender_name) 
-                VALUES (?, 0, 0, 'active', 0, 'SellApp')
+                INSERT INTO {$this->table} (company_id, total_sms, sms_used, status, custom_sms_enabled, sms_sender_name, sms_purchase_enabled, sms_repair_enabled, sms_swap_enabled, sms_payment_enabled) 
+                VALUES (?, 0, 0, 'active', 0, 'SellApp', 1, 1, 1, 1)
             ");
             $stmt->execute([$companyId]);
             
@@ -121,6 +124,9 @@ class CompanySMSAccount {
                     status ENUM('active', 'suspended') NOT NULL DEFAULT 'active',
                     sms_sender_name VARCHAR(15) NOT NULL DEFAULT 'SellApp',
                     custom_sms_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                    sms_purchase_enabled BOOLEAN NOT NULL DEFAULT TRUE COMMENT 'Enable SMS notifications for purchases (uses company SMS credits)',
+                    sms_repair_enabled BOOLEAN NOT NULL DEFAULT TRUE COMMENT 'Enable SMS notifications for repairs (uses company SMS credits)',
+                    sms_swap_enabled BOOLEAN NOT NULL DEFAULT TRUE COMMENT 'Enable SMS notifications for swaps (uses company SMS credits)',
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
@@ -163,7 +169,10 @@ class CompanySMSAccount {
                 'usage_percent' => $usagePercent,
                 'status' => $account['status'],
                 'custom_sms_enabled' => (bool)$account['custom_sms_enabled'],
-                'sms_sender_name' => $account['sms_sender_name']
+                'sms_sender_name' => $account['sms_sender_name'],
+                'sms_purchase_enabled' => isset($account['sms_purchase_enabled']) ? (int)$account['sms_purchase_enabled'] : 1,
+                'sms_repair_enabled' => isset($account['sms_repair_enabled']) ? (int)$account['sms_repair_enabled'] : 1,
+                'sms_swap_enabled' => isset($account['sms_swap_enabled']) ? (int)$account['sms_swap_enabled'] : 1
             ];
         } catch (\Exception $e) {
             error_log("CompanySMSAccount::getSMSBalance error: " . $e->getMessage());
@@ -497,6 +506,172 @@ class CompanySMSAccount {
         } catch (\Exception $e) {
             error_log("CompanySMSAccount::getSenderId error: " . $e->getMessage());
             return substr(trim($defaultSender), 0, 11);
+        }
+    }
+
+    /**
+     * Update SMS notification settings for a company
+     * 
+     * @param int $companyId Company ID
+     * @param array $settings Settings to update (sms_purchase_enabled, sms_repair_enabled, sms_swap_enabled)
+     * @return bool Success status
+     */
+    public function updateSMSSettings($companyId, $settings) {
+        try {
+            // Ensure account exists
+            $account = $this->getOrCreateAccount($companyId);
+            if (!$account) {
+                return false;
+            }
+            
+            // Build update query
+            $updateFields = [];
+            $updateValues = [];
+            
+            if (isset($settings['sms_purchase_enabled'])) {
+                $updateFields[] = 'sms_purchase_enabled = ?';
+                $updateValues[] = (int)$settings['sms_purchase_enabled'];
+            }
+            
+            if (isset($settings['sms_repair_enabled'])) {
+                $updateFields[] = 'sms_repair_enabled = ?';
+                $updateValues[] = (int)$settings['sms_repair_enabled'];
+            }
+            
+            if (isset($settings['sms_swap_enabled'])) {
+                $updateFields[] = 'sms_swap_enabled = ?';
+                $updateValues[] = (int)$settings['sms_swap_enabled'];
+            }
+            
+            if (isset($settings['sms_payment_enabled'])) {
+                $updateFields[] = 'sms_payment_enabled = ?';
+                $updateValues[] = (int)$settings['sms_payment_enabled'];
+            }
+            
+            if (empty($updateFields)) {
+                return false;
+            }
+            
+            $updateValues[] = $companyId;
+            
+            $sql = "UPDATE {$this->table} SET " . implode(', ', $updateFields) . ", updated_at = NOW() WHERE company_id = ?";
+            $stmt = $this->conn->prepare($sql);
+            $result = $stmt->execute($updateValues);
+            
+            return $result && $stmt->rowCount() > 0;
+        } catch (\Exception $e) {
+            error_log("CompanySMSAccount::updateSMSSettings error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get SMS notification settings for a company
+     * 
+     * @param int $companyId Company ID
+     * @return array Settings array
+     */
+    public function getSMSSettings($companyId) {
+        try {
+            $account = $this->getOrCreateAccount($companyId);
+            if (!$account) {
+                return [
+                    'sms_purchase_enabled' => 1,
+                    'sms_repair_enabled' => 1,
+                    'sms_swap_enabled' => 1,
+                    'sms_payment_enabled' => 1
+                ];
+            }
+            
+            return [
+                'sms_purchase_enabled' => isset($account['sms_purchase_enabled']) ? (int)$account['sms_purchase_enabled'] : 1,
+                'sms_repair_enabled' => isset($account['sms_repair_enabled']) ? (int)$account['sms_repair_enabled'] : 1,
+                'sms_swap_enabled' => isset($account['sms_swap_enabled']) ? (int)$account['sms_swap_enabled'] : 1,
+                'sms_payment_enabled' => isset($account['sms_payment_enabled']) ? (int)$account['sms_payment_enabled'] : 1
+            ];
+        } catch (\Exception $e) {
+            error_log("CompanySMSAccount::getSMSSettings error: " . $e->getMessage());
+            return [
+                'sms_purchase_enabled' => 1,
+                'sms_repair_enabled' => 1,
+                'sms_swap_enabled' => 1,
+                'sms_payment_enabled' => 1
+            ];
+        }
+    }
+
+    /**
+     * Ensure SMS notification settings columns exist in the table
+     * This automatically runs the migration if columns don't exist
+     */
+    private function ensureSMSSettingsColumnsExist() {
+        try {
+            // Check if columns exist
+            $columns = ['sms_purchase_enabled', 'sms_repair_enabled', 'sms_swap_enabled', 'sms_payment_enabled'];
+            $existingColumns = [];
+            
+            $stmt = $this->conn->query("
+                SELECT COLUMN_NAME 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = '{$this->table}' 
+                AND COLUMN_NAME IN ('sms_purchase_enabled', 'sms_repair_enabled', 'sms_swap_enabled', 'sms_payment_enabled')
+            ");
+            
+            if ($stmt) {
+                $existingColumns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            }
+            
+            // Add missing columns
+            if (!in_array('sms_purchase_enabled', $existingColumns)) {
+                $this->conn->exec("
+                    ALTER TABLE {$this->table} 
+                    ADD COLUMN sms_purchase_enabled BOOLEAN NOT NULL DEFAULT 1 
+                    COMMENT 'Enable SMS notifications for purchases (uses company SMS credits)'
+                ");
+                error_log("CompanySMSAccount: Added sms_purchase_enabled column");
+            }
+            
+            if (!in_array('sms_repair_enabled', $existingColumns)) {
+                $this->conn->exec("
+                    ALTER TABLE {$this->table} 
+                    ADD COLUMN sms_repair_enabled BOOLEAN NOT NULL DEFAULT 1 
+                    COMMENT 'Enable SMS notifications for repairs (uses company SMS credits)'
+                ");
+                error_log("CompanySMSAccount: Added sms_repair_enabled column");
+            }
+            
+            if (!in_array('sms_swap_enabled', $existingColumns)) {
+                $this->conn->exec("
+                    ALTER TABLE {$this->table} 
+                    ADD COLUMN sms_swap_enabled BOOLEAN NOT NULL DEFAULT 1 
+                    COMMENT 'Enable SMS notifications for swaps (uses company SMS credits)'
+                ");
+                error_log("CompanySMSAccount: Added sms_swap_enabled column");
+            }
+            
+            if (!in_array('sms_payment_enabled', $existingColumns)) {
+                $this->conn->exec("
+                    ALTER TABLE {$this->table} 
+                    ADD COLUMN sms_payment_enabled BOOLEAN NOT NULL DEFAULT 1 
+                    COMMENT 'Enable SMS notifications for partial payments (uses company SMS credits)'
+                ");
+                error_log("CompanySMSAccount: Added sms_payment_enabled column");
+            }
+            
+            // Update existing records to have default values
+            if (count($existingColumns) < 4) {
+                $this->conn->exec("
+                    UPDATE {$this->table} 
+                    SET sms_purchase_enabled = COALESCE(sms_purchase_enabled, 1), 
+                        sms_repair_enabled = COALESCE(sms_repair_enabled, 1), 
+                        sms_swap_enabled = COALESCE(sms_swap_enabled, 1),
+                        sms_payment_enabled = COALESCE(sms_payment_enabled, 1)
+                ");
+            }
+        } catch (\Exception $e) {
+            // Don't fail if columns already exist or migration fails
+            error_log("CompanySMSAccount::ensureSMSSettingsColumnsExist - Error: " . $e->getMessage());
         }
     }
 }

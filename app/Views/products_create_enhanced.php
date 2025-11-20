@@ -3,6 +3,9 @@
 $isEdit = isset($product) && !empty($product);
 $formTitle = $isEdit ? 'Edit Product' : 'Add New Product';
 $formAction = $isEdit ? BASE_URL_PATH . '/dashboard/inventory/update/' . $product['id'] : BASE_URL_PATH . '/dashboard/inventory/store';
+
+// Get prefill data from purchase order if available
+$prefillData = $GLOBALS['prefill_product_data'] ?? null;
 ?>
 
 <div class="p-6">
@@ -35,7 +38,7 @@ $formAction = $isEdit ? BASE_URL_PATH . '/dashboard/inventory/update/' . $produc
                             <input type="text" 
                                    id="name" 
                                    name="name" 
-                                   value="<?= htmlspecialchars($product['name'] ?? '') ?>"
+                                   value="<?= htmlspecialchars($product['name'] ?? $prefillData['name'] ?? '') ?>"
                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                    placeholder="e.g., iPhone 14 Pro Max"
                                    title="Enter the full product name as it appears on the device"
@@ -75,7 +78,7 @@ $formAction = $isEdit ? BASE_URL_PATH . '/dashboard/inventory/update/' . $produc
                             <input type="text" 
                                    id="sku" 
                                    name="sku" 
-                                   value="<?= htmlspecialchars($product['sku'] ?? '') ?>"
+                                   value="<?= htmlspecialchars($product['sku'] ?? $prefillData['sku'] ?? '') ?>"
                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                    placeholder="Auto-generated if empty"
                                    title="Leave empty to auto-generate SKU">
@@ -141,7 +144,7 @@ $formAction = $isEdit ? BASE_URL_PATH . '/dashboard/inventory/update/' . $produc
                                    step="0.01" 
                                    id="cost_price" 
                                    name="cost_price" 
-                                   value="<?= htmlspecialchars($product['cost'] ?? '') ?>"
+                                   value="<?= htmlspecialchars($product['cost'] ?? $prefillData['cost_price'] ?? '') ?>"
                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                    placeholder="0.00"
                                    title="Enter the cost price you paid for this product">
@@ -171,7 +174,7 @@ $formAction = $isEdit ? BASE_URL_PATH . '/dashboard/inventory/update/' . $produc
                             <input type="number" 
                                    id="quantity" 
                                    name="quantity" 
-                                   value="<?= htmlspecialchars($product['quantity'] ?? '0') ?>"
+                                   value="<?= htmlspecialchars($product['quantity'] ?? $prefillData['quantity'] ?? '0') ?>"
                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                    min="0"
                                    title="Enter the number of units in stock"
@@ -194,16 +197,27 @@ $formAction = $isEdit ? BASE_URL_PATH . '/dashboard/inventory/update/' . $produc
 
                         <!-- Supplier -->
                         <div>
-                            <label for="supplier" class="block text-sm font-medium text-gray-700 mb-2">
-                                Supplier
+                            <label for="supplier_id" class="block text-sm font-medium text-gray-700 mb-2">
+                                Supplier <span class="text-gray-500 text-xs">(for tracking)</span>
                             </label>
-                            <input type="text" 
-                                   id="supplier" 
-                                   name="supplier" 
-                                   value="<?= htmlspecialchars($product['supplier'] ?? '') ?>"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                   placeholder="Supplier name"
-                                   title="Enter the supplier or vendor name">
+                            <select id="supplier_id" 
+                                    name="supplier_id" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    title="Select a supplier to track product source and accumulate quantities/amounts">
+                                <option value="">No Supplier (Optional)</option>
+                                <?php if (isset($suppliers) && !empty($suppliers)): ?>
+                                    <?php foreach ($suppliers as $supplier): ?>
+                                        <option value="<?= $supplier['id'] ?>"
+                                                <?= (isset($product) && isset($product['supplier_id']) && $product['supplier_id'] == $supplier['id']) ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($supplier['name']) ?>
+                                            <?php if (!empty($supplier['contact_person'])): ?>
+                                                - <?= htmlspecialchars($supplier['contact_person']) ?>
+                                            <?php endif; ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </select>
+                            <p class="text-sm text-gray-500 mt-1">Select supplier to track product source. This will accumulate quantities and amounts per supplier.</p>
                         </div>
                     </div>
                 </div>
@@ -226,7 +240,7 @@ $formAction = $isEdit ? BASE_URL_PATH . '/dashboard/inventory/update/' . $produc
                                       rows="4"
                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                       placeholder="Product description..."
-                                      title="Enter a detailed description of the product"><?= htmlspecialchars($product['description'] ?? '') ?></textarea>
+                                      title="Enter a detailed description of the product"><?= htmlspecialchars($product['description'] ?? $prefillData['description'] ?? '') ?></textarea>
                         </div>
 
                         <!-- Image Upload -->
@@ -331,6 +345,11 @@ document.addEventListener('DOMContentLoaded', function(){
   const brandSelect = document.getElementById('brandSelect');
   const swapWrapper = document.getElementById('swapWrapper');
   const specsContainer = document.getElementById('specsContainer');
+  const specsWrapper = document.getElementById('specsWrapper');
+  
+  // Store existing specs globally for easy access
+  const existingSpecs = <?= isset($product) && !empty($product['specs']) ? json_encode($product['specs']) : 'null' ?>;
+  console.log('Loaded existing specs:', existingSpecs);
 
   const fetchJson = (url) => fetch(url).then(r => r.ok ? r.json() : {data: []}).then(data => {
     // Handle different response formats
@@ -472,8 +491,42 @@ document.addEventListener('DOMContentLoaded', function(){
       const chk = document.querySelector('#available_for_swap');
       if (chk) chk.checked = false;
     }
-    specsContainer.innerHTML = '';
-    if (specsWrapper) specsWrapper.style.display = 'none';
+    
+    // Check if category is accessory - show generic accessory specs
+    const normalizedCatName = normalizeCategoryName(catName);
+    const accessoryCategories = ['accessory', 'accessories'];
+    const isAccessoryCategory = accessoryCategories.includes(normalizedCatName);
+    
+    if (isAccessoryCategory) {
+      // For accessories, show generic accessory specs
+      console.log('Category is accessory - showing generic accessory specs');
+      if (specsWrapper) specsWrapper.style.display = 'block';
+      specsContainer.innerHTML = '';
+      
+      const accessorySpecs = [
+        { name: 'type', label: 'Type', type: 'text', placeholder: 'e.g., Charger, Case, Screen Protector' },
+        { name: 'color', label: 'Color', type: 'text', placeholder: 'e.g., Black, White, Blue' },
+        { name: 'compatibility', label: 'Compatibility', type: 'text', placeholder: 'e.g., iPhone 12, Samsung Galaxy S21' }
+      ];
+      
+      accessorySpecs.forEach(field => {
+        const div = document.createElement('div');
+        div.classList.add('mb-4');
+        const existingValue = existingSpecs && existingSpecs[field.name] ? existingSpecs[field.name] : '';
+        div.innerHTML = `
+          <label class="block text-sm font-medium text-gray-700 mb-1">${field.label}</label>
+          <input type="${field.type}" 
+                 name="specs[${field.name}]" 
+                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                 placeholder="${field.placeholder}"
+                 value="${existingValue || ''}">
+        `;
+        specsContainer.appendChild(div);
+      });
+    } else {
+      specsContainer.innerHTML = '';
+      if (specsWrapper) specsWrapper.style.display = 'none';
+    }
     
     return Promise.resolve();
   }
@@ -490,6 +543,50 @@ document.addEventListener('DOMContentLoaded', function(){
       if (specsWrapper) specsWrapper.style.display = 'none';
       return;
     }
+    
+    // CRITICAL: Check if category is accessory - NEVER show phone specs for accessories
+    const categoryOption = categorySelect.options[categorySelect.selectedIndex];
+    const categoryName = categoryOption ? categoryOption.text.toLowerCase() : '';
+    const normalizedCategoryName = categoryName.toLowerCase().trim();
+    const accessoryCategories = ['accessory', 'accessories'];
+    const isAccessoryCategory = accessoryCategories.includes(normalizedCategoryName);
+    
+    // Phone-specific spec names that should NEVER appear for accessories
+    const phoneSpecNames = ['storage', 'ram', 'battery_health', 'imei', 'model', 'network'];
+    
+    if (isAccessoryCategory) {
+      // For accessories, show generic accessory specs instead of phone specs
+      console.log('Category is accessory - showing generic accessory specs instead of phone specs');
+      if (specsWrapper) specsWrapper.style.display = 'block';
+      specsContainer.innerHTML = '';
+      
+      // Show generic accessory specs
+      const accessorySpecs = [
+        { name: 'type', label: 'Type', type: 'text', placeholder: 'e.g., Charger, Case, Screen Protector' },
+        { name: 'color', label: 'Color', type: 'text', placeholder: 'e.g., Black, White, Blue' },
+        { name: 'compatibility', label: 'Compatibility', type: 'text', placeholder: 'e.g., iPhone 12, Samsung Galaxy S21' }
+      ];
+      
+      accessorySpecs.forEach(field => {
+        const div = document.createElement('div');
+        div.classList.add('mb-4');
+        const existingValue = existingSpecs && existingSpecs[field.name] ? existingSpecs[field.name] : '';
+        div.innerHTML = `
+          <label class="block text-sm font-medium text-gray-700 mb-1">${field.label}</label>
+          <input type="${field.type}" 
+                 name="specs[${field.name}]" 
+                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                 placeholder="${field.placeholder}"
+                 value="${existingValue || ''}">
+        `;
+        specsContainer.appendChild(div);
+      });
+      return; // Exit early, don't fetch brand specs
+    }
+    
+    // Check if this is a phone category
+    const phoneCategories = ['phone', 'phones', 'smartphone', 'smartphones', 'mobile', 'mobiles'];
+    const isPhoneCategory = phoneCategories.includes(normalizedCategoryName);
     
     // Try multiple API endpoints
     const apiEndpoints = [
@@ -521,6 +618,20 @@ document.addEventListener('DOMContentLoaded', function(){
       }
     }
     
+    // Filter out phone-specific specs if category is NOT phone
+    if (!isPhoneCategory && fields && fields.length > 0) {
+      fields = fields.filter(field => {
+        const fieldName = (field.name || '').toLowerCase();
+        return !phoneSpecNames.includes(fieldName);
+      });
+      
+      if (fields.length === 0) {
+        console.log('All specs were phone-specific and filtered out for non-phone category');
+        if (specsWrapper) specsWrapper.style.display = 'none';
+        return;
+      }
+    }
+    
     if(!fields || !fields.length) {
       console.log('No brand-specific specs found for', brandName);
       if (specsWrapper) specsWrapper.style.display = 'none';
@@ -530,9 +641,8 @@ document.addEventListener('DOMContentLoaded', function(){
     // Show specs wrapper
     if (specsWrapper) specsWrapper.style.display = 'block';
     
-    // Get existing product specs for edit mode
-    const existingSpecs = <?= isset($product) && !empty($product['specs']) ? json_encode($product['specs']) : 'null' ?>;
-    console.log('Existing specs:', existingSpecs);
+    // Use the globally stored existing specs
+    console.log('Using existing specs for brand specs:', existingSpecs);
     
     fields.forEach(field => {
       const div = document.createElement('div');
@@ -579,7 +689,18 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // If edit page has preselected values, trigger load:
   if(categorySelect.value) {
-    onCategoryChange();
+    onCategoryChange().then(() => {
+      // After category loads, if brand is already selected, trigger brand change to load specs
+      <?php if (isset($product) && !empty($product['brand_id'])): ?>
+      const selectedBrandId = '<?= $product['brand_id'] ?>';
+      if(selectedBrandId && brandSelect.value == selectedBrandId) {
+        // Small delay to ensure brand options are populated
+        setTimeout(() => {
+          onBrandChange();
+        }, 300);
+      }
+      <?php endif; ?>
+    });
   }
 });
 

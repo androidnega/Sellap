@@ -29,28 +29,75 @@ class Swap {
             $transaction_code = 'SWP-' . date('Y') . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
             
             // Get company product price and cost
-            // Try to get from products_new first (new schema), then products (old schema)
+            // Check which columns exist first to avoid SQL errors
+            $hasCostPrice = false;
+            $hasPurchasePrice = false;
+            $tableName = 'products';
+            
+            // Try to determine which table and columns exist
+            try {
+                // Check if products_new exists
+                $checkTable = $this->db->query("SHOW TABLES LIKE 'products_new'");
+                if ($checkTable->rowCount() > 0) {
+                    $tableName = 'products_new';
+                }
+                
+                // Check for cost_price column
+                $checkCol = $this->db->query("SHOW COLUMNS FROM {$tableName} LIKE 'cost_price'");
+                $hasCostPrice = $checkCol->rowCount() > 0;
+                
+                // Check for purchase_price column
+                $checkCol2 = $this->db->query("SHOW COLUMNS FROM {$tableName} LIKE 'purchase_price'");
+                $hasPurchasePrice = $checkCol2->rowCount() > 0;
+            } catch (\Exception $e) {
+                error_log("Swap create: Could not check columns - " . $e->getMessage());
+            }
+            
+            // Build SELECT query based on available columns
+            $selectCols = ['id', 'price'];
+            if ($hasCostPrice) {
+                $selectCols[] = 'cost_price';
+            }
+            $selectCols[] = 'cost'; // cost column usually exists
+            if ($hasPurchasePrice) {
+                $selectCols[] = 'purchase_price';
+            }
+            
+            $selectQuery = "SELECT " . implode(', ', $selectCols) . " FROM {$tableName} WHERE id = ? AND company_id = ?";
+            
             $companyProduct = null;
             try {
-                $stmt = $this->db->prepare("
-                    SELECT id, price, cost, cost_price, purchase_price 
-                    FROM products_new 
-                    WHERE id = ? AND company_id = ?
-                ");
+                $stmt = $this->db->prepare($selectQuery);
                 $stmt->execute([$data['company_product_id'], $data['company_id']]);
                 $companyProduct = $stmt->fetch(PDO::FETCH_ASSOC);
             } catch (\Exception $e) {
-                // products_new doesn't exist, try products table
-            }
-            
-            if (!$companyProduct) {
-                $stmt = $this->db->prepare("
-                    SELECT id, price, cost, cost_price, purchase_price 
-                    FROM products 
-                    WHERE id = ? AND company_id = ?
-                ");
-                $stmt->execute([$data['company_product_id'], $data['company_id']]);
-                $companyProduct = $stmt->fetch(PDO::FETCH_ASSOC);
+                error_log("Swap create: Error fetching from {$tableName} - " . $e->getMessage());
+                // Try products table if products_new failed
+                if ($tableName === 'products_new') {
+                    try {
+                        // Re-check columns for products table
+                        $checkCol = $this->db->query("SHOW COLUMNS FROM products LIKE 'cost_price'");
+                        $hasCostPrice = $checkCol->rowCount() > 0;
+                        $checkCol2 = $this->db->query("SHOW COLUMNS FROM products LIKE 'purchase_price'");
+                        $hasPurchasePrice = $checkCol2->rowCount() > 0;
+                        
+                        $selectCols = ['id', 'price'];
+                        if ($hasCostPrice) {
+                            $selectCols[] = 'cost_price';
+                        }
+                        $selectCols[] = 'cost';
+                        if ($hasPurchasePrice) {
+                            $selectCols[] = 'purchase_price';
+                        }
+                        
+                        $selectQuery = "SELECT " . implode(', ', $selectCols) . " FROM products WHERE id = ? AND company_id = ?";
+                        $stmt = $this->db->prepare($selectQuery);
+                        $stmt->execute([$data['company_product_id'], $data['company_id']]);
+                        $companyProduct = $stmt->fetch(PDO::FETCH_ASSOC);
+                    } catch (\Exception $e2) {
+                        error_log("Swap create: Error fetching from products table - " . $e2->getMessage());
+                    }
+                }
             }
             
             if (!$companyProduct) {
@@ -71,11 +118,11 @@ class Swap {
                 error_log("Swap create: No cost found for product ID {$data['company_product_id']}, using 70% estimate");
             }
             
-            // Calculate total value (company product price is what customer pays)
-            // Customer gives: estimated_value + added_cash
-            // Customer gets: company_product price
-            // Total value = company product price (what the swap is worth)
-            $total_value = $companyProduct['price'];
+            // Calculate total value - for swaps, revenue is only the cash top-up amount
+            // The swapped item (phone) needs to be resold to realize its value
+            // Total value = added_cash (cash top-up) - this is the immediate revenue
+            // When the swapped item is resold, total_value will be updated to include resale value
+            $total_value = $data['added_cash'] ?? 0;
             
             // Create customer product record
             // Check if resell_price column exists
@@ -805,6 +852,7 @@ class Swap {
     public function find($id, $company_id) {
         // Build query dynamically based on available columns
         $hasCompanyProductId = $this->swapsHasColumn('company_product_id');
+        $hasNewPhoneId = $this->swapsHasColumn('new_phone_id');
         $hasHandledBy = $this->swapsHasColumn('handled_by');
         $hasCreatedByUserId = $this->swapsHasColumn('created_by_user_id');
         $hasCreatedBy = $this->swapsHasColumn('created_by');
@@ -882,23 +930,85 @@ class Swap {
             if ($hasSaleIdColumns) {
                 $profitSelect = "spl.company_product_cost, spl.customer_phone_value,
                        spl.amount_added_by_customer, spl.profit_estimate, spl.final_profit,
-                       spl.status as profit_status, spl.company_item_sale_id, spl.customer_item_sale_id,";
+                       spl.status as profit_status, spl.company_item_sale_id, spl.customer_item_sale_id";
             } else {
                 $profitSelect = "spl.company_product_cost, spl.customer_phone_value,
                        spl.amount_added_by_customer, spl.profit_estimate, spl.final_profit,
-                       spl.status as profit_status, NULL as company_item_sale_id, NULL as customer_item_sale_id,";
+                       spl.status as profit_status, NULL as company_item_sale_id, NULL as customer_item_sale_id";
             }
         } else {
             $profitSelect = "NULL as company_product_cost, NULL as customer_phone_value,
                    NULL as amount_added_by_customer, NULL as profit_estimate, NULL as final_profit,
-                   NULL as profit_status, NULL as company_item_sale_id, NULL as customer_item_sale_id,";
+                   NULL as profit_status, NULL as company_item_sale_id, NULL as customer_item_sale_id";
+        }
+        
+        // Check if products table has IMEI and condition columns for find method
+        $hasCompanyImei = false;
+        $hasCompanyCondition = false;
+        $hasPhoneImei = false;
+        $hasPhoneCondition = false;
+        
+        if ($hasCompanyProductId) {
+            try {
+                $checkImei = $this->db->query("SHOW COLUMNS FROM {$productsTableName} LIKE 'imei'");
+                $hasCompanyImei = $checkImei->rowCount() > 0;
+                $checkCondition = $this->db->query("SHOW COLUMNS FROM {$productsTableName} LIKE 'condition'");
+                $hasCompanyCondition = $checkCondition->rowCount() > 0;
+            } catch (\Exception $e) {
+                // Columns don't exist or table check failed
+            }
+        }
+        
+        // Also check phones table (for old schema with new_phone_id)
+        try {
+            $checkPhoneImei = $this->db->query("SHOW COLUMNS FROM phones LIKE 'imei'");
+            $hasPhoneImei = $checkPhoneImei->rowCount() > 0;
+            $checkPhoneCondition = $this->db->query("SHOW COLUMNS FROM phones LIKE 'phone_condition'");
+            $hasPhoneCondition = $checkPhoneCondition->rowCount() > 0;
+        } catch (\Exception $e) {
+            // Columns don't exist or table check failed
+        }
+        
+        // Build IMEI and condition selects - check both products and phones tables
+        if ($hasCompanyImei) {
+            $companyImeiSelect = "sp.imei as company_imei,";
+        } elseif ($hasPhoneImei) {
+            $companyImeiSelect = "ph.imei as company_imei,";
+        } else {
+            $companyImeiSelect = "NULL as company_imei,";
+        }
+        
+        if ($hasCompanyCondition) {
+            $companyConditionSelect = "sp.condition as company_condition,";
+        } elseif ($hasPhoneCondition) {
+            $companyConditionSelect = "ph.phone_condition as company_condition,";
+        } else {
+            $companyConditionSelect = "NULL as company_condition,";
+        }
+        
+        // Also get individual spec fields from product_specs table for find method
+        // Use individual SELECTs instead of JSON_OBJECTAGG for MySQL compatibility
+        $specsFromTableSelect = "";
+        if ($hasCompanyProductId) {
+            $specsFromTableSelect = "(SELECT spec_value FROM product_specs WHERE product_id = sp.id AND spec_key = 'storage' LIMIT 1) as company_spec_storage,
+                   (SELECT spec_value FROM product_specs WHERE product_id = sp.id AND spec_key = 'ram' LIMIT 1) as company_spec_ram,
+                   (SELECT spec_value FROM product_specs WHERE product_id = sp.id AND spec_key = 'color' LIMIT 1) as company_spec_color,
+                   (SELECT spec_value FROM product_specs WHERE product_id = sp.id AND spec_key = 'battery' LIMIT 1) as company_spec_battery,";
+        } else {
+            $specsFromTableSelect = "NULL as company_spec_storage,
+                   NULL as company_spec_ram,
+                   NULL as company_spec_color,
+                   NULL as company_spec_battery,";
         }
         
         $sql = "
             SELECT s.*, 
                    " . ($hasCompanyProductId ? "sp.name as company_product_name, sp.price as company_product_price," : "NULL as company_product_name, NULL as company_product_price,") . "
                    " . ($hasCompanyProductId ? "sp.specs as company_specs_json," : "NULL as company_specs_json,") . "
-                   " . ($hasBrandId ? "COALESCE(b.name, '') as company_brand," : "NULL as company_brand,") . "
+                   {$specsFromTableSelect}
+                   " . (($hasCompanyProductId && $hasBrandId) ? "COALESCE(b.name, '') as company_brand," : "NULL as company_brand,") . "
+                   {$companyImeiSelect}
+                   {$companyConditionSelect}
                    si.brand as customer_product_brand, si.model as customer_product_model,
                    si.imei as customer_imei, si.condition as customer_condition,
                    si.estimated_value as customer_product_value, si.resell_price,
@@ -910,9 +1020,10 @@ class Swap {
                    {$profitSelect}
             FROM swaps s
             " . ($hasCompanyProductId ? "LEFT JOIN {$productsTableName} sp ON s.company_product_id = sp.id" : "") . "
-            " . ($hasBrandId ? "LEFT JOIN brands b ON sp.brand_id = b.id" : "") . "
+            " . ($hasNewPhoneId ? "LEFT JOIN phones ph ON s.new_phone_id = ph.id" : "") . "
+            " . (($hasCompanyProductId && $hasBrandId) ? "LEFT JOIN brands b ON sp.brand_id = b.id" : "") . "
             LEFT JOIN swapped_items si ON s.id = si.swap_id
-            LEFT JOIN swap_profit_links spl ON s.id = spl.swap_id
+            " . ($hasProfitLinksTable ? "LEFT JOIN swap_profit_links spl ON s.id = spl.swap_id" : "") . "
             " . ($userRefCol ? "LEFT JOIN users u ON s.{$userRefCol} = u.id" : "") . "
             LEFT JOIN customers c ON s.customer_id = c.id
             WHERE s.id = ? AND s.company_id = ?
@@ -1063,23 +1174,173 @@ class Swap {
             $cashReceivedSelect = "COALESCE(" . ($hasDifferencePaid ? "-s.difference_paid_by_company" : "0") . ", 0) as added_cash,";
         }
         
+        // Remove trailing commas from select variables and ensure proper formatting
+        $transactionCodeSelect = rtrim(trim($transactionCodeSelect), ',');
+        $productNameSelect = rtrim(trim($productNameSelect), ',');
+        $productPriceSelect = rtrim(trim($productPriceSelect), ',');
+        $totalValueSelect = rtrim(trim($totalValueSelect), ',');
+        $cashReceivedSelect = rtrim(trim($cashReceivedSelect), ',');
+        $profitSelect = trim($profitSelect); // profitSelect doesn't have trailing comma
+        
+        // Build the SELECT clause with proper comma handling
+        $selectFields = [];
+        
+        // Add s.* first
+        $selectFields[] = 's.*';
+        
+        // Add other fields only if they're not empty
+        if (!empty($transactionCodeSelect)) {
+            $selectFields[] = $transactionCodeSelect;
+        }
+        if (!empty($productNameSelect)) {
+            $selectFields[] = $productNameSelect;
+        }
+        if (!empty($productPriceSelect)) {
+            $selectFields[] = $productPriceSelect;
+        }
+        if (!empty($totalValueSelect)) {
+            $selectFields[] = $totalValueSelect;
+        }
+        if (!empty($cashReceivedSelect)) {
+            $selectFields[] = $cashReceivedSelect;
+        }
+        
+        // Add conditional fields
+        // For specs: try to get from JSON column first, then from product_specs table
+        // Use GROUP_CONCAT instead of JSON_OBJECTAGG for MySQL compatibility
+        if ($hasCompanyProductId) {
+            $selectFields[] = "sp.specs as company_specs_json";
+            // Get individual spec fields from product_specs table
+            $selectFields[] = "(SELECT spec_value FROM product_specs WHERE product_id = sp.id AND spec_key = 'storage' LIMIT 1) as company_spec_storage";
+            $selectFields[] = "(SELECT spec_value FROM product_specs WHERE product_id = sp.id AND spec_key = 'ram' LIMIT 1) as company_spec_ram";
+            $selectFields[] = "(SELECT spec_value FROM product_specs WHERE product_id = sp.id AND spec_key = 'color' LIMIT 1) as company_spec_color";
+            $selectFields[] = "(SELECT spec_value FROM product_specs WHERE product_id = sp.id AND spec_key = 'battery' LIMIT 1) as company_spec_battery";
+        } elseif ($hasNewPhoneId) {
+            // For old schema with new_phone_id, try to find matching product by brand/model
+            // and get its specs from product_specs table or specs JSON column
+            $selectFields[] = "(SELECT p.specs 
+                                FROM products p 
+                                WHERE p.company_id = s.company_id 
+                                AND p.brand_id = (SELECT id FROM brands WHERE name = ph.brand LIMIT 1)
+                                AND (p.name LIKE CONCAT('%', ph.model, '%') OR p.model_name = ph.model)
+                                LIMIT 1) as company_specs_json";
+            // Get individual spec fields from product_specs table for matching product
+            $selectFields[] = "(SELECT ps.spec_value 
+                                FROM product_specs ps 
+                                INNER JOIN products p ON ps.product_id = p.id 
+                                WHERE p.company_id = s.company_id 
+                                AND p.brand_id = (SELECT id FROM brands WHERE name = ph.brand LIMIT 1)
+                                AND (p.name LIKE CONCAT('%', ph.model, '%') OR p.model_name = ph.model)
+                                AND ps.spec_key = 'storage'
+                                LIMIT 1) as company_spec_storage";
+            $selectFields[] = "(SELECT ps.spec_value 
+                                FROM product_specs ps 
+                                INNER JOIN products p ON ps.product_id = p.id 
+                                WHERE p.company_id = s.company_id 
+                                AND p.brand_id = (SELECT id FROM brands WHERE name = ph.brand LIMIT 1)
+                                AND (p.name LIKE CONCAT('%', ph.model, '%') OR p.model_name = ph.model)
+                                AND ps.spec_key = 'ram'
+                                LIMIT 1) as company_spec_ram";
+            $selectFields[] = "(SELECT ps.spec_value 
+                                FROM product_specs ps 
+                                INNER JOIN products p ON ps.product_id = p.id 
+                                WHERE p.company_id = s.company_id 
+                                AND p.brand_id = (SELECT id FROM brands WHERE name = ph.brand LIMIT 1)
+                                AND (p.name LIKE CONCAT('%', ph.model, '%') OR p.model_name = ph.model)
+                                AND ps.spec_key = 'color'
+                                LIMIT 1) as company_spec_color";
+            $selectFields[] = "(SELECT ps.spec_value 
+                                FROM product_specs ps 
+                                INNER JOIN products p ON ps.product_id = p.id 
+                                WHERE p.company_id = s.company_id 
+                                AND p.brand_id = (SELECT id FROM brands WHERE name = ph.brand LIMIT 1)
+                                AND (p.name LIKE CONCAT('%', ph.model, '%') OR p.model_name = ph.model)
+                                AND ps.spec_key = 'battery'
+                                LIMIT 1) as company_spec_battery";
+        } else {
+            $selectFields[] = "NULL as company_specs_json";
+            $selectFields[] = "NULL as company_spec_storage";
+            $selectFields[] = "NULL as company_spec_ram";
+            $selectFields[] = "NULL as company_spec_color";
+            $selectFields[] = "NULL as company_spec_battery";
+        }
+        $selectFields[] = (($hasCompanyProductId && $hasBrandId) ? "COALESCE(b.name, ph.brand, '') as company_brand" : ($hasNewPhoneId ? "COALESCE(ph.brand, '') as company_brand" : "NULL as company_brand"));
+        
+        // Check if products table has IMEI and condition columns
+        $hasCompanyImei = false;
+        $hasCompanyCondition = false;
+        $hasPhoneImei = false;
+        $hasPhoneCondition = false;
+        
+        if ($hasCompanyProductId) {
+            try {
+                $checkImei = $this->db->query("SHOW COLUMNS FROM {$productsTableName} LIKE 'imei'");
+                $hasCompanyImei = $checkImei->rowCount() > 0;
+                $checkCondition = $this->db->query("SHOW COLUMNS FROM {$productsTableName} LIKE 'condition'");
+                $hasCompanyCondition = $checkCondition->rowCount() > 0;
+            } catch (\Exception $e) {
+                // Columns don't exist or table check failed
+            }
+        }
+        
+        // Also check phones table if new_phone_id exists
+        if ($hasNewPhoneId) {
+            try {
+                $checkPhoneImei = $this->db->query("SHOW COLUMNS FROM phones LIKE 'imei'");
+                $hasPhoneImei = $checkPhoneImei->rowCount() > 0;
+                $checkPhoneCondition = $this->db->query("SHOW COLUMNS FROM phones LIKE 'phone_condition'");
+                $hasPhoneCondition = $checkPhoneCondition->rowCount() > 0;
+            } catch (\Exception $e) {
+                // Columns don't exist or table check failed
+            }
+        }
+        
+        // Add company product IMEI and condition - check both products and phones tables
+        if ($hasCompanyImei) {
+            $selectFields[] = "sp.imei as company_imei";
+        } elseif ($hasPhoneImei) {
+            $selectFields[] = "ph.imei as company_imei";
+        } else {
+            $selectFields[] = "NULL as company_imei";
+        }
+        
+        if ($hasCompanyCondition) {
+            $selectFields[] = "sp.condition as company_condition";
+        } elseif ($hasPhoneCondition) {
+            $selectFields[] = "ph.phone_condition as company_condition";
+        } else {
+            $selectFields[] = "NULL as company_condition";
+        }
+        
+        // Add swapped_items fields
+        $selectFields[] = "si.brand as customer_product_brand";
+        $selectFields[] = "si.model as customer_product_model";
+        $selectFields[] = "si.imei as customer_imei";
+        $selectFields[] = "si.condition as customer_condition";
+        $selectFields[] = "si.estimated_value as customer_product_value";
+        $selectFields[] = "si.resell_price";
+        $selectFields[] = "si.status as resale_status";
+        $selectFields[] = "si.notes as customer_notes";
+        $selectFields[] = "si.inventory_product_id";
+        
+        // Add user and customer fields
+        $selectFields[] = ($userRefCol ? "u.full_name as handled_by_name" : "NULL as handled_by_name");
+        $selectFields[] = "c.full_name as customer_name_from_table";
+        
+        // Add profit select fields if not empty
+        if (!empty($profitSelect)) {
+            // Split profit select by comma and add each field
+            $profitFields = array_map('trim', explode(',', $profitSelect));
+            $selectFields = array_merge($selectFields, $profitFields);
+        }
+        
+        // Filter out empty fields
+        $selectFields = array_filter($selectFields, function($field) {
+            return !empty(trim($field));
+        });
+        
         $sql = "
-            SELECT s.*,
-                   {$transactionCodeSelect}
-                   {$productNameSelect}
-                   {$productPriceSelect}
-                   {$totalValueSelect}
-                   {$cashReceivedSelect}
-                   " . ($hasCompanyProductId ? "sp.specs as company_specs_json," : "NULL as company_specs_json,") . "
-                   " . (($hasCompanyProductId && $hasBrandId) ? "COALESCE(b.name, ph.brand, '') as company_brand," : ($hasNewPhoneId ? "COALESCE(ph.brand, '') as company_brand," : "NULL as company_brand,")) . "
-                   si.brand as customer_product_brand, si.model as customer_product_model,
-                   si.imei as customer_imei, si.condition as customer_condition,
-                   si.estimated_value as customer_product_value, si.resell_price,
-                   si.status as resale_status, si.notes as customer_notes,
-                   si.inventory_product_id,
-                   " . ($userRefCol ? "u.full_name as handled_by_name," : "NULL as handled_by_name,") . "
-                   c.full_name as customer_name_from_table,
-                   {$profitSelect}
+            SELECT " . implode(",\n                   ", $selectFields) . "
             FROM swaps s
             " . ($hasCompanyProductId ? "LEFT JOIN {$productsTableName} sp ON s.company_product_id = sp.id" : "") . "
             " . ($hasNewPhoneId ? "LEFT JOIN phones ph ON s.new_phone_id = ph.id" : "") . "
@@ -1148,16 +1409,151 @@ class Swap {
     }
 
     /**
+     * Update swap total_value when swapped item is resold
+     * Adds the resale value to the existing total_value (which is the cash top-up)
+     */
+    public function updateTotalValueOnResale($swap_id, $resale_value) {
+        // Check if total_value column exists
+        $hasTotalValue = false;
+        try {
+            $checkCol = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'total_value'");
+            $hasTotalValue = $checkCol->rowCount() > 0;
+        } catch (\Exception $e) {
+            $hasTotalValue = false;
+        }
+        
+        if (!$hasTotalValue) {
+            error_log("Swap updateTotalValueOnResale: total_value column does not exist");
+            return false;
+        }
+        
+        // Check which cash column exists
+        $checkAddedCash = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'added_cash'");
+        $checkCashAdded = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'cash_added'");
+        $checkFinalPrice = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'final_price'");
+        $checkGivenPhoneValue = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'given_phone_value'");
+        
+        $hasAddedCash = $checkAddedCash->rowCount() > 0;
+        $hasCashAdded = $checkCashAdded->rowCount() > 0;
+        $hasFinalPrice = $checkFinalPrice->rowCount() > 0;
+        $hasGivenPhoneValue = $checkGivenPhoneValue->rowCount() > 0;
+        
+        // Build SELECT query with appropriate cash column or calculate from final_price - given_phone_value
+        $cashColumn = null;
+        $calculateCash = false;
+        
+        if ($hasAddedCash) {
+            $cashColumn = 'added_cash';
+        } elseif ($hasCashAdded) {
+            $cashColumn = 'cash_added';
+        } elseif ($hasFinalPrice && $hasGivenPhoneValue) {
+            // Calculate cash from final_price - given_phone_value
+            $calculateCash = true;
+        } else {
+            error_log("Swap updateTotalValueOnResale: No cash column found (checked added_cash, cash_added, and final_price/given_phone_value)");
+            return false;
+        }
+        
+        // Get current total_value and cash value
+        if ($calculateCash) {
+            // Calculate cash from final_price - given_phone_value
+            // Only select total_value if it exists
+            $stmt = $this->db->prepare("SELECT " . ($hasTotalValue ? "total_value, " : "") . "final_price, given_phone_value FROM swaps WHERE id = ?");
+            $stmt->execute([$swap_id]);
+            $swap = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$swap) {
+                error_log("Swap updateTotalValueOnResale: Swap not found for ID: {$swap_id}");
+                return false;
+            }
+            
+            $finalPrice = floatval($swap['final_price'] ?? 0);
+            $givenPhoneValue = floatval($swap['given_phone_value'] ?? 0);
+            $addedCash = max(0, $finalPrice - $givenPhoneValue); // Cash top-up = final_price - given_phone_value
+            $currentTotalValue = $hasTotalValue ? floatval($swap['total_value'] ?? 0) : 0;
+        } else {
+            // Use existing cash column
+            // Only select total_value if it exists
+            $stmt = $this->db->prepare("SELECT " . ($hasTotalValue ? "total_value, " : "") . "{$cashColumn} as added_cash FROM swaps WHERE id = ?");
+            $stmt->execute([$swap_id]);
+            $swap = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$swap) {
+                error_log("Swap updateTotalValueOnResale: Swap not found for ID: {$swap_id}");
+                return false;
+            }
+            
+            $addedCash = floatval($swap['added_cash'] ?? 0);
+            $currentTotalValue = $hasTotalValue ? floatval($swap['total_value'] ?? 0) : 0;
+        }
+        
+        // Determine the correct base value (cash top-up)
+        // If current total_value is 0 or doesn't match added_cash, use added_cash as base
+        // This handles cases where old swaps might have different total_value
+        // Also check if currentTotalValue is much larger than addedCash (old swap format with full product price)
+        if ($addedCash > 0) {
+            if ($currentTotalValue == 0) {
+                // No total_value set, use added_cash as base
+                $currentTotalValue = $addedCash;
+            } elseif ($currentTotalValue > ($addedCash * 1.5)) {
+                // Current total_value is much larger than added_cash (likely old swap format)
+                // Use added_cash as base instead
+                $currentTotalValue = $addedCash;
+                error_log("Swap updateTotalValueOnResale: Detected old swap format for swap #{$swap_id} - using added_cash ({$addedCash}) as base instead of total_value ({$currentTotalValue})");
+            } elseif (abs($currentTotalValue - $addedCash) > 0.01) {
+                // total_value doesn't match added_cash closely, but it's not an old format
+                // Check if this swap has already been resold (total_value should be added_cash + previous resale)
+                // If not resold yet, use added_cash as base to ensure accuracy
+                $checkResold = $this->db->prepare("SELECT COUNT(*) as count FROM swapped_items WHERE swap_id = ? AND status = 'sold'");
+                $checkResold->execute([$swap_id]);
+                $resoldCount = $checkResold->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
+                
+                if ($resoldCount == 0) {
+                    // Not resold yet, so total_value should equal added_cash
+                    // Use added_cash as base
+                    $currentTotalValue = $addedCash;
+                    error_log("Swap updateTotalValueOnResale: Swap #{$swap_id} not resold yet but total_value ({$currentTotalValue}) doesn't match added_cash ({$addedCash}) - using added_cash as base");
+                }
+                // If already resold, keep currentTotalValue as it may include previous resale value
+            }
+        } elseif ($currentTotalValue == 0) {
+            // No added_cash and no total_value - this shouldn't happen, but log it
+            error_log("Swap updateTotalValueOnResale: Warning - swap #{$swap_id} has no added_cash and no total_value");
+        }
+        
+        // Update total_value to include both cash top-up and resale value
+        $newTotalValue = $currentTotalValue + floatval($resale_value);
+        
+        $updateStmt = $this->db->prepare("
+            UPDATE swaps SET total_value = ? WHERE id = ?
+        ");
+        
+        $result = $updateStmt->execute([$newTotalValue, $swap_id]);
+        
+        if ($result) {
+            error_log("Swap updateTotalValueOnResale: Updated swap #{$swap_id} total_value from {$currentTotalValue} to {$newTotalValue} (added resale value: {$resale_value})");
+        } else {
+            error_log("Swap updateTotalValueOnResale: Failed to update swap #{$swap_id}");
+        }
+        
+        return $result;
+    }
+
+    /**
      * Get swap statistics
      */
     public function getStats($company_id) {
-        // Check if total_value column exists
+        // Check which revenue column exists (total_value, final_price, or company_product_id)
         $hasTotalValue = $this->swapsHasColumn('total_value');
+        $hasFinalPrice = $this->swapsHasColumn('final_price');
         $hasCompanyProductId = $this->swapsHasColumn('company_product_id');
         
         // Build total_value calculation
         if ($hasTotalValue) {
             $totalValueSelect = "SUM(COALESCE(s.total_value, 0)) as total_value,";
+        } elseif ($hasFinalPrice) {
+            // Use final_price column if it exists
+            $totalValueSelect = "SUM(COALESCE(s.final_price, 0)) as total_value,";
         } elseif ($hasCompanyProductId) {
             // If total_value doesn't exist, use company product price
             $totalValueSelect = "SUM(COALESCE(sp.price, 0)) as total_value,";
@@ -1168,14 +1564,45 @@ class Swap {
         // Check if added_cash column exists
         $hasAddedCash = $this->swapsHasColumn('added_cash');
         $hasCashAdded = $this->swapsHasColumn('cash_added');
+        $hasDifferencePaid = $this->swapsHasColumn('difference_paid_by_company');
         
         // Build cash received calculation
+        // Only sum positive values - this is cash customers added to their phone value
         if ($hasAddedCash) {
-            $cashReceivedSelect = "SUM(COALESCE(s.added_cash, 0)) as total_cash_received,";
+            $cashReceivedSelect = "SUM(CASE WHEN s.added_cash > 0 THEN s.added_cash ELSE 0 END) as total_cash_received,";
         } elseif ($hasCashAdded) {
-            $cashReceivedSelect = "SUM(COALESCE(s.cash_added, 0)) as total_cash_received,";
+            $cashReceivedSelect = "SUM(CASE WHEN s.cash_added > 0 THEN s.cash_added ELSE 0 END) as total_cash_received,";
+        } elseif ($hasDifferencePaid) {
+            // If company paid difference, that means customer didn't add cash (negative cash received)
+            $cashReceivedSelect = "SUM(CASE WHEN s.difference_paid_by_company > 0 THEN 0 ELSE 0 END) as total_cash_received,";
         } else {
             $cashReceivedSelect = "0 as total_cash_received,";
+        }
+        
+        // Check which status column exists
+        $hasStatus = $this->swapsHasColumn('status');
+        $hasSwapStatus = $this->swapsHasColumn('swap_status');
+        
+        // Build status calculations
+        if ($hasStatus) {
+            $pendingSelect = "SUM(CASE WHEN s.status = 'pending' OR s.status IS NULL THEN 1 ELSE 0 END) as pending_swaps,";
+            $completedSelect = "SUM(CASE WHEN s.status = 'completed' THEN 1 ELSE 0 END) as completed_swaps,";
+            $resoldSelect = "SUM(CASE WHEN s.status = 'resold' THEN 1 ELSE 0 END) as resold_swaps,";
+            $profitSelect = "SUM(CASE WHEN s.status = 'resold' THEN 
+                    (SELECT final_profit FROM swap_profit_links WHERE swap_id = s.id) 
+                    ELSE 0 END) as total_profit";
+        } elseif ($hasSwapStatus) {
+            $pendingSelect = "SUM(CASE WHEN UPPER(s.swap_status) = 'PENDING' OR s.swap_status IS NULL THEN 1 ELSE 0 END) as pending_swaps,";
+            $completedSelect = "SUM(CASE WHEN UPPER(s.swap_status) = 'COMPLETED' THEN 1 ELSE 0 END) as completed_swaps,";
+            $resoldSelect = "SUM(CASE WHEN UPPER(s.swap_status) = 'RESOLD' THEN 1 ELSE 0 END) as resold_swaps,";
+            $profitSelect = "SUM(CASE WHEN UPPER(s.swap_status) = 'RESOLD' THEN 
+                    (SELECT final_profit FROM swap_profit_links WHERE swap_id = s.id) 
+                    ELSE 0 END) as total_profit";
+        } else {
+            $pendingSelect = "0 as pending_swaps,";
+            $completedSelect = "0 as completed_swaps,";
+            $resoldSelect = "0 as resold_swaps,";
+            $profitSelect = "0 as total_profit";
         }
         
         $joinClause = $hasCompanyProductId ? "LEFT JOIN products sp ON s.company_product_id = sp.id" : "";
@@ -1183,21 +1610,19 @@ class Swap {
         $sql = "
             SELECT 
                 COUNT(*) as total_swaps,
-                SUM(CASE WHEN s.status = 'pending' THEN 1 ELSE 0 END) as pending_swaps,
-                SUM(CASE WHEN s.status = 'completed' THEN 1 ELSE 0 END) as completed_swaps,
-                SUM(CASE WHEN s.status = 'resold' THEN 1 ELSE 0 END) as resold_swaps,
+                {$pendingSelect}
+                {$completedSelect}
+                {$resoldSelect}
                 {$totalValueSelect}
                 {$cashReceivedSelect}
-                SUM(CASE WHEN s.status = 'resold' THEN 
-                    (SELECT final_profit FROM swap_profit_links WHERE swap_id = s.id) 
-                    ELSE 0 END) as total_profit
+                {$profitSelect}
             FROM swaps s
             {$joinClause}
             WHERE s.company_id = ?
         ";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$company_id]);
-        return $stmt->fetch(\PDO::FETCH_ASSOC);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     /**

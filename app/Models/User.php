@@ -13,7 +13,7 @@ class User {
     public function __construct() {
         try {
             $this->conn = \Database::getInstance()->getConnection();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             throw new \Exception('Database connection failed: ' . $e->getMessage());
         }
     }

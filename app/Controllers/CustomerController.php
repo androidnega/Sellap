@@ -259,7 +259,7 @@ class CustomerController {
                 'data' => $customers,
                 'count' => count($customers)
             ]);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode([
                 'success' => false,
@@ -478,7 +478,7 @@ class CustomerController {
                     'error' => 'Failed to create customer'
                 ]);
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode([
                 'success' => false,
@@ -570,7 +570,7 @@ class CustomerController {
                 'success' => true,
                 'data' => $customer
             ]);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode([
                 'success' => false,
@@ -708,29 +708,78 @@ class CustomerController {
                 $costCol = in_array('cost', $columns) ? 'cost' : 
                           (in_array('total_cost', $columns) ? 'total_cost' : 
                           (in_array('repair_cost', $columns) ? 'repair_cost' : '0'));
+                $issueCol = in_array('issue_description', $columns) ? 'issue_description' : 
+                           (in_array('issue', $columns) ? 'issue' : null);
+                $hasCustomerName = in_array('customer_name', $columns);
+                $hasCustomerContact = in_array('customer_contact', $columns);
                 
                 $deviceSelect = $deviceCol ? "COALESCE({$deviceCol}, 'Device')" : "'Device'";
                 $costSelect = $costCol !== '0' ? "COALESCE({$costCol}, 0)" : "0";
+                $issueSelect = $issueCol ? "COALESCE({$issueCol}, 'Repair service')" : "'Repair service'";
+                
+                // Build WHERE clause to match by customer_id OR customer_contact/phone
+                $whereParams = [$companyId];
+                $customerMatchConditions = [];
+                
+                // Match by customer_id if column exists
+                if (in_array('customer_id', $columns)) {
+                    $customerMatchConditions[] = "r.customer_id = ?";
+                    $whereParams[] = $id;
+                }
+                
+                // Also match by customer_contact/phone for repairs where customer_id might be NULL
+                if ($customerPhone) {
+                    if ($hasCustomerContact) {
+                        $customerMatchConditions[] = "r.customer_contact = ?";
+                        $whereParams[] = $customerPhone;
+                    }
+                }
+                
+                // Build WHERE clause: company_id must match AND (customer_id OR customer_contact matches)
+                if (!empty($customerMatchConditions)) {
+                    $whereClause = "r.company_id = ? AND (" . implode(" OR ", $customerMatchConditions) . ")";
+                } else {
+                    // Fallback if no customer matching columns exist
+                    $whereClause = "r.company_id = ?";
+                }
+                
+                // Build SELECT with customer_name and customer_contact
+                $selectFields = [
+                    "r.id",
+                    "{$deviceSelect} as device_info",
+                    "{$costSelect} as cost",
+                    "r.status",
+                    "{$issueSelect} as issue",
+                    "r.created_at"
+                ];
+                
+                if ($hasCustomerName) {
+                    $selectFields[] = "r.customer_name";
+                }
+                if ($hasCustomerContact) {
+                    $selectFields[] = "r.customer_contact";
+                }
+                
+                $selectClause = implode(", ", $selectFields);
                 
                 $repairsStmt = $db->prepare("
                     SELECT 
-                        id,
-                        {$deviceSelect} as device_info,
-                        {$costSelect} as cost,
-                        status,
-                        issue,
-                        created_at
-                    FROM {$repairsTable}
-                    WHERE customer_id = ? AND company_id = ?
-                    ORDER BY created_at DESC
+                        {$selectClause}
+                    FROM {$repairsTable} r
+                    WHERE {$whereClause}
+                    ORDER BY r.created_at DESC
                     LIMIT 100
                 ");
-                $repairsStmt->execute([$id, $companyId]);
+                $repairsStmt->execute($whereParams);
                 $repairs = $repairsStmt->fetchAll(\PDO::FETCH_ASSOC);
                 
                 foreach ($repairs as $repair) {
                     $deviceInfo = $repair['device_info'] ?? 'Device';
                     $issue = $repair['issue'] ?? 'Repair service';
+                    
+                    // Get customer name and contact from repair record if available
+                    $repairCustomerName = $repair['customer_name'] ?? $customerName ?? 'Unknown Customer';
+                    $repairCustomerContact = $repair['customer_contact'] ?? $customerPhone ?? 'No contact';
                     
                     $history[] = [
                         'id' => $repair['id'],
@@ -743,7 +792,9 @@ class CustomerController {
                         'issue' => $issue,
                         'status' => $repair['status'] ?? 'pending',
                         'timestamp' => $repair['created_at'],
-                        'description' => $deviceInfo . ' - ' . $issue
+                        'description' => $deviceInfo . ' - ' . $issue,
+                        'customer_name' => $repairCustomerName,
+                        'customer_contact' => $repairCustomerContact
                     ];
                 }
             } catch (\Exception $e) {
@@ -940,7 +991,7 @@ class CustomerController {
                 'success' => true,
                 'count' => (int)$count
             ]);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode([
                 'success' => false,
@@ -1066,7 +1117,7 @@ class CustomerController {
                     'error' => 'Failed to update customer'
                 ]);
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode([
                 'success' => false,
@@ -1105,7 +1156,7 @@ class CustomerController {
                 http_response_code(403);
                 echo json_encode([
                     'success' => false,
-                    'error' => 'Manager delete contact permission not enabled'
+                    'error' => 'You do not have permission to delete customers. Please contact your system administrator.'
                 ]);
                 return;
             }

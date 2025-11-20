@@ -14,6 +14,13 @@ $content = '
             <h1 class="text-3xl font-bold text-gray-900">
                 <i class="fas fa-history mr-2"></i>Reset Operation History
             </h1>
+            <div class="flex items-center gap-2">
+                <button id="bulkDeleteBtn" onclick="bulkDelete()" 
+                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed hidden"
+                        disabled>
+                    <i class="fas fa-trash mr-2"></i>Delete Selected
+                </button>
+            </div>
         </div>
 
         <!-- Filters -->
@@ -185,6 +192,10 @@ function displayHistory(actions) {
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
+                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase w-12">
+                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" 
+                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    </th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Target</th>
@@ -211,6 +222,10 @@ function displayHistory(actions) {
         
         html += `
             <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 text-center">
+                    <input type="checkbox" class="action-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                           value="${action.id}" onchange="updateBulkDeleteButton()">
+                </td>
                 <td class="px-4 py-3 text-sm font-mono">#${action.id}</td>
                 <td class="px-4 py-3 text-sm">
                     ${action.action_type === "company_reset" ? 
@@ -231,10 +246,17 @@ function displayHistory(actions) {
                 <td class="px-4 py-3 text-sm text-right">${totalRows.toLocaleString()}</td>
                 <td class="px-4 py-3 text-sm text-gray-500">${new Date(action.created_at).toLocaleString()}</td>
                 <td class="px-4 py-3 text-sm text-center">
-                    <a href="${BASE}/dashboard/admin/reset/${action.id}" 
-                       class="text-blue-600 hover:text-blue-800">
-                        <i class="fas fa-eye"></i> View
-                    </a>
+                    <div class="flex items-center justify-center gap-2">
+                        <a href="${BASE}/dashboard/admin/reset/${action.id}" 
+                           class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                        <button onclick="deleteAction(${action.id})" 
+                                class="text-red-600 hover:text-red-800 ml-2"
+                                title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -246,6 +268,116 @@ function displayHistory(actions) {
     `;
     
     document.getElementById("historyTable").innerHTML = html;
+}
+
+// Toggle select all checkboxes
+function toggleSelectAll() {
+    const selectAll = document.getElementById("selectAll");
+    const checkboxes = document.querySelectorAll(".action-checkbox");
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    updateBulkDeleteButton();
+}
+
+// Update bulk delete button state
+function updateBulkDeleteButton() {
+    const checkboxes = document.querySelectorAll(".action-checkbox:checked");
+    const bulkDeleteBtn = document.getElementById("bulkDeleteBtn");
+    
+    if (checkboxes.length > 0) {
+        bulkDeleteBtn.classList.remove("hidden");
+        bulkDeleteBtn.disabled = false;
+        bulkDeleteBtn.innerHTML = `<i class="fas fa-trash mr-2"></i>Delete Selected (${checkboxes.length})`;
+    } else {
+        bulkDeleteBtn.classList.add("hidden");
+        bulkDeleteBtn.disabled = true;
+    }
+    
+    // Update select all checkbox state
+    const allCheckboxes = document.querySelectorAll(".action-checkbox");
+    const selectAll = document.getElementById("selectAll");
+    if (allCheckboxes.length > 0) {
+        selectAll.checked = checkboxes.length === allCheckboxes.length;
+    }
+}
+
+// Delete single action
+async function deleteAction(actionId) {
+    if (!confirm("Are you sure you want to delete this reset action? This action cannot be undone.")) {
+        return;
+    }
+    
+    try {
+        const token = getToken();
+        const headers = {
+            "Content-Type": "application/json"
+        };
+        if (token && !isTokenExpired(token)) {
+            headers["Authorization"] = "Bearer " + token;
+        }
+        
+        const response = await fetch(BASE + "/api/admin/reset/actions/" + actionId, {
+            method: "DELETE",
+            headers: headers,
+            credentials: "same-origin"
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert("Action deleted successfully");
+            loadHistory(); // Reload the table
+        } else {
+            alert("Error: " + (data.error || "Failed to delete action"));
+        }
+    } catch (error) {
+        alert("Error: " + error.message);
+    }
+}
+
+// Bulk delete actions
+async function bulkDelete() {
+    const checkboxes = document.querySelectorAll(".action-checkbox:checked");
+    if (checkboxes.length === 0) {
+        alert("Please select at least one action to delete");
+        return;
+    }
+    
+    const actionIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    const count = actionIds.length;
+    
+    if (!confirm(`Are you sure you want to delete ${count} reset action(s)? This action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const token = getToken();
+        const headers = {
+            "Content-Type": "application/json"
+        };
+        if (token && !isTokenExpired(token)) {
+            headers["Authorization"] = "Bearer " + token;
+        }
+        
+        const response = await fetch(BASE + "/api/admin/reset/actions/delete", {
+            method: "POST",
+            headers: headers,
+            credentials: "same-origin",
+            body: JSON.stringify({ action_ids: actionIds })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`Successfully deleted ${data.deleted_count || count} action(s)`);
+            loadHistory(); // Reload the table
+        } else {
+            alert("Error: " + (data.error || "Failed to delete actions"));
+        }
+    } catch (error) {
+        alert("Error: " + error.message);
+    }
 }
 
 // Load on page load

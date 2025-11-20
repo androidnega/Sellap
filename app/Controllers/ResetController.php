@@ -506,14 +506,43 @@ class ResetController {
 
             // For non-dry-run, require confirmation code
             if (!$dryRun) {
-                $expectedConfirm = "RESET COMPANY {$companyId}";
-                if ($confirmCode !== $expectedConfirm) {
+                // Start session if not already started
+                if (session_status() === PHP_SESSION_NONE) {
+                    session_start();
+                }
+                
+                // Check if confirmation code exists in session
+                $validCode = false;
+                if (isset($_SESSION['reset_confirm_codes'][$companyId])) {
+                    $storedCode = $_SESSION['reset_confirm_codes'][$companyId];
+                    
+                    // Check if code has expired
+                    if (isset($storedCode['expires']) && time() > $storedCode['expires']) {
+                        unset($_SESSION['reset_confirm_codes'][$companyId]);
+                    } else {
+                        // Validate the confirmation code
+                        if (isset($storedCode['code']) && $confirmCode === $storedCode['code']) {
+                            $validCode = true;
+                            // Remove code after use (one-time use)
+                            unset($_SESSION['reset_confirm_codes'][$companyId]);
+                        }
+                    }
+                }
+                
+                // Fallback to old format for backward compatibility
+                if (!$validCode) {
+                    $expectedConfirm = "RESET COMPANY {$companyId}";
+                    if ($confirmCode === $expectedConfirm) {
+                        $validCode = true;
+                    }
+                }
+                
+                if (!$validCode) {
                     ob_end_clean();
                     http_response_code(400);
                     echo json_encode([
                         'success' => false,
-                        'error' => 'Invalid confirmation code',
-                        'expected' => $expectedConfirm,
+                        'error' => 'Invalid or expired confirmation code',
                         'received' => $confirmCode
                     ]);
                     return;
@@ -714,6 +743,8 @@ class ResetController {
             $deleteFiles = $input['delete_files'] ?? false;
             $confirmCode = $input['confirm_code'] ?? null;
             $inputBackupReference = $input['backup_reference'] ?? null;
+            $preserveSettings = $input['preserve_settings'] ?? true;
+            $preserveGlobalCatalogs = $input['preserve_global_catalogs'] ?? true;
 
             // For non-dry-run, require confirmation code
             if (!$dryRun) {
@@ -756,8 +787,8 @@ class ResetController {
                     'confirm_code' => $confirmCode,
                     'delete_files' => $deleteFiles,
                     'dry_run' => $dryRun,
-                    'preserve_settings' => true, // Default preserve
-                    'preserve_global_catalogs' => true // Default preserve
+                    'preserve_settings' => $preserveSettings,
+                    'preserve_global_catalogs' => $preserveGlobalCatalogs
                 ]),
                 'status' => 'pending'
             ]);
@@ -767,15 +798,7 @@ class ResetController {
 
             // Execute reset (dry-run or real) using PHASE C signature
             $resetService = new ResetService($userId, $dryRun);
-            $result = $resetService->resetSystemData([
-                'dry_run' => $dryRun,
-                'delete_files' => $deleteFiles,
-                'admin_user_id' => $userId,
-                'backup_reference' => $backupReference,
-                'preserve_settings' => true,
-                'preserve_global_catalogs' => true,
-                'maintenance_mode' => false // TODO: Implement maintenance mode toggle
-            ]);
+            $result = $resetService->resetSystemData($preserveSettings, $preserveGlobalCatalogs, $backupReference);
 
             // Update admin action record
             $adminAction->update($actionId, [
@@ -994,6 +1017,102 @@ class ResetController {
         
         if (!$user || !password_verify($password, $user['password'])) {
             throw new \Exception("Invalid admin password");
+        }
+    }
+
+    /**
+     * Delete a single reset action
+     * DELETE /api/admin/reset/actions/{id}
+     */
+    public function deleteAction($actionId) {
+        ResetPermissionMiddleware::requireAdminActionPermission();
+        
+        try {
+            $adminActionModel = new AdminAction();
+            $action = $adminActionModel->findById($actionId);
+            
+            if (!$action) {
+                http_response_code(404);
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Action not found'
+                ]);
+                return;
+            }
+            
+            $result = $adminActionModel->delete($actionId);
+            
+            if ($result) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Action deleted successfully'
+                ]);
+            } else {
+                http_response_code(500);
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Failed to delete action'
+                ]);
+            }
+        } catch (\Exception $e) {
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Delete multiple reset actions (bulk delete)
+     * POST /api/admin/reset/actions/delete
+     */
+    public function deleteActions() {
+        ResetPermissionMiddleware::requireAdminActionPermission();
+        
+        try {
+            $input = json_decode(file_get_contents('php://input'), true);
+            $actionIds = $input['action_ids'] ?? [];
+            
+            if (empty($actionIds) || !is_array($actionIds)) {
+                http_response_code(400);
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'action_ids array is required'
+                ]);
+                return;
+            }
+            
+            $adminActionModel = new AdminAction();
+            $result = $adminActionModel->deleteMultiple($actionIds);
+            
+            if ($result) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Actions deleted successfully',
+                    'deleted_count' => count($actionIds)
+                ]);
+            } else {
+                http_response_code(500);
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Failed to delete actions'
+                ]);
+            }
+        } catch (\Exception $e) {
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 }

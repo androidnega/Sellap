@@ -245,7 +245,9 @@
         const customerProductValue = parseFloat(swapValue.value) || 0;
         const cashToAddValue = parseFloat(cashAdded.value) || 0;
         
-        const total = storeProductPrice - customerProductValue + cashToAddValue;
+        // For swaps, total value is only the cash top-up amount
+        // The swapped item (phone) will be resold later to realize its value
+        const total = cashToAddValue;
         
         // Update display
         storePrice.textContent = `₵${storeProductPrice.toFixed(2)}`;

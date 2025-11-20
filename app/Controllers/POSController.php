@@ -141,7 +141,7 @@ class POSController {
      */
     public function index() {
         // Handle web authentication
-        $user = \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson']);
+        $user = WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson']);
         
         // Get company_id from session
         $companyId = $_SESSION['user']['company_id'] ?? null;
@@ -193,7 +193,7 @@ class POSController {
      * Managers/Admins can use browser "Save as PDF" to export
      */
     public function reportPrint() {
-        \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+        WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
@@ -390,7 +390,7 @@ class POSController {
     public function apiInventoryStats() {
         // Use WebAuthMiddleware for web-based authentication
         try {
-            $payload = \App\Middleware\WebAuthMiddleware::handle(['manager', 'admin', 'system_admin']);
+            $payload = WebAuthMiddleware::handle(['manager', 'admin', 'system_admin']);
             $companyId = $payload->company_id ?? null;
         } catch (\Exception $e) {
             // Fallback to session if WebAuthMiddleware fails
@@ -481,7 +481,7 @@ class POSController {
                 
                 // Total products - try using Product model first for consistency
                 try {
-                    $productModel = new \App\Models\Product();
+                    $productModel = new Product();
                     $allCompanyProducts = $productModel->findByCompany($companyId, 10000);
                     $totalProducts = count($allCompanyProducts);
                     error_log("Inventory Stats (via Model): Found {$totalProducts} total products for company {$companyId}");
@@ -614,7 +614,7 @@ class POSController {
      */
     public function apiAuditData() {
         try {
-            $payload = \App\Middleware\WebAuthMiddleware::handle(['manager', 'admin', 'system_admin']);
+            $payload = WebAuthMiddleware::handle(['manager', 'admin', 'system_admin']);
             $companyId = $payload->company_id ?? null;
         } catch (\Exception $e) {
             if (session_status() === PHP_SESSION_NONE) {
@@ -946,22 +946,24 @@ class POSController {
                 'month_sales_count' => 0
             ];
             try {
-                // Today's revenue
+                // Today's revenue - EXCLUDE swap transactions
                 $stmt = $db->prepare("
                     SELECT COUNT(*) as count, COALESCE(SUM(final_amount), 0) as revenue
                     FROM pos_sales
                     WHERE company_id = ? AND DATE(created_at) = CURDATE()
+                    AND swap_id IS NULL
                 ");
                 $stmt->execute([$companyId]);
                 $today = $stmt->fetch(\PDO::FETCH_ASSOC);
                 $financialSummary['today_revenue'] = floatval($today['revenue'] ?? 0);
                 $financialSummary['today_sales_count'] = intval($today['count'] ?? 0);
 
-                // This month's revenue
+                // This month's revenue - EXCLUDE swap transactions
                 $stmt = $db->prepare("
                     SELECT COUNT(*) as count, COALESCE(SUM(final_amount), 0) as revenue
                     FROM pos_sales
                     WHERE company_id = ? AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())
+                    AND swap_id IS NULL
                 ");
                 $stmt->execute([$companyId]);
                 $month = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -976,13 +978,46 @@ class POSController {
                 $stmt->execute([$companyId]);
                 $financialSummary['today_repairs_count'] = intval($stmt->fetchColumn() ?? 0);
 
-                // Today's swaps
+                // Today's swaps count
                 $stmt = $db->prepare("
                     SELECT COUNT(*) as count FROM swaps
                     WHERE company_id = ? AND DATE(created_at) = CURDATE()
                 ");
                 $stmt->execute([$companyId]);
                 $financialSummary['today_swaps_count'] = intval($stmt->fetchColumn() ?? 0);
+                
+                // Today's swap revenue (cash top-up only, not including resale value until resold)
+                // Check which columns exist
+                $checkTotalValue = $db->query("SHOW COLUMNS FROM swaps LIKE 'total_value'");
+                $hasTotalValue = $checkTotalValue->rowCount() > 0;
+                $checkAddedCash = $db->query("SHOW COLUMNS FROM swaps LIKE 'added_cash'");
+                $hasAddedCash = $checkAddedCash->rowCount() > 0;
+                
+                $swapRevenue = 0;
+                if ($hasTotalValue || $hasAddedCash) {
+                    // For swaps created today, total_value should be added_cash (cash top-up)
+                    // But we need to check if the swap has been resold to include resale value
+                    if ($hasTotalValue) {
+                        // Use total_value which should be added_cash for new swaps, or added_cash + resale for resold swaps
+                        $stmt = $db->prepare("
+                            SELECT COALESCE(SUM(total_value), 0) as revenue
+                            FROM swaps
+                            WHERE company_id = ? AND DATE(created_at) = CURDATE()
+                        ");
+                        $stmt->execute([$companyId]);
+                        $swapRevenue = floatval($stmt->fetchColumn() ?? 0);
+                    } elseif ($hasAddedCash) {
+                        // Fallback to added_cash if total_value doesn't exist
+                        $stmt = $db->prepare("
+                            SELECT COALESCE(SUM(added_cash), 0) as revenue
+                            FROM swaps
+                            WHERE company_id = ? AND DATE(created_at) = CURDATE()
+                        ");
+                        $stmt->execute([$companyId]);
+                        $swapRevenue = floatval($stmt->fetchColumn() ?? 0);
+                    }
+                }
+                $financialSummary['today_swaps_revenue'] = $swapRevenue;
                 
                 // Get payment statistics if partial payments module is enabled
                 if ($this->checkModuleEnabled($companyId, 'partial_payments', $user['role'] ?? '')) {
@@ -1669,6 +1704,34 @@ class POSController {
                         throw new \Exception('SaleItem model not properly initialized');
                     }
                     
+                    // Check if this is a swapped item being resold
+                    $isSwappedItem = false;
+                    if (isset($item['product_id'])) {
+                        try {
+                            $product = $this->product->find($item['product_id'], $companyId);
+                            if ($product) {
+                                $isSwappedItem = isset($product['is_swapped_item']) && ($product['is_swapped_item'] == 1 || $product['is_swapped_item'] === '1' || $product['is_swapped_item'] === true);
+                                
+                                // Also check if product is linked via inventory_product_id in swapped_items
+                                if (!$isSwappedItem) {
+                                    try {
+                                        $db = \Database::getInstance()->getConnection();
+                                        $checkStmt = $db->prepare("SELECT id FROM swapped_items WHERE inventory_product_id = ? LIMIT 1");
+                                        $checkStmt->execute([$item['product_id']]);
+                                        $swappedItem = $checkStmt->fetch(\PDO::FETCH_ASSOC);
+                                        if ($swappedItem) {
+                                            $isSwappedItem = true;
+                                        }
+                                    } catch (\Exception $e) {
+                                        // Silently fail - just continue
+                                    }
+                                }
+                            }
+                        } catch (\Exception $e) {
+                            // Continue if product check fails
+                        }
+                    }
+                    
                     $saleItemId = $this->saleItem->create([
                         'pos_sale_id' => $saleId,
                         'item_id' => $item['product_id'] ?? null,
@@ -1676,7 +1739,8 @@ class POSController {
                         'item_description' => $item['name'] ?? 'Product',
                         'quantity' => intval($item['quantity']),
                         'unit_price' => floatval($item['unit_price']),
-                        'total_price' => floatval($item['total_price'])
+                        'total_price' => floatval($item['total_price']),
+                        'is_swapped_item' => $isSwappedItem ? 1 : 0
                     ]);
                     
                     // Note: lastInsertId() can return "0" (string) for tables without auto-increment
@@ -1840,7 +1904,7 @@ class POSController {
                 $phoneNumberToUse = $customer_contact;
                 if (!$phoneNumberToUse && $customer_id) {
                     try {
-                        $customer = $this->customer->find($customer_id);
+                        $customer = $this->customer->find($customer_id, $companyId);
                         if ($customer) {
                             $phoneNumberToUse = $customer['phone_number'] ?? $customer['phone'] ?? null;
                         }
@@ -2118,7 +2182,7 @@ class POSController {
      */
     public function salesHistory() {
         // Handle web authentication
-        \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson']);
+        WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson', 'technician']);
         
         $title = 'Sales History';
         $page = 'sales-history';
@@ -2147,13 +2211,25 @@ class POSController {
      * Show sale details
      */
     public function showSale($id) {
-        $payload = AuthMiddleware::handle(['manager', 'salesperson']);
-        $companyId = $payload->company_id;
+        // Use WebAuthMiddleware for session-based authentication
+        WebAuthMiddleware::handle(['manager', 'salesperson', 'system_admin']);
+        
+        // Get user data from session
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $userData = $_SESSION['user'] ?? null;
+        if (!$userData) {
+            header('Location: ' . BASE_URL_PATH . '/');
+            exit;
+        }
+        
+        $companyId = $userData['company_id'] ?? null;
         
         $sale = $this->sale->find($id, $companyId);
         if (!$sale) {
             $_SESSION['flash_error'] = 'Sale not found';
-            header('Location: ' . BASE_URL_PATH . '/pos/sales-history');
+            header('Location: ' . BASE_URL_PATH . '/dashboard/pos/sales-history');
             exit;
         }
         
@@ -2161,6 +2237,12 @@ class POSController {
         
         $title = 'Sale Details';
         $viewFile = __DIR__ . '/../Views/pos_sale_details.php';
+        
+        // Capture the view content
+        ob_start();
+        include $viewFile;
+        $content = ob_get_clean();
+        
         // Set content variable for layout
         $GLOBALS['content'] = $content;
         $GLOBALS['title'] = $title;
@@ -2504,7 +2586,7 @@ class POSController {
             
             // Check if user has required role
             $userRole = $user['role'] ?? '';
-            $allowedRoles = ['system_admin', 'admin', 'manager', 'salesperson'];
+            $allowedRoles = ['system_admin', 'admin', 'manager', 'salesperson', 'technician'];
             if (!in_array($userRole, $allowedRoles)) {
                 http_response_code(403);
                 // Clean output buffer and send JSON error response
@@ -2526,14 +2608,31 @@ class POSController {
             $page = intval($_GET['page'] ?? 1);
             $limit = intval($_GET['limit'] ?? 20);
             
-            if ($userRole === 'salesperson') {
+            // Get user role from database for accurate filtering
+            require_once __DIR__ . '/../../config/database.php';
+            $db = \Database::getInstance()->getConnection();
+            $userRoleCheck = $db->prepare("SELECT role FROM users WHERE id = ?");
+            $userRoleCheck->execute([$userId]);
+            $userRoleData = $userRoleCheck->fetch(\PDO::FETCH_ASSOC);
+            $actualUserRole = $userRoleData['role'] ?? $userRole;
+            
+            if ($actualUserRole === 'salesperson') {
+                // Salesperson: Only show their own sales, exclude technician sales
+                $sales = $this->sale->findByCashierExcludingRole($userId, $companyId, 'technician', $date_from, $date_to);
+                $totalSales = count($sales);
+                $totalPages = ceil($totalSales / $limit);
+                $offset = ($page - 1) * $limit;
+                $sales = array_slice($sales, $offset, $limit);
+            } elseif ($actualUserRole === 'technician') {
+                // Technician: Only show their own sales
                 $sales = $this->sale->findByCashier($userId, $companyId, $date_from, $date_to);
                 $totalSales = count($sales);
                 $totalPages = ceil($totalSales / $limit);
                 $offset = ($page - 1) * $limit;
                 $sales = array_slice($sales, $offset, $limit);
             } else {
-                $sales = $this->sale->findByCompany($companyId, $limit, $sale_type, $date_from, $date_to);
+                // Manager/Admin: Show all sales with role tags
+                $sales = $this->sale->findByCompanyWithRoles($companyId, $limit, $sale_type, $date_from, $date_to);
                 $totalSales = $this->sale->getTotalCountByCompany($companyId, $date_from, $date_to);
                 $totalPages = ceil($totalSales / $limit);
             }
@@ -2555,9 +2654,97 @@ class POSController {
                 unset($sale); // Break reference
             }
             
+            // Calculate total profit for managers only
+            $totalProfit = null;
+            if (in_array($actualUserRole, ['manager', 'admin', 'system_admin'])) {
+                try {
+                    // Check which products table exists
+                    $checkProducts = $db->query("SHOW TABLES LIKE 'products'");
+                    $checkProductsNew = $db->query("SHOW TABLES LIKE 'products_new'");
+                    $hasProducts = $checkProducts->rowCount() > 0;
+                    $hasProductsNew = $checkProductsNew->rowCount() > 0;
+                    $productsTable = $hasProductsNew ? 'products_new' : ($hasProducts ? 'products' : null);
+                    
+                    if ($productsTable) {
+                        // Check which cost column exists (prioritize cost_price, then cost, then purchase_price)
+                        $checkCostPrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost_price'");
+                        $checkCost = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost'");
+                        $checkPurchasePrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'purchase_price'");
+                        $hasCostPrice = $checkCostPrice->rowCount() > 0;
+                        $hasCost = $checkCost->rowCount() > 0;
+                        $hasPurchasePrice = $checkPurchasePrice->rowCount() > 0;
+                        
+                        // Determine cost column to use
+                        $costColumn = '0';
+                        if ($hasCostPrice) {
+                            $costColumn = 'COALESCE(p.cost_price, 0)';
+                        } elseif ($hasCost) {
+                            $costColumn = 'COALESCE(p.cost, 0)';
+                        } elseif ($hasPurchasePrice) {
+                            $costColumn = 'COALESCE(p.purchase_price, 0)';
+                        }
+                        
+                        // Check if is_swap_mode column exists
+                        $checkIsSwapMode = $db->query("SHOW COLUMNS FROM pos_sales LIKE 'is_swap_mode'");
+                        $hasIsSwapMode = $checkIsSwapMode->rowCount() > 0;
+                        
+                        // Build WHERE clause for date filtering
+                        $whereClause = "ps.company_id = ?";
+                        $params = [$companyId];
+                        
+                        // Exclude swap sales from profit calculation (swaps should only appear on swap page)
+                        if ($hasIsSwapMode) {
+                            $whereClause .= " AND (ps.is_swap_mode = 0 OR ps.is_swap_mode IS NULL)";
+                        }
+                        
+                        if ($date_from) {
+                            $whereClause .= " AND DATE(ps.created_at) >= ?";
+                            $params[] = $date_from;
+                        }
+                        
+                        if ($date_to) {
+                            $whereClause .= " AND DATE(ps.created_at) <= ?";
+                            $params[] = $date_to;
+                        }
+                        
+                        // Calculate total revenue and cost (excluding swap sales)
+                        $profitQuery = $db->prepare("
+                            SELECT 
+                                COALESCE(SUM(ps.final_amount), 0) as revenue,
+                                COALESCE(SUM(
+                                    (SELECT COALESCE(SUM(psi.quantity * {$costColumn}), 0)
+                                     FROM pos_sale_items psi 
+                                     LEFT JOIN {$productsTable} p ON (
+                                         (psi.item_id = p.id AND p.company_id = ps.company_id)
+                                         OR ((psi.item_id IS NULL OR psi.item_id = 0) AND LOWER(TRIM(psi.item_description)) = LOWER(TRIM(p.name)) AND p.company_id = ps.company_id)
+                                     )
+                                     WHERE psi.pos_sale_id = ps.id AND p.id IS NOT NULL)
+                                ), 0) as cost
+                            FROM pos_sales ps
+                            WHERE {$whereClause}
+                        ");
+                        
+                        $profitQuery->execute($params);
+                        $profitResult = $profitQuery->fetch(\PDO::FETCH_ASSOC);
+                        
+                        $revenue = floatval($profitResult['revenue'] ?? 0);
+                        $cost = floatval($profitResult['cost'] ?? 0);
+                        $totalProfit = $revenue - $cost;
+                        
+                        // Profit cannot be negative
+                        if ($totalProfit < 0) {
+                            $totalProfit = 0;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    error_log("Error calculating total profit in apiSales: " . $e->getMessage());
+                    $totalProfit = null;
+                }
+            }
+            
             // Clean output buffer and send JSON response
             ob_clean();
-            echo json_encode([
+            $response = [
                 'success' => true,
                 'data' => $sales,
                 'pagination' => [
@@ -2568,7 +2755,14 @@ class POSController {
                     'has_next' => $page < $totalPages,
                     'has_prev' => $page > 1
                 ]
-            ]);
+            ];
+            
+            // Add total profit for managers
+            if ($totalProfit !== null) {
+                $response['total_profit'] = $totalProfit;
+            }
+            
+            echo json_encode($response);
             exit;
             
         } catch (\Exception $e) {
@@ -2625,7 +2819,7 @@ class POSController {
             
             // Check if user has required role
             $userRole = $user['role'] ?? '';
-            $allowedRoles = ['system_admin', 'admin', 'manager', 'salesperson'];
+            $allowedRoles = ['system_admin', 'admin', 'manager', 'salesperson', 'technician'];
             if (!in_array($userRole, $allowedRoles)) {
                 http_response_code(403);
                 // Clean output buffer and send JSON error response
@@ -2639,8 +2833,36 @@ class POSController {
             }
             
             $companyId = $user['company_id'] ?? null;
+            $isSystemAdmin = ($userRole === 'system_admin');
             
-            $sale = $this->sale->find($id, $companyId);
+            // For system_admin, allow viewing any sale; for others, filter by company
+            if ($isSystemAdmin) {
+                // System admin can view any sale - find without company filter
+                if (!class_exists('Database')) {
+                    require_once __DIR__ . '/../../config/database.php';
+                }
+                $db = \Database::getInstance()->getConnection();
+                $stmt = $db->prepare("
+                    SELECT ps.*, 
+                           c.name as company_name,
+                           cust.full_name as customer_name,
+                           cust.phone_number as customer_phone,
+                           u.full_name as created_by_name
+                    FROM pos_sales ps
+                    LEFT JOIN companies c ON ps.company_id = c.id
+                    LEFT JOIN customers cust ON ps.customer_id = cust.id
+                    LEFT JOIN users u ON ps.created_by_user_id = u.id
+                    WHERE ps.id = ?
+                    LIMIT 1
+                ");
+                $stmt->execute([$id]);
+                $sale = $stmt->fetch(\PDO::FETCH_ASSOC);
+                $saleCompanyId = $sale['company_id'] ?? null;
+            } else {
+                $sale = $this->sale->find($id, $companyId);
+                $saleCompanyId = $companyId;
+            }
+            
             if (!$sale) {
                 http_response_code(404);
                 // Clean output buffer and send JSON error response
@@ -2661,7 +2883,8 @@ class POSController {
                 
                 // If item has a product ID, get product details
                 if (!empty($item['item_id'])) {
-                    $product = $this->product->find($item['item_id'], $companyId);
+                    // Use sale's company_id for product lookup
+                    $product = $this->product->find($item['item_id'], $saleCompanyId);
                     if ($product) {
                         $enhancedItem['product_name'] = $product['name'];
                         $enhancedItem['brand_name'] = $product['brand_name'] ?? $product['brand'] ?? '';
@@ -2825,14 +3048,38 @@ class POSController {
             $salesTodayQuery->execute([$companyId]);
             $salesToday = (int)($salesTodayQuery->fetch()['count'] ?? 0);
             
-            // Revenue today
+            // Revenue today - EXCLUDE swap transactions
             $revenueTodayQuery = $db->prepare("
                 SELECT COALESCE(SUM(final_amount), 0) as revenue 
                 FROM pos_sales 
                 WHERE company_id = ? AND DATE(created_at) = CURDATE()
+                AND swap_id IS NULL
             ");
             $revenueTodayQuery->execute([$companyId]);
             $revenueToday = (float)($revenueTodayQuery->fetch()['revenue'] ?? 0);
+            
+            // Swap count today
+            $swapCountQuery = $db->prepare("
+                SELECT COUNT(*) as count 
+                FROM swaps 
+                WHERE company_id = ? AND DATE(created_at) = CURDATE()
+            ");
+            $swapCountQuery->execute([$companyId]);
+            $swapCountToday = (int)($swapCountQuery->fetch()['count'] ?? 0);
+            
+            // Swap revenue today (cash top-up only)
+            $checkTotalValue = $db->query("SHOW COLUMNS FROM swaps LIKE 'total_value'");
+            $hasTotalValue = $checkTotalValue->rowCount() > 0;
+            $swapRevenueToday = 0;
+            if ($hasTotalValue) {
+                $swapRevenueQuery = $db->prepare("
+                    SELECT COALESCE(SUM(total_value), 0) as revenue
+                    FROM swaps
+                    WHERE company_id = ? AND DATE(created_at) = CURDATE()
+                ");
+                $swapRevenueQuery->execute([$companyId]);
+                $swapRevenueToday = (float)($swapRevenueQuery->fetch()['revenue'] ?? 0);
+            }
             
             ob_clean();
             echo json_encode([
@@ -2840,7 +3087,9 @@ class POSController {
                 'data' => [
                     'total_items' => $totalItems,
                     'sales_today' => $salesToday,
-                    'revenue_today' => $revenueToday
+                    'revenue_today' => $revenueToday,
+                    'swap_count_today' => $swapCountToday,
+                    'swap_revenue_today' => $swapRevenueToday
                 ]
             ]);
             exit;
@@ -2862,7 +3111,7 @@ class POSController {
      */
     public function generateReceipt($saleId) {
         // Handle web authentication
-        \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson']);
+        WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson']);
         
         // Get company_id from session
         $companyId = $_SESSION['user']['company_id'] ?? null;
@@ -3043,7 +3292,7 @@ class POSController {
                     <div><span>Cashier:</span><span>" . ($_SESSION['user']['username'] ?? 'Unknown') . "</span></div>
                     <div><span>Customer:</span><span>" . ($sale['customer_name'] ?? 'Walk-in Customer') . "</span></div>
                     " . ($isSwap ? "<div><span>Transaction Type:</span><span>SWAP</span></div>" : "") . "
-                    " . ($isSwap && $swapDetails ? "<div><span>Swap Code:</span><span>{$swapDetails['transaction_code']}</span></div>" : "") . "
+                    " . ($isSwap && $swapDetails && isset($swapDetails['transaction_code']) ? "<div><span>Swap Code:</span><span>{$swapDetails['transaction_code']}</span></div>" : "") . "
                 </div>
                 
                 <div class='items'>
@@ -3136,7 +3385,12 @@ class POSController {
      * Generate swap details HTML for receipt
      */
     private function generateSwapDetailsHTML($swapDetails) {
-        $customerDevice = $swapDetails['customer_brand'] . ' ' . $swapDetails['customer_model'];
+        $customerBrand = $swapDetails['customer_brand'] ?? '';
+        $customerModel = $swapDetails['customer_model'] ?? '';
+        $customerDevice = trim($customerBrand . ' ' . $customerModel);
+        if (empty($customerDevice)) {
+            $customerDevice = 'N/A';
+        }
         $estimatedValue = $swapDetails['customer_estimated_value'] ?? 0;
         $topup = $swapDetails['added_cash'] ?? 0;
         $totalValue = $estimatedValue + $topup;
@@ -3295,9 +3549,22 @@ class POSController {
                 ], 404);
             }
             
-            // Validate minimum swap value (at least 30% of product price)
-            $minValue = $companyProduct['price'] * 0.3;
-            if (($estimatedValue + $topup) < $minValue) {
+            // Validate that estimated_value + topup equals the selling price
+            // This ensures profit is instantly visible: profit = selling_price - cost_price
+            $sellingPrice = $companyProduct['price'];
+            $totalCustomerValue = $estimatedValue + $topup;
+            
+            // Allow small rounding differences (0.01)
+            if (abs($totalCustomerValue - $sellingPrice) > 0.01) {
+                $this->sendJsonResponse([
+                    'success' => false,
+                    'message' => 'Estimated Value (₵' . number_format($estimatedValue, 2) . ') + Cash Top-up (₵' . number_format($topup, 2) . ') = ₵' . number_format($totalCustomerValue, 2) . ' must equal Selling Price (₵' . number_format($sellingPrice, 2) . ')'
+                ], 400);
+            }
+            
+            // Validate minimum swap value (at least 30% of product price as safety check)
+            $minValue = $sellingPrice * 0.3;
+            if ($totalCustomerValue < $minValue) {
                 $this->sendJsonResponse([
                     'success' => false,
                     'message' => 'Customer offer too low. Minimum value required: ₵' . number_format($minValue, 2)
@@ -3911,6 +4178,53 @@ class POSController {
             // Get updated payment stats
             $updatedStats = $this->salePayment->getPaymentStats($saleId, $companyId);
 
+            // Send SMS notification for partial payment (non-critical, don't fail if this fails)
+            try {
+                // Get customer phone number from sale
+                $customerPhone = null;
+                if ($sale && isset($sale['customer_id']) && $sale['customer_id']) {
+                    try {
+                        $customer = $this->customer->find($sale['customer_id'], $companyId);
+                        if ($customer) {
+                            $customerPhone = $customer['phone_number'] ?? $customer['phone'] ?? null;
+                        }
+                    } catch (\Exception $e) {
+                        error_log("POSController::addPayment - Could not fetch customer phone: " . $e->getMessage());
+                    }
+                }
+                
+                // If no customer phone from customer_id, try to get from sale data
+                if (!$customerPhone && $sale) {
+                    // Check if sale has customer_contact field (for backward compatibility)
+                    $customerPhone = $sale['customer_contact'] ?? null;
+                }
+                
+                if ($customerPhone) {
+                    $isComplete = ($updatedStats['remaining'] <= 0);
+                    $notificationService = new \App\Services\NotificationService();
+                    $smsResult = $notificationService->sendPartialPaymentNotification([
+                        'phone_number' => $customerPhone,
+                        'company_id' => $companyId,
+                        'sale_id' => $sale['unique_id'] ?? $saleId,
+                        'amount_paid' => $amount,
+                        'remaining' => $updatedStats['remaining'],
+                        'total' => $sale['final_amount'] ?? $updatedStats['total'],
+                        'is_complete' => $isComplete
+                    ]);
+                    
+                    if (!$smsResult['success']) {
+                        error_log("POSController::addPayment - SMS notification failed: " . ($smsResult['error'] ?? 'Unknown error'));
+                    } else {
+                        error_log("POSController::addPayment - SMS notification sent successfully to {$customerPhone}");
+                    }
+                } else {
+                    error_log("POSController::addPayment - No customer phone number found for sale {$saleId}, skipping SMS notification");
+                }
+            } catch (\Exception $smsError) {
+                // Don't fail the payment if SMS fails
+                error_log("POSController::addPayment - Error sending SMS notification (non-fatal): " . $smsError->getMessage());
+            }
+
             // Log audit event
             try {
                 AuditService::log(
@@ -4008,7 +4322,7 @@ class POSController {
      * GET /dashboard/pos/partial-payments
      */
     public function partialPayments() {
-        \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson']);
+        WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson']);
         
         $GLOBALS['currentPage'] = 'partial-payments';
         
@@ -4096,30 +4410,83 @@ class POSController {
             $sales = $this->sale->findByCompany($companyId, 10000, null, $dateFrom, $dateTo);
             
             // Get payment stats for each sale first to determine actual payment status
+            // IMPORTANT: Only include sales that were actually created with partial payment
+            // or have payment records indicating partial payment
             $salesWithPaymentInfo = [];
             foreach ($sales as $sale) {
                 try {
+                    $originalPaymentStatus = strtoupper($sale['payment_status'] ?? 'PAID');
+                    $finalAmount = floatval($sale['final_amount'] ?? 0);
+                    
+                    // Get payment stats
                     $paymentStats = $this->salePayment->getPaymentStats($sale['id'], $companyId);
                     $totalPaid = floatval($paymentStats['total_paid'] ?? 0);
-                    $finalAmount = floatval($sale['final_amount'] ?? 0);
                     $remaining = $finalAmount - $totalPaid;
                     
-                    // Determine actual payment status
+                    // Only include sales that were actually created with partial payment
+                    // Check if sale has payment records (indicating it was tracked for partial payments)
+                    $hasPaymentRecords = $totalPaid > 0;
+                    
+                    // Exclude swap transactions that were fully paid (swaps are typically fully paid at time of swap)
+                    $isSwapTransaction = !empty($sale['swap_id']) || (!empty($sale['is_swap_mode']) && $sale['is_swap_mode'] == 1) || 
+                                         (isset($sale['payment_method']) && strtoupper($sale['payment_method']) === 'SWAP');
+                    if ($isSwapTransaction && $originalPaymentStatus === 'PAID' && !$hasPaymentRecords) {
+                        // Swap transaction that was fully paid, skip it
+                        continue;
+                    }
+                    
+                    // If sale was marked as PAID at creation and has no payment records,
+                    // it means it was fully paid at purchase - exclude it from partial payments
+                    if ($originalPaymentStatus === 'PAID' && !$hasPaymentRecords) {
+                        // This sale was fully paid at purchase, skip it
+                        continue;
+                    }
+                    
+                    // If sale was marked as PAID but has payment records, check if it's actually fully paid
+                    if ($originalPaymentStatus === 'PAID' && $hasPaymentRecords) {
+                        if ($remaining <= 0) {
+                            // Fully paid via payment records, skip it
+                            continue;
+                        }
+                    }
+                    
+                    // Determine actual payment status based on payment records
                     if ($remaining <= 0) {
                         $sale['payment_status'] = 'PAID';
                     } elseif ($totalPaid > 0) {
                         $sale['payment_status'] = 'PARTIAL';
                     } else {
-                        $sale['payment_status'] = 'UNPAID';
+                        // Only mark as UNPAID if it was originally marked as UNPAID or PARTIAL
+                        if ($originalPaymentStatus === 'UNPAID' || $originalPaymentStatus === 'PARTIAL') {
+                            $sale['payment_status'] = 'UNPAID';
+                        } else {
+                            // Was fully paid at purchase, skip it
+                            continue;
+                        }
                     }
                     
                     $sale['total_paid'] = $paymentStats['total_paid'];
                     $sale['remaining'] = $paymentStats['remaining'];
                 } catch (\Exception $e) {
-                    // If payment tracking fails, assume full payment
-                    $sale['payment_status'] = 'PAID';
-                    $sale['total_paid'] = floatval($sale['final_amount'] ?? 0);
-                    $sale['remaining'] = 0;
+                    // If payment tracking fails, check original payment status
+                    $originalPaymentStatus = strtoupper($sale['payment_status'] ?? 'PAID');
+                    
+                    // Exclude swap transactions that were fully paid
+                    $isSwapTransaction = !empty($sale['swap_id']) || (!empty($sale['is_swap_mode']) && $sale['is_swap_mode'] == 1) || 
+                                         (isset($sale['payment_method']) && strtoupper($sale['payment_method']) === 'SWAP');
+                    if ($isSwapTransaction && $originalPaymentStatus === 'PAID') {
+                        // Swap transaction that was fully paid, skip it
+                        continue;
+                    }
+                    
+                    if ($originalPaymentStatus === 'PAID') {
+                        // Was fully paid at purchase, skip it
+                        continue;
+                    }
+                    // For UNPAID/PARTIAL sales, include them but mark as the original status
+                    $sale['payment_status'] = $originalPaymentStatus;
+                    $sale['total_paid'] = 0;
+                    $sale['remaining'] = floatval($sale['final_amount'] ?? 0);
                 }
                 $salesWithPaymentInfo[] = $sale;
             }

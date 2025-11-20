@@ -10,24 +10,187 @@ if (!defined('BASE_URL_PATH')) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $title ?? 'SellApp' ?> - SellApp</title>
-    <!-- Custom Favicon - Overrides XAMPP default favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📱</text></svg>">
-    <link rel="shortcut icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📱</text></svg>">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📱</text></svg>">
+    <!-- Custom Favicon -->
+    <link rel="icon" type="image/svg+xml" href="<?php echo BASE_URL_PATH; ?>/assets/images/favicon.svg">
+    <link rel="shortcut icon" type="image/svg+xml" href="<?php echo BASE_URL_PATH; ?>/assets/images/favicon.svg">
+    <link rel="apple-touch-icon" href="<?php echo BASE_URL_PATH; ?>/assets/images/favicon.svg">
     
     <!-- Base path -->
     <script>
         window.APP_BASE_PATH = '<?php echo defined("BASE_URL_PATH") ? BASE_URL_PATH : "/sellapp"; ?>';
         const BASE = window.APP_BASE_PATH || '';
+        
+        // Remove kabz_events from URL if present (completely remove this path)
+        (function() {
+            if (window.location.pathname.includes('kabz_events')) {
+                let newPath = window.location.pathname.replace(/\/kabz_events\/?/g, '/');
+                newPath = newPath.replace(/kabz_events/g, '');
+                // Ensure path starts with /sellapp if it's empty or root
+                if (newPath === '/' || newPath === '') {
+                    newPath = '/sellapp';
+                } else if (!newPath.startsWith('/sellapp') && !newPath.startsWith('/api') && !newPath.startsWith('/dashboard')) {
+                    newPath = '/sellapp' + (newPath.startsWith('/') ? '' : '/') + newPath;
+                }
+                const newUrl = newPath + window.location.search + window.location.hash;
+                window.location.replace(newUrl);
+                return;
+            }
+        })();
+        
+        // Clean up _auth parameter from URL if present (prevents redirect loops)
+        (function() {
+            if (window.location.search.includes('_auth=')) {
+                const url = new URL(window.location);
+                url.searchParams.delete('_auth');
+                window.history.replaceState({}, '', url.pathname + (url.search || '') + (url.hash || ''));
+            }
+        })();
+        
+        // Suppress harmless "Tracking Prevention" warnings from CDN resources
+        // These are browser privacy warnings and don't affect functionality
+        (function() {
+            const originalWarn = console.warn;
+            console.warn = function(...args) {
+                const message = args.join(' ');
+                // Filter out tracking prevention warnings from CDN resources
+                if (message.includes('Tracking Prevention blocked access to storage')) {
+                    return; // Suppress this warning
+                }
+                originalWarn.apply(console, args);
+            };
+        })();
     </script>
     
-    <!-- Stylesheets -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Preconnect to CDN for faster loading -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+    
+    <!-- Robust Tailwind CSS loader with online/offline detection and retry mechanism -->
+    <script>
+        (function() {
+            let tailwindLoaded = false;
+            let retryCount = 0;
+            const maxRetries = 10;
+            const retryDelay = 1000; // 1 second
+            
+            function loadTailwind() {
+                // Check if already loaded
+                if (tailwindLoaded || window.tailwind) {
+                    return;
+                }
+                
+                // Check if script already exists
+                const existingScript = document.querySelector('script[data-tailwind-loader]');
+                if (existingScript) {
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = 'https://cdn.tailwindcss.com';
+                script.async = true;
+                script.setAttribute('data-tailwind-loader', 'true');
+                
+                script.onload = function() {
+                    tailwindLoaded = true;
+                    retryCount = 0;
+                    // Trigger a re-render to apply styles
+                    if (window.tailwind && typeof window.tailwind.refresh === 'function') {
+                        window.tailwind.refresh();
+                    }
+                    // Show body once Tailwind is loaded
+                    document.body.classList.add('tailwind-loaded');
+                    // Dispatch custom event for other scripts
+                    window.dispatchEvent(new CustomEvent('tailwindLoaded'));
+                };
+                
+                script.onerror = function() {
+                    // Script failed to load
+                    if (retryCount < maxRetries) {
+                        retryCount++;
+                        setTimeout(loadTailwind, retryDelay);
+                    }
+                };
+                
+                document.head.appendChild(script);
+            }
+            
+            // Try loading immediately
+            loadTailwind();
+            
+            // Listen for online event and retry
+            window.addEventListener('online', function() {
+                if (!tailwindLoaded) {
+                    retryCount = 0; // Reset retry count when back online
+                    loadTailwind();
+                }
+            });
+            
+            // Periodic check when offline (in case online event doesn't fire)
+            let offlineCheckInterval = setInterval(function() {
+                if (navigator.onLine && !tailwindLoaded) {
+                    retryCount = 0;
+                    loadTailwind();
+                }
+            }, 2000); // Check every 2 seconds
+            
+            // Clear interval when Tailwind is loaded
+            const checkLoaded = setInterval(function() {
+                if (tailwindLoaded) {
+                    clearInterval(offlineCheckInterval);
+                    clearInterval(checkLoaded);
+                }
+            }, 500);
+            
+            // Fallback: Show body after 5 seconds even if Tailwind hasn't loaded
+            setTimeout(function() {
+                if (!tailwindLoaded) {
+                    document.body.classList.add('tailwind-loaded');
+                }
+            }, 5000);
+        })();
+    </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script>
+        // Load Alpine.js with multiple fallbacks
+        (function() {
+            const alpineScript = document.createElement('script');
+            alpineScript.defer = true;
+            alpineScript.onerror = function() {
+                // First fallback
+                const fallback1 = document.createElement('script');
+                fallback1.src = 'https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js';
+                fallback1.defer = true;
+                fallback1.onerror = function() {
+                    // Second fallback - use jsDelivr
+                    const fallback2 = document.createElement('script');
+                    fallback2.src = 'https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js';
+                    fallback2.defer = true;
+                    fallback2.onerror = function() {
+                        console.warn('Alpine.js failed to load from all CDNs. Some interactive features may not work.');
+                    };
+                    document.head.appendChild(fallback2);
+                };
+                document.head.appendChild(fallback1);
+            };
+            alpineScript.src = 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js';
+            document.head.appendChild(alpineScript);
+        })();
+    </script>
     
     <!-- Custom Styles for Layout Fix -->
     <style>
+        /* Hide body until Tailwind is loaded to prevent FOUC */
+        body {
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.2s ease-in;
+        }
+        
+        body.tailwind-loaded {
+            visibility: visible;
+            opacity: 1;
+        }
+        
         /* Reset any conflicting styles */
         * {
             box-sizing: border-box;
@@ -38,6 +201,8 @@ if (!defined('BASE_URL_PATH')) {
             padding: 0;
             width: 100%;
             height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto; /* Allow vertical scrolling for sticky to work */
         }
         
         /* Ensure proper flex layout */
@@ -64,6 +229,122 @@ if (!defined('BASE_URL_PATH')) {
             flex-direction: column;
             min-width: 0;
             width: 100%;
+            overflow-x: hidden;
+            position: relative; /* Ensure sticky positioning works */
+        }
+        
+        /* Ensure sticky header works */
+        .main-content-container > div:first-child {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background-color: white;
+        }
+        
+        /* Ensure main content doesn't overflow */
+        main {
+            overflow-x: hidden;
+            max-width: 100%;
+            flex: 1;
+        }
+        
+        /* Desktop: Sidebar always visible, no collapse */
+        @media (min-width: 769px) {
+            .sidebar {
+                position: sticky !important;
+                left: 0 !important;
+                width: 14rem !important;
+            }
+            
+            .sidebar.collapsed {
+                width: 14rem !important;
+            }
+            
+            .sidebar.collapsed .sidebar-text,
+            .sidebar.collapsed .sidebar-item span {
+                opacity: 1 !important;
+                width: auto !important;
+                overflow: visible !important;
+            }
+            
+            .sidebar.collapsed .sidebar-item {
+                justify-content: flex-start !important;
+                padding-left: 0.75rem !important;
+                padding-right: 0.75rem !important;
+            }
+            
+            .sidebar.collapsed .sidebar-item i {
+                margin-right: 0.75rem !important;
+            }
+            
+            /* Hide collapse button on desktop */
+            #sidebarCollapseBtn {
+                display: none !important;
+            }
+            
+            /* Hide breadcrumb on desktop */
+            #breadcrumb-nav {
+                display: none !important;
+            }
+            
+            /* Hide sidebar toggle button on desktop */
+            #sidebarToggle {
+                display: none !important;
+            }
+        }
+        
+        /* Mobile: Sidebar collapse functionality */
+        @media (max-width: 768px) {
+            .sidebar.collapsed {
+                width: 4rem;
+            }
+            
+            .sidebar.collapsed .sidebar-text,
+            .sidebar.collapsed .sidebar-item span {
+                opacity: 0;
+                width: 0;
+                overflow: hidden;
+                margin: 0;
+                padding: 0;
+            }
+            
+            .sidebar.collapsed .sidebar-item {
+                justify-content: center;
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+            
+            .sidebar.collapsed .sidebar-item i {
+                margin-right: 0 !important;
+                width: 1rem !important;
+                min-width: 1rem !important;
+                max-width: 1rem !important;
+                flex-shrink: 0;
+            }
+            
+            .sidebar.collapsed .sidebar-item i.fas,
+            .sidebar.collapsed .sidebar-item i.far {
+                font-size: 1rem !important;
+                line-height: 1.5rem !important;
+            }
+            
+            .sidebar.collapsed ~ .main-content-container {
+                margin-left: 4rem;
+            }
+            
+            /* Ensure icons maintain size when collapsed */
+            .sidebar.collapsed .flex.items-center i {
+                flex-shrink: 0;
+                display: inline-block;
+            }
+        }
+        
+        /* Prevent blur/backdrop effects during transitions */
+        .sidebar,
+        .main-content-container {
+            will-change: auto;
+            backface-visibility: hidden;
+            transform: translateZ(0);
         }
         
         /* Mobile responsive */
@@ -101,6 +382,11 @@ if (!defined('BASE_URL_PATH')) {
             
             .sidebar-overlay.active {
                 display: block;
+            }
+            
+            /* Hide collapse button on mobile */
+            #sidebarCollapseBtn {
+                display: none !important;
             }
         }
         
@@ -140,6 +426,15 @@ if (!defined('BASE_URL_PATH')) {
         $userInfo = $userData['username'] ?? 'User';
         $companyInfo = $userData['company_name'] ?? null;
         
+        // Ensure user data is in session for sidebar
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $_SESSION['user']['full_name'] = $userData['full_name'] ?? null;
+        $_SESSION['user']['email'] = $userData['email'] ?? null;
+        $_SESSION['user']['created_at'] = $userData['created_at'] ?? null;
+        $_SESSION['user']['updated_at'] = $userData['updated_at'] ?? null;
+        
         // Check if currentPage was set by controller first
         if (!isset($GLOBALS['currentPage'])) {
             $currentPage = 'dashboard'; // Default page
@@ -167,7 +462,7 @@ if (!defined('BASE_URL_PATH')) {
                 $currentPage = 'products';
             } elseif (strpos($currentPath, '/swaps') !== false) {
                 $currentPage = 'swaps';
-            } elseif (strpos($currentPath, '/technician/booking') !== false) {
+            } elseif (strpos($currentPath, '/booking') !== false) {
                 $currentPage = 'booking';
             } elseif (strpos($currentPath, '/technician/repairs') !== false) {
                 $currentPage = 'repairs';
@@ -203,7 +498,7 @@ if (!defined('BASE_URL_PATH')) {
         <!-- Main Content Area -->
         <div class="main-content-container">
         <!-- Top Navigation Bar - Sticky -->
-        <div class="sticky top-0 z-50 bg-white shadow-sm">
+        <div class="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-200" style="position: -webkit-sticky; position: sticky; top: 0;">
             <?php include __DIR__ . '/components/top-navbar.php'; ?>
         </div>
         
@@ -251,6 +546,120 @@ if (!defined('BASE_URL_PATH')) {
     <!-- Simple JavaScript -->
     <script src="<?= BASE_URL_PATH ?>/assets/js/simple.js?v=<?= time() ?>"></script>
     <script>
+        // Sidebar Toggle Functions
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggleIcon = document.getElementById('sidebarToggleIcon');
+            
+            if (sidebar) {
+                sidebar.classList.toggle('open');
+                if (overlay) {
+                    overlay.classList.toggle('active');
+                }
+                if (toggleIcon) {
+                    if (sidebar.classList.contains('open')) {
+                        toggleIcon.className = 'fas fa-times text-lg';
+                    } else {
+                        toggleIcon.className = 'fas fa-bars text-lg';
+                    }
+                }
+            }
+        }
+        
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggleIcon = document.getElementById('sidebarToggleIcon');
+            
+            if (sidebar) {
+                sidebar.classList.remove('open');
+                if (overlay) {
+                    overlay.classList.remove('active');
+                }
+                if (toggleIcon) {
+                    toggleIcon.className = 'fas fa-bars text-lg';
+                }
+            }
+        }
+        
+        function toggleSidebarCollapse() {
+            // Only allow collapse on mobile devices
+            if (window.innerWidth <= 768) {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar) {
+                    sidebar.classList.toggle('collapsed');
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    // Save state to localStorage (only for mobile)
+                    localStorage.setItem('sidebarCollapsed', isCollapsed);
+                }
+            }
+        }
+        
+        function expandSidebarIfCollapsed(event) {
+            // Only handle expansion on mobile devices
+            if (window.innerWidth <= 768) {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar && sidebar.classList.contains('collapsed')) {
+                    // Prevent default navigation temporarily
+                    if (event) {
+                        event.preventDefault();
+                    }
+                    
+                    // Expand sidebar smoothly
+                    sidebar.classList.remove('collapsed');
+                    localStorage.setItem('sidebarCollapsed', 'false');
+                    
+                    // Small delay to ensure smooth transition, then navigate
+                    setTimeout(() => {
+                        if (event && event.target && event.target.closest('a')) {
+                            const link = event.target.closest('a');
+                            if (link.href) {
+                                window.location.href = link.href;
+                            }
+                        }
+                    }, 150);
+                    
+                    return false;
+                }
+            }
+        }
+        
+        // Restore sidebar state on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebar');
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            
+            if (sidebar) {
+                // On desktop: always ensure sidebar is expanded and visible
+                if (window.innerWidth > 768) {
+                    sidebar.classList.remove('collapsed');
+                    sidebar.classList.remove('open');
+                    // Sidebar should always be visible on desktop
+                } else {
+                    // On mobile: restore collapsed state if it was collapsed
+                    if (isCollapsed) {
+                        sidebar.classList.add('collapsed');
+                    }
+                    // Close sidebar on mobile by default
+                    closeSidebar();
+                }
+            }
+        });
+        
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('sidebarToggle');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            if (window.innerWidth <= 768 && sidebar && sidebar.classList.contains('open')) {
+                if (!sidebar.contains(event.target) && !toggleBtn.contains(event.target)) {
+                    closeSidebar();
+                }
+            }
+        });
+        
         async function logout() {
             if (confirm('Are you sure you want to logout?')) {
                 try {

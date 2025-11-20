@@ -7,46 +7,14 @@
         <p class="text-gray-600">Company ID: #<?= $company['id'] ?></p>
       </div>
       <div class="flex gap-2">
+        <a href="<?= BASE_URL_PATH ?>/dashboard/companies/<?= $company['id'] ?>/restore-points" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-medium">
+          <i class="fas fa-history mr-2"></i>Restore Points
+        </a>
         <a href="<?= BASE_URL_PATH ?>/dashboard/companies/edit/<?= $company['id'] ?>" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
           <i class="fas fa-edit mr-2"></i>Edit Company
         </a>
         <a href="<?= BASE_URL_PATH ?>/dashboard/companies" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition text-sm font-medium">
           <i class="fas fa-arrow-left mr-2"></i>Back to List
-        </a>
-      </div>
-    </div>
-    
-    <!-- Quick Navigation Links -->
-    <div class="bg-white rounded-lg shadow p-4 mb-6">
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-        <a href="<?= BASE_URL_PATH ?>/dashboard/companies/sms-config" class="flex items-center justify-center px-4 py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition border border-gray-200 text-sm">
-          <i class="fas fa-sms mr-2"></i>
-          <span>SMS Management</span>
-        </a>
-        <a href="<?= BASE_URL_PATH ?>/dashboard/companies/sms-config" class="flex items-center justify-center px-4 py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition border border-gray-200 text-sm">
-          <i class="fas fa-list-alt mr-2"></i>
-          <span>SMS Logs</span>
-        </a>
-        <a href="<?= BASE_URL_PATH ?>/dashboard/companies/sms-config" class="flex items-center justify-center px-4 py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition border border-gray-200 text-sm">
-          <i class="fas fa-credit-card mr-2"></i>
-          <span>Payment History</span>
-        </a>
-        <a href="<?= BASE_URL_PATH ?>/dashboard/companies/<?= $company['id'] ?>/modules" class="flex items-center justify-center px-4 py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition border border-gray-200 text-sm">
-          <i class="fas fa-puzzle-piece mr-2"></i>
-          <span>Company Modules</span>
-        </a>
-        <a href="<?= BASE_URL_PATH ?>/dashboard/system-settings" class="flex items-center justify-center px-4 py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition border border-gray-200 text-sm">
-          <i class="fas fa-cog mr-2"></i>
-          <span>Settings</span>
-        </a>
-        <a href="<?= BASE_URL_PATH ?>/dashboard/companies/<?= $company['id'] ?>/reset" 
-           class="flex items-center justify-center px-4 py-2 rounded-lg text-red-700 hover:bg-red-50 hover:text-red-600 transition border border-red-200 text-sm">
-          <i class="fas fa-redo mr-2"></i>
-          <span>Reset Data</span>
-        </a>
-        <a href="<?= BASE_URL_PATH ?>/dashboard/companies/view/<?= $company['id'] ?>" class="flex items-center justify-center px-4 py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition border border-gray-200 text-sm">
-          <i class="fas fa-building mr-2"></i>
-          <span>Company Info</span>
         </a>
       </div>
     </div>

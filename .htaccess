@@ -4,6 +4,12 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
     
+    # Redirect any requests containing kabz_events to remove it (301 permanent redirect)
+    RewriteCond %{REQUEST_URI} kabz_events
+    RewriteRule ^(.*)kabz_events(.*)$ /sellapp$1$2 [R=301,L]
+    RewriteCond %{REQUEST_URI} ^/kabz_events
+    RewriteRule ^kabz_events(.*)$ /sellapp$1 [R=301,L]
+    
     # Redirect all requests to index.php unless file or directory exists
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d

@@ -5,7 +5,7 @@
 <!-- Top Navigation Bar -->
 <nav class="bg-white px-4 py-3 w-full">
     <div class="flex items-center justify-between w-full">
-        <!-- Left side - Mobile menu button and title -->
+        <!-- Left side - Mobile menu button, breadcrumb (when collapsed), and title -->
         <div class="flex items-center">
             <!-- Mobile menu button -->
             <button class="md:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500" onclick="toggleSidebar()">
@@ -81,39 +81,68 @@
 </nav>
 
 <script>
-// Update page title based on current page
-document.addEventListener('DOMContentLoaded', function() {
+// Update page title and breadcrumb based on current page
+function updatePageTitle() {
     const path = window.location.pathname;
     const titleElement = document.getElementById('page-title');
+    const breadcrumbElement = document.getElementById('breadcrumb-current');
+    let pageTitle = 'Dashboard';
+    let breadcrumbText = 'Dashboard';
     
     if (path.includes('/pos')) {
-        titleElement.textContent = 'Point of Sale';
+        pageTitle = 'Point of Sale';
+        breadcrumbText = 'Point of Sale';
     } else if (path.includes('/customers')) {
-        titleElement.textContent = 'Customers';
+        pageTitle = 'Customers';
+        breadcrumbText = 'Customers';
     } else if (path.includes('/products')) {
-        titleElement.textContent = 'Products';
+        pageTitle = 'Products';
+        breadcrumbText = 'Products';
     } else if (path.includes('/swaps')) {
-        titleElement.textContent = 'Swaps';
+        pageTitle = 'Swaps';
+        breadcrumbText = 'Swaps';
     } else if (path.includes('/repairs')) {
-        titleElement.textContent = 'Repairs';
+        pageTitle = 'Repairs';
+        breadcrumbText = 'Repairs';
     } else if (path.includes('/inventory')) {
-        titleElement.textContent = 'Inventory';
+        pageTitle = 'Inventory';
+        breadcrumbText = 'Inventory';
     } else if (path.includes('/staff')) {
-        titleElement.textContent = 'Staff';
+        pageTitle = 'Staff';
+        breadcrumbText = 'Staff';
     } else if (path.includes('/companies')) {
-        titleElement.textContent = 'Companies';
+        pageTitle = 'Companies';
+        breadcrumbText = 'Companies';
     } else if (path.includes('/analytics')) {
-        titleElement.textContent = 'Analytics';
+        pageTitle = 'Analytics';
+        breadcrumbText = 'Analytics';
     } else if (path.includes('/settings')) {
-        titleElement.textContent = 'Settings';
-    } else {
-        titleElement.textContent = 'Dashboard';
+        pageTitle = 'Settings';
+        breadcrumbText = 'Settings';
+    } else if (path.includes('/sales-history')) {
+        pageTitle = 'Sales History';
+        breadcrumbText = 'Sales History';
+    } else if (path.includes('/booking')) {
+        pageTitle = 'New Booking';
+        breadcrumbText = 'New Booking';
     }
+    
+    if (titleElement) {
+        titleElement.textContent = pageTitle;
+    }
+    if (breadcrumbElement) {
+        breadcrumbElement.textContent = breadcrumbText;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    updatePageTitle();
     
     // Load balance indicators for managers/admins
     <?php if (in_array($userRole, ['manager', 'admin'])): ?>
     loadBalanceIndicators();
     <?php endif; ?>
+    
 });
 
 // Load balance indicators (GHS and SMS)

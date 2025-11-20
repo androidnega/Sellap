@@ -15,7 +15,7 @@
                 <?= count($repairs) ?> Total
             </span>
         </div>
-        <a href="<?= BASE_URL_PATH ?>/dashboard/technician/booking" class="btn btn-primary">
+        <a href="<?= BASE_URL_PATH ?>/dashboard/booking" class="btn btn-primary">
             <i class="fas fa-plus mr-2"></i>
             New Booking
         </a>
@@ -24,27 +24,27 @@
     <!-- Status Filter -->
     <div class="mb-6">
         <div class="flex space-x-2">
-            <a href="<?= BASE_URL_PATH ?>/dashboard/technician/repairs" 
+            <a href="<?= BASE_URL_PATH ?>/dashboard/repairs" 
                class="px-4 py-2 rounded-lg text-sm font-medium <?= !isset($_GET['status']) ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
                 All
             </a>
-            <a href="<?= BASE_URL_PATH ?>/dashboard/technician/repairs?status=pending" 
+            <a href="<?= BASE_URL_PATH ?>/dashboard/repairs?status=pending" 
                class="px-4 py-2 rounded-lg text-sm font-medium <?= ($_GET['status'] ?? '') === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
                 Pending
             </a>
-            <a href="<?= BASE_URL_PATH ?>/dashboard/technician/repairs?status=in_progress" 
+            <a href="<?= BASE_URL_PATH ?>/dashboard/repairs?status=in_progress" 
                class="px-4 py-2 rounded-lg text-sm font-medium <?= ($_GET['status'] ?? '') === 'in_progress' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
                 In Progress
             </a>
-            <a href="<?= BASE_URL_PATH ?>/dashboard/technician/repairs?status=completed" 
+            <a href="<?= BASE_URL_PATH ?>/dashboard/repairs?status=completed" 
                class="px-4 py-2 rounded-lg text-sm font-medium <?= ($_GET['status'] ?? '') === 'completed' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
                 Completed
             </a>
-            <a href="<?= BASE_URL_PATH ?>/dashboard/technician/repairs?status=delivered" 
+            <a href="<?= BASE_URL_PATH ?>/dashboard/repairs?status=delivered" 
                class="px-4 py-2 rounded-lg text-sm font-medium <?= ($_GET['status'] ?? '') === 'delivered' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
                 Delivered
             </a>
-            <a href="<?= BASE_URL_PATH ?>/dashboard/technician/repairs?status=failed" 
+            <a href="<?= BASE_URL_PATH ?>/dashboard/repairs?status=failed" 
                class="px-4 py-2 rounded-lg text-sm font-medium <?= ($_GET['status'] ?? '') === 'failed' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?>">
                 Failed
             </a>
@@ -60,7 +60,7 @@
                 </svg>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">No repairs found</h3>
                 <p class="text-gray-500 mb-4">Get started by creating your first repair booking.</p>
-                <a href="<?= BASE_URL_PATH ?>/dashboard/technician/booking" class="btn btn-primary">Create Booking</a>
+                <a href="<?= BASE_URL_PATH ?>/dashboard/booking" class="btn btn-primary">Create Booking</a>
             </div>
         <?php else: ?>
             <div class="overflow-x-auto">

@@ -369,12 +369,73 @@ ob_start();
     <script>
         let companyGrowthChart, userGrowthChart, smsUsageChart, activityHeatmapChart;
         
-        // Load dashboard data on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        // Ensure Tailwind processes the content when it loads
+        function ensureTailwindStyles() {
+            // Wait for Tailwind to be available
+            if (window.tailwind) {
+                // Force Tailwind to process the DOM
+                if (typeof window.tailwind.refresh === 'function') {
+                    window.tailwind.refresh();
+                }
+                return true;
+            }
+            return false;
+        }
+        
+        // Function to check and apply Tailwind styles with retries
+        function applyTailwindStylesWithRetry(retries = 10) {
+            if (ensureTailwindStyles()) {
+                return;
+            }
+            if (retries > 0) {
+                setTimeout(function() {
+                    applyTailwindStylesWithRetry(retries - 1);
+                }, 200);
+            }
+        }
+        
+        // Ensure page is visible and load data immediately
+        function initializeDashboard() {
+            // Make sure page content is visible immediately
+            if (document.body) {
+                document.body.style.display = '';
+            }
+            
+            // Load data immediately, don't wait
             loadDashboardData();
-            // Auto-refresh every 30 seconds for real-time API calls counter
-            setInterval(loadDashboardData, 30000);
+            applyTailwindStylesWithRetry();
+        }
+        
+        // Initialize immediately when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeDashboard);
+        } else {
+            // DOM already loaded - initialize immediately
+            initializeDashboard();
+        }
+        
+        // Listen for Tailwind loaded event
+        window.addEventListener('tailwindLoaded', function() {
+            ensureTailwindStyles();
+            loadDashboardData();
         });
+        
+        // Also check periodically if Tailwind becomes available
+        let tailwindCheckInterval = setInterval(function() {
+            if (window.tailwind && !window.tailwindStylesApplied) {
+                ensureTailwindStyles();
+                window.tailwindStylesApplied = true;
+                clearInterval(tailwindCheckInterval);
+            }
+        }, 500);
+        
+        // Clear interval after 10 seconds
+        setTimeout(function() {
+            clearInterval(tailwindCheckInterval);
+        }, 10000);
+        
+        // Auto-refresh every 30 seconds for real-time API calls counter
+        setInterval(loadDashboardData, 30000);
         
         function loadDashboardData() {
             // Get token from localStorage (if available)
@@ -420,15 +481,21 @@ ob_start();
             })
             .then(data => {
                 console.log('Dashboard data received:', data);
-                if (data && data.success) {
-                    updateDashboard(data);
-                    loadCharts(data);
-                } else {
-                    console.error('Dashboard error:', data?.error || 'Unknown error', data);
-                    // Still try to update with partial data if available
-                    if (data) {
+                try {
+                    if (data && data.success) {
                         updateDashboard(data);
+                        loadCharts(data);
+                    } else {
+                        console.error('Dashboard error:', data?.error || 'Unknown error', data);
+                        // Still try to update with partial data if available
+                        if (data) {
+                            updateDashboard(data);
+                        }
                     }
+                } catch (error) {
+                    console.error('Error processing dashboard data:', error);
+                    // Ensure page content is visible even on error
+                    document.body.style.display = '';
                 }
             })
             .catch(error => {
@@ -441,19 +508,27 @@ ob_start();
                     statusEl.textContent = 'Unable to load dashboard data: ' + (error.message || 'Unknown error');
                     statusEl.className = 'text-xs text-red-600 mt-1';
                 }
+                // Ensure page content is visible even on error
+                document.body.style.display = '';
             });
         }
         
         function updateDashboard(data) {
-            // Update summary cards
-            document.getElementById('companies-count').textContent = data.companies || 0;
-            document.getElementById('active-companies-count').textContent = data.active_companies || 0;
-            document.getElementById('inactive-companies-count').textContent = data.inactive_companies || 0;
-            document.getElementById('new-companies-month').textContent = data.new_companies_this_month || 0;
-            document.getElementById('managers-count').textContent = data.managers || 0;
-            document.getElementById('users-count').textContent = data.users || 0;
-            document.getElementById('api-requests-today').textContent = data.api_requests_today || 0;
-            document.getElementById('sms-sent-total').textContent = data.sms_sent_total || 0;
+            try {
+                // Update summary cards with defensive checks
+                const safeUpdate = (id, value) => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = value;
+                };
+                
+                safeUpdate('companies-count', data.companies || 0);
+                safeUpdate('active-companies-count', data.active_companies || 0);
+                safeUpdate('inactive-companies-count', data.inactive_companies || 0);
+                safeUpdate('new-companies-month', data.new_companies_this_month || 0);
+                safeUpdate('managers-count', data.managers || 0);
+                safeUpdate('users-count', data.users || 0);
+                safeUpdate('api-requests-today', data.api_requests_today || 0);
+                safeUpdate('sms-sent-total', data.sms_sent_total || 0);
             
             // Update SMS Balance (shows SMS credits, not money)
             const balanceEl = document.getElementById('sms-balance-amount');
@@ -500,173 +575,202 @@ ob_start();
                 }
             }
             
-            // Update transaction summary
-            const summary = data.transaction_summary || {};
-            document.getElementById('total-sales').textContent = summary.sales || 0;
-            document.getElementById('total-repairs').textContent = summary.repairs || 0;
-            document.getElementById('total-swaps').textContent = summary.swaps || 0;
-            document.getElementById('grand-total').textContent = summary.total || 0;
+                // Update transaction summary
+                const summary = data.transaction_summary || {};
+                safeUpdate('total-sales', summary.sales || 0);
+                safeUpdate('total-repairs', summary.repairs || 0);
+                safeUpdate('total-swaps', summary.swaps || 0);
+                safeUpdate('grand-total', summary.total || 0);
+                
+                // Update system health
+                if (data.system_health) {
+                    safeUpdate('platform-status', data.system_health.status || 'Operational');
+                    safeUpdate('db-status', data.system_health.database || 'Connected');
+                    safeUpdate('php-version', data.system_health.php_version || '-');
+                }
             
-            // Update system health
-            if (data.system_health) {
-                document.getElementById('platform-status').textContent = data.system_health.status || 'Operational';
-                document.getElementById('db-status').textContent = data.system_health.database || 'Connected';
-                document.getElementById('php-version').textContent = data.system_health.php_version || '-';
-            }
-            
-            // Update system alerts
-            if (data.system_alerts) {
-                const recentErrors = data.system_alerts.recent_errors || 0;
-                const errorsEl = document.getElementById('recent-errors');
-                if (recentErrors > 0) {
-                    errorsEl.innerHTML = '<span class="text-red-600 font-bold">' + recentErrors + '</span>';
+                // Update system alerts
+                if (data.system_alerts) {
+                    const recentErrors = data.system_alerts.recent_errors || 0;
+                    const errorsEl = document.getElementById('recent-errors');
+                    if (errorsEl) {
+                        if (recentErrors > 0) {
+                            errorsEl.innerHTML = '<span class="text-red-600 font-bold">' + recentErrors + '</span>';
+                        } else {
+                            errorsEl.innerHTML = '<span class="text-green-600">0</span>';
+                        }
+                    }
+                    
+                    // Show alerts if any
+                    const alertsContainer = document.getElementById('alerts-container');
+                    if (alertsContainer) {
+                        let alertsHtml = [];
+                        
+                        // Add error alerts
+                        if (data.system_alerts.has_alerts && recentErrors > 0) {
+                            alertsHtml.push('<p class="text-xs text-red-600 mb-2"><i class="fas fa-exclamation-triangle mr-1"></i>' + recentErrors + ' errors in last 24 hours</p>');
+                        }
+                        
+                        // Add SMS low balance alerts
+                        if (data.company_sms_summary && data.company_sms_summary.companies_with_low_balance > 0) {
+                            alertsHtml.push('<p class="text-xs text-yellow-600 mb-2"><i class="fas fa-sms mr-1"></i>' + data.company_sms_summary.companies_with_low_balance + ' companies with low SMS balance (&lt; 10%)</p>');
+                        }
+                        
+                        if (alertsHtml.length > 0) {
+                            alertsContainer.innerHTML = alertsHtml.join('');
+                        } else {
+                            alertsContainer.innerHTML = '<p class="text-xs text-green-600"><i class="fas fa-check-circle mr-1"></i>All systems operational</p>';
+                        }
+                    }
+                }
+                
+                // Update version info
+                if (data.version_info) {
+                    safeUpdate('app-version', data.version_info.current_version || '2.0.0');
+                    safeUpdate('update-check', data.version_info.last_update_check || '-');
+                }
+                
+                // Update backup status
+                if (data.backup_status) {
+                    const backupEl = document.getElementById('backup-status');
+                    if (backupEl) {
+                        if (data.backup_status.last_backup) {
+                            backupEl.textContent = data.backup_status.last_backup;
+                        } else {
+                            backupEl.textContent = 'Not Configured';
+                            backupEl.className = 'text-sm font-medium text-gray-500';
+                        }
+                    }
+                }
+                
+                // Update storage
+                safeUpdate('storage-used', (data.storage_used_mb || 0) + ' MB');
+                
+                // Update top companies
+                updateTopCompanies(data.top_companies || []);
+                
+                // Update Company SMS Summary
+                if (data.company_sms_summary) {
+                    updateCompanySMSSummary(data.company_sms_summary);
                 } else {
-                    errorsEl.innerHTML = '<span class="text-green-600">0</span>';
+                    // Initialize with empty data if not available
+                    updateCompanySMSSummary({
+                        total_sms_used: 0,
+                        companies_with_low_balance: 0,
+                        low_balance_companies: [],
+                        top_senders: [],
+                        top_sender: null
+                    });
                 }
-                
-                // Show alerts if any
-                const alertsContainer = document.getElementById('alerts-container');
-                let alertsHtml = [];
-                
-                // Add error alerts
-                if (data.system_alerts.has_alerts && recentErrors > 0) {
-                    alertsHtml.push('<p class="text-xs text-red-600 mb-2"><i class="fas fa-exclamation-triangle mr-1"></i>' + recentErrors + ' errors in last 24 hours</p>');
-                }
-                
-                // Add SMS low balance alerts
-                if (data.company_sms_summary && data.company_sms_summary.companies_with_low_balance > 0) {
-                    alertsHtml.push('<p class="text-xs text-yellow-600 mb-2"><i class="fas fa-sms mr-1"></i>' + data.company_sms_summary.companies_with_low_balance + ' companies with low SMS balance (&lt; 10%)</p>');
-                }
-                
-                if (alertsHtml.length > 0) {
-                    alertsContainer.innerHTML = alertsHtml.join('');
-                } else {
-                    alertsContainer.innerHTML = '<p class="text-xs text-green-600"><i class="fas fa-check-circle mr-1"></i>All systems operational</p>';
-                }
-            }
-            
-            // Update version info
-            if (data.version_info) {
-                document.getElementById('app-version').textContent = data.version_info.current_version || '2.0.0';
-                document.getElementById('update-check').textContent = data.version_info.last_update_check || '-';
-            }
-            
-            // Update backup status
-            if (data.backup_status) {
-                const backupEl = document.getElementById('backup-status');
-                if (data.backup_status.last_backup) {
-                    backupEl.textContent = data.backup_status.last_backup;
-                } else {
-                    backupEl.textContent = 'Not Configured';
-                    backupEl.className = 'text-sm font-medium text-gray-500';
-                }
-            }
-            
-            // Update storage
-            document.getElementById('storage-used').textContent = (data.storage_used_mb || 0) + ' MB';
-            
-            // Update top companies
-            updateTopCompanies(data.top_companies || []);
-            
-            // Update Company SMS Summary
-            if (data.company_sms_summary) {
-                updateCompanySMSSummary(data.company_sms_summary);
-            } else {
-                // Initialize with empty data if not available
-                updateCompanySMSSummary({
-                    total_sms_used: 0,
-                    companies_with_low_balance: 0,
-                    low_balance_companies: [],
-                    top_senders: [],
-                    top_sender: null
-                });
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+                // Don't break the page if update fails
             }
         }
         
         function updateCompanySMSSummary(summary) {
-            // Update summary stats
-            document.getElementById('admin-total-sms-used').textContent = (summary.total_sms_used || 0).toLocaleString();
-            document.getElementById('admin-low-balance-count').textContent = (summary.companies_with_low_balance || 0);
-            
-            // Update top sender
-            if (summary.top_sender) {
-                document.getElementById('admin-top-sms-sender').textContent = summary.top_sender.company_name || '-';
-                document.getElementById('admin-top-sender-count').textContent = (summary.top_sender.sms_sent || 0).toLocaleString() + ' SMS sent';
-            } else {
-                document.getElementById('admin-top-sms-sender').textContent = '-';
-                document.getElementById('admin-top-sender-count').textContent = '0 SMS sent';
-            }
-            
-            // Update low balance companies table
-            const lowBalanceBody = document.getElementById('admin-low-balance-companies');
-            if (summary.low_balance_companies && summary.low_balance_companies.length > 0) {
-                lowBalanceBody.innerHTML = summary.low_balance_companies.map(company => {
-                    const usagePercent = company.usage_percent || 0;
-                    const usageColor = usagePercent >= 95 ? 'text-red-600' : 'text-yellow-600';
-                    
-                    return `
-                        <tr class="hover:bg-red-50">
-                            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${company.company_name || 'Unknown'}</td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm text-red-600 font-semibold">${(company.sms_remaining || 0).toLocaleString()}</td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-600">${(company.total_sms || 0).toLocaleString()}</td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm ${usageColor} font-semibold">${usagePercent.toFixed(1)}%</td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm">
-                                <a href="${BASE}/dashboard/companies/view/${company.company_id}" class="text-blue-600 hover:text-blue-800">
-                                    <i class="fas fa-eye mr-1"></i>View
-                                </a>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-            } else {
-                lowBalanceBody.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-center text-gray-500">All companies have sufficient SMS balance</td></tr>';
-            }
-            
-            // Update top SMS senders table
-            const topSendersBody = document.getElementById('admin-top-sms-senders');
-            if (summary.top_senders && summary.top_senders.length > 0) {
-                topSendersBody.innerHTML = summary.top_senders.map((company, index) => {
-                    const statusColor = company.status === 'active' ? 'text-green-600' : 'text-red-600';
-                    const statusBadge = company.status === 'active' 
-                        ? '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Active</span>'
-                        : '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">' + (company.status || 'Unknown') + '</span>';
-                    
-                    return `
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                <span class="text-gray-400 mr-2">#${index + 1}</span>
-                                ${company.company_name || 'Unknown'}
-                            </td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm text-right font-semibold text-blue-600">${(company.sms_sent || 0).toLocaleString()}</td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm text-right text-gray-600">${(company.sms_remaining || 0).toLocaleString()}</td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm">${statusBadge}</td>
-                        </tr>
-                    `;
-                }).join('');
-            } else {
-                topSendersBody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-gray-500">No SMS activity found</td></tr>';
+            try {
+                // Update summary stats with defensive checks
+                const safeUpdate = (id, value) => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = value;
+                };
+                
+                safeUpdate('admin-total-sms-used', (summary.total_sms_used || 0).toLocaleString());
+                safeUpdate('admin-low-balance-count', (summary.companies_with_low_balance || 0));
+                
+                // Update top sender
+                if (summary.top_sender) {
+                    safeUpdate('admin-top-sms-sender', summary.top_sender.company_name || '-');
+                    safeUpdate('admin-top-sender-count', (summary.top_sender.sms_sent || 0).toLocaleString() + ' SMS sent');
+                } else {
+                    safeUpdate('admin-top-sms-sender', '-');
+                    safeUpdate('admin-top-sender-count', '0 SMS sent');
+                }
+                
+                // Update low balance companies table
+                const lowBalanceBody = document.getElementById('admin-low-balance-companies');
+                if (lowBalanceBody) {
+                    if (summary.low_balance_companies && summary.low_balance_companies.length > 0) {
+                        lowBalanceBody.innerHTML = summary.low_balance_companies.map(company => {
+                            const usagePercent = company.usage_percent || 0;
+                            const usageColor = usagePercent >= 95 ? 'text-red-600' : 'text-yellow-600';
+                            
+                            return `
+                                <tr class="hover:bg-red-50">
+                                    <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${company.company_name || 'Unknown'}</td>
+                                    <td class="px-3 py-3 whitespace-nowrap text-sm text-red-600 font-semibold">${(company.sms_remaining || 0).toLocaleString()}</td>
+                                    <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-600">${(company.total_sms || 0).toLocaleString()}</td>
+                                    <td class="px-3 py-3 whitespace-nowrap text-sm ${usageColor} font-semibold">${usagePercent.toFixed(1)}%</td>
+                                    <td class="px-3 py-3 whitespace-nowrap text-sm">
+                                        <a href="${BASE}/dashboard/companies/view/${company.company_id}" class="text-blue-600 hover:text-blue-800">
+                                            <i class="fas fa-eye mr-1"></i>View
+                                        </a>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('');
+                    } else {
+                        lowBalanceBody.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-center text-gray-500">All companies have sufficient SMS balance</td></tr>';
+                    }
+                }
+                
+                // Update top SMS senders table
+                const topSendersBody = document.getElementById('admin-top-sms-senders');
+                if (topSendersBody) {
+                    if (summary.top_senders && summary.top_senders.length > 0) {
+                        topSendersBody.innerHTML = summary.top_senders.map((company, index) => {
+                            const statusColor = company.status === 'active' ? 'text-green-600' : 'text-red-600';
+                            const statusBadge = company.status === 'active' 
+                                ? '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Active</span>'
+                                : '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">' + (company.status || 'Unknown') + '</span>';
+                            
+                            return `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        <span class="text-gray-400 mr-2">#${index + 1}</span>
+                                        ${company.company_name || 'Unknown'}
+                                    </td>
+                                    <td class="px-3 py-3 whitespace-nowrap text-sm text-right font-semibold text-blue-600">${(company.sms_sent || 0).toLocaleString()}</td>
+                                    <td class="px-3 py-3 whitespace-nowrap text-sm text-right text-gray-600">${(company.sms_remaining || 0).toLocaleString()}</td>
+                                    <td class="px-3 py-3 whitespace-nowrap text-sm">${statusBadge}</td>
+                                </tr>
+                            `;
+                        }).join('');
+                    } else {
+                        topSendersBody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-gray-500">No SMS activity found</td></tr>';
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating SMS summary:', error);
             }
         }
         
         function updateTopCompanies(companies) {
-            const container = document.getElementById('top-companies');
-            if (companies.length === 0) {
-                container.innerHTML = '<p class="text-sm text-gray-500">No data available</p>';
-                return;
+            try {
+                const container = document.getElementById('top-companies');
+                if (!container) return;
+                
+                if (companies.length === 0) {
+                    container.innerHTML = '<p class="text-sm text-gray-500">No data available</p>';
+                    return;
+                }
+                
+                container.innerHTML = companies.map((company, index) => {
+                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
+                    return `
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                            <div>
+                                <span class="text-lg mr-2">${medal}</span>
+                                <span class="text-sm font-medium text-gray-900">${company.name}</span>
+                            </div>
+                            <span class="text-sm font-bold text-blue-600">${company.transaction_count} transactions</span>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error updating top companies:', error);
             }
-            
-            container.innerHTML = companies.map((company, index) => {
-                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
-                return `
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
-                        <div>
-                            <span class="text-lg mr-2">${medal}</span>
-                            <span class="text-sm font-medium text-gray-900">${company.name}</span>
-                                        </div>
-                        <span class="text-sm font-bold text-blue-600">${company.transaction_count} transactions</span>
-                                </div>
-                `;
-            }).join('');
         }
         
         function loadCharts(data) {

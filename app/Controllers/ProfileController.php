@@ -117,12 +117,23 @@ class ProfileController {
                 throw new \Exception("User ID not found");
             }
             
+            // Handle full_name - can come as full_name or first_name + last_name
+            $fullName = null;
+            if (isset($input['full_name']) && !empty($input['full_name'])) {
+                $fullName = trim($input['full_name']);
+            } elseif (isset($input['first_name']) || isset($input['last_name'])) {
+                $firstName = trim($input['first_name'] ?? '');
+                $lastName = trim($input['last_name'] ?? '');
+                $fullName = trim($firstName . ' ' . $lastName);
+            }
+            
             // Validate required fields
-            $requiredFields = ['first_name', 'last_name', 'email'];
-            foreach ($requiredFields as $field) {
-                if (empty($input[$field])) {
-                    throw new \Exception("Field {$field} is required");
-                }
+            if (empty($fullName)) {
+                throw new \Exception("Full name is required (provide full_name or both first_name and last_name)");
+            }
+            
+            if (empty($input['email'])) {
+                throw new \Exception("Email is required");
             }
             
             // Validate email format
@@ -132,20 +143,47 @@ class ProfileController {
             
             $db = \Database::getInstance()->getConnection();
             
+            // Build update query dynamically based on provided fields
+            $updateFields = [];
+            $updateParams = [];
+            
+            // Always update full_name
+            $updateFields[] = "full_name = ?";
+            $updateParams[] = $fullName;
+            
+            if (isset($input['email'])) {
+                $updateFields[] = "email = ?";
+                $updateParams[] = $input['email'];
+            }
+            
+            if (isset($input['phone_number']) || isset($input['phone'])) {
+                $updateFields[] = "phone_number = ?";
+                $updateParams[] = $input['phone_number'] ?? $input['phone'] ?? null;
+            }
+            
+            if (isset($input['username'])) {
+                $updateFields[] = "username = ?";
+                $updateParams[] = $input['username'];
+            }
+            
+            // Add updated_at
+            $updateFields[] = "updated_at = NOW()";
+            
+            if (empty($updateFields)) {
+                throw new \Exception("No fields to update");
+            }
+            
+            // Add user id to params for WHERE clause
+            $updateParams[] = $userId;
+            
             // Update user profile
             $updateQuery = $db->prepare("
                 UPDATE users 
-                SET first_name = ?, last_name = ?, email = ?, phone = ?, updated_at = NOW()
+                SET " . implode(', ', $updateFields) . "
                 WHERE id = ?
             ");
             
-            $result = $updateQuery->execute([
-                $input['first_name'],
-                $input['last_name'],
-                $input['email'],
-                $input['phone'] ?? null,
-                $userId
-            ]);
+            $result = $updateQuery->execute($updateParams);
             
             if (!$result) {
                 throw new \Exception("Failed to update profile");
@@ -155,10 +193,16 @@ class ProfileController {
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
             }
-            $_SESSION['user']['first_name'] = $input['first_name'];
-            $_SESSION['user']['last_name'] = $input['last_name'];
-            $_SESSION['user']['email'] = $input['email'];
-            $_SESSION['user']['phone'] = $input['phone'] ?? null;
+            $_SESSION['user']['full_name'] = $fullName;
+            if (isset($input['email'])) {
+                $_SESSION['user']['email'] = $input['email'];
+            }
+            if (isset($input['phone_number']) || isset($input['phone'])) {
+                $_SESSION['user']['phone_number'] = $input['phone_number'] ?? $input['phone'] ?? null;
+            }
+            if (isset($input['username'])) {
+                $_SESSION['user']['username'] = $input['username'];
+            }
             
             header('Content-Type: application/json');
             echo json_encode([
@@ -362,14 +406,25 @@ class ProfileController {
         if ($user) {
             // Parse settings JSON
             $user['settings'] = json_decode($user['settings'] ?? '{}', true);
+            
+            // Split full_name into first_name and last_name for form display
+            $fullName = $user['full_name'] ?? '';
+            $nameParts = explode(' ', $fullName, 2);
+            $user['first_name'] = $nameParts[0] ?? '';
+            $user['last_name'] = $nameParts[1] ?? '';
+            
+            // Map phone_number to phone for form compatibility
+            $user['phone'] = $user['phone_number'] ?? '';
         } else {
             // Return default user structure if not found
             $user = [
                 'id' => $userId,
+                'full_name' => 'Unknown User',
                 'first_name' => 'Unknown',
                 'last_name' => 'User',
                 'email' => 'unknown@example.com',
                 'phone' => '',
+                'phone_number' => '',
                 'company_name' => '',
                 'company_id' => null,
                 'created_at' => date('Y-m-d H:i:s'),
@@ -815,8 +870,10 @@ class ProfileController {
         $userRole = $userData['role'] ?? 'salesperson';
         $companyId = $userData['company_id'] ?? null;
         
-        // Only managers and admins can access
-        if (!in_array($userRole, ['manager', 'admin', 'system_admin'])) {
+        // Allow manager and system_admin to access settings
+        if (!in_array($userRole, ['manager', 'system_admin'], true)) {
+            // Set error message in session
+            $_SESSION['flash_error'] = 'Access Denied: You do not have permission to access SMS settings. Only managers and system administrators can access this page.';
             header('Location: ' . BASE_URL_PATH . '/dashboard');
             exit;
         }
@@ -864,8 +921,10 @@ class ProfileController {
         $userRole = $userData['role'] ?? 'salesperson';
         $companyId = $userData['company_id'] ?? null;
         
-        // Only managers and admins can access
-        if (!in_array($userRole, ['manager', 'admin', 'system_admin'])) {
+        // Allow manager and system_admin to access purchase page
+        if (!in_array($userRole, ['manager', 'system_admin'], true)) {
+            // Set error message in session
+            $_SESSION['flash_error'] = 'Access Denied: You do not have permission to access SMS purchase. Only managers and system administrators can access this page.';
             header('Location: ' . BASE_URL_PATH . '/dashboard');
             exit;
         }
@@ -893,5 +952,149 @@ class ProfileController {
         
         // Include the dashboard layout
         include APP_PATH . '/Views/layouts/dashboard.php';
+    }
+    
+    /**
+     * Get SMS logs for manager's company with pagination
+     * GET /api/sms/logs
+     */
+    public function getSMSLogs() {
+        header('Content-Type: application/json');
+        
+        try {
+            $userData = null;
+            
+            // Try session-based auth first (for web dashboard)
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            
+            $sessionUser = $_SESSION['user'] ?? null;
+            if ($sessionUser && is_array($sessionUser)) {
+                $userData = $sessionUser;
+            } else {
+                // If no session, try JWT auth (for API calls)
+                $headers = function_exists('getallheaders') ? getallheaders() : [];
+                $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? 
+                              $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
+                
+                if (strpos($authHeader, 'Bearer ') === 0) {
+                    try {
+                        $token = substr($authHeader, 7);
+                        $auth = new \App\Services\AuthService();
+                        $payload = $auth->validateToken($token);
+                        $userData = [
+                            'id' => $payload->sub ?? null,
+                            'role' => $payload->role ?? 'salesperson',
+                            'company_id' => $payload->company_id ?? null
+                        ];
+                    } catch (\Exception $e) {
+                        // Token validation failed
+                        error_log("ProfileController::getSMSLogs - Token validation failed: " . $e->getMessage());
+                    }
+                }
+            }
+            
+            if (!$userData) {
+                http_response_code(401);
+                echo json_encode(['success' => false, 'error' => 'Authentication required']);
+                return;
+            }
+            
+            $userRole = $userData['role'] ?? 'salesperson';
+            $companyId = $userData['company_id'] ?? null;
+            
+            // Allow manager and system_admin to access logs
+            if (!in_array($userRole, ['manager', 'system_admin'], true)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                return;
+            }
+            
+            if (!$companyId) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Company ID required']);
+                return;
+            }
+            
+            $db = \Database::getInstance()->getConnection();
+            
+            // Check if sms_logs table exists
+            $tableCheck = $db->query("SHOW TABLES LIKE 'sms_logs'");
+            $tableExists = $tableCheck && $tableCheck->rowCount() > 0;
+            
+            if (!$tableExists) {
+                http_response_code(200);
+                echo json_encode([
+                    'success' => true,
+                    'logs' => [],
+                    'pagination' => [
+                        'page' => 1,
+                        'limit' => 50,
+                        'total' => 0,
+                        'pages' => 0
+                    ]
+                ]);
+                return;
+            }
+            
+            // Get query parameters
+            $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+            $limit = isset($_GET['limit']) ? min(100, max(1, (int)$_GET['limit'])) : 50;
+            $offset = ($page - 1) * $limit;
+            
+            // Get total count
+            try {
+                $countStmt = $db->prepare("SELECT COUNT(*) FROM sms_logs WHERE company_id = ?");
+                $countStmt->execute([$companyId]);
+                $total = (int)$countStmt->fetchColumn();
+            } catch (\Exception $e) {
+                error_log("Error counting SMS logs: " . $e->getMessage());
+                $total = 0;
+            }
+            
+            // Get logs
+            try {
+                $limitInt = (int)$limit;
+                $offsetInt = (int)$offset;
+                $stmt = $db->prepare("
+                    SELECT 
+                        message_type,
+                        recipient,
+                        message,
+                        status,
+                        sender_id,
+                        sent_at
+                    FROM sms_logs 
+                    WHERE company_id = ? 
+                    ORDER BY sent_at DESC 
+                    LIMIT {$limitInt} OFFSET {$offsetInt}
+                ");
+                $stmt->execute([$companyId]);
+                $logs = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            } catch (\Exception $e) {
+                error_log("Error fetching SMS logs: " . $e->getMessage());
+                $logs = [];
+            }
+            
+            http_response_code(200);
+            echo json_encode([
+                'success' => true,
+                'logs' => $logs,
+                'pagination' => [
+                    'page' => $page,
+                    'limit' => $limit,
+                    'total' => $total,
+                    'pages' => $total > 0 ? ceil($total / $limit) : 0
+                ]
+            ]);
+        } catch (\Exception $e) {
+            error_log("ProfileController::getSMSLogs error: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Failed to retrieve SMS logs: ' . $e->getMessage()
+            ]);
+        }
     }
 }

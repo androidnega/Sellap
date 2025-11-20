@@ -52,7 +52,29 @@ class NotificationService {
             ];
         }
         
-        // Check if SMS notifications are enabled for purchases
+        $companyId = $purchaseData['company_id'] ?? null;
+        
+        // Check company SMS settings first (if company exists)
+        if ($companyId !== null) {
+            try {
+                $smsAccount = new \App\Models\CompanySMSAccount();
+                $companySettings = $smsAccount->getSMSSettings($companyId);
+                
+                // Check if company has enabled SMS for purchases
+                if (!isset($companySettings['sms_purchase_enabled']) || $companySettings['sms_purchase_enabled'] != 1) {
+                    error_log("NotificationService::sendPurchaseConfirmation - Company {$companyId} has disabled SMS for purchases");
+                    return [
+                        'success' => false,
+                        'error' => 'SMS notifications disabled for purchases in company settings'
+                    ];
+                }
+            } catch (\Exception $e) {
+                error_log("NotificationService::sendPurchaseConfirmation - Error checking company settings: " . $e->getMessage());
+                // Fall back to system settings if company check fails
+            }
+        }
+        
+        // Check system-level settings (fallback or if no company)
         $settings = $this->getSettings();
         error_log("NotificationService::sendPurchaseConfirmation - SMS settings: " . json_encode($settings));
         
@@ -64,9 +86,7 @@ class NotificationService {
             ];
         }
         
-        $companyId = $purchaseData['company_id'] ?? null;
-        
-        // Check company SMS account status and balance
+        // Check company SMS account status and balance (use company SMS credits)
         if ($companyId !== null) {
             try {
                 $smsAccount = new \App\Models\CompanySMSAccount();
@@ -132,7 +152,29 @@ class NotificationService {
             ];
         }
         
-        // Check if SMS notifications are enabled for repairs
+        $companyId = $repairData['company_id'] ?? null;
+        
+        // Check company SMS settings first (if company exists)
+        if ($companyId !== null) {
+            try {
+                $smsAccount = new \App\Models\CompanySMSAccount();
+                $companySettings = $smsAccount->getSMSSettings($companyId);
+                
+                // Check if company has enabled SMS for repairs
+                if (!isset($companySettings['sms_repair_enabled']) || $companySettings['sms_repair_enabled'] != 1) {
+                    error_log("NotificationService::sendRepairStatusUpdate - Company {$companyId} has disabled SMS for repairs");
+                    return [
+                        'success' => false,
+                        'error' => 'SMS notifications disabled for repairs in company settings'
+                    ];
+                }
+            } catch (\Exception $e) {
+                error_log("NotificationService::sendRepairStatusUpdate - Error checking company settings: " . $e->getMessage());
+                // Fall back to system settings if company check fails
+            }
+        }
+        
+        // Check system-level settings (fallback or if no company)
         $settings = $this->getSettings();
         if (!isset($settings['sms_repair_enabled']) || $settings['sms_repair_enabled'] !== '1') {
             return [
@@ -140,8 +182,6 @@ class NotificationService {
                 'error' => 'SMS notifications disabled for repairs'
             ];
         }
-        
-        $companyId = $repairData['company_id'] ?? null;
         $result = $this->smsService->sendRepairStatusUpdate(
             $repairData['phone_number'],
             $repairData,
@@ -178,7 +218,29 @@ class NotificationService {
             ];
         }
         
-        // Check if SMS notifications are enabled for swaps
+        $companyId = $swapData['company_id'] ?? null;
+        
+        // Check company SMS settings first (if company exists)
+        if ($companyId !== null) {
+            try {
+                $smsAccount = new \App\Models\CompanySMSAccount();
+                $companySettings = $smsAccount->getSMSSettings($companyId);
+                
+                // Check if company has enabled SMS for swaps
+                if (!isset($companySettings['sms_swap_enabled']) || $companySettings['sms_swap_enabled'] != 1) {
+                    error_log("NotificationService::sendSwapNotification - Company {$companyId} has disabled SMS for swaps");
+                    return [
+                        'success' => false,
+                        'error' => 'SMS notifications disabled for swaps in company settings'
+                    ];
+                }
+            } catch (\Exception $e) {
+                error_log("NotificationService::sendSwapNotification - Error checking company settings: " . $e->getMessage());
+                // Fall back to system settings if company check fails
+            }
+        }
+        
+        // Check system-level settings (fallback or if no company)
         $settings = $this->getSettings();
         if (!isset($settings['sms_swap_enabled']) || $settings['sms_swap_enabled'] !== '1') {
             return [
@@ -186,8 +248,6 @@ class NotificationService {
                 'error' => 'SMS notifications disabled for swaps'
             ];
         }
-        
-        $companyId = $swapData['company_id'] ?? null;
         $result = $this->smsService->sendSwapNotification(
             $swapData['phone_number'],
             $swapData,
@@ -234,6 +294,98 @@ class NotificationService {
                 $result['sender_id'] ?? null
             );
         }
+        
+        return $result;
+    }
+    
+    /**
+     * Send partial payment notification
+     * 
+     * @param array $paymentData Payment information (must include phone_number, sale_id, amount_paid, remaining, total, is_complete, and optionally company_id)
+     * @return array Notification result
+     */
+    public function sendPartialPaymentNotification($paymentData) {
+        if (!$this->smsService->isConfigured()) {
+            return [
+                'success' => false,
+                'error' => 'SMS service not configured'
+            ];
+        }
+        
+        $companyId = $paymentData['company_id'] ?? null;
+        
+        // Check company SMS settings first (if company exists)
+        if ($companyId !== null) {
+            try {
+                $smsAccount = new \App\Models\CompanySMSAccount();
+                $companySettings = $smsAccount->getSMSSettings($companyId);
+                
+                // Check if company has enabled SMS for payments
+                if (!isset($companySettings['sms_payment_enabled']) || $companySettings['sms_payment_enabled'] != 1) {
+                    error_log("NotificationService::sendPartialPaymentNotification - Company {$companyId} has disabled SMS for payments");
+                    return [
+                        'success' => false,
+                        'error' => 'SMS notifications disabled for payments in company settings'
+                    ];
+                }
+            } catch (\Exception $e) {
+                error_log("NotificationService::sendPartialPaymentNotification - Error checking company settings: " . $e->getMessage());
+                // Fall back to system settings if company check fails
+            }
+        }
+        
+        // Check system-level settings (fallback or if no company)
+        $settings = $this->getSettings();
+        if (!isset($settings['sms_payment_enabled']) || $settings['sms_payment_enabled'] !== '1') {
+            return [
+                'success' => false,
+                'error' => 'SMS notifications disabled for payments'
+            ];
+        }
+        
+        // Check company SMS account status and balance (use company SMS credits)
+        if ($companyId !== null) {
+            try {
+                $smsAccount = new \App\Models\CompanySMSAccount();
+                $balance = $smsAccount->getSMSBalance($companyId);
+                
+                if (!$balance['success']) {
+                    error_log("NotificationService::sendPartialPaymentNotification - Failed to get SMS balance for company {$companyId}");
+                    return [
+                        'success' => false,
+                        'error' => 'Failed to check SMS balance'
+                    ];
+                }
+                
+                if ($balance['status'] !== 'active') {
+                    error_log("NotificationService::sendPartialPaymentNotification - Company {$companyId} SMS account is not active. Status: " . ($balance['status'] ?? 'unknown'));
+                    return [
+                        'success' => false,
+                        'error' => 'Company SMS account is not active. Status: ' . ($balance['status'] ?? 'unknown')
+                    ];
+                }
+                
+                if ($balance['sms_remaining'] < 1) {
+                    error_log("NotificationService::sendPartialPaymentNotification - Company {$companyId} has insufficient SMS credits. Remaining: " . ($balance['sms_remaining'] ?? 0));
+                    return [
+                        'success' => false,
+                        'error' => 'Insufficient SMS credits. Remaining: ' . ($balance['sms_remaining'] ?? 0),
+                        'insufficient_credits' => true
+                    ];
+                }
+            } catch (\Exception $e) {
+                error_log("NotificationService::sendPartialPaymentNotification - Error checking company SMS account: " . $e->getMessage());
+                // Continue anyway, let SMSService handle it
+            }
+        }
+        
+        $result = $this->smsService->sendPartialPaymentNotification(
+            $paymentData['phone_number'],
+            $paymentData,
+            $companyId
+        );
+        
+        // Note: SMS logging is now handled directly in SMSService::sendRealSMS() for instant logging
         
         return $result;
     }

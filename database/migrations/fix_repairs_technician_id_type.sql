@@ -17,3 +17,4 @@ FOREIGN KEY (technician_id) REFERENCES users(id) ON DELETE RESTRICT;
 
 
 
+

@@ -82,28 +82,33 @@ class NotificationController {
                 }
                 
                 $userData = $_SESSION['user'] ?? null;
-                if (!$userData) {
-                    // Clean output buffer before sending error
-                    while (ob_get_level() > 0) {
-                        ob_end_clean();
-                    }
-                    
-                    if (!headers_sent()) {
-                        http_response_code(401);
-                        header('Content-Type: application/json');
-                    }
-                    
-                    echo json_encode([
-                        'success' => false,
-                        'error' => 'Invalid or expired token',
-                        'message' => 'Invalid or expired token: Expired token'
-                    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                    exit;
+                if ($userData && is_array($userData)) {
+                    $userId = $userData['id'] ?? null;
+                    $userRole = $userData['role'] ?? null;
+                    $companyId = $userData['company_id'] ?? null;
                 }
                 
-                $userId = $userData['id'];
-                $userRole = $userData['role'] ?? '';
-                $companyId = $userData['company_id'] ?? null;
+                // Also check for session token if user data not available
+                if ($userId === null && isset($_SESSION['token'])) {
+                    try {
+                        $auth = new AuthService();
+                        $payload = $auth->validateToken($_SESSION['token']);
+                        $userId = $payload->sub;
+                        $userRole = $payload->role;
+                        $companyId = $payload->company_id ?? null;
+                        
+                        // Update session user data from validated token
+                        $_SESSION['user'] = [
+                            'id' => $payload->sub,
+                            'username' => $payload->username,
+                            'role' => $payload->role,
+                            'company_id' => $payload->company_id ?? null
+                        ];
+                    } catch (\Exception $e) {
+                        // Token validation failed
+                        error_log("Session token validation failed: " . $e->getMessage());
+                    }
+                }
             }
             
             // If still no user, return error
@@ -208,6 +213,15 @@ class NotificationController {
                                 }
                             }
                             
+                            // Filter out read repair notifications (unlike out of stock which persists)
+                            // Only show unread repair notifications
+                            $isRead = ($dbNotif['status'] ?? 'unread') === 'read';
+                            $isRepairNotification = ($dbNotif['type'] ?? '') === 'repair';
+                            
+                            if ($isRepairNotification && $isRead) {
+                                continue; // Skip read repair notifications
+                            }
+                            
                             $notifications[] = [
                                 'id' => $notifId,
                                 'type' => $dbNotif['type'] ?? 'system',
@@ -215,7 +229,7 @@ class NotificationController {
                                 'message' => $dbNotif['message'] ?? '',
                                 'data' => $dbNotif['data'] ? json_decode($dbNotif['data'], true) : [],
                                 'created_at' => $dbNotif['created_at'] ?? date('Y-m-d H:i:s'),
-                                'read' => ($dbNotif['status'] ?? 'unread') === 'read' ? true : false,
+                                'read' => $isRead,
                                 'priority' => 'medium'
                             ];
                         }
@@ -668,9 +682,12 @@ class NotificationController {
             }
             
             // Build WHERE condition for out of stock
-            $outOfStockCondition = "COALESCE(p.{$quantityCol}, 0) <= 0";
+            // Note: Items with quantity = 0 are filtered out from product listings, so exclude them from notifications
+            // Only show items with quantity > 0 that have out-of-stock status
+            $outOfStockCondition = "FALSE"; // Default to false if no status column
             if ($hasStatus) {
-                $outOfStockCondition = "({$outOfStockCondition} OR p.status = 'out_of_stock' OR p.status = 'OUT_OF_STOCK')";
+                // Only show items with quantity > 0 that have out-of-stock status
+                $outOfStockCondition = "(COALESCE(p.{$quantityCol}, 0) > 0 AND (LOWER(p.status) = 'out_of_stock' OR LOWER(p.status) = 'sold'))";
             }
             
             if ($userRole === 'system_admin') {
@@ -961,7 +978,7 @@ class NotificationController {
             if (strpos($authHeader, 'Bearer ') === 0) {
                 try {
                     $token = substr($authHeader, 7);
-                    $auth = new \App\Services\AuthService();
+                    $auth = new AuthService();
                     $payload = $auth->validateToken($token);
                     $userId = $payload->sub;
                     $companyId = $payload->company_id ?? null;
@@ -1311,7 +1328,7 @@ class NotificationController {
             if (strpos($authHeader, 'Bearer ') === 0) {
                 try {
                     $token = substr($authHeader, 7);
-                    $auth = new \App\Services\AuthService();
+                    $auth = new AuthService();
                     $payload = $auth->validateToken($token);
                     $userId = $payload->sub;
                     $companyId = $payload->company_id ?? null;

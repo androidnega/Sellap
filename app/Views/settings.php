@@ -8,42 +8,42 @@ $cloudinaryConfigured = $cloudinaryConfigured ?? false;
 $smsConfigured = $smsConfigured ?? false;
 ?>
 
-<div class="max-w-6xl mx-auto">
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900">System Settings</h1>
-        <p class="text-gray-600 mt-2">Configure Cloudinary storage, SMS notifications, and payment gateways</p>
+<div class="w-full">
+    <div class="mb-6">
+        <h1 class="text-xl font-bold text-gray-900">System Settings</h1>
+        <p class="text-sm text-gray-600 mt-1">Configure Cloudinary storage, SMS notifications, and payment gateways</p>
             </div>
             
             <!-- Settings Tabs -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200">
                 <div class="border-b border-gray-200">
-                    <nav class="-mb-px flex space-x-8 px-6">
-                        <button onclick="showTab('cloudinary')" id="cloudinary-tab" class="tab-button active py-4 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600">
-                            <i class="fas fa-cloud mr-2"></i>Cloudinary Storage
+                    <nav class="-mb-px flex space-x-6 px-4">
+                        <button onclick="showTab('cloudinary')" id="cloudinary-tab" class="tab-button active py-2 px-1 border-b-2 border-blue-500 font-medium text-xs text-blue-600">
+                            <i class="fas fa-cloud mr-1"></i>Cloudinary Storage
                         </button>
-                        <button onclick="showTab('sms')" id="sms-tab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                            <i class="fas fa-sms mr-2"></i>SMS Notifications
+                        <button onclick="showTab('sms')" id="sms-tab" class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-xs text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                            <i class="fas fa-sms mr-1"></i>SMS Notifications
                         </button>
-                        <button onclick="showTab('paystack')" id="paystack-tab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                            <i class="fas fa-credit-card mr-2"></i>Paystack Payment
+                        <button onclick="showTab('paystack')" id="paystack-tab" class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-xs text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                            <i class="fas fa-credit-card mr-1"></i>Paystack Payment
                         </button>
-                        <button onclick="showTab('general')" id="general-tab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                            <i class="fas fa-cog mr-2"></i>General Settings
+                        <button onclick="showTab('general')" id="general-tab" class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-xs text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                            <i class="fas fa-cog mr-1"></i>General Settings
                         </button>
                     </nav>
                 </div>
                 
                 <!-- Cloudinary Settings Tab -->
-                <div id="cloudinary-content" class="tab-content p-6">
-                    <div class="mb-6">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Cloudinary Configuration</h3>
-                        <p class="text-gray-600">Configure cloud storage for image uploads</p>
+                <div id="cloudinary-content" class="tab-content p-4">
+                    <div class="mb-4">
+                        <h3 class="text-base font-semibold text-gray-800 mb-1">Cloudinary Configuration</h3>
+                        <p class="text-sm text-gray-600">Configure cloud storage for image uploads</p>
                     </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Cloud Name</label>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Cloud Name</label>
                         <input type="text" id="cloudinary-cloud-name" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="your-cloud-name" value="<?= htmlspecialchars($settings['cloudinary_cloud_name'] ?? '') ?>">
                             </div>
                             <div>
@@ -105,10 +105,10 @@ $smsConfigured = $smsConfigured ?? false;
                 </div>
                 
                 <!-- SMS Settings Tab -->
-                <div id="sms-content" class="tab-content p-6 hidden">
-                    <div class="mb-6">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-2">SMS Configuration</h3>
-                        <p class="text-gray-600">Configure SMS notifications for purchases and other events</p>
+                <div id="sms-content" class="tab-content p-4 hidden">
+                    <div class="mb-4">
+                        <h3 class="text-base font-semibold text-gray-800 mb-1">SMS Configuration</h3>
+                        <p class="text-sm text-gray-600">Configure SMS notifications for purchases and other events</p>
                         <div class="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
                             <p class="text-sm text-blue-800">
                                 <i class="fas fa-info-circle mr-1"></i>
@@ -180,10 +180,10 @@ $smsConfigured = $smsConfigured ?? false;
                 </div>
                 
                 <!-- Paystack Settings Tab -->
-                <div id="paystack-content" class="tab-content p-6 hidden">
-                    <div class="mb-6">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Paystack Payment Configuration</h3>
-                        <p class="text-gray-600">Configure Paystack payment gateway for transactions</p>
+                <div id="paystack-content" class="tab-content p-4 hidden">
+                    <div class="mb-4">
+                        <h3 class="text-base font-semibold text-gray-800 mb-1">Paystack Payment Configuration</h3>
+                        <p class="text-sm text-gray-600">Configure Paystack payment gateway for transactions</p>
                         <div class="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
                             <p class="text-sm text-blue-800">
                                 <i class="fas fa-info-circle mr-1"></i>
@@ -258,15 +258,15 @@ $smsConfigured = $smsConfigured ?? false;
                 </div>
                 
                 <!-- General Settings Tab -->
-                <div id="general-content" class="tab-content p-6 hidden">
-                    <div class="mb-6">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-2">General Settings</h3>
-                <p class="text-gray-600">Configure general system preferences</p>
+                <div id="general-content" class="tab-content p-4 hidden">
+                    <div class="mb-4">
+                        <h3 class="text-base font-semibold text-gray-800 mb-1">General Settings</h3>
+                <p class="text-sm text-gray-600">Configure general system preferences</p>
                     </div>
                     
                     <div class="space-y-6">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Default Image Quality</label>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Default Image Quality</label>
                             <select id="default-image-quality" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="auto" <?= ($settings['default_image_quality'] ?? 'auto') === 'auto' ? 'selected' : '' ?>>Auto</option>
                         <option value="80" <?= ($settings['default_image_quality'] ?? '') === '80' ? 'selected' : '' ?>>80%</option>
@@ -275,11 +275,11 @@ $smsConfigured = $smsConfigured ?? false;
                             </select>
                         </div>
                         
-                <div class="space-y-4">
+                <div class="space-y-3">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h4 class="text-sm font-medium text-gray-900">SMS for Purchase Notifications</h4>
-                            <p class="text-sm text-gray-500">Send SMS notifications when purchases are made</p>
+                            <h4 class="text-xs font-medium text-gray-900">SMS for Purchase Notifications</h4>
+                            <p class="text-xs text-gray-500">Send SMS notifications when purchases are made</p>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="sms-purchase-enabled" value="1" <?= ($settings['sms_purchase_enabled'] ?? '0') === '1' ? 'checked' : '' ?> class="sr-only peer">
@@ -289,14 +289,25 @@ $smsConfigured = $smsConfigured ?? false;
                     
                     <div class="flex items-center justify-between">
                         <div>
-                            <h4 class="text-sm font-medium text-gray-900">SMS for Repair Notifications</h4>
-                            <p class="text-sm text-gray-500">Send SMS notifications when repairs are completed</p>
+                            <h4 class="text-xs font-medium text-gray-900">SMS for Repair Notifications</h4>
+                            <p class="text-xs text-gray-500">Send SMS notifications when repairs are completed</p>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="sms-repair-enabled" value="1" <?= ($settings['sms_repair_enabled'] ?? '0') === '1' ? 'checked' : '' ?> class="sr-only peer">
                             <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                                 </label>
                             </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="text-xs font-medium text-gray-900">SMS for Payment Notifications</h4>
+                            <p class="text-xs text-gray-500">Send SMS notifications when partial payments are made or completed</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="sms-payment-enabled" value="1" <?= ($settings['sms_payment_enabled'] ?? '0') === '1' ? 'checked' : '' ?> class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
                         </div>
                         
                         <div class="flex justify-end">
@@ -349,6 +360,29 @@ document.addEventListener('DOMContentLoaded', function() {
     restoreActiveTab();
     // Then load settings
     loadSettings();
+    
+    // Add event listeners to toggles for immediate visual feedback
+    const purchaseToggle = document.getElementById('sms-purchase-enabled');
+    const repairToggle = document.getElementById('sms-repair-enabled');
+    const paymentToggle = document.getElementById('sms-payment-enabled');
+    
+    if (purchaseToggle) {
+        purchaseToggle.addEventListener('change', function() {
+            console.log('Purchase SMS toggle changed:', this.checked);
+        });
+    }
+    
+    if (repairToggle) {
+        repairToggle.addEventListener('change', function() {
+            console.log('Repair SMS toggle changed:', this.checked);
+        });
+    }
+    
+    if (paymentToggle) {
+        paymentToggle.addEventListener('change', function() {
+            console.log('Payment SMS toggle changed:', this.checked);
+        });
+    }
 });
         
         function loadSettings() {
@@ -410,11 +444,42 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (settings['default_image_quality']) {
                         document.getElementById('default-image-quality').value = settings['default_image_quality'];
                     }
-                    if (settings['sms_purchase_enabled']) {
-                        document.getElementById('sms-purchase-enabled').checked = settings['sms_purchase_enabled'] === '1';
+                    // Update SMS toggle states
+                    const purchaseToggle = document.getElementById('sms-purchase-enabled');
+                    const repairToggle = document.getElementById('sms-repair-enabled');
+                    const paymentToggle = document.getElementById('sms-payment-enabled');
+                    
+                    if (purchaseToggle) {
+                        const purchaseValue = settings['sms_purchase_enabled'] ?? '0';
+                        purchaseToggle.checked = purchaseValue === '1' || purchaseValue === 1 || purchaseValue === true;
+                        console.log('Purchase SMS toggle loaded:', purchaseToggle.checked, 'from value:', purchaseValue);
+                        
+                        // Ensure event listener is attached
+                        purchaseToggle.onchange = function() {
+                            console.log('Purchase SMS toggle changed:', this.checked);
+                        };
                     }
-                    if (settings['sms_repair_enabled']) {
-                        document.getElementById('sms-repair-enabled').checked = settings['sms_repair_enabled'] === '1';
+                    
+                    if (repairToggle) {
+                        const repairValue = settings['sms_repair_enabled'] ?? '0';
+                        repairToggle.checked = repairValue === '1' || repairValue === 1 || repairValue === true;
+                        console.log('Repair SMS toggle loaded:', repairToggle.checked, 'from value:', repairValue);
+                        
+                        // Ensure event listener is attached
+                        repairToggle.onchange = function() {
+                            console.log('Repair SMS toggle changed:', this.checked);
+                        };
+                    }
+                    
+                    if (paymentToggle) {
+                        const paymentValue = settings['sms_payment_enabled'] ?? '0';
+                        paymentToggle.checked = paymentValue === '1' || paymentValue === 1 || paymentValue === true;
+                        console.log('Payment SMS toggle loaded:', paymentToggle.checked, 'from value:', paymentValue);
+                        
+                        // Ensure event listener is attached
+                        paymentToggle.onchange = function() {
+                            console.log('Payment SMS toggle changed:', this.checked);
+                        };
                     }
                     
                     updateStatusIndicators();
@@ -805,12 +870,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         function saveGeneralSettings() {
+            const purchaseToggle = document.getElementById('sms-purchase-enabled');
+            const repairToggle = document.getElementById('sms-repair-enabled');
+            const paymentToggle = document.getElementById('sms-payment-enabled');
+            
             const settings = {
                 default_image_quality: document.getElementById('default-image-quality').value,
-                sms_purchase_enabled: document.getElementById('sms-purchase-enabled').checked ? '1' : '0',
-        sms_repair_enabled: document.getElementById('sms-repair-enabled').checked ? '1' : '0'
+                sms_purchase_enabled: purchaseToggle && purchaseToggle.checked ? '1' : '0',
+                sms_repair_enabled: repairToggle && repairToggle.checked ? '1' : '0',
+                sms_payment_enabled: paymentToggle && paymentToggle.checked ? '1' : '0'
             };
             
+            console.log('Saving general settings:', settings);
             saveSettings(settings);
         }
         
@@ -840,6 +911,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     alert('Settings saved successfully!');
                     updateStatusIndicators();
+                    // Reload settings to ensure UI is in sync
+                    loadSettings();
                 } else {
             alert('Failed to save settings: ' + (data.error || 'Unknown error'));
                 }

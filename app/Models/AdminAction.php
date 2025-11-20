@@ -135,5 +135,32 @@ class AdminAction {
         $stmt->execute([$companyId, $limit]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    /**
+     * Delete admin action by ID
+     */
+    public function delete($id) {
+        $stmt = $this->conn->prepare("DELETE FROM {$this->table} WHERE id = ?");
+        return $stmt->execute([$id]);
+    }
+
+    /**
+     * Delete multiple admin actions by IDs
+     */
+    public function deleteMultiple($ids) {
+        if (empty($ids) || !is_array($ids)) {
+            return false;
+        }
+        
+        // Sanitize IDs to ensure they're all integers
+        $ids = array_filter(array_map('intval', $ids));
+        if (empty($ids)) {
+            return false;
+        }
+        
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->conn->prepare("DELETE FROM {$this->table} WHERE id IN ($placeholders)");
+        return $stmt->execute($ids);
+    }
 }
 

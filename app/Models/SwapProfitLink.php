@@ -231,6 +231,7 @@ class SwapProfitLink {
 
     /**
      * Get profit statistics
+     * Only count finalized profits where customer item has been resold (realized gains)
      */
     public function getStats($company_id) {
         $stmt = $this->db->prepare("
@@ -239,9 +240,29 @@ class SwapProfitLink {
                 SUM(CASE WHEN spl.status = 'pending' THEN 1 ELSE 0 END) as pending_links,
                 SUM(CASE WHEN spl.status = 'finalized' THEN 1 ELSE 0 END) as finalized_links,
                 SUM(spl.profit_estimate) as total_estimated_profit,
-                SUM(spl.final_profit) as total_final_profit,
+                -- Only count final_profit when customer item has been resold AND profit is finalized
+                SUM(CASE 
+                    WHEN spl.customer_item_sale_id IS NOT NULL 
+                    AND spl.status = 'finalized' 
+                    AND spl.final_profit IS NOT NULL 
+                    THEN spl.final_profit 
+                    WHEN spl.customer_item_sale_id IS NOT NULL 
+                    AND spl.final_profit IS NOT NULL 
+                    THEN spl.final_profit
+                    ELSE 0 
+                END) as total_final_profit,
                 AVG(spl.profit_estimate) as avg_estimated_profit,
-                AVG(spl.final_profit) as avg_final_profit
+                -- Only average finalized profits where customer item has been resold
+                AVG(CASE 
+                    WHEN spl.customer_item_sale_id IS NOT NULL 
+                    AND spl.status = 'finalized' 
+                    AND spl.final_profit IS NOT NULL 
+                    THEN spl.final_profit 
+                    WHEN spl.customer_item_sale_id IS NOT NULL 
+                    AND spl.final_profit IS NOT NULL 
+                    THEN spl.final_profit
+                    ELSE NULL 
+                END) as avg_final_profit
             FROM swap_profit_links spl
             LEFT JOIN swaps s ON spl.swap_id = s.id
             WHERE s.company_id = ?
@@ -415,28 +436,15 @@ class SwapProfitLink {
             return null;
         }
         
-        // Check if both sales are linked (both items must be sold before profit can be calculated)
-        if (empty($link['company_item_sale_id']) || empty($link['customer_item_sale_id'])) {
-            // Not ready yet - waiting for both items to be sold
-            error_log("SwapProfitLink: Both items not yet sold for swap ID {$swapId}. Company sale: " . ($link['company_item_sale_id'] ?? 'NULL') . ", Customer sale: " . ($link['customer_item_sale_id'] ?? 'NULL'));
+        // Check if customer item sale is linked (customer item must be resold for profit to be realized)
+        if (empty($link['customer_item_sale_id'])) {
+            // Not ready yet - waiting for customer item to be resold
+            error_log("SwapProfitLink: Customer item not yet resold for swap ID {$swapId}. Customer sale: " . ($link['customer_item_sale_id'] ?? 'NULL'));
             return null;
         }
         
         try {
-            // Fetch actual POS sale records to get real sale prices
-            $companySaleStmt = $this->db->prepare("
-                SELECT id, final_amount 
-                FROM pos_sales 
-                WHERE id = ?
-            ");
-            $companySaleStmt->execute([$link['company_item_sale_id']]);
-            $companySale = $companySaleStmt->fetch(PDO::FETCH_ASSOC);
-            
-            if (!$companySale) {
-                error_log("SwapProfitLink: Company sale not found: {$link['company_item_sale_id']}");
-                return null;
-            }
-            
+            // Get customer sale (required - this is when the swapped item was resold)
             $customerSaleStmt = $this->db->prepare("
                 SELECT id, final_amount 
                 FROM pos_sales 
@@ -450,12 +458,110 @@ class SwapProfitLink {
                 return null;
             }
             
+            // Get company sale price - use actual sale if linked, otherwise use swap total_value or product price
+            $companySalePrice = 0;
+            if (!empty($link['company_item_sale_id'])) {
+                // Company sale exists - use actual sale price
+                $companySaleStmt = $this->db->prepare("
+                    SELECT id, final_amount 
+                    FROM pos_sales 
+                    WHERE id = ?
+                ");
+                $companySaleStmt->execute([$link['company_item_sale_id']]);
+                $companySale = $companySaleStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($companySale) {
+                    $companySalePrice = floatval($companySale['final_amount']);
+                } else {
+                    error_log("SwapProfitLink: Company sale not found: {$link['company_item_sale_id']}, will use fallback");
+                }
+            }
+            
+            // If company sale not found or not linked, use swap's final_price, total_value, or product price as fallback
+            if ($companySalePrice == 0) {
+                // Check what columns exist in swaps table
+                $swapColumns = $this->db->query("SHOW COLUMNS FROM swaps")->fetchAll(PDO::FETCH_COLUMN);
+                $hasFinalPrice = in_array('final_price', $swapColumns);
+                $hasTotalValue = in_array('total_value', $swapColumns);
+                $hasCompanyProductId = in_array('company_product_id', $swapColumns);
+                $hasNewPhoneId = in_array('new_phone_id', $swapColumns);
+                
+                // Build SELECT based on available columns
+                $selectFields = ['s.id', 's.company_id'];
+                if ($hasFinalPrice) {
+                    $selectFields[] = 's.final_price';
+                }
+                if ($hasTotalValue) {
+                    $selectFields[] = 's.total_value';
+                }
+                if ($hasCompanyProductId) {
+                    $selectFields[] = 's.company_product_id';
+                }
+                if ($hasNewPhoneId) {
+                    $selectFields[] = 's.new_phone_id';
+                }
+                
+                $swapStmt = $this->db->prepare("
+                    SELECT " . implode(', ', $selectFields) . "
+                    FROM swaps s
+                    WHERE s.id = ?
+                ");
+                $swapStmt->execute([$swapId]);
+                $swap = $swapStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($swap) {
+                    // Try final_price first (most accurate - what customer actually paid)
+                    if ($hasFinalPrice && !empty($swap['final_price'])) {
+                        $companySalePrice = floatval($swap['final_price']);
+                    } elseif ($hasTotalValue && !empty($swap['total_value'])) {
+                        // Try total_value if final_price not available
+                        $companySalePrice = floatval($swap['total_value']);
+                    } elseif ($hasCompanyProductId && !empty($swap['company_product_id'])) {
+                        // Try to get product price
+                        $productStmt = $this->db->prepare("
+                            SELECT price 
+                            FROM products_new 
+                            WHERE id = ? AND company_id = ?
+                            UNION ALL
+                            SELECT price 
+                            FROM products 
+                            WHERE id = ? AND company_id = ?
+                            LIMIT 1
+                        ");
+                        $productStmt->execute([$swap['company_product_id'], $swap['company_id'], $swap['company_product_id'], $swap['company_id']]);
+                        $product = $productStmt->fetch(PDO::FETCH_ASSOC);
+                        if ($product) {
+                            $companySalePrice = floatval($product['price']);
+                        }
+                    } elseif ($hasNewPhoneId && !empty($swap['new_phone_id'])) {
+                        // Try to get phone price (old schema)
+                        $phoneStmt = $this->db->prepare("
+                            SELECT selling_price 
+                            FROM phones 
+                            WHERE id = ?
+                            LIMIT 1
+                        ");
+                        $phoneStmt->execute([$swap['new_phone_id']]);
+                        $phone = $phoneStmt->fetch(PDO::FETCH_ASSOC);
+                        if ($phone) {
+                            $companySalePrice = floatval($phone['selling_price']);
+                        }
+                    }
+                }
+                
+                if ($companySalePrice == 0) {
+                    error_log("SwapProfitLink: Could not determine company sale price for swap ID {$swapId}");
+                    return null;
+                }
+                
+                error_log("SwapProfitLink: Using fallback company sale price: ₵{$companySalePrice} (swap final_price/total_value or product price)");
+            }
+            
             // Get values from stored profit link (set during swap creation)
             $companyCost = floatval($link['company_product_cost']); // Manager-defined cost from inventory
             $customerValue = floatval($link['customer_phone_value']); // Value given to customer during swap
             
-            // Get actual sale prices from POS transactions
-            $companySalePrice = floatval($companySale['final_amount']); // What customer paid for company phone
+            // Get actual sale price from POS transaction (customer item resale)
             $customerResellPrice = floatval($customerSale['final_amount']); // What company got when reselling customer phone
             
             // Calculate profit using the refined formula
@@ -477,7 +583,7 @@ class SwapProfitLink {
             $updateStmt->execute([$profit, $swapId]);
             
             error_log("SwapProfitLink: Profit calculated for swap ID {$swapId}:");
-            error_log("  Company: Sale ₵{$companySalePrice} - Cost ₵{$companyCost} = Profit ₵{$companyProfit}");
+            error_log("  Company: Sale ₵{$companySalePrice} - Cost ₵{$companyCost} = Profit ₵{$companyProfit}" . (empty($link['company_item_sale_id']) ? " (using fallback price)" : ""));
             error_log("  Resale: Resell ₵{$customerResellPrice} - Value ₵{$customerValue} = Profit ₵{$resaleProfit}");
             error_log("  TOTAL PROFIT: ₵{$profit} = (₵{$companySalePrice} + ₵{$customerResellPrice}) - (₵{$companyCost} + ₵{$customerValue})");
             

@@ -341,24 +341,93 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show swap option only for Phone category (check by name)
         const normalizedCategoryName = categoryName.toLowerCase().trim();
         const phoneCategories = ['phone', 'phones', 'smartphone', 'smartphones', 'mobile', 'mobiles'];
-        if (phoneCategories.includes(normalizedCategoryName)) {
+        const accessoryCategories = ['accessory', 'accessories'];
+        const isPhoneCategory = phoneCategories.includes(normalizedCategoryName);
+        const isAccessoryCategory = accessoryCategories.includes(normalizedCategoryName);
+        
+        if (isPhoneCategory) {
             swapContainer.style.display = 'block';
         } else {
             swapContainer.style.display = 'none';
         }
 
         // Show generic specs for categories without brand-specific specs
-        if (categoryId && !['1', '4'].includes(categoryId)) {
-            showGenericSpecs(categoryName);
+        // For accessories, always show generic specs (not phone specs, even if brand is Apple/iPhone)
+        if (categoryId) {
+            if (isAccessoryCategory) {
+                // For accessories, show generic accessory specs
+                // Clear any phone specs that might be showing
+                specsContainer.style.display = 'block';
+                dynamicSpecs.innerHTML = '';
+                showGenericSpecs(categoryName);
+            } else if (!['1', '4'].includes(categoryId)) {
+                // For other non-phone categories, show generic specs
+                showGenericSpecs(categoryName);
+            } else {
+                // For phone categories, if brand is already selected, reload specs
+                if (brandSelect.value) {
+                    brandSelect.dispatchEvent(new Event('change'));
+                }
+            }
         }
     });
 
     // Brand change handler
     brandSelect.addEventListener('change', () => {
         const brandId = brandSelect.value;
+        const categoryOption = categorySelect.options[categorySelect.selectedIndex];
+        const categoryName = categoryOption ? categoryOption.text.toLowerCase() : '';
+        const normalizedCategoryName = categoryName.toLowerCase().trim();
         
-        if (brandId) {
-            // Fetch brand-specific specifications
+        // Check if category is accessory
+        const accessoryCategories = ['accessory', 'accessories'];
+        const isAccessoryCategory = accessoryCategories.includes(normalizedCategoryName);
+        
+        // Check if category is phone
+        const phoneCategories = ['phone', 'phones', 'smartphone', 'smartphones', 'mobile', 'mobiles'];
+        const isPhoneCategory = phoneCategories.includes(normalizedCategoryName);
+        
+        if (!brandId) {
+            specsContainer.style.display = 'none';
+            dynamicSpecs.innerHTML = '';
+            return;
+        }
+        
+        // CRITICAL: For accessories, NEVER show phone specs, regardless of brand
+        // Even if brand is Apple/iPhone, show generic accessory specs
+        if (isAccessoryCategory) {
+            // Clear any existing specs first
+            specsContainer.style.display = 'block';
+            dynamicSpecs.innerHTML = '';
+            // Show generic accessory specs instead of phone specs
+            showGenericSpecs(categoryName);
+            return; // Exit early, don't fetch brand specs
+        }
+        
+        // Only fetch and show phone-specific specs if category is actually "phone"
+        if (isPhoneCategory) {
+            // Fetch brand-specific specifications for phones
+            fetch(`${BASE}/api/products/brand-specs/${brandId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.data) {
+                        // Double-check category hasn't changed to accessory
+                        const currentCategoryOption = categorySelect.options[categorySelect.selectedIndex];
+                        const currentCategoryName = currentCategoryOption ? currentCategoryOption.text.toLowerCase() : '';
+                        const currentNormalized = currentCategoryName.toLowerCase().trim();
+                        const isCurrentlyAccessory = accessoryCategories.includes(currentNormalized);
+                        
+                        if (isCurrentlyAccessory) {
+                            // Category changed to accessory while fetching, show generic specs
+                            showGenericSpecs(currentCategoryName);
+                        } else {
+                            showBrandSpecs(data.data);
+                        }
+                    }
+                })
+                .catch(error => console.error('Error loading brand specs:', error));
+        } else {
+            // For other categories (tablets, etc.), try to fetch brand specs
             fetch(`${BASE}/api/products/brand-specs/${brandId}`)
                 .then(res => res.json())
                 .then(data => {
@@ -367,31 +436,90 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 })
                 .catch(error => console.error('Error loading brand specs:', error));
-        } else {
-            specsContainer.style.display = 'none';
-            dynamicSpecs.innerHTML = '';
         }
     });
 
     // Initialize form if editing existing product
     <?php if (isset($product)): ?>
         // Trigger category change to load appropriate fields
+        // Make sure to check category first and prevent phone specs for accessories
         if (categorySelect.value) {
-            categorySelect.dispatchEvent(new Event('change'));
+            const initCategoryOption = categorySelect.options[categorySelect.selectedIndex];
+            const initCategoryName = initCategoryOption ? initCategoryOption.text.toLowerCase() : '';
+            const initNormalized = initCategoryName.toLowerCase().trim();
+            const initAccessoryCategories = ['accessory', 'accessories'];
+            const isInitAccessory = initAccessoryCategories.includes(initNormalized);
+            
+            // If editing an accessory, clear any phone specs that might be in the product data
+            if (isInitAccessory) {
+                specsContainer.style.display = 'block';
+                dynamicSpecs.innerHTML = '';
+                showGenericSpecs(initCategoryName);
+            } else {
+                categorySelect.dispatchEvent(new Event('change'));
+            }
         }
     <?php endif; ?>
 
     function showBrandSpecs(specs) {
+        // CRITICAL SAFETY CHECK: Don't show phone specs if category is accessory
+        const categoryOption = categorySelect.options[categorySelect.selectedIndex];
+        const categoryName = categoryOption ? categoryOption.text.toLowerCase() : '';
+        const normalizedCategoryName = categoryName.toLowerCase().trim();
+        const accessoryCategories = ['accessory', 'accessories'];
+        const isAccessoryCategory = accessoryCategories.includes(normalizedCategoryName);
+        
+        // Phone-specific spec names that should NEVER appear for accessories
+        const phoneSpecNames = ['storage', 'ram', 'battery_health', 'imei', 'model', 'network'];
+        
+        if (isAccessoryCategory) {
+            // If category is accessory, show generic accessory specs instead
+            // Clear any phone specs that might have been passed
+            specsContainer.style.display = 'block';
+            dynamicSpecs.innerHTML = '';
+            showGenericSpecs(categoryName);
+            return;
+        }
+        
+        // Check if this is a phone category
+        const phoneCategories = ['phone', 'phones', 'smartphone', 'smartphones', 'mobile', 'mobiles'];
+        const isPhoneCategory = phoneCategories.includes(normalizedCategoryName);
+        
+        // Specs come as an array of objects, not an object
+        // Each spec has: { name, label, type, placeholder, options, etc. }
+        const specsArray = Array.isArray(specs) ? specs : Object.values(specs);
+        
+        // Additional safety: Filter out phone-specific specs if category is NOT phone
+        // This prevents phone specs from appearing for accessories, tablets, or any other category
+        let specsToShow = specsArray;
+        if (!isPhoneCategory) {
+            specsToShow = specsArray.filter(spec => {
+                // Check if spec name is in the phone-specific list
+                const specName = (spec.name || '').toLowerCase();
+                return !phoneSpecNames.includes(specName);
+            });
+            
+            // If we filtered out all specs (meaning they were all phone specs), don't show anything
+            if (specsToShow.length === 0 && specsArray.length > 0) {
+                console.warn('Blocked phone specs (storage, RAM, IMEI, model, etc.) from being displayed for non-phone category');
+                specsContainer.style.display = 'none';
+                dynamicSpecs.innerHTML = '';
+                return;
+            }
+        }
+        
         specsContainer.style.display = 'block';
         dynamicSpecs.innerHTML = '';
         
-        Object.entries(specs).forEach(([key, spec]) => {
+        // Handle array format (each spec is an object with name, label, type, etc.)
+        specsToShow.forEach(spec => {
+            const key = spec.name || spec.key || 'spec';
             const div = document.createElement('div');
             div.className = 'mb-4';
             
             const label = document.createElement('label');
             label.className = 'block text-sm font-medium text-gray-700 mb-1';
-            label.textContent = spec.label || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            label.textContent = spec.label || spec.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             label.setAttribute('for', `spec_${key}`);
             
             let input;
@@ -401,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const defaultOption = document.createElement('option');
                 defaultOption.value = '';
-                defaultOption.textContent = `Select ${spec.label || key}`;
+                defaultOption.textContent = `Select ${spec.label || spec.name}`;
                 input.appendChild(defaultOption);
                 
                 spec.options.forEach(option => {
@@ -414,17 +542,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 input = document.createElement('input');
                 input.type = spec.type || 'text';
                 input.className = 'w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500';
-                input.placeholder = spec.placeholder || `Enter ${spec.label || key}`;
+                input.placeholder = spec.placeholder || `Enter ${spec.label || spec.name}`;
             }
             
             input.id = `spec_${key}`;
-            input.name = `spec_${key}`;
+            input.name = `specs[${key}]`;
             
             // Set existing value if editing
             <?php if (isset($product) && !empty($product['specs'])): ?>
                 const existingSpecs = <?= json_encode(json_decode($product['specs'] ?? '{}', true)) ?>;
-                if (existingSpecs['<?= $key ?>']) {
-                    input.value = existingSpecs['<?= $key ?>'];
+                if (existingSpecs[key]) {
+                    input.value = existingSpecs[key];
                 }
             <?php endif; ?>
             

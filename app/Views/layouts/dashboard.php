@@ -8,21 +8,161 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) : ($title ?? 'Dashboard') ?> - SellApp</title>
-    <!-- Custom Favicon - Overrides XAMPP default favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📱</text></svg>">
-    <link rel="shortcut icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📱</text></svg>">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📱</text></svg>">
+    <!-- Custom Favicon -->
+    <link rel="icon" type="image/svg+xml" href="<?php echo BASE_URL_PATH; ?>/assets/images/favicon.svg">
+    <link rel="shortcut icon" type="image/svg+xml" href="<?php echo BASE_URL_PATH; ?>/assets/images/favicon.svg">
+    <link rel="apple-touch-icon" href="<?php echo BASE_URL_PATH; ?>/assets/images/favicon.svg">
+    
+    <!-- Preconnect to CDN for faster loading -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+    
     <script>
         window.APP_BASE_PATH = '<?php echo defined("BASE_URL_PATH") ? BASE_URL_PATH : ""; ?>';
         const BASE = window.APP_BASE_PATH || '';
+        
+        // Suppress harmless "Tracking Prevention" warnings from CDN resources
+        // These are browser privacy warnings and don't affect functionality
+        (function() {
+            const originalWarn = console.warn;
+            console.warn = function(...args) {
+                const message = args.join(' ');
+                // Filter out tracking prevention warnings from CDN resources
+                if (message.includes('Tracking Prevention blocked access to storage')) {
+                    return; // Suppress this warning
+                }
+                originalWarn.apply(console, args);
+            };
+        })();
+        
+        // Robust Tailwind CSS loader with online/offline detection and retry mechanism
+        (function() {
+            let tailwindLoaded = false;
+            let retryCount = 0;
+            const maxRetries = 10;
+            const retryDelay = 1000; // 1 second
+            
+            function loadTailwind() {
+                // Check if already loaded
+                if (tailwindLoaded || window.tailwind) {
+                    return;
+                }
+                
+                // Check if script already exists
+                const existingScript = document.querySelector('script[data-tailwind-loader]');
+                if (existingScript) {
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = 'https://cdn.tailwindcss.com';
+                script.async = true;
+                script.setAttribute('data-tailwind-loader', 'true');
+                
+                script.onload = function() {
+                    tailwindLoaded = true;
+                    retryCount = 0;
+                    // Trigger a re-render to apply styles
+                    if (window.tailwind && typeof window.tailwind.refresh === 'function') {
+                        window.tailwind.refresh();
+                    }
+                    // Show body once Tailwind is loaded (with null check)
+                    if (document.body) {
+                        document.body.classList.add('tailwind-loaded');
+                    }
+                    // Dispatch custom event for other scripts
+                    window.dispatchEvent(new CustomEvent('tailwindLoaded'));
+                };
+                
+                script.onerror = function() {
+                    // Script failed to load
+                    if (retryCount < maxRetries) {
+                        retryCount++;
+                        setTimeout(loadTailwind, retryDelay);
+                    }
+                };
+                
+                document.head.appendChild(script);
+            }
+            
+            // Try loading immediately
+            loadTailwind();
+            
+            // Listen for online event and retry
+            window.addEventListener('online', function() {
+                if (!tailwindLoaded) {
+                    retryCount = 0; // Reset retry count when back online
+                    loadTailwind();
+                }
+            });
+            
+            // Periodic check when offline (in case online event doesn't fire)
+            let offlineCheckInterval = setInterval(function() {
+                if (navigator.onLine && !tailwindLoaded) {
+                    retryCount = 0;
+                    loadTailwind();
+                }
+            }, 2000); // Check every 2 seconds
+            
+            // Clear interval when Tailwind is loaded
+            const checkLoaded = setInterval(function() {
+                if (tailwindLoaded) {
+                    clearInterval(offlineCheckInterval);
+                    clearInterval(checkLoaded);
+                }
+            }, 500);
+            
+            // Fallback: Show body after 5 seconds even if Tailwind hasn't loaded
+            setTimeout(function() {
+                if (!tailwindLoaded && document.body) {
+                    document.body.classList.add('tailwind-loaded');
+                }
+            }, 5000);
+        })();
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script>
+        // Load Alpine.js with multiple fallbacks
+        (function() {
+            const alpineScript = document.createElement('script');
+            alpineScript.defer = true;
+            alpineScript.onerror = function() {
+                // First fallback
+                const fallback1 = document.createElement('script');
+                fallback1.src = 'https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js';
+                fallback1.defer = true;
+                fallback1.onerror = function() {
+                    // Second fallback - use jsDelivr
+                    const fallback2 = document.createElement('script');
+                    fallback2.src = 'https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js';
+                    fallback2.defer = true;
+                    fallback2.onerror = function() {
+                        console.warn('Alpine.js failed to load from all CDNs. Some interactive features may not work.');
+                    };
+                    document.head.appendChild(fallback2);
+                };
+                document.head.appendChild(fallback1);
+            };
+            alpineScript.src = 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js';
+            document.head.appendChild(alpineScript);
+        })();
+    </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
     <!-- Custom Styles for Layout Fix -->
     <style>
+        /* Hide body until Tailwind is loaded to prevent FOUC */
+        body {
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.2s ease-in;
+        }
+        
+        body.tailwind-loaded {
+            visibility: visible;
+            opacity: 1;
+        }
+        
         /* Reset any conflicting styles */
         * {
             box-sizing: border-box;
@@ -32,8 +172,10 @@
             margin: 0;
             padding: 0;
             width: 100%;
-            height: 100%;
+            height: auto;
+            min-height: 100vh;
             overflow-x: hidden;
+            overflow-y: auto; /* Allow vertical scrolling for sticky to work */
         }
         
         /* Ensure proper flex layout */
@@ -42,6 +184,7 @@
             min-height: 100vh;
             width: 100%;
             overflow-x: hidden;
+            position: relative;
         }
         
         /* Sidebar styles - Fixed position */
@@ -64,13 +207,14 @@
             min-width: 0;
             width: 100%;
             margin-left: 14rem; /* Account for fixed sidebar width */
-            overflow-x: hidden;
+            /* Remove overflow to allow sticky positioning to work */
         }
         
         /* Prevent overflow in main content */
         main {
             overflow-x: hidden;
             max-width: 100%;
+            flex: 1;
         }
         
         /* Ensure all cards and containers respect boundaries */
@@ -95,6 +239,109 @@
             }
         }
         
+        /* Desktop: Sidebar always visible, no collapse */
+        @media (min-width: 769px) {
+            .sidebar {
+                position: fixed !important;
+                left: 0 !important;
+                width: 14rem !important;
+            }
+            
+            .sidebar.collapsed {
+                width: 14rem !important;
+            }
+            
+            .sidebar.collapsed .sidebar-text,
+            .sidebar.collapsed .sidebar-item span {
+                opacity: 1 !important;
+                width: auto !important;
+                overflow: visible !important;
+            }
+            
+            .sidebar.collapsed .sidebar-item {
+                justify-content: flex-start !important;
+                padding-left: 0.75rem !important;
+                padding-right: 0.75rem !important;
+            }
+            
+            .sidebar.collapsed .sidebar-item i {
+                margin-right: 0.75rem !important;
+            }
+            
+            .sidebar.collapsed ~ .main-content-container {
+                margin-left: 14rem !important;
+            }
+            
+            /* Hide collapse button on desktop */
+            #sidebarCollapseBtn {
+                display: none !important;
+            }
+            
+            /* Hide breadcrumb on desktop */
+            #breadcrumb-nav {
+                display: none !important;
+            }
+            
+            /* Hide sidebar toggle button on desktop */
+            #sidebarToggle {
+                display: none !important;
+            }
+        }
+        
+        /* Mobile: Sidebar collapse functionality */
+        @media (max-width: 768px) {
+            .sidebar.collapsed {
+                width: 4rem;
+            }
+            
+            .sidebar.collapsed .sidebar-text,
+            .sidebar.collapsed .sidebar-item span {
+                opacity: 0;
+                width: 0;
+                overflow: hidden;
+                margin: 0;
+                padding: 0;
+            }
+            
+            .sidebar.collapsed .sidebar-item {
+                justify-content: center;
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+            
+            .sidebar.collapsed .sidebar-item i {
+                margin-right: 0 !important;
+                width: 1rem !important;
+                min-width: 1rem !important;
+                max-width: 1rem !important;
+                flex-shrink: 0;
+            }
+            
+            .sidebar.collapsed .sidebar-item i.fas,
+            .sidebar.collapsed .sidebar-item i.far {
+                font-size: 1rem !important;
+                line-height: 1.5rem !important;
+            }
+            
+            .sidebar.collapsed ~ .main-content-container {
+                margin-left: 4rem;
+            }
+            
+            /* Ensure icons maintain size when collapsed */
+            .sidebar.collapsed .flex.items-center i {
+                flex-shrink: 0;
+                display: inline-block;
+            }
+        }
+        
+        /* Prevent blur/backdrop effects during transitions */
+        .sidebar,
+        .main-content-container {
+            will-change: auto;
+            backface-visibility: hidden;
+            transform: translateZ(0);
+        }
+        
         /* Mobile responsive */
         @media (max-width: 768px) {
             .main-layout {
@@ -115,7 +362,7 @@
             
             .main-content-container {
                 width: 100%;
-                margin-left: 0; /* Remove sidebar margin on mobile */
+                margin-left: 0 !important; /* Remove sidebar margin on mobile */
             }
             
             .sidebar-overlay {
@@ -131,6 +378,11 @@
             
             .sidebar-overlay.active {
                 display: block;
+            }
+            
+            /* Hide collapse button on mobile */
+            #sidebarCollapseBtn {
+                display: none !important;
             }
         }
         
@@ -199,14 +451,20 @@
         $userInfo = $_SESSION['user']['username'] ?? 'User';
         $companyInfo = $_SESSION['user']['company_name'] ?? null;
         
+        // Pass additional user data to sidebar
+        $_SESSION['user']['full_name'] = $_SESSION['user']['full_name'] ?? null;
+        $_SESSION['user']['email'] = $_SESSION['user']['email'] ?? null;
+        $_SESSION['user']['created_at'] = $_SESSION['user']['created_at'] ?? null;
+        $_SESSION['user']['updated_at'] = $_SESSION['user']['updated_at'] ?? null;
+        
         // Include the reusable sidebar component
         include APP_PATH . '/Views/components/sidebar.php';
         ?>
         
         <!-- Main Content Area -->
-        <div class="main-content-container">
-            <!-- Top Navigation Bar - Sticky -->
-            <div class="sticky top-0 z-50 bg-white shadow-sm">
+        <div class="main-content-container flex flex-col">
+            <!-- Top Navigation Bar -->
+            <div class="bg-white shadow-sm border-b border-gray-200">
                 <?php include APP_PATH . '/Views/components/top-navbar.php'; ?>
             </div>
             
@@ -220,6 +478,120 @@
     </div>
     
     <script>
+        // Sidebar Toggle Functions
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggleIcon = document.getElementById('sidebarToggleIcon');
+            
+            if (sidebar) {
+                sidebar.classList.toggle('open');
+                if (overlay) {
+                    overlay.classList.toggle('active');
+                }
+                if (toggleIcon) {
+                    if (sidebar.classList.contains('open')) {
+                        toggleIcon.className = 'fas fa-times text-lg';
+                    } else {
+                        toggleIcon.className = 'fas fa-bars text-lg';
+                    }
+                }
+            }
+        }
+        
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggleIcon = document.getElementById('sidebarToggleIcon');
+            
+            if (sidebar) {
+                sidebar.classList.remove('open');
+                if (overlay) {
+                    overlay.classList.remove('active');
+                }
+                if (toggleIcon) {
+                    toggleIcon.className = 'fas fa-bars text-lg';
+                }
+            }
+        }
+        
+        function toggleSidebarCollapse() {
+            // Only allow collapse on mobile devices
+            if (window.innerWidth <= 768) {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar) {
+                    sidebar.classList.toggle('collapsed');
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    // Save state to localStorage (only for mobile)
+                    localStorage.setItem('sidebarCollapsed', isCollapsed);
+                }
+            }
+        }
+        
+        function expandSidebarIfCollapsed(event, pageName) {
+            // Only handle expansion on mobile devices
+            if (window.innerWidth <= 768) {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar && sidebar.classList.contains('collapsed')) {
+                    // Prevent default navigation temporarily
+                    if (event) {
+                        event.preventDefault();
+                    }
+                    
+                    // Expand sidebar smoothly
+                    sidebar.classList.remove('collapsed');
+                    localStorage.setItem('sidebarCollapsed', 'false');
+                    
+                    // Small delay to ensure smooth transition, then navigate
+                    setTimeout(() => {
+                        if (event && event.target && event.target.closest('a')) {
+                            const link = event.target.closest('a');
+                            if (link.href) {
+                                window.location.href = link.href;
+                            }
+                        }
+                    }, 150);
+                    
+                    return false;
+                }
+            }
+        }
+        
+        // Restore sidebar state on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebar');
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            
+            if (sidebar) {
+                // On desktop: always ensure sidebar is expanded and visible
+                if (window.innerWidth > 768) {
+                    sidebar.classList.remove('collapsed');
+                    sidebar.classList.remove('open');
+                    // Sidebar should always be visible on desktop
+                } else {
+                    // On mobile: restore collapsed state if it was collapsed
+                    if (isCollapsed) {
+                        sidebar.classList.add('collapsed');
+                    }
+                    // Close sidebar on mobile by default
+                    closeSidebar();
+                }
+            }
+        });
+        
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('sidebarToggle');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            if (window.innerWidth <= 768 && sidebar && sidebar.classList.contains('open')) {
+                if (!sidebar.contains(event.target) && !toggleBtn.contains(event.target)) {
+                    closeSidebar();
+                }
+            }
+        });
+        
         // Notification System
         class NotificationSystem {
             constructor() {
@@ -399,7 +771,19 @@
                     
                     return `
                         <div class="p-3 sm:p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer notification-item transition-colors" 
-                             onclick="event.stopPropagation(); window.location.href='${notificationPath}';"
+                             onclick="event.stopPropagation(); 
+                                      if (!${notification.read} && ('${notification.type}' === 'repair' || '${notification.id}'.startsWith('notif_') || !isNaN(parseInt('${notification.id}')))) {
+                                          fetch(typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '') + '/api/notifications/mark-read', {
+                                              method: 'POST',
+                                              headers: {
+                                                  'Content-Type': 'application/json',
+                                                  'Authorization': 'Bearer ' + (localStorage.getItem('token') || localStorage.getItem('sellapp_token') || localStorage.getItem('auth_token') || '')
+                                              },
+                                              credentials: 'same-origin',
+                                              body: JSON.stringify({ notification_id: '${notification.id}' })
+                                          }).catch(() => {});
+                                      }
+                                      window.location.href='${notificationPath}';"
                              data-id="${notification.id}" 
                              data-read="${notification.read}">
                             <div class="flex items-start gap-2 sm:gap-3">

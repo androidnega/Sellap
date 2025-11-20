@@ -11,7 +11,7 @@ class AuthController {
     public function __construct() {
         try {
             $this->auth = new AuthService();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // Log the error and throw a more user-friendly message
             error_log("AuthController constructor error: " . $e->getMessage());
             throw new \Exception('Authentication service initialization failed');
@@ -28,12 +28,12 @@ class AuthController {
         
         // Set error handler to catch any fatal errors
         set_error_handler(function($severity, $message, $file, $line) {
-            throw new ErrorException($message, 0, $severity, $file, $line);
+            throw new \ErrorException($message, 0, $severity, $file, $line);
         });
         
         try {
             $data = json_decode(file_get_contents('php://input'), true);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Invalid request data']);
             return;
@@ -63,8 +63,11 @@ class AuthController {
             $_SESSION['user'] = [
                 'id' => $result['user']['id'],
                 'username' => $result['user']['username'],
+                'email' => $result['user']['email'] ?? null,
+                'full_name' => $result['user']['full_name'] ?? null,
                 'role' => $result['user']['role'],
-                'company_id' => $result['user']['company_id'] ?? null
+                'company_id' => $result['user']['company_id'] ?? null,
+                'company_name' => $result['user']['company_name'] ?? null
             ];
             
             // Set initial last activity time for session timeout tracking
@@ -75,6 +78,28 @@ class AuthController {
             $cookieExpire = time() + (24 * 60 * 60);
             setcookie('sellapp_token', $result['token'], $cookieExpire, '/', '', false, true); // HttpOnly for security
             setcookie('token', $result['token'], $cookieExpire, '/', '', false, true); // Alternative name for compatibility
+            
+            // Log audit event for login
+            try {
+                $auditService = new \App\Services\AuditService();
+                $auditService->logEvent(
+                    $result['user']['company_id'] ?? null,
+                    $result['user']['id'],
+                    'user.login',
+                    'user',
+                    $result['user']['id'],
+                    [
+                        'username' => $result['user']['username'],
+                        'role' => $result['user']['role'],
+                        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
+                        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null
+                    ],
+                    $_SERVER['REMOTE_ADDR'] ?? null
+                );
+            } catch (\Exception $auditError) {
+                // Don't fail login if audit logging fails
+                error_log("Audit logging error (non-fatal): " . $auditError->getMessage());
+            }
             
             echo json_encode([
                 'success' => true,

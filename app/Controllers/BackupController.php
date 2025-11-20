@@ -6,6 +6,7 @@ use App\Middleware\WebAuthMiddleware;
 use App\Services\BackupService;
 use App\Services\AuditService;
 use App\Models\Backup;
+use PDO;
 
 class BackupController {
     private $backupService;
@@ -31,10 +32,37 @@ class BackupController {
             exit;
         }
 
+        // Get companies list for system_admin
+        $companies = [];
+        if ($user['role'] === 'system_admin') {
+            $companyModel = new \App\Models\Company();
+            try {
+                $stmt = \Database::getInstance()->getConnection()->query("SELECT id, name FROM companies ORDER BY name ASC");
+                $companies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (\Exception $e) {
+                error_log("Error loading companies: " . $e->getMessage());
+            }
+        }
+
         $title = 'Data Backup & Restore';
         $GLOBALS['pageTitle'] = $title;
+        $GLOBALS['companies'] = $companies;
         
-        require __DIR__ . '/../Views/backup_manager.php';
+        // Capture the view content
+        ob_start();
+        include __DIR__ . '/../Views/backup_manager.php';
+        $content = ob_get_clean();
+        
+        // Set content variable for layout
+        $GLOBALS['content'] = $content;
+        $GLOBALS['title'] = $title;
+        
+        // Pass user data to layout for sidebar role detection
+        if (isset($_SESSION['user'])) {
+            $GLOBALS['user_data'] = $_SESSION['user'];
+        }
+        
+        require __DIR__ . '/../Views/simple_layout.php';
     }
 
     /**
@@ -64,7 +92,71 @@ class BackupController {
                 exit;
             }
 
+            $userRole = $user['role'] ?? 'manager';
             $companyId = $user['company_id'] ?? null;
+            
+            // For system_admin, allow company_id to be passed in POST data
+            // or create a system backup if no company_id is provided
+            if (!$companyId && $userRole === 'system_admin') {
+                $companyId = $_POST['company_id'] ?? null;
+                
+                // If still no company_id, create a system backup instead
+                if (!$companyId) {
+                    $format = $_POST['format'] ?? 'json';
+                    $userId = $user['id'] ?? null;
+                    
+                    $backupId = $this->backupService->createSystemBackup($userId, false);
+                    
+                    // Get backup details for response
+                    $backupModel = new Backup();
+                    $backup = $backupModel->find($backupId);
+                    
+                    if ($backup) {
+                        $result = [
+                            'success' => true,
+                            'filename' => $backup['file_name'],
+                            'size' => $backup['file_size'] ?? 0,
+                            'record_count' => $backup['record_count'] ?? 0,
+                            'backup_id' => $backupId,
+                            'backup_type' => 'system'
+                        ];
+                        
+                        // Log audit event for system backup (company_id is null for system backups)
+                        try {
+                            AuditService::log(
+                                null, // System backup has no company_id
+                                $userId,
+                                'backup.exported',
+                                'backup',
+                                $backupId,
+                                [
+                                    'filename' => $backup['file_name'],
+                                    'format' => $format,
+                                    'size' => $backup['file_size'] ?? 0,
+                                    'record_count' => $backup['record_count'] ?? 0,
+                                    'backup_type' => 'system'
+                                ]
+                            );
+                        } catch (\Exception $auditError) {
+                            // Log audit error but don't fail the backup
+                            error_log("Failed to log audit for system backup: " . $auditError->getMessage());
+                        }
+                    } else {
+                        $result = [
+                            'success' => true,
+                            'backup_id' => $backupId,
+                            'backup_type' => 'system',
+                            'message' => 'System backup created successfully'
+                        ];
+                    }
+                    
+                    ob_end_clean();
+                    echo json_encode($result);
+                    exit;
+                }
+            }
+            
+            // For non-system_admin users, company_id is required
             if (!$companyId) {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'Company association required']);
@@ -107,12 +199,10 @@ class BackupController {
     }
 
     /**
-     * Import backup
-     * POST /dashboard/backup/import
+     * Get all backups (for system admin) or company backups
+     * GET /api/backups or GET /api/company/{id}/backups
      */
-    public function import() {
-        WebAuthMiddleware::handle(['manager', 'admin', 'system_admin']);
-        
+    public function getAllBackups() {
         // Clean output buffers
         while (ob_get_level() > 0) {
             ob_end_clean();
@@ -122,75 +212,58 @@ class BackupController {
         header('Content-Type: application/json');
         
         try {
+            WebAuthMiddleware::handle(['system_admin']);
+            
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
             }
             
             $user = $_SESSION['user'] ?? null;
-            if (!$user) {
-                http_response_code(401);
-                echo json_encode(['success' => false, 'error' => 'Authentication required']);
+            if (!$user || $user['role'] !== 'system_admin') {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
                 exit;
             }
-
-            $companyId = $user['company_id'] ?? null;
-            if (!$companyId) {
-                http_response_code(400);
-                echo json_encode(['success' => false, 'error' => 'Company association required']);
-                exit;
-            }
-
-            if (!isset($_FILES['backup_file']) || $_FILES['backup_file']['error'] !== UPLOAD_ERR_OK) {
-                http_response_code(400);
-                echo json_encode(['success' => false, 'error' => 'No file uploaded or upload error']);
-                exit;
-            }
-
-            $uploadedFile = $_FILES['backup_file']['tmp_name'];
-            $userId = $user['id'] ?? null;
-
-            // Validate file before import
-            $validationResult = $this->backupService->verifyBackupIntegrityFromFile($uploadedFile);
-            if (!$validationResult['valid']) {
-                http_response_code(400);
-                echo json_encode([
-                    'success' => false,
-                    'error' => 'Invalid backup file: ' . ($validationResult['error'] ?? 'Unknown error')
-                ]);
-                exit;
-            }
-
-            // Import data
-            $result = $this->backupService->importCompanyData($companyId, $uploadedFile, false);
-
-            if ($result['success']) {
-                // Log audit event
-                AuditService::log(
-                    $companyId,
-                    $userId,
-                    'backup.imported',
-                    'backup',
-                    null,
-                    [
-                        'record_count' => $result['record_count'] ?? 0,
-                        'tables_imported' => $result['tables_imported'] ?? 0
-                    ]
-                );
-            }
-
+            
+            $companyId = $_GET['company_id'] ?? null;
+            $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+            $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+            
+            $filters = [
+                'backup_type' => $_GET['backup_type'] ?? null,
+                'status' => $_GET['status'] ?? null,
+                'date_from' => $_GET['date_from'] ?? null,
+                'date_to' => $_GET['date_to'] ?? null,
+                'search' => $_GET['search'] ?? null
+            ];
+            
+            // Remove empty filters
+            $filters = array_filter($filters, function($value) {
+                return $value !== null && $value !== '';
+            });
+            
+            $result = $this->backupService->getAllBackups($companyId, $page, $limit, $filters);
+            
             ob_end_clean();
-            echo json_encode($result);
+            echo json_encode([
+                'success' => true,
+                'backups' => $result['backups'],
+                'total' => $result['total'],
+                'page' => $result['page'],
+                'limit' => $result['limit'],
+                'total_pages' => $result['total_pages']
+            ]);
         } catch (\Exception $e) {
             ob_end_clean();
             http_response_code(500);
-            error_log("Import backup error: " . $e->getMessage());
+            error_log("Get all backups error: " . $e->getMessage());
             echo json_encode([
                 'success' => false,
                 'error' => $e->getMessage()
             ]);
         }
     }
-
+    
     /**
      * Get backups list
      * GET /api/company/{id}/backups
@@ -228,13 +301,32 @@ class BackupController {
                 exit;
             }
 
-            $backups = $this->backupService->getCompanyBackups($companyId);
+            $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+            $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+            
+            $filters = [
+                'backup_type' => $_GET['backup_type'] ?? null,
+                'status' => $_GET['status'] ?? null,
+                'date_from' => $_GET['date_from'] ?? null,
+                'date_to' => $_GET['date_to'] ?? null,
+                'search' => $_GET['search'] ?? null
+            ];
+            
+            // Remove empty filters
+            $filters = array_filter($filters, function($value) {
+                return $value !== null && $value !== '';
+            });
+            
+            $result = $this->backupService->getCompanyBackups($companyId, $page, $limit, $filters);
 
             ob_end_clean();
             echo json_encode([
                 'success' => true,
-                'backups' => $backups,
-                'count' => count($backups)
+                'backups' => $result['backups'],
+                'total' => $result['total'],
+                'page' => $result['page'],
+                'limit' => $result['limit'],
+                'total_pages' => $result['total_pages']
             ]);
         } catch (\Exception $e) {
             ob_end_clean();
@@ -306,6 +398,137 @@ class BackupController {
             error_log("Download backup error: " . $e->getMessage());
             http_response_code(500);
             die('Error downloading backup');
+        }
+    }
+    
+    /**
+     * Delete backup
+     * DELETE /api/backups/{id}
+     */
+    public function delete($backupId) {
+        WebAuthMiddleware::handle(['manager', 'admin', 'system_admin']);
+        
+        // Clean output buffers
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        ob_start();
+        
+        header('Content-Type: application/json');
+        
+        try {
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            
+            $user = $_SESSION['user'] ?? null;
+            if (!$user) {
+                http_response_code(401);
+                echo json_encode(['success' => false, 'error' => 'Authentication required']);
+                exit;
+            }
+            
+            $companyId = $user['company_id'] ?? null;
+            $userRole = $user['role'] ?? 'manager';
+            
+            // Check access
+            $backupModel = new Backup();
+            $backup = $backupModel->find($backupId, $userRole === 'system_admin' ? null : $companyId);
+            
+            if (!$backup) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'error' => 'Backup not found']);
+                exit;
+            }
+            
+            if ($userRole !== 'system_admin' && $backup['company_id'] != $companyId) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                exit;
+            }
+            
+            $result = $this->backupService->deleteBackup($backupId, $userRole === 'system_admin' ? null : $companyId);
+            
+            ob_end_clean();
+            echo json_encode($result);
+        } catch (\Exception $e) {
+            ob_end_clean();
+            http_response_code(500);
+            error_log("Delete backup error: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+    
+    /**
+     * Delete multiple backups
+     * POST /api/backups/bulk-delete
+     */
+    public function bulkDelete() {
+        WebAuthMiddleware::handle(['manager', 'admin', 'system_admin']);
+        
+        // Clean output buffers
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        ob_start();
+        
+        header('Content-Type: application/json');
+        
+        try {
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            
+            $user = $_SESSION['user'] ?? null;
+            if (!$user) {
+                http_response_code(401);
+                echo json_encode(['success' => false, 'error' => 'Authentication required']);
+                exit;
+            }
+            
+            $input = json_decode(file_get_contents('php://input'), true);
+            $backupIds = $input['backup_ids'] ?? [];
+            
+            if (empty($backupIds) || !is_array($backupIds)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Invalid backup IDs']);
+                exit;
+            }
+            
+            $companyId = $user['company_id'] ?? null;
+            $userRole = $user['role'] ?? 'manager';
+            
+            // Verify access to all backups
+            $backupModel = new Backup();
+            foreach ($backupIds as $backupId) {
+                $backup = $backupModel->find($backupId, $userRole === 'system_admin' ? null : $companyId);
+                if (!$backup) {
+                    http_response_code(404);
+                    echo json_encode(['success' => false, 'error' => "Backup #{$backupId} not found"]);
+                    exit;
+                }
+                if ($userRole !== 'system_admin' && $backup['company_id'] != $companyId) {
+                    http_response_code(403);
+                    echo json_encode(['success' => false, 'error' => "Access denied to backup #{$backupId}"]);
+                    exit;
+                }
+            }
+            
+            $result = $this->backupService->deleteBackups($backupIds, $userRole === 'system_admin' ? null : $companyId);
+            
+            ob_end_clean();
+            echo json_encode($result);
+        } catch (\Exception $e) {
+            ob_end_clean();
+            http_response_code(500);
+            error_log("Bulk delete backups error: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 }

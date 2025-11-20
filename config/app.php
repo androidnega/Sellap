@@ -19,10 +19,16 @@ define('APP_ENV', getenv('APP_ENV') ?: 'local');
 define('JWT_SECRET', getenv('JWT_SECRET') ?: 'your_secret_key');
 
 // Base URL Path - Set for sellapp subdirectory
-// Auto-detect subdirectory, but fallback to /sellapp for this project
-// Supports both localhost and network IP access
-$scriptName = isset($_SERVER['SCRIPT_NAME']) ? dirname($_SERVER['SCRIPT_NAME']) : '';
-$basePath = $scriptName !== '/' && $scriptName !== '.' ? $scriptName : '/sellapp';
+// Force to /sellapp (not kabz_events) for this project
+// This project is in /sellapp, not /kabz_events
+// Completely ignore any kabz_events references
+$basePath = '/sellapp';
+// Final safety check - ensure kabz_events is never in base path
+$basePath = preg_replace('#/kabz_events(/|$)#', '/', $basePath);
+$basePath = str_replace('kabz_events', '', $basePath);
+if (empty($basePath) || $basePath === '/') {
+    $basePath = '/sellapp';
+}
 define('BASE_URL_PATH', $basePath);
 
 // Network IP Configuration - for local network access

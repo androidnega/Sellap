@@ -49,6 +49,25 @@
             />
         </div>
 
+        <!-- Username -->
+        <div>
+            <label for="username" class="block text-sm font-medium text-gray-700 mb-2">
+                Username <span class="text-red-500">*</span>
+            </label>
+            <input 
+                type="text" 
+                id="username"
+                name="username" 
+                value="<?php echo isset($staff) ? htmlspecialchars($staff['username']) : ''; ?>" 
+                required 
+                class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+                placeholder="Enter username (e.g., john.doe or john.doe@example.com)"
+            />
+            <p class="text-xs text-gray-500 mt-1">Username can be a name or email address</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Email -->
         <div>
             <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
@@ -64,9 +83,7 @@
                 placeholder="staff@example.com"
             />
         </div>
-    </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Phone Number -->
         <div>
             <label for="phone_number" class="block text-sm font-medium text-gray-700 mb-2">

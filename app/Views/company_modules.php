@@ -99,7 +99,7 @@
     </div>
 
     <!-- Modules Container -->
-    <div id="modules-container" class="p-6 space-y-4 hidden">
+    <div id="modules-container" class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 hidden">
       <!-- Modules will be loaded here -->
     </div>
   </div>
@@ -176,6 +176,8 @@
       'staff_management': 'user-tie',
       'reports_analytics': 'chart-line',
       'notifications_sms': 'sms',
+      'suppliers': 'truck',
+      'purchase_orders': 'shopping-cart',
       'manager_delete_sales': 'trash',
       'manager_bulk_delete_sales': 'trash-alt',
       'manager_can_sell': 'shopping-cart',
@@ -197,6 +199,8 @@
       'staff_management': 'Staff Management',
       'reports_analytics': 'Reports & Analytics',
       'notifications_sms': 'Notifications & SMS',
+      'suppliers': 'Suppliers',
+      'purchase_orders': 'Purchase Orders',
       'manager_delete_sales': 'Manager Delete Sales',
       'manager_bulk_delete_sales': 'Manager Bulk Delete Sales',
       'manager_can_sell': 'Manager Can Sell',
@@ -218,6 +222,8 @@
       'staff_management': 'Staff and user management for companies',
       'reports_analytics': 'Business intelligence and reporting system',
       'notifications_sms': 'SMS notification system and company SMS management',
+      'suppliers': 'Supplier management system for tracking vendor relationships and contacts',
+      'purchase_orders': 'Purchase order tracking system for recording orders from suppliers',
       'manager_delete_sales': 'Allow managers to delete individual sales records',
       'manager_bulk_delete_sales': 'Allow managers to bulk delete sales records',
       'manager_can_sell': 'Allow managers to process sales transactions',
@@ -230,26 +236,36 @@
   
   // Load company modules
   window.loadModules = async function() {
-    const container = document.getElementById('modules-container');
-    const loading = document.getElementById('modules-loading');
-    const error = document.getElementById('modules-error');
-    const summary = document.getElementById('modules-summary');
-    
-    // Show loading, hide error and container
-    loading.classList.remove('hidden');
-    error.classList.add('hidden');
-    container.classList.add('hidden');
-    summary.classList.add('hidden');
-    
-    if (!companyId || isNaN(companyId)) {
-      loading.classList.add('hidden');
-      error.classList.remove('hidden');
-      document.getElementById('error-message').textContent = 'Invalid company ID';
-      return;
-    }
-    
-    try {
-      const result = await apiRequest(`${baseUrl}/api/admin/company/${companyId}/modules`);
+    return new Promise(async (resolve, reject) => {
+      const container = document.getElementById('modules-container');
+      const loading = document.getElementById('modules-loading');
+      const error = document.getElementById('modules-error');
+      const summary = document.getElementById('modules-summary');
+      
+      // Save current scroll position if not already saved
+      if (!sessionStorage.getItem('modulesScrollPosition')) {
+        const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+        if (currentScroll > 0) {
+          sessionStorage.setItem('modulesScrollPosition', currentScroll);
+        }
+      }
+      
+      // Show loading, hide error and container
+      loading.classList.remove('hidden');
+      error.classList.add('hidden');
+      container.classList.add('hidden');
+      summary.classList.add('hidden');
+      
+      if (!companyId || isNaN(companyId)) {
+        loading.classList.add('hidden');
+        error.classList.remove('hidden');
+        document.getElementById('error-message').textContent = 'Invalid company ID';
+        reject(new Error('Invalid company ID'));
+        return;
+      }
+      
+      try {
+        const result = await apiRequest(`${baseUrl}/api/admin/company/${companyId}/modules`);
       
       if (result.success && result.modules) {
         loading.classList.add('hidden');
@@ -266,32 +282,34 @@
           else disabledCount++;
           
           return `
-            <div class="flex items-center justify-between p-5 border border-gray-200 rounded-lg hover:bg-gray-50 transition ${enabled ? 'bg-green-50 border-green-200' : ''}">
-              <div class="flex items-center flex-1">
-                <div class="flex-shrink-0 mr-4">
-                  <div class="bg-${enabled ? 'green' : 'gray'}-100 rounded-lg p-3">
-                    <i class="fas fa-${getModuleIcon(module.key)} text-${enabled ? 'green' : 'gray'}-600 text-xl"></i>
+            <div class="flex flex-col p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition ${enabled ? 'bg-green-50 border-green-200' : 'bg-white'}">
+              <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center flex-1">
+                  <div class="flex-shrink-0 mr-3">
+                    <div class="bg-${enabled ? 'green' : 'gray'}-100 rounded-lg p-2">
+                      <i class="fas fa-${getModuleIcon(module.key)} text-${enabled ? 'green' : 'gray'}-600 text-base"></i>
+                    </div>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <h4 class="text-sm font-semibold text-gray-900 flex items-center flex-wrap gap-1">
+                      <span class="truncate">${getModuleName(module.key)}</span>
+                      ${enabled ? '<span class="px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded whitespace-nowrap">Enabled</span>' : '<span class="px-1.5 py-0.5 bg-gray-100 text-gray-700 text-xs rounded whitespace-nowrap">Disabled</span>'}
+                    </h4>
                   </div>
                 </div>
-                <div class="flex-1">
-                  <h4 class="font-semibold text-gray-900 flex items-center">
-                    ${getModuleName(module.key)}
-                    ${enabled ? '<span class="ml-2 px-2 py-1 bg-green-100 text-green-700 text-xs rounded">Enabled</span>' : '<span class="ml-2 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">Disabled</span>'}
-                  </h4>
-                  <p class="text-sm text-gray-600 mt-1">${getModuleDescription(module.key)}</p>
-                  <p class="text-xs text-gray-500 mt-1">Module Key: <code class="bg-gray-100 px-1 rounded">${module.key}</code></p>
-                </div>
+                <label class="relative inline-flex items-center cursor-pointer ml-2 flex-shrink-0">
+                  <input 
+                    type="checkbox" 
+                    class="sr-only peer module-toggle" 
+                    data-module-key="${module.key}"
+                    data-module-name="${getModuleName(module.key)}"
+                    ${enabled ? 'checked' : ''}
+                  >
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                </label>
               </div>
-              <label class="relative inline-flex items-center cursor-pointer ml-4">
-                <input 
-                  type="checkbox" 
-                  class="sr-only peer module-toggle" 
-                  data-module-key="${module.key}"
-                  data-module-name="${getModuleName(module.key)}"
-                  ${enabled ? 'checked' : ''}
-                >
-                <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
-              </label>
+              <p class="text-xs text-gray-600 mb-2 line-clamp-2">${getModuleDescription(module.key)}</p>
+              <p class="text-xs text-gray-400 mt-auto">Key: <code class="bg-gray-100 px-1 rounded text-xs">${module.key}</code></p>
             </div>
           `;
         }).join('');
@@ -302,6 +320,16 @@
         document.getElementById('total-modules').textContent = result.modules.length;
         document.getElementById('enabled-modules').textContent = enabledCount;
         document.getElementById('disabled-modules').textContent = disabledCount;
+        
+        // Restore scroll position if available
+        const savedPosition = sessionStorage.getItem('modulesScrollPosition');
+        if (savedPosition) {
+          // Use requestAnimationFrame to ensure DOM is updated
+          requestAnimationFrame(() => {
+            window.scrollTo(0, parseInt(savedPosition));
+            sessionStorage.removeItem('modulesScrollPosition');
+          });
+        }
         
         // Attach event listeners to toggle switches
         document.querySelectorAll('.module-toggle').forEach(toggle => {
@@ -324,8 +352,20 @@
             
             if (result.success) {
               showNotification(`${result.data.enabled ? 'Enabled' : 'Disabled'} ${moduleName} module successfully`);
+              // Save scroll position before reload
+              const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+              sessionStorage.setItem('modulesScrollPosition', scrollPosition);
               // Reload modules to update UI
-              setTimeout(() => loadModules(), 500);
+              setTimeout(() => {
+                loadModules().then(() => {
+                  // Restore scroll position after reload
+                  const savedPosition = sessionStorage.getItem('modulesScrollPosition');
+                  if (savedPosition) {
+                    window.scrollTo(0, parseInt(savedPosition));
+                    sessionStorage.removeItem('modulesScrollPosition');
+                  }
+                });
+              }, 500);
             } else {
               // Revert toggle on error
               this.checked = !enabled;
@@ -337,18 +377,30 @@
         loading.classList.add('hidden');
         error.classList.remove('hidden');
         document.getElementById('error-message').textContent = result.error || 'Failed to load modules';
+        reject(new Error(result.error || 'Failed to load modules'));
       }
     } catch (error) {
       console.error('Modules loading error:', error);
       loading.classList.add('hidden');
       error.classList.remove('hidden');
       document.getElementById('error-message').textContent = error.message || 'An unexpected error occurred';
+      reject(error);
     }
+    });
   };
   
   // Load modules on page load
   document.addEventListener('DOMContentLoaded', function() {
     loadModules();
+    
+    // Restore scroll position on page load if available
+    const savedPosition = sessionStorage.getItem('modulesScrollPosition');
+    if (savedPosition) {
+      setTimeout(() => {
+        window.scrollTo(0, parseInt(savedPosition));
+        sessionStorage.removeItem('modulesScrollPosition');
+      }, 100);
+    }
   });
 })();
 </script>

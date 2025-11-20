@@ -11,11 +11,11 @@ $companyId = $user['company_id'] ?? null;
 $userRole = $user['role'] ?? 'manager';
 ?>
 
-<div class="p-4 pb-4" data-server-rendered="true">
+<div class="p-3 sm:p-4 pb-4 max-w-full" data-server-rendered="true">
     <!-- Header -->
-    <div class="mb-6">
-        <h2 class="text-3xl font-bold text-gray-800">Audit Trail - Manager Analytics</h2>
-        <p class="text-gray-600">Complete operational visibility, filtering, traceability, and export capabilities</p>
+    <div class="mb-4 sm:mb-6">
+        <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">Audit Trail - Manager Analytics</h2>
+        <p class="text-sm sm:text-base text-gray-600 mt-1">Complete operational visibility, filtering, traceability, and export capabilities</p>
     </div>
 
     <!-- Flash Messages -->
@@ -34,42 +34,64 @@ $userRole = $user['role'] ?? 'manager';
     <?php endif; ?>
 
     <!-- Filters and Export Controls -->
-    <div class="bg-white rounded-lg shadow p-4 mb-6">
-        <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
-            <div class="flex-1 grid grid-cols-1 md:grid-cols-4 gap-3">
+    <div class="bg-white rounded-lg shadow p-3 sm:p-4 mb-4 sm:mb-6">
+        <div class="flex flex-col gap-4">
+            <!-- Filter Inputs Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
                 <div>
                     <label class="block text-xs text-gray-600 mb-1">From Date</label>
-                    <input type="date" id="filterDateFrom" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                    <input type="date" id="filterDateFrom" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                 </div>
                 <div>
                     <label class="block text-xs text-gray-600 mb-1">To Date</label>
-                    <input type="date" id="filterDateTo" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                    <input type="date" id="filterDateTo" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                 </div>
-                <div>
+                <div class="relative">
                     <label class="block text-xs text-gray-600 mb-1">Customer</label>
-                    <input type="text" id="filterCustomer" placeholder="Search customer..." class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                    <div class="relative">
+                        <input type="text" id="filterCustomer" placeholder="Search customer..." 
+                               class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                               autocomplete="off" />
+                        <input type="hidden" id="filterCustomerId" value="" />
+                        <div id="customerDropdown" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"></div>
+                        <button type="button" id="clearCustomer" class="hidden absolute right-2 top-8 text-gray-400 hover:text-gray-600 text-sm">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                 </div>
-                <div>
+                <div class="relative">
                     <label class="block text-xs text-gray-600 mb-1">Product/IMEI</label>
-                    <input type="text" id="filterProduct" placeholder="Search product/IMEI..." class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                    <div class="relative">
+                        <input type="text" id="filterProduct" placeholder="Search product/IMEI..." 
+                               class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                               autocomplete="off" />
+                        <input type="hidden" id="filterProductId" value="" />
+                        <div id="productDropdown" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"></div>
+                        <button type="button" id="clearProduct" class="hidden absolute right-2 top-8 text-gray-400 hover:text-gray-600 text-sm">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-xs text-gray-600 mb-1">Staff Member</label>
-                    <select id="filterStaff" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                    <select id="filterStaff" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <option value="">All Staff</option>
                     </select>
                 </div>
             </div>
-            <div class="flex gap-2 flex-wrap">
-                <button id="btnToday" class="date-filter-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm" data-range="today">Today</button>
-                <button id="btnThisWeek" class="date-filter-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm" data-range="this_week">This Week</button>
-                <button id="btnThisMonth" class="date-filter-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm active" data-range="this_month">This Month</button>
-                <button id="btnThisYear" class="date-filter-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm" data-range="this_year">This Year</button>
-                <div class="flex items-center gap-2 ml-2">
-                    <label for="monthSelector" class="text-sm text-gray-600 font-medium">Select Month:</label>
-                    <input type="month" id="monthSelector" class="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="">
+            <!-- Quick Filters and Actions Row -->
+            <div class="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+                <div class="flex flex-wrap gap-2">
+                    <button id="btnToday" class="date-filter-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm transition-colors" data-range="today">Today</button>
+                    <button id="btnThisWeek" class="date-filter-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm transition-colors" data-range="this_week">This Week</button>
+                    <button id="btnThisMonth" class="date-filter-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm active transition-colors" data-range="this_month">This Month</button>
+                    <button id="btnThisYear" class="date-filter-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm transition-colors" data-range="this_year">This Year</button>
+                    <div class="flex items-center gap-2">
+                        <label for="monthSelector" class="text-xs sm:text-sm text-gray-600 font-medium whitespace-nowrap">Select Month:</label>
+                        <input type="month" id="monthSelector" class="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="">
+                    </div>
                 </div>
-                <button id="btnApplyFilters" class="bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-2 text-sm">
+                <button id="btnApplyFilters" class="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap">
                     <i class="fas fa-filter mr-1"></i> Apply Filters
                 </button>
             </div>
@@ -132,11 +154,11 @@ $userRole = $user['role'] ?? 'manager';
 
 
     <!-- Consolidated Key Metrics -->
-    <div id="keyMetricsSection" class="mb-6">
-        <h3 class="text-xl font-semibold text-gray-800 mb-4">Key Metrics</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div id="keyMetricsSection" class="mb-4 sm:mb-6">
+        <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3 sm:mb-4">Key Metrics</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
             <!-- Sales & Revenue -->
-            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow p-6 border border-blue-200">
+            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow p-4 sm:p-6 border border-blue-200">
                 <div class="flex items-center justify-between mb-2">
                     <div class="p-2 rounded-lg bg-blue-200">
                         <i class="fas fa-dollar-sign text-blue-700 text-lg"></i>
@@ -153,7 +175,7 @@ $userRole = $user['role'] ?? 'manager';
             </div>
             
             <!-- Profit & Loss -->
-            <div class="bg-gradient-to-br from-emerald-50 to-green-100 rounded-lg shadow p-6 border border-emerald-200">
+            <div class="bg-gradient-to-br from-emerald-50 to-green-100 rounded-lg shadow p-4 sm:p-6 border border-emerald-200">
                 <div class="flex items-center justify-between mb-2">
                     <div class="p-2 rounded-lg bg-emerald-200">
                         <i class="fas fa-chart-line text-emerald-700 text-lg"></i>
@@ -170,7 +192,7 @@ $userRole = $user['role'] ?? 'manager';
             </div>
             
             <!-- Services (Repairs & Swaps) -->
-            <div id="repairerStatsSection" class="bg-gradient-to-br from-indigo-50 to-purple-100 rounded-lg shadow p-6 border border-indigo-200">
+            <div id="repairerStatsSection" class="bg-gradient-to-br from-indigo-50 to-purple-100 rounded-lg shadow p-4 sm:p-6 border border-indigo-200">
                 <div class="flex items-center justify-between mb-2">
                     <div class="p-2 rounded-lg bg-indigo-200">
                         <i class="fas fa-wrench text-indigo-700 text-lg"></i>
@@ -180,8 +202,6 @@ $userRole = $user['role'] ?? 'manager';
                 <p class="text-sm font-medium text-gray-600 mb-1">Repairer Stats</p>
                 <p class="text-2xl font-bold text-gray-900" id="repairerStatsTotalRevenue">₵0.00</p>
                 <div class="mt-2 flex flex-wrap items-center text-xs text-gray-600">
-                    <span>Workmanship: <span id="repairerStatsWorkmanshipRevenue">₵0.00</span></span>
-                    <span class="mx-2">•</span>
                     <span>Parts Sales: <span id="repairerStatsPartsRevenue">₵0.00</span></span>
                     <span class="mx-2">•</span>
                     <span>Products Sold: <span id="repairerStatsPartsCount">0</span></span>
@@ -191,7 +211,7 @@ $userRole = $user['role'] ?? 'manager';
             </div>
             
             <!-- Swapping Stats -->
-            <div class="bg-gradient-to-br from-amber-50 to-orange-100 rounded-lg shadow p-6 border border-amber-200">
+            <div class="bg-gradient-to-br from-amber-50 to-orange-100 rounded-lg shadow p-4 sm:p-6 border border-amber-200">
                 <div class="flex items-center justify-between mb-2">
                     <div class="p-2 rounded-lg bg-amber-200">
                         <i class="fas fa-exchange-alt text-amber-700 text-lg"></i>
@@ -211,14 +231,14 @@ $userRole = $user['role'] ?? 'manager';
         </div>
         
         <!-- Payment Status Card - Combined -->
-        <div class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4 border border-gray-200" id="audit-payment-status-card" style="display: none;">
-            <div class="flex items-center justify-between mb-3">
-                <h4 class="text-sm font-semibold text-gray-800 flex items-center">
+        <div class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-3 sm:p-4 border border-gray-200" id="audit-payment-status-card" style="display: none;">
+            <div class="flex items-center justify-between mb-2 sm:mb-3">
+                <h4 class="text-xs sm:text-sm font-semibold text-gray-800 flex items-center">
                     <i class="fas fa-money-bill-wave text-gray-600 mr-2"></i>
                     Payment Status
                 </h4>
             </div>
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-3 gap-2 sm:gap-4">
                 <div class="text-center">
                     <div class="flex items-center justify-center mb-1">
                         <i class="fas fa-check-circle text-green-600 text-sm mr-1"></i>
@@ -245,79 +265,69 @@ $userRole = $user['role'] ?? 'manager';
     </div>
 
     <!-- Staff Detail View (shown when staff is selected) -->
-    <div id="staffDetailSection" class="mb-6 hidden">
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <div class="flex justify-between items-center mb-4">
+    <div id="staffDetailSection" class="mb-4 sm:mb-6 hidden">
+        <div class="bg-white rounded-lg shadow p-3 sm:p-6 mb-4 sm:mb-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 sm:mb-4 gap-3">
                 <div>
-                    <h3 class="text-2xl font-bold text-gray-800" id="staffDetailName">Staff Member Details</h3>
-                    <p class="text-gray-600" id="staffDetailRole">Role</p>
+                    <h3 class="text-xl sm:text-2xl font-bold text-gray-800" id="staffDetailName">Staff Member Details</h3>
+                    <p class="text-sm sm:text-base text-gray-600" id="staffDetailRole">Role</p>
                 </div>
-                <button onclick="clearStaffSelection()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 rounded px-4 py-2 text-sm">
+                <button onclick="clearStaffSelection()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 rounded px-3 sm:px-4 py-2 text-xs sm:text-sm whitespace-nowrap">
                     <i class="fas fa-times mr-2"></i> View All Staff
                 </button>
             </div>
             
             <!-- Staff Performance Metrics -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                    <p class="text-sm font-medium text-gray-600">Total Sales</p>
-                    <p class="text-2xl font-bold text-gray-900" id="staffTotalSales">0</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div class="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200">
+                    <p class="text-xs sm:text-sm font-medium text-gray-600">Total Sales</p>
+                    <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffTotalSales">0</p>
                 </div>
-                <div class="bg-green-50 rounded-lg p-4 border border-green-200">
-                    <p class="text-sm font-medium text-gray-600">Total Revenue</p>
-                    <p class="text-2xl font-bold text-gray-900" id="staffTotalRevenue">₵0.00</p>
+                <div class="bg-green-50 rounded-lg p-3 sm:p-4 border border-green-200">
+                    <p class="text-xs sm:text-sm font-medium text-gray-600">Total Revenue</p>
+                    <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffTotalRevenue">₵0.00</p>
                 </div>
-                <div class="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-                    <p class="text-sm font-medium text-gray-600">Total Profit</p>
-                    <p class="text-2xl font-bold text-gray-900" id="staffTotalProfit">₵0.00</p>
+                <div class="bg-emerald-50 rounded-lg p-3 sm:p-4 border border-emerald-200">
+                    <p class="text-xs sm:text-sm font-medium text-gray-600">Total Profit</p>
+                    <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffTotalProfit">₵0.00</p>
                 </div>
-                <div class="bg-red-50 rounded-lg p-4 border border-red-200">
-                    <p class="text-sm font-medium text-gray-600">Total Losses</p>
-                    <p class="text-2xl font-bold text-gray-900" id="staffTotalLosses">₵0.00</p>
+                <div class="bg-red-50 rounded-lg p-3 sm:p-4 border border-red-200">
+                    <p class="text-xs sm:text-sm font-medium text-gray-600">Total Losses</p>
+                    <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffTotalLosses">₵0.00</p>
                 </div>
             </div>
             
             <!-- Technician-Specific Breakdown (shown only for technicians) -->
-            <div id="technicianBreakdownSection" class="hidden mb-6">
-                <h4 class="text-lg font-semibold text-gray-700 mb-4">Repair Breakdown</h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-                    <div class="bg-purple-50 rounded-lg p-4 border border-purple-200">
-                        <p class="text-sm font-medium text-gray-600">Workmanship Revenue</p>
-                        <p class="text-2xl font-bold text-gray-900" id="staffWorkmanshipRevenue">₵0.00</p>
+            <div id="technicianBreakdownSection" class="hidden mb-4 sm:mb-6">
+                <h4 class="text-base sm:text-lg font-semibold text-gray-700 mb-3 sm:mb-4">Repair Breakdown</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    <div class="bg-purple-50 rounded-lg p-3 sm:p-4 border border-purple-200">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600">Workmanship Revenue</p>
+                        <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffWorkmanshipRevenue">₵0.00</p>
                         <p class="text-xs text-gray-500 mt-1">Repair charges</p>
                     </div>
-                    <div class="bg-orange-50 rounded-lg p-4 border border-orange-200">
-                        <p class="text-sm font-medium text-gray-600">Labour Cost</p>
-                        <p class="text-2xl font-bold text-gray-900" id="staffLabourCost">₵0.00</p>
-                        <p class="text-xs text-gray-500 mt-1">Cost of labour</p>
-                    </div>
-                    <div class="bg-green-50 rounded-lg p-4 border border-green-200">
-                        <p class="text-sm font-medium text-gray-600">Workmanship Profit</p>
-                        <p class="text-2xl font-bold text-gray-900" id="staffWorkmanshipProfit">₵0.00</p>
-                        <p class="text-xs text-gray-500 mt-1">Revenue - Labour Cost</p>
-                    </div>
-                    <div class="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
-                        <p class="text-sm font-medium text-gray-600">Parts & Accessories Revenue</p>
-                        <p class="text-2xl font-bold text-gray-900" id="staffPartsRevenue">₵0.00</p>
+                    <div class="bg-indigo-50 rounded-lg p-3 sm:p-4 border border-indigo-200">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600">Parts & Accessories Revenue</p>
+                        <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffPartsRevenue">₵0.00</p>
                         <p class="text-xs text-gray-500 mt-1">Spare parts sold</p>
                     </div>
-                    <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                        <p class="text-sm font-medium text-gray-600">Products Sold</p>
-                        <p class="text-2xl font-bold text-gray-900" id="staffPartsCount">0</p>
+                    <div class="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600">Products Sold</p>
+                        <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffPartsCount">0</p>
                         <p class="text-xs text-gray-500 mt-1">Spare parts count</p>
                     </div>
-                    <div class="bg-teal-50 rounded-lg p-4 border border-teal-200">
-                        <p class="text-sm font-medium text-gray-600">Parts Profit</p>
-                        <p class="text-2xl font-bold text-gray-900" id="staffPartsProfit">₵0.00</p>
+                    <div class="bg-teal-50 rounded-lg p-3 sm:p-4 border border-teal-200">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600">Parts Profit</p>
+                        <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffPartsProfit">₵0.00</p>
                         <p class="text-xs text-gray-500 mt-1">Parts revenue - cost</p>
                     </div>
                 </div>
             </div>
             
             <!-- Staff Breakdown by Period -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="bg-white border border-gray-200 rounded-lg p-4">
-                    <h4 class="text-lg font-semibold text-gray-700 mb-3">Today</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div class="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+                    <h4 class="text-base sm:text-lg font-semibold text-gray-700 mb-2 sm:mb-3">Today</h4>
                     <div class="space-y-2">
                         <div class="flex justify-between">
                             <span class="text-sm text-gray-600">Sales:</span>
@@ -370,290 +380,276 @@ $userRole = $user['role'] ?? 'manager';
             </div>
             
             <!-- Staff Transaction History -->
-            <div class="mt-6">
-                <h4 class="text-lg font-semibold text-gray-700 mb-4">Transaction History</h4>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
-                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
-                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Profit</th>
-                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="staffTransactionHistory" class="bg-white divide-y divide-gray-200">
-                            <tr><td colspan="6" class="text-center py-4 text-gray-500">Loading...</td></tr>
-                        </tbody>
-                    </table>
+            <div class="mt-4 sm:mt-6">
+                <h4 class="text-base sm:text-lg font-semibold text-gray-700 mb-3 sm:mb-4">Transaction History</h4>
+                <div class="w-full -mx-3 sm:mx-0">
+                    <div class="inline-block min-w-full align-middle">
+                        <table class="w-full text-xs sm:text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                    <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                                    <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">Reference</th>
+                                    <th class="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                    <th class="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Profit</th>
+                                    <th class="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staffTransactionHistory" class="bg-white divide-y divide-gray-200">
+                                <tr><td colspan="6" class="text-center py-4 text-gray-500">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Profit/Loss Breakdown Section -->
-    <div id="profitLossBreakdownSection" class="mb-6">
-        <h3 class="text-xl font-semibold text-gray-800 mb-4">Profit & Loss Breakdown</h3>
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <!-- Daily Breakdown -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h4 class="text-lg font-semibold text-gray-700 mb-4">Daily</h4>
-                <div class="overflow-x-auto max-h-96 overflow-y-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b sticky top-0 bg-white">
-                                <th class="text-left py-2">Date</th>
-                                <th class="text-right py-2">Sales</th>
-                                <th class="text-right py-2">Revenue</th>
-                                <th class="text-right py-2">Profit</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dailyBreakdownBody">
-                            <tr><td colspan="4" class="text-center py-4 text-gray-500">Loading...</td></tr>
-                        </tbody>
-                    </table>
+    <!-- All Staff Summary Section (shown when no staff is selected) -->
+    <div id="allStaffSummarySection" class="mb-4 sm:mb-6">
+        <div class="bg-white rounded-lg shadow p-3 sm:p-6">
+            <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3 sm:mb-4">All Staff Summary</h3>
+            
+            <!-- Staff Breakdown by Period -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                <div class="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+                    <h4 class="text-base sm:text-lg font-semibold text-gray-700 mb-2 sm:mb-3">Today</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Sales:</span>
+                            <span class="text-sm font-medium" id="allStaffTodaySales">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Revenue:</span>
+                            <span class="text-sm font-medium" id="allStaffTodayRevenue">₵0.00</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Profit:</span>
+                            <span class="text-sm font-medium text-green-600" id="allStaffTodayProfit">₵0.00</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <!-- Weekly Breakdown -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h4 class="text-lg font-semibold text-gray-700 mb-4">Weekly</h4>
-                <div class="overflow-x-auto max-h-96 overflow-y-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b sticky top-0 bg-white">
-                                <th class="text-left py-2">Week</th>
-                                <th class="text-right py-2">Sales</th>
-                                <th class="text-right py-2">Revenue</th>
-                                <th class="text-right py-2">Profit</th>
-                            </tr>
-                        </thead>
-                        <tbody id="weeklyBreakdownBody">
-                            <tr><td colspan="4" class="text-center py-4 text-gray-500">Loading...</td></tr>
-                        </tbody>
-                    </table>
+                <div class="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+                    <h4 class="text-base sm:text-lg font-semibold text-gray-700 mb-2 sm:mb-3">This Week</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-xs sm:text-sm text-gray-600">Sales:</span>
+                            <span class="text-xs sm:text-sm font-medium" id="allStaffWeekSales">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-xs sm:text-sm text-gray-600">Revenue:</span>
+                            <span class="text-xs sm:text-sm font-medium" id="allStaffWeekRevenue">₵0.00</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-xs sm:text-sm text-gray-600">Profit:</span>
+                            <span class="text-xs sm:text-sm font-medium text-green-600" id="allStaffWeekProfit">₵0.00</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <!-- Monthly Breakdown -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h4 class="text-lg font-semibold text-gray-700 mb-4">Monthly</h4>
-                <div id="monthlyBreakdownContainer" class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-100 sticky top-0">
-                            <tr>
-                                <th class="text-left py-2">Month</th>
-                                <th class="text-right py-2">Sales</th>
-                                <th class="text-right py-2">Revenue</th>
-                                <th class="text-right py-2">Profit</th>
-                            </tr>
-                        </thead>
-                        <tbody id="monthlyBreakdownBody">
-                            <tr><td colspan="4" class="text-center py-4 text-gray-500">Loading...</td></tr>
-                        </tbody>
-                    </table>
+                <div class="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+                    <h4 class="text-base sm:text-lg font-semibold text-gray-700 mb-2 sm:mb-3">This Month</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Sales:</span>
+                            <span class="text-sm font-medium" id="allStaffMonthSales">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Revenue:</span>
+                            <span class="text-sm font-medium" id="allStaffMonthRevenue">₵0.00</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Profit:</span>
+                            <span class="text-sm font-medium text-green-600" id="allStaffMonthProfit">₵0.00</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Charts Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Revenue Trend</h3>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+        <div class="bg-white rounded-lg shadow p-4 sm:p-6">
+            <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Revenue Trend</h3>
             <canvas id="revenueChart" height="200"></canvas>
         </div>
-        <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Profit Breakdown</h3>
+        <div class="bg-white rounded-lg shadow p-4 sm:p-6">
+            <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Profit Breakdown</h3>
             <canvas id="profitChart" height="200"></canvas>
         </div>
-        <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Top Products</h3>
+        <div class="bg-white rounded-lg shadow p-4 sm:p-6">
+            <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Top Products</h3>
             <canvas id="topProductsChart" height="200"></canvas>
         </div>
-        <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Top Customers</h3>
+        <div class="bg-white rounded-lg shadow p-4 sm:p-6">
+            <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Top Customers</h3>
             <canvas id="topCustomersChart" height="200"></canvas>
         </div>
     </div>
 
     <!-- Items Sold by Repairers Section -->
-    <div id="repairerPartsSection" class="bg-white rounded-lg shadow p-6 mb-6 hidden">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold text-gray-800">Items Sold by Repairers</h3>
-            <div class="flex items-center gap-4">
-                <div class="text-sm text-gray-600">
+    <div id="repairerPartsSection" class="bg-white rounded-lg shadow p-3 sm:p-6 mb-4 sm:mb-6 hidden">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 sm:mb-4 gap-3">
+            <h3 class="text-base sm:text-lg font-semibold text-gray-800">Items Sold by Repairers</h3>
+            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                <div class="text-xs sm:text-sm text-gray-600">
                     <span class="font-medium">Total Revenue:</span>
                     <span id="repairerPartsTotalRevenue" class="ml-2 font-bold text-gray-900">₵0.00</span>
                 </div>
-                <div class="text-sm text-gray-600">
+                <div class="text-xs sm:text-sm text-gray-600">
                     <span class="font-medium">Total Profit:</span>
                     <span id="repairerPartsTotalProfit" class="ml-2 font-bold text-green-600">₵0.00</span>
                 </div>
             </div>
         </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Repairer</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Repair ID</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Qty</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Selling Price</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cost Price</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Revenue</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Profit</th>
-                    </tr>
-                </thead>
-                <tbody id="repairerPartsTableBody" class="bg-white divide-y divide-gray-200">
-                    <tr>
-                        <td colspan="10" class="px-4 py-3 text-center text-gray-500">Loading...</td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="w-full -mx-3 sm:mx-0">
+            <div class="inline-block min-w-full align-middle">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">Repairer</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Repair ID</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Customer</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Qty</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">Selling Price</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">Cost Price</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase">Profit</th>
+                        </tr>
+                    </thead>
+                    <tbody id="repairerPartsTableBody" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="10" class="px-4 py-3 text-center text-gray-500">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <!-- Recent Transactions Table -->
-    <div class="bg-white rounded-lg shadow p-6 mb-6">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold text-gray-800">Recent Transactions</h3>
-            <select id="transactionTypeFilter" class="border border-gray-300 rounded px-3 py-2 text-sm">
+    <div class="bg-white rounded-lg shadow p-3 sm:p-6 mb-4 sm:mb-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 sm:mb-4 gap-3">
+            <h3 class="text-base sm:text-lg font-semibold text-gray-800">Recent Transactions</h3>
+            <select id="transactionTypeFilter" class="border border-gray-300 rounded px-3 py-2 text-sm w-full sm:w-auto">
                 <option value="all">All Types</option>
                 <option value="sale">Sales</option>
                 <option value="repair">Repairs</option>
                 <option value="swap">Swaps</option>
             </select>
         </div>
-        <div class="overflow-x-auto">
-            <table id="transactionsTable" class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="transactionsTableBody">
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Alerts Panel -->
-    <div class="bg-white rounded-lg shadow p-6 mb-6">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold text-gray-800">Active Alerts</h3>
-            <button id="btnTestAlerts" class="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm">
-                <i class="fas fa-bell mr-1"></i> Test Alerts
-            </button>
-        </div>
-        <div id="alertsPanel" class="space-y-3">
-            <!-- Alerts will be loaded here -->
+        <div class="w-full -mx-3 sm:mx-0">
+            <div class="inline-block min-w-full align-middle">
+                <table id="transactionsTable" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">Customer</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Status</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200" id="transactionsTableBody">
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <!-- Audit Logs Live Feed -->
-    <div class="bg-white rounded-lg shadow p-6 mb-6">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold text-gray-800">Audit Trail - Live Feed</h3>
-            <div class="flex gap-2">
-                <select id="auditEventTypeFilter" class="border border-gray-300 rounded px-3 py-2 text-sm">
+    <div class="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 sm:gap-0">
+            <h3 class="text-base sm:text-lg font-semibold text-gray-800">Audit Trail - Live Feed</h3>
+            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <select id="auditEventTypeFilter" class="border border-gray-300 rounded px-3 py-2 text-sm w-full sm:w-auto">
                     <option value="">All Events</option>
                     <option value="sale.created">Sales</option>
                     <option value="swap.completed">Swaps</option>
                     <option value="repair.created">Repairs</option>
                     <option value="user.login">User Logins</option>
                 </select>
-                <button id="btnRefreshAuditLogs" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm">
+                <select id="auditUserFilter" class="border border-gray-300 rounded px-3 py-2 text-sm w-full sm:w-auto">
+                    <option value="">All Users</option>
+                </select>
+                <button id="btnRefreshAuditLogs" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm whitespace-nowrap">
                     <i class="fas fa-sync-alt mr-1"></i> Refresh
                 </button>
             </div>
         </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Event</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entity</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP Address</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="auditLogsBody" class="bg-white divide-y divide-gray-200">
-                    <tr>
-                        <td colspan="6" class="px-4 py-3 text-center text-gray-500">Loading audit logs...</td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="w-full -mx-3 sm:mx-0">
+            <div class="inline-block min-w-full align-middle">
+                <table class="min-w-full divide-y divide-gray-200 text-xs sm:text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Event</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">User</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Entity</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">IP Address</th>
+                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditLogsBody" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="6" class="px-4 py-3 text-center text-gray-500">Loading audit logs...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
-        <div class="mt-4">
-            <button id="btnLoadMoreAuditLogs" class="text-blue-600 hover:text-blue-800 text-sm">
-                Load More
-            </button>
-        </div>
-    </div>
-
-    <!-- Event Viewer Modal -->
-    <div id="eventViewerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-semibold text-gray-800">Event Details</h3>
-                    <button id="btnCloseEventViewer" class="text-gray-400 hover:text-gray-600">
-                        <i class="fas fa-times text-2xl"></i>
-                    </button>
-                </div>
-                <div id="eventViewerContent" class="space-y-4">
-                    <!-- Event details will be loaded here -->
-                </div>
+        <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="text-sm text-gray-600" id="auditLogsInfo">
+                Showing 0 of 0 logs
+            </div>
+            <div class="flex items-center gap-2" id="auditLogsPagination">
+                <!-- Pagination buttons will be inserted here -->
             </div>
         </div>
     </div>
 
+
     <!-- Trace Search Button -->
-    <div class="mb-6">
-        <button id="btnOpenTraceModal" class="bg-purple-600 hover:bg-purple-700 text-white rounded px-6 py-3 font-medium">
+    <div class="mb-4 sm:mb-6">
+        <button id="btnOpenTraceModal" class="bg-purple-600 hover:bg-purple-700 text-white rounded px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-medium w-full sm:w-auto">
             <i class="fas fa-search mr-2"></i> Trace Item / Customer / Device
         </button>
     </div>
 
     <!-- Trace Modal -->
-    <div id="traceModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div class="p-6">
+    <div id="traceModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50">
+        <div class="flex items-center justify-center min-h-full p-3 sm:p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] relative flex flex-col">
+            <div class="p-3 sm:p-4 sm:p-6 flex-shrink-0">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-semibold text-gray-800">Item Trace</h3>
-                    <button id="btnCloseTraceModal" class="text-gray-400 hover:text-gray-600">
-                        <i class="fas fa-times text-2xl"></i>
+                    <h3 class="text-lg sm:text-xl font-semibold text-gray-800">Item Trace</h3>
+                    <button id="btnCloseTraceModal" class="text-gray-400 hover:text-gray-600 flex-shrink-0 ml-2">
+                        <i class="fas fa-times text-xl sm:text-2xl"></i>
                     </button>
                 </div>
-                <p class="text-sm text-gray-600 mb-4">Search across all modules by IMEI, product ID, customer phone, or sale ID</p>
-                <div class="flex gap-3 mb-4">
-                    <input type="text" id="traceSearchInput" placeholder="Enter IMEI, product ID, customer phone, or sale ID..." class="flex-1 border border-gray-300 rounded px-4 py-2" />
-                    <button id="btnTraceSearch" class="bg-blue-600 hover:bg-blue-700 text-white rounded px-6 py-2">
+                <p class="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">Search across all modules by IMEI, product ID, customer phone, sale ID, swap reference (e.g., SWAP-13), or repair tracking code</p>
+                <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-3 sm:mb-4">
+                    <input type="text" id="traceSearchInput" placeholder="Enter IMEI, product ID, customer phone, sale ID, swap reference (SWAP-13), or repair code..." class="flex-1 border border-gray-300 rounded px-3 sm:px-4 py-2 text-sm" />
+                    <button id="btnTraceSearch" class="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 sm:px-6 py-2 text-sm whitespace-nowrap">
                         <i class="fas fa-search mr-1"></i> Search
                     </button>
                 </div>
-                <div id="traceResults" class="hidden">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                <div id="traceResults" class="hidden flex-1 overflow-y-auto">
+                    <div class="w-full">
+                        <div class="inline-block min-w-full align-middle">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs sm:text-sm">
+                            <thead class="bg-gray-50 sticky top-0">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
+                                    <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                                    <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                    <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                    <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">Customer</th>
+                                    <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
+                                    <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Reference</th>
+                                    <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="traceResultsBody" class="bg-white divide-y divide-gray-200">
@@ -661,6 +657,7 @@ $userRole = $user['role'] ?? 'manager';
                         </table>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     </div>
@@ -686,6 +683,22 @@ $userRole = $user['role'] ?? 'manager';
 <script>
 (function() {
     const BASE = window.APP_BASE_PATH || '';
+    // Debug mode - set to false for production
+    const DEBUG_MODE = false;
+    
+    // Debug logging helper
+    function debugLog(...args) {
+        if (DEBUG_MODE) {
+            console.log('[audit-trail]', ...args);
+        }
+    }
+    
+    function debugWarn(...args) {
+        if (DEBUG_MODE) {
+            console.warn('[audit-trail]', ...args);
+        }
+    }
+    
     let revenueChart = null;
     let profitChart = null;
     let topProductsChart = null;
@@ -695,7 +708,13 @@ $userRole = $user['role'] ?? 'manager';
 
     // Authentication helpers
     function getToken() {
-        return localStorage.getItem('token') || localStorage.getItem('sellapp_token');
+        try {
+            return localStorage.getItem('token') || localStorage.getItem('sellapp_token');
+        } catch (e) {
+            // Handle tracking prevention or storage access issues
+            debugWarn('Storage access blocked:', e.message);
+            return null;
+        }
     }
 
     function getAuthHeaders() {
@@ -708,6 +727,63 @@ $userRole = $user['role'] ?? 'manager';
         }
         return headers;
     }
+
+    // Modal helper functions - prevent body scroll and maintain position
+    function openModal(modalId, clickElement = null) {
+        const modal = document.getElementById(modalId);
+        if (!modal) {
+            console.error('Modal not found:', modalId);
+            return;
+        }
+        
+        // Store current scroll position
+        const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop;
+        modal.dataset.scrollY = scrollY;
+        
+        // Prevent body scroll - lock the page in place
+        document.body.classList.add('overflow-hidden');
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.width = '100%';
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        
+        // Show modal - ensure it's visible
+        modal.classList.remove('hidden');
+        
+        // Ensure modal is always in viewport - force recalculation
+        requestAnimationFrame(() => {
+            modal.style.display = '';
+            // Ensure z-index is applied
+            if (!modal.style.zIndex) {
+                modal.style.zIndex = '9999';
+            }
+        });
+    }
+
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        
+        // Hide modal
+        modal.classList.add('hidden');
+        
+        // Restore body scroll
+        const scrollY = modal.dataset.scrollY || 0;
+        document.body.classList.remove('overflow-hidden');
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        
+        // Restore scroll position
+        window.scrollTo(0, parseInt(scrollY || 0));
+    }
+    
+    // Make closeModal globally accessible
+    window.closeModal = closeModal;
+    
+    // Handle window resize - modals will automatically adjust with flexbox
+    // No special handling needed as the new modal structure uses standard flexbox centering
 
     // Initialize page
     document.addEventListener('DOMContentLoaded', function() {
@@ -738,15 +814,14 @@ $userRole = $user['role'] ?? 'manager';
         loadAnalytics();
         loadCharts();
         loadTransactions();
-        loadAlerts();
-        loadAuditLogs();
+        loadAuditUsers();
+        loadAuditLogs(1);
         setupEventListeners();
         initializeCharts();
         
         // Auto-refresh every 60 seconds
         setInterval(function() {
-            loadAlerts();
-            loadAuditLogs();
+            loadAuditLogs(auditLogsCurrentPage);
         }, 60000);
 
         // Real-time data sync - check if enabled
@@ -772,12 +847,18 @@ $userRole = $user['role'] ?? 'manager';
             const dateFrom = document.getElementById('filterDateFrom').value;
             const dateTo = document.getElementById('filterDateTo').value;
             const staffId = document.getElementById('filterStaff').value;
+            const customerId = document.getElementById('filterCustomerId')?.value || '';
+            const productId = document.getElementById('filterProductId')?.value || '';
+            const productSearch = document.getElementById('filterProduct')?.value || '';
             
-            console.log('loadLiveData called with:', {
+            debugLog('loadLiveData called with:', {
                 dateRange,
                 dateFrom,
                 dateTo,
-                staffId: staffId || 'none'
+                staffId: staffId || 'none',
+                customerId: customerId || 'none',
+                productId: productId || 'none',
+                productSearch: productSearch || 'none'
             });
             
             const params = new URLSearchParams();
@@ -786,8 +867,14 @@ $userRole = $user['role'] ?? 'manager';
             if (dateFrom) params.append('date_from', dateFrom);
             if (dateTo) params.append('date_to', dateTo);
             if (staffId) params.append('staff_id', staffId);
+            if (customerId) params.append('customer_id', customerId);
+            if (productId) params.append('product_id', productId);
+            // If product search is provided but no product ID, it might be an IMEI
+            if (productSearch && !productId) {
+                params.append('imei', productSearch);
+            }
             
-            console.log('Fetching:', `${BASE}/api/audit-trail/data?${params.toString()}`);
+            debugLog('Fetching:', `${BASE}/api/audit-trail/data?${params.toString()}`);
             
             const response = await fetch(`${BASE}/api/audit-trail/data?${params.toString()}`, {
                 headers: getAuthHeaders(),
@@ -795,26 +882,23 @@ $userRole = $user['role'] ?? 'manager';
             });
             const data = await response.json();
 
-            console.log('loadLiveData response:', {
+            debugLog('loadLiveData response:', {
                 success: data.success,
                 hasBreakdown: !!data.profit_loss_breakdown,
                 breakdownKeys: data.profit_loss_breakdown ? Object.keys(data.profit_loss_breakdown) : [],
                 dailyCount: data.profit_loss_breakdown?.daily?.length ?? 0,
                 weeklyCount: data.profit_loss_breakdown?.weekly?.length ?? 0,
-                monthlyCount: data.profit_loss_breakdown?.monthly?.length ?? 0
+                monthlyCount: data.profit_loss_breakdown?.monthly?.length ?? 0,
+                hasSwaps: !!data.swaps,
+                swapsData: data.swaps,
+                enabledModules: data.enabled_modules || []
             });
 
             if (data.success) {
                 // Update all metrics with live data
                 updateLiveMetrics(data);
                 // Update profit/loss breakdown
-                if (data.profit_loss_breakdown) {
-                    console.log('Calling updateProfitLossBreakdown with data:', data.profit_loss_breakdown);
-                    updateProfitLossBreakdown(data.profit_loss_breakdown);
-                } else {
-                    console.warn('No profit_loss_breakdown in response, clearing data');
-                    updateProfitLossBreakdown({ daily: [], weekly: [], monthly: [] });
-                }
+                // Profit & Loss Breakdown section removed
                 
                 // Update transactions table with live data
                 loadTransactionsFromData(data);
@@ -911,6 +995,27 @@ $userRole = $user['role'] ?? 'manager';
 
     // Update metrics with live data - comprehensive update
     function updateLiveMetrics(data) {
+        // Debug: Log swaps data received
+        debugLog('updateLiveMetrics - Swaps data received:', {
+            hasSwaps: !!data.swaps,
+            swaps: data.swaps,
+            swapsKeys: data.swaps ? Object.keys(data.swaps) : [],
+            swapsString: data.swaps ? JSON.stringify(data.swaps, null, 2) : 'null',
+            enabledModules: data.enabled_modules || []
+        });
+        
+        // Ensure swaps data exists (even if empty) when swap module is enabled
+        if (!data.swaps && data.enabled_modules && (data.enabled_modules.includes('swap') || data.enabled_modules.includes('swaps'))) {
+            debugLog('Swap module enabled but no swaps data - initializing empty structure');
+            data.swaps = {
+                pending: 0,
+                monthly: { count: 0, revenue: 0, profit: 0 },
+                profit: 0,
+                period: { count: 0, revenue: 0, profit: 0 },
+                filtered: null
+            };
+        }
+        
         // Convert to metrics format and update all metrics
         const metrics = {
             sales: data.sales ? {
@@ -930,18 +1035,39 @@ $userRole = $user['role'] ?? 'manager';
                 }
             } : null,
             swaps: data.swaps ? {
-                pending: data.swaps.pending || 0,
+                pending: data.swaps.pending ?? 0,
                 monthly: {
-                    count: data.swaps.monthly?.count || 0,
-                    revenue: data.swaps.monthly?.revenue || 0
+                    count: data.swaps.monthly?.count ?? 0,
+                    revenue: data.swaps.monthly?.revenue ?? 0,
+                    profit: data.swaps.monthly?.profit ?? 0
                 },
-                profit: data.swaps.profit || 0,
+                profit: data.swaps.profit ?? 0,
+                period: data.swaps.period ? {
+                    count: data.swaps.period.count ?? 0,
+                    revenue: data.swaps.period.revenue ?? 0,
+                    profit: data.swaps.period.profit ?? data.swaps.monthly?.profit ?? data.swaps.profit ?? 0
+                } : (data.swaps.filtered ? {
+                    count: data.swaps.filtered.count ?? 0,
+                    revenue: data.swaps.filtered.revenue ?? 0,
+                    profit: data.swaps.monthly?.profit ?? data.swaps.profit ?? 0
+                } : {
+                    count: data.swaps.monthly?.count ?? 0,
+                    revenue: data.swaps.monthly?.revenue ?? 0,
+                    profit: data.swaps.monthly?.profit ?? data.swaps.profit ?? 0
+                }),
                 filtered: {
-                    revenue: data.swaps.monthly?.revenue || 0
+                    revenue: data.swaps.monthly?.revenue ?? 0
                 }
             } : null,
             inventory: data.inventory || null
         };
+        
+        // Debug: Log constructed metrics
+        debugLog('updateLiveMetrics - Constructed metrics:', {
+            hasSwaps: !!metrics.swaps,
+            swaps: metrics.swaps,
+            swapsKeys: metrics.swaps ? Object.keys(metrics.swaps) : []
+        });
         
         // Use the same updateMetrics function for consistency
         updateMetrics(metrics, data.enabled_modules || []);
@@ -951,9 +1077,12 @@ $userRole = $user['role'] ?? 'manager';
             const paymentCard = document.getElementById('audit-payment-status-card');
             if (paymentCard) {
                 paymentCard.style.display = 'block';
-                document.getElementById('audit-fully-paid').textContent = data.payment_stats.fully_paid || 0;
-                document.getElementById('audit-partial').textContent = data.payment_stats.partial || 0;
-                document.getElementById('audit-unpaid').textContent = data.payment_stats.unpaid || 0;
+                const fullyPaidEl = document.getElementById('audit-fully-paid');
+                const partialEl = document.getElementById('audit-partial');
+                const unpaidEl = document.getElementById('audit-unpaid');
+                if (fullyPaidEl) fullyPaidEl.textContent = data.payment_stats.fully_paid || 0;
+                if (partialEl) partialEl.textContent = data.payment_stats.partial || 0;
+                if (unpaidEl) unpaidEl.textContent = data.payment_stats.unpaid || 0;
             }
         }
 
@@ -989,6 +1118,18 @@ $userRole = $user['role'] ?? 'manager';
             // Add staff filter if selected
             const staffId = document.getElementById('filterStaff').value;
             if (staffId) params.append('staff_id', staffId);
+            
+            // Add customer filter if selected
+            const customerId = document.getElementById('filterCustomerId')?.value || '';
+            if (customerId) params.append('customer_id', customerId);
+            
+            // Add product/IMEI filter if selected
+            const productId = document.getElementById('filterProductId')?.value || '';
+            const productSearch = document.getElementById('filterProduct')?.value || '';
+            if (productId) params.append('product_id', productId);
+            if (productSearch && !productId) {
+                params.append('imei', productSearch);
+            }
             
             // Use unified endpoint for real-time data
             const response = await fetch(`${BASE}/api/audit-trail/data?${params.toString()}`, {
@@ -1044,14 +1185,19 @@ $userRole = $user['role'] ?? 'manager';
                         pending: data.swaps.pending || 0,
                         monthly: {
                             count: data.swaps.monthly?.count || 0,
-                            revenue: data.swaps.monthly?.revenue || 0
+                            revenue: data.swaps.monthly?.revenue || 0,
+                            profit: data.swaps.monthly?.profit || 0
                         },
                         profit: data.swaps.profit || 0,
-                        period: data.swaps.period || data.swaps.filtered || {
-                            count: 0,
-                            revenue: 0,
-                            profit: 0
-                        }
+                        period: data.swaps.period || (data.swaps.filtered ? {
+                            count: data.swaps.filtered.count || 0,
+                            revenue: data.swaps.filtered.revenue || 0,
+                            profit: data.swaps.period?.profit || data.swaps.profit || 0
+                        } : {
+                            count: data.swaps.monthly?.count || 0,
+                            revenue: data.swaps.monthly?.revenue || 0,
+                            profit: data.swaps.monthly?.profit || data.swaps.profit || 0
+                        })
                     } : null,
                     inventory: data.inventory || null
                 };
@@ -1061,63 +1207,67 @@ $userRole = $user['role'] ?? 'manager';
                 // Update profit/loss breakdown - always update to clear old data when date range changes
                 // API now always returns breakdown structure (even if empty arrays)
                 if (data.profit_loss_breakdown) {
-                    console.log('Profit/Loss Breakdown data received from analytics:', {
+                    debugLog('Profit/Loss Breakdown data received from analytics:', {
                         hasBreakdown: !!data.profit_loss_breakdown,
                         breakdown: data.profit_loss_breakdown,
                         dailyCount: data.profit_loss_breakdown?.daily?.length ?? 0,
                         weeklyCount: data.profit_loss_breakdown?.weekly?.length ?? 0,
                         monthlyCount: data.profit_loss_breakdown?.monthly?.length ?? 0
                     });
-                    updateProfitLossBreakdown(data.profit_loss_breakdown);
+                    // Profit & Loss Breakdown section removed
                 } else {
-                    // If no breakdown in response, clear it (date range might have no sales)
-                    console.log('No profit_loss_breakdown in analytics response - clearing breakdown');
-                    updateProfitLossBreakdown({ daily: [], weekly: [], monthly: [] });
+                    // Profit & Loss Breakdown section removed
                 }
                 
                 // Load transactions from activity logs
                 loadTransactionsFromData(data);
                 
                 // Update repairer stats table
-                console.log('Staff activity data:', data.staff_activity);
-                console.log('Date range:', data.date_range);
-                console.log('Company ID:', data.company_id);
-                console.log('Full API response keys:', Object.keys(data));
+                debugLog('Staff activity data:', data.staff_activity);
+                debugLog('Date range:', data.date_range);
+                debugLog('Company ID:', data.company_id);
+                debugLog('Full API response keys:', Object.keys(data));
                 if (data.staff_activity) {
-                    console.log('Staff activity keys:', Object.keys(data.staff_activity));
-                    console.log('Technicians array:', data.staff_activity.technicians);
-                    console.log('Technicians count:', data.staff_activity.technicians ? data.staff_activity.technicians.length : 'null/undefined');
-                    console.log('Total technicians:', data.staff_activity.total_technicians);
+                    debugLog('Staff activity keys:', Object.keys(data.staff_activity));
+                    debugLog('Technicians array:', data.staff_activity.technicians);
+                    debugLog('Technicians count:', data.staff_activity.technicians ? data.staff_activity.technicians.length : 'null/undefined');
+                    debugLog('Total technicians:', data.staff_activity.total_technicians);
                     
                     if (data.staff_activity.technicians && Array.isArray(data.staff_activity.technicians) && data.staff_activity.technicians.length > 0) {
-                        console.log('Technicians found:', data.staff_activity.technicians.length);
-                        console.log('Technicians data:', JSON.stringify(data.staff_activity.technicians, null, 2));
+                        debugLog('Technicians found:', data.staff_activity.technicians.length);
+                        debugLog('Technicians data:', JSON.stringify(data.staff_activity.technicians, null, 2));
                         updateRepairerStats(data.staff_activity.technicians);
                     } else {
-                        console.log('No technicians array found or array is empty');
-                        console.log('Staff activity structure:', JSON.stringify(data.staff_activity, null, 2));
+                        debugLog('No technicians array found or array is empty');
+                        debugLog('Staff activity structure:', JSON.stringify(data.staff_activity, null, 2));
                         updateRepairerStats([]);
                     }
                 } else {
-                    console.log('No staff_activity in response');
-                    console.log('Available keys:', Object.keys(data));
+                    debugLog('No staff_activity in response');
+                    debugLog('Available keys:', Object.keys(data));
                     updateRepairerStats([]);
                 }
                 
-                // Update repairer parts sales section
-                if (data.repairer_parts_sales) {
+                // Update repairer parts sales section (only show when staff is selected)
+                const staffId = document.getElementById('filterStaff')?.value || '';
+                if (staffId && data.repairer_parts_sales) {
                     updateRepairerPartsSales(data.repairer_parts_sales);
                 } else {
                     document.getElementById('repairerPartsSection').classList.add('hidden');
                 }
                 
                 // If staff is selected, load staff details
-                const staffId = document.getElementById('filterStaff').value;
+                // Update All Staff Summary if no staff is selected
                 if (staffId) {
                     loadStaffDetails(staffId);
+                    document.getElementById('allStaffSummarySection').classList.add('hidden');
                 } else {
                     // Hide staff detail section if no staff selected
                     document.getElementById('staffDetailSection').classList.add('hidden');
+                    // Show all staff summary section
+                    document.getElementById('allStaffSummarySection').classList.remove('hidden');
+                    // Update all staff summary with data
+                    updateAllStaffSummary(data);
                 }
             } else {
                 // Handle API error response without displaying raw JSON
@@ -1132,17 +1282,18 @@ $userRole = $user['role'] ?? 'manager';
         }
     }
 
+    // Helper function to safely set text content (global scope)
+    function safeSetText(id, value) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.textContent = value;
+            return true;
+        }
+        return false;
+    }
+
     // Update metrics display
     function updateMetrics(metrics, enabledModules) {
-        // Helper function to safely set text content
-        function safeSetText(id, value) {
-            const el = document.getElementById(id);
-            if (el) {
-                el.textContent = value;
-                return true;
-            }
-            return false;
-        }
         
         // Sales metrics
         if (metrics.sales) {
@@ -1231,24 +1382,48 @@ $userRole = $user['role'] ?? 'manager';
         // Repairer stats are now updated in updateRepairerStats() function
 
         // Swapping Stats
+        const swapCard = document.getElementById('metric-swap-total')?.closest('.bg-gradient-to-br');
         if (metrics.swaps) {
             // Use period data if available (date filtered), otherwise use monthly
             const swapCount = metrics.swaps.period?.count ?? metrics.swaps.monthly?.count ?? 0;
             const swapRevenue = metrics.swaps.period?.revenue ?? metrics.swaps.monthly?.revenue ?? 0;
-            const swapProfit = metrics.swaps.period?.profit ?? metrics.swaps.profit ?? 0;
+            const swapProfit = metrics.swaps.period?.profit ?? metrics.swaps.monthly?.profit ?? metrics.swaps.profit ?? 0;
             const pendingSwaps = metrics.swaps.pending ?? 0;
+            
+            debugLog('Swapping Stats Update:', {
+                swapCount,
+                swapRevenue,
+                swapProfit,
+                pendingSwaps,
+                period: metrics.swaps.period,
+                monthly: metrics.swaps.monthly,
+                profit: metrics.swaps.profit
+            });
             
             safeSetText('metric-swap-total', swapCount);
             safeSetText('metric-swap-pending', pendingSwaps);
             safeSetText('metric-swap-revenue', formatCurrency(swapRevenue));
             safeSetText('metric-swap-profit', formatCurrency(swapProfit));
             safeSetText('swapTotalRevenue', formatCurrency(swapRevenue));
+            
+            // Show swap card if it exists
+            if (swapCard) {
+                swapCard.style.display = '';
+                swapCard.classList.remove('hidden');
+            }
         } else {
+            debugLog('Swapping Stats: metrics.swaps is null or undefined');
             safeSetText('metric-swap-total', '0');
             safeSetText('metric-swap-pending', '0');
             safeSetText('metric-swap-revenue', formatCurrency(0));
             safeSetText('metric-swap-profit', formatCurrency(0));
             safeSetText('swapTotalRevenue', formatCurrency(0));
+            
+            // Still show the card even if no data (module might be disabled)
+            if (swapCard) {
+                swapCard.style.display = '';
+                swapCard.classList.remove('hidden');
+            }
         }
     }
 
@@ -1337,11 +1512,15 @@ $userRole = $user['role'] ?? 'manager';
                 if (staffId) {
                     // Show staff detail section and load details
                     document.getElementById('staffDetailSection').classList.remove('hidden');
+                    document.getElementById('allStaffSummarySection').classList.add('hidden');
                     loadStaffDetails(staffId);
                     loadAnalytics(); // Reload analytics with staff filter
                 } else {
                     // Hide staff detail section and show all data
                     document.getElementById('staffDetailSection').classList.add('hidden');
+                    document.getElementById('allStaffSummarySection').classList.remove('hidden');
+                    // Hide repairer parts section when viewing all staff
+                    document.getElementById('repairerPartsSection').classList.add('hidden');
                     loadAnalytics(); // Reload analytics without staff filter
                 }
             });
@@ -1370,7 +1549,7 @@ $userRole = $user['role'] ?? 'manager';
             loadAnalytics();
             loadCharts();
             loadTransactions();
-            loadAuditLogs();
+            loadAuditLogs(1);
         });
 
         document.getElementById('btnApplyFilters').addEventListener('click', async function() {
@@ -1406,14 +1585,14 @@ $userRole = $user['role'] ?? 'manager';
 
         // Trace modal
         document.getElementById('btnOpenTraceModal').addEventListener('click', function() {
-            document.getElementById('traceModal').classList.remove('hidden');
+            openModal('traceModal');
         });
         document.getElementById('btnCloseTraceModal').addEventListener('click', function() {
-            document.getElementById('traceModal').classList.add('hidden');
+            closeModal('traceModal');
         });
         document.getElementById('traceModal').addEventListener('click', function(e) {
             if (e.target === this) {
-                this.classList.add('hidden');
+                closeModal('traceModal');
             }
         });
 
@@ -1437,180 +1616,298 @@ $userRole = $user['role'] ?? 'manager';
             transactionTypeFilter.addEventListener('change', loadTransactions);
         }
 
-        // Alerts
-        const btnTestAlerts = document.getElementById('btnTestAlerts');
-        if (btnTestAlerts) {
-            btnTestAlerts.addEventListener('click', testAlerts);
-        }
-
         // Audit logs
         const btnRefreshAuditLogs = document.getElementById('btnRefreshAuditLogs');
         if (btnRefreshAuditLogs) {
-            btnRefreshAuditLogs.addEventListener('click', loadAuditLogs);
+            btnRefreshAuditLogs.addEventListener('click', () => loadAuditLogs(1));
         }
         const auditEventTypeFilter = document.getElementById('auditEventTypeFilter');
         if (auditEventTypeFilter) {
-            auditEventTypeFilter.addEventListener('change', loadAuditLogs);
+            auditEventTypeFilter.addEventListener('change', () => loadAuditLogs(1));
         }
-        const btnLoadMoreAuditLogs = document.getElementById('btnLoadMoreAuditLogs');
-        if (btnLoadMoreAuditLogs) {
-            btnLoadMoreAuditLogs.addEventListener('click', loadMoreAuditLogs);
+        const auditUserFilter = document.getElementById('auditUserFilter');
+        if (auditUserFilter) {
+            auditUserFilter.addEventListener('change', () => loadAuditLogs(1));
         }
-
-        // Event viewer modal
-        const btnCloseEventViewer = document.getElementById('btnCloseEventViewer');
-        if (btnCloseEventViewer) {
-            btnCloseEventViewer.addEventListener('click', function() {
-                const eventViewerModal = document.getElementById('eventViewerModal');
-                if (eventViewerModal) {
-                    eventViewerModal.classList.add('hidden');
-                }
-            });
-        }
-        const eventViewerModal = document.getElementById('eventViewerModal');
-        if (eventViewerModal) {
-            eventViewerModal.addEventListener('click', function(e) {
-                if (e.target === this) {
-                    this.classList.add('hidden');
-                }
-            });
-        }
-    }
-
-
-    let auditLogsOffset = 0;
-    const auditLogsLimit = 50;
-
-    // Load alerts
-    async function loadAlerts() {
-        try {
-            const response = await fetch(`${BASE}/api/analytics/alerts?unhandled_only=true&limit=10`);
-            const data = await response.json();
-
-            if (data.success && data.notifications) {
-                displayAlerts(data.notifications);
-            }
-        } catch (error) {
-            console.error('Error loading alerts:', error);
-        }
-    }
-
-    // Display alerts
-    function displayAlerts(notifications) {
-        const panel = document.getElementById('alertsPanel');
         
-        if (notifications.length === 0) {
-            panel.innerHTML = '<p class="text-gray-500 text-sm">No active alerts</p>';
-            return;
+        // Make loadAuditLogs globally accessible for pagination buttons
+        window.loadAuditLogs = loadAuditLogs;
+        
+        // Customer autocomplete
+        setupCustomerAutocomplete();
+        
+        // Product/IMEI autocomplete
+        setupProductAutocomplete();
+        
+        // Clear buttons
+        const clearCustomerBtn = document.getElementById('clearCustomer');
+        const clearProductBtn = document.getElementById('clearProduct');
+        
+        if (clearCustomerBtn) {
+            clearCustomerBtn.addEventListener('click', function() {
+                document.getElementById('filterCustomer').value = '';
+                document.getElementById('filterCustomerId').value = '';
+                clearCustomerBtn.classList.add('hidden');
+                loadLiveData();
+            });
         }
-
-        panel.innerHTML = notifications.map(notif => {
-            const severityColors = {
-                'critical': 'bg-red-100 border-red-300 text-red-800',
-                'warning': 'bg-yellow-100 border-yellow-300 text-yellow-800',
-                'info': 'bg-blue-100 border-blue-300 text-blue-800'
-            };
-            const colorClass = severityColors[notif.severity] || severityColors['warning'];
+        
+        if (clearProductBtn) {
+            clearProductBtn.addEventListener('click', function() {
+                document.getElementById('filterProduct').value = '';
+                document.getElementById('filterProductId').value = '';
+                clearProductBtn.classList.add('hidden');
+                loadLiveData();
+            });
+        }
+        
+        // Date filter change handlers
+        document.getElementById('filterDateFrom').addEventListener('change', function() {
+            loadLiveData();
+        });
+        
+        document.getElementById('filterDateTo').addEventListener('change', function() {
+            loadLiveData();
+        });
+        
+    }
+    
+    // Setup customer autocomplete
+    function setupCustomerAutocomplete() {
+        const customerInput = document.getElementById('filterCustomer');
+        const customerDropdown = document.getElementById('customerDropdown');
+        const customerIdInput = document.getElementById('filterCustomerId');
+        const clearBtn = document.getElementById('clearCustomer');
+        let debounceTimer;
+        let selectedCustomerId = null;
+        
+        if (!customerInput || !customerDropdown) return;
+        
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const isClickInside = customerInput.contains(e.target) || 
+                                  customerDropdown.contains(e.target) || 
+                                  (clearBtn && clearBtn.contains(e.target));
+            if (!isClickInside) {
+                customerDropdown.classList.add('hidden');
+            }
+        });
+        
+        customerInput.addEventListener('input', function() {
+            const query = this.value.trim();
             
-            return `
-                <div class="border rounded-lg p-4 ${colorClass} cursor-pointer hover:shadow-md transition-shadow" onclick="viewAlertDetails('${notif.id}')">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <div class="font-semibold mb-1">${notif.alert_title}</div>
-                            <div class="text-sm opacity-90">${new Date(notif.triggered_at).toLocaleString()}</div>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="event.stopPropagation(); acknowledgeAlert(${notif.id})" class="bg-white hover:bg-gray-100 rounded px-3 py-1 text-sm">
-                                Acknowledge
-                            </button>
-                            <button onclick="event.stopPropagation(); clearAlert(${notif.id})" class="bg-white hover:bg-red-100 text-red-600 rounded px-3 py-1 text-sm">
-                                Clear
-                            </button>
+            if (query.length < 2) {
+                customerDropdown.classList.add('hidden');
+                customerIdInput.value = '';
+                selectedCustomerId = null;
+                clearBtn.classList.add('hidden');
+                return;
+            }
+            
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const response = await fetch(`${BASE}/api/customers/search?q=${encodeURIComponent(query)}`, {
+                        headers: getAuthHeaders(),
+                        credentials: 'same-origin'
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success && data.data && data.data.length > 0) {
+                        displayCustomerResults(data.data);
+                        customerDropdown.classList.remove('hidden');
+                    } else {
+                        customerDropdown.innerHTML = '<div class="px-4 py-2 text-sm text-gray-500">No customers found</div>';
+                        customerDropdown.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error('Error searching customers:', error);
+                    customerDropdown.classList.add('hidden');
+                }
+            }, 300);
+        });
+        
+        function displayCustomerResults(customers) {
+            customerDropdown.innerHTML = customers.map(customer => `
+                <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                     data-id="${customer.id}" 
+                     data-name="${customer.full_name || customer.name || ''}"
+                     data-phone="${customer.phone_number || ''}">
+                    <div class="font-medium text-sm text-gray-900">${customer.full_name || customer.name || 'Unknown'}</div>
+                    ${customer.phone_number ? `<div class="text-xs text-gray-500">${customer.phone_number}</div>` : ''}
+                </div>
+            `).join('');
+            
+            // Add click handlers
+            customerDropdown.querySelectorAll('div[data-id]').forEach(item => {
+                item.addEventListener('click', function() {
+                    const id = this.getAttribute('data-id');
+                    const name = this.getAttribute('data-name');
+                    customerInput.value = name;
+                    customerIdInput.value = id;
+                    selectedCustomerId = id;
+                    customerDropdown.classList.add('hidden');
+                    clearBtn.classList.remove('hidden');
+                    loadLiveData();
+                });
+            });
+        }
+    }
+    
+    // Setup product/IMEI autocomplete
+    function setupProductAutocomplete() {
+        const productInput = document.getElementById('filterProduct');
+        const productDropdown = document.getElementById('productDropdown');
+        const productIdInput = document.getElementById('filterProductId');
+        const clearBtn = document.getElementById('clearProduct');
+        let debounceTimer;
+        let selectedProductId = null;
+        
+        if (!productInput || !productDropdown) return;
+        
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const isClickInside = productInput.contains(e.target) || 
+                                  productDropdown.contains(e.target) || 
+                                  (clearBtn && clearBtn.contains(e.target));
+            if (!isClickInside) {
+                productDropdown.classList.add('hidden');
+            }
+        });
+        
+        productInput.addEventListener('input', function() {
+            const query = this.value.trim();
+            
+            if (query.length < 2) {
+                productDropdown.classList.add('hidden');
+                productIdInput.value = '';
+                selectedProductId = null;
+                clearBtn.classList.add('hidden');
+                return;
+            }
+            
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(async () => {
+                try {
+                    // Search products by name or IMEI
+                    const response = await fetch(`${BASE}/api/inventory/search?q=${encodeURIComponent(query)}`, {
+                        headers: getAuthHeaders(),
+                        credentials: 'same-origin'
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success && data.data && data.data.length > 0) {
+                        displayProductResults(data.data, query);
+                        productDropdown.classList.remove('hidden');
+                    } else {
+                        // If no products found, try searching by IMEI in activity logs
+                        productDropdown.innerHTML = '<div class="px-4 py-2 text-sm text-gray-500">No products found. Searching by IMEI...</div>';
+                        productDropdown.classList.remove('hidden');
+                        // The IMEI search will be handled by the backend when filtering
+                        productIdInput.value = query; // Store IMEI for backend filtering
+                    }
+                } catch (error) {
+                    console.error('Error searching products:', error);
+                    productDropdown.classList.add('hidden');
+                }
+            }, 300);
+        });
+        
+        function displayProductResults(products, query) {
+            productDropdown.innerHTML = products.map(product => {
+                const name = product.name || 'Unknown Product';
+                const productId = product.product_id || product.id || '';
+                const imei = product.imei || '';
+                const matchText = query.toLowerCase();
+                const nameMatch = name.toLowerCase().includes(matchText);
+                const imeiMatch = imei && imei.toLowerCase().includes(matchText);
+                
+                return `
+                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                         data-id="${product.id}" 
+                         data-name="${name}"
+                         data-imei="${imei || ''}"
+                         data-product-id="${productId}">
+                        <div class="font-medium text-sm text-gray-900">${name}</div>
+                        <div class="text-xs text-gray-500">
+                            ${productId ? `SKU: ${productId}` : ''}${productId && imei ? ' • ' : ''}${imei ? `IMEI: ${imei}` : ''}
                         </div>
                     </div>
-                </div>
-            `;
-        }).join('');
+                `;
+            }).join('');
+            
+            // Add click handlers
+            productDropdown.querySelectorAll('div[data-id]').forEach(item => {
+                item.addEventListener('click', function() {
+                    const id = this.getAttribute('data-id');
+                    const name = this.getAttribute('data-name');
+                    const imei = this.getAttribute('data-imei');
+                    productInput.value = imei || name;
+                    productIdInput.value = id;
+                    selectedProductId = id;
+                    productDropdown.classList.add('hidden');
+                    clearBtn.classList.remove('hidden');
+                    loadLiveData();
+                });
+            });
+        }
     }
 
-    // Acknowledge alert
-    window.acknowledgeAlert = async function(notificationId) {
+
+    let auditLogsCurrentPage = 1;
+    const auditLogsLimit = 10;
+    let auditLogsTotal = 0;
+    let auditLogsTotalPages = 0;
+
+    // Load users for filter dropdown
+    async function loadAuditUsers() {
         try {
-            const response = await fetch(`${BASE}/api/analytics/alerts/${notificationId}/acknowledge`, {
-                method: 'POST',
+            const response = await fetch(`${BASE}/api/staff/list`, {
                 headers: getAuthHeaders(),
                 credentials: 'same-origin'
             });
-            const data = await response.json();
-
-            if (data.success) {
-                loadAlerts();
-                showNotification('Alert acknowledged', 'success');
-            } else {
-                showNotification('Failed to acknowledge alert: ' + (data.error || 'Unknown error'), 'error');
+            
+            if (response.ok) {
+                const data = await response.json();
+                const userSelect = document.getElementById('auditUserFilter');
+                if (userSelect && data.success && data.staff) {
+                    // Clear existing options except "All Users"
+                    userSelect.innerHTML = '<option value="">All Users</option>';
+                    
+                    // Add users
+                    data.staff.forEach(user => {
+                        const option = document.createElement('option');
+                        option.value = user.id;
+                        option.textContent = user.full_name || user.username || user.name || `User #${user.id}`;
+                        userSelect.appendChild(option);
+                    });
+                }
             }
         } catch (error) {
-            console.error('Error acknowledging alert:', error);
-            showNotification('Error acknowledging alert', 'error');
-        }
-    };
-    
-    // Clear alert
-    window.clearAlert = async function(notificationId) {
-        if (!confirm('Are you sure you want to clear this alert?')) {
-            return;
-        }
-        
-        try {
-            // For now, just acknowledge it (alerts are managed by the alert service)
-            await acknowledgeAlert(notificationId);
-            showNotification('Alert cleared', 'success');
-        } catch (error) {
-            console.error('Error clearing alert:', error);
-            showNotification('Error clearing alert', 'error');
-        }
-    };
-    
-    // View alert details
-    window.viewAlertDetails = function(notificationId) {
-        // Navigate to notifications page with the alert ID
-        window.location.href = `${BASE}/dashboard/notifications?view=${notificationId}`;
-    };
-
-    // Test alerts
-    async function testAlerts() {
-        try {
-            const response = await fetch(`${BASE}/api/analytics/alerts/test`, {
-                method: 'POST'
-            });
-            const data = await response.json();
-
-            if (data.success) {
-                alert(`Alert check completed. Triggered ${data.count} alerts.`);
-                loadAlerts();
-            }
-        } catch (error) {
-            console.error('Error testing alerts:', error);
+            console.error('Error loading users for audit filter:', error);
         }
     }
 
-
     // Load audit logs
-    async function loadAuditLogs() {
-        auditLogsOffset = 0;
+    async function loadAuditLogs(page = 1) {
+        auditLogsCurrentPage = page;
         const tbody = document.getElementById('auditLogsBody');
         tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-3 text-center text-gray-500">Loading...</td></tr>';
 
         try {
             const eventType = document.getElementById('auditEventTypeFilter').value;
+            const userId = document.getElementById('auditUserFilter').value;
             const dateFrom = document.getElementById('filterDateFrom')?.value;
             const dateTo = document.getElementById('filterDateTo')?.value;
             
             const params = new URLSearchParams();
             params.append('limit', auditLogsLimit);
-            params.append('offset', auditLogsOffset);
+            params.append('page', page);
             if (eventType) {
                 params.append('event_type', eventType);
+            }
+            if (userId) {
+                params.append('user_id', userId);
             }
             if (dateFrom) {
                 params.append('date_from', dateFrom);
@@ -1623,54 +1920,112 @@ $userRole = $user['role'] ?? 'manager';
                 headers: getAuthHeaders(),
                 credentials: 'same-origin'
             });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const data = await response.json();
 
             if (data.success && data.logs) {
-                displayAuditLogs(data.logs);
-                auditLogsOffset = data.logs.length;
+                auditLogsTotal = data.total || 0;
+                auditLogsTotalPages = data.total_pages || 0;
+                
+                if (data.logs.length > 0) {
+                    displayAuditLogs(data.logs);
+                    updateAuditLogsPagination();
+                } else {
+                    // Check if filters are applied
+                    const eventType = document.getElementById('auditEventTypeFilter').value;
+                    const userId = document.getElementById('auditUserFilter').value;
+                    const dateFrom = document.getElementById('filterDateFrom')?.value;
+                    const dateTo = document.getElementById('filterDateTo')?.value;
+                    
+                    const hasFilters = eventType || userId || dateFrom || dateTo;
+                    
+                    let message = 'No audit logs found';
+                    if (hasFilters) {
+                        message += ' for the selected filters. Try removing filters or selecting a different date range.';
+                    } else {
+                        message += '. Audit logs will appear here as activities occur (sales, swaps, repairs, logins, etc.).';
+                    }
+                    
+                    tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-3 text-center text-gray-500">${message}</td></tr>`;
+                    updateAuditLogsPagination();
+                }
             } else if (data.error) {
                 console.error('API Error:', data.error);
                 tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-3 text-center text-red-500">Error: ${data.error}</td></tr>`;
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-3 text-center text-gray-500">No audit logs found</td></tr>';
             }
         } catch (error) {
             console.error('Error loading audit logs:', error);
-            tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-3 text-center text-red-500">Error loading audit logs</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-3 text-center text-red-500">Error loading audit logs: ${error.message || 'Unknown error'}</td></tr>`;
         }
     }
 
-    // Load more audit logs
-    async function loadMoreAuditLogs() {
-        try {
-            const eventType = document.getElementById('auditEventTypeFilter').value;
-            const dateFrom = document.getElementById('filterDateFrom')?.value;
-            const dateTo = document.getElementById('filterDateTo')?.value;
-            
-            const params = new URLSearchParams();
-            params.append('limit', auditLogsLimit);
-            params.append('offset', auditLogsOffset);
-            if (eventType) {
-                params.append('event_type', eventType);
-            }
-            if (dateFrom) {
-                params.append('date_from', dateFrom);
-            }
-            if (dateTo) {
-                params.append('date_to', dateTo);
-            }
-
-            const response = await fetch(`${BASE}/api/analytics/audit-logs?${params.toString()}`, {
-                headers: getAuthHeaders(),
-                credentials: 'same-origin'
-            });
-            const data = await response.json();
-
-            if (data.success && data.logs) {
-                appendAuditLogs(data.logs);
-                auditLogsOffset += data.logs.length;
-            }
-        } catch (error) {
-            console.error('Error loading more audit logs:', error);
+    // Update pagination controls
+    function updateAuditLogsPagination() {
+        const infoEl = document.getElementById('auditLogsInfo');
+        const paginationEl = document.getElementById('auditLogsPagination');
+        
+        if (!infoEl || !paginationEl) return;
+        
+        const start = auditLogsTotal > 0 ? ((auditLogsCurrentPage - 1) * auditLogsLimit) + 1 : 0;
+        const end = Math.min(auditLogsCurrentPage * auditLogsLimit, auditLogsTotal);
+        
+        infoEl.textContent = `Showing ${start} to ${end} of ${auditLogsTotal} logs`;
+        
+        // Build pagination buttons
+        let paginationHTML = '';
+        
+        // Previous button
+        if (auditLogsCurrentPage > 1) {
+            paginationHTML += `<button onclick="loadAuditLogs(${auditLogsCurrentPage - 1})" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100">Previous</button>`;
+        } else {
+            paginationHTML += `<button disabled class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-400 cursor-not-allowed">Previous</button>`;
         }
+        
+        // Page numbers
+        const maxPagesToShow = 5;
+        let startPage = Math.max(1, auditLogsCurrentPage - Math.floor(maxPagesToShow / 2));
+        let endPage = Math.min(auditLogsTotalPages, startPage + maxPagesToShow - 1);
+        
+        if (endPage - startPage < maxPagesToShow - 1) {
+            startPage = Math.max(1, endPage - maxPagesToShow + 1);
+        }
+        
+        if (startPage > 1) {
+            paginationHTML += `<button onclick="loadAuditLogs(1)" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100">1</button>`;
+            if (startPage > 2) {
+                paginationHTML += `<span class="px-2 text-gray-500">...</span>`;
+            }
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            if (i === auditLogsCurrentPage) {
+                paginationHTML += `<button class="px-3 py-1 border border-blue-500 bg-blue-500 text-white rounded text-sm font-medium">${i}</button>`;
+            } else {
+                paginationHTML += `<button onclick="loadAuditLogs(${i})" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100">${i}</button>`;
+            }
+        }
+        
+        if (endPage < auditLogsTotalPages) {
+            if (endPage < auditLogsTotalPages - 1) {
+                paginationHTML += `<span class="px-2 text-gray-500">...</span>`;
+            }
+            paginationHTML += `<button onclick="loadAuditLogs(${auditLogsTotalPages})" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100">${auditLogsTotalPages}</button>`;
+        }
+        
+        // Next button
+        if (auditLogsCurrentPage < auditLogsTotalPages) {
+            paginationHTML += `<button onclick="loadAuditLogs(${auditLogsCurrentPage + 1})" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100">Next</button>`;
+        } else {
+            paginationHTML += `<button disabled class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-400 cursor-not-allowed">Next</button>`;
+        }
+        
+        paginationEl.innerHTML = paginationHTML;
     }
 
     // Display audit logs
@@ -1684,21 +2039,21 @@ $userRole = $user['role'] ?? 'manager';
 
         tbody.innerHTML = logs.map(log => {
             const entityLink = log.entity_type && log.entity_id 
-                ? `<a href="#" onclick="viewEvent(${log.id})" class="text-blue-600 hover:text-blue-800">${log.entity_type} #${log.entity_id}</a>`
+                ? `<a href="#" onclick="viewEvent(${log.id}, event)" class="text-blue-600 hover:text-blue-800">${log.entity_type} #${log.entity_id}</a>`
                 : '-';
             
             return `
                 <tr class="hover:bg-gray-50">
-                    <td class="px-4 py-3 text-sm">${new Date(log.created_at).toLocaleString()}</td>
-                    <td class="px-4 py-3 text-sm">
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">${new Date(log.created_at).toLocaleString()}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">
                         <span class="px-2 py-1 rounded text-xs font-medium bg-gray-100">${log.event_type}</span>
                     </td>
-                    <td class="px-4 py-3 text-sm">${log.user_name || log.user_full_name || '-'}</td>
-                    <td class="px-4 py-3 text-sm">${entityLink}</td>
-                    <td class="px-4 py-3 text-sm">${log.ip_address || '-'}</td>
-                    <td class="px-4 py-3 text-sm">
-                        <button onclick="viewEvent(${log.id})" class="text-blue-600 hover:text-blue-800">
-                            <i class="fas fa-eye"></i> View
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm hidden sm:table-cell">${log.user_name || log.user_full_name || '-'}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">${entityLink}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm hidden md:table-cell">${log.ip_address || '-'}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">
+                        <button onclick="viewEvent(${log.id}, event)" class="text-blue-600 hover:text-blue-800 text-xs sm:text-sm">
+                            <i class="fas fa-eye"></i> <span class="hidden sm:inline">View</span>
                         </button>
                     </td>
                 </tr>
@@ -1717,21 +2072,21 @@ $userRole = $user['role'] ?? 'manager';
 
         const newRows = logs.map(log => {
             const entityLink = log.entity_type && log.entity_id 
-                ? `<a href="#" onclick="viewEvent(${log.id})" class="text-blue-600 hover:text-blue-800">${log.entity_type} #${log.entity_id}</a>`
+                ? `<a href="#" onclick="viewEvent(${log.id}, event)" class="text-blue-600 hover:text-blue-800">${log.entity_type} #${log.entity_id}</a>`
                 : '-';
             
             return `
                 <tr class="hover:bg-gray-50">
-                    <td class="px-4 py-3 text-sm">${new Date(log.created_at).toLocaleString()}</td>
-                    <td class="px-4 py-3 text-sm">
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">${new Date(log.created_at).toLocaleString()}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">
                         <span class="px-2 py-1 rounded text-xs font-medium bg-gray-100">${log.event_type}</span>
                     </td>
-                    <td class="px-4 py-3 text-sm">${log.user_name || log.user_full_name || '-'}</td>
-                    <td class="px-4 py-3 text-sm">${entityLink}</td>
-                    <td class="px-4 py-3 text-sm">${log.ip_address || '-'}</td>
-                    <td class="px-4 py-3 text-sm">
-                        <button onclick="viewEvent(${log.id})" class="text-blue-600 hover:text-blue-800">
-                            <i class="fas fa-eye"></i> View
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm hidden sm:table-cell">${log.user_name || log.user_full_name || '-'}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">${entityLink}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm hidden md:table-cell">${log.ip_address || '-'}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">
+                        <button onclick="viewEvent(${log.id}, event)" class="text-blue-600 hover:text-blue-800 text-xs sm:text-sm">
+                            <i class="fas fa-eye"></i> <span class="hidden sm:inline">View</span>
                         </button>
                     </td>
                 </tr>
@@ -1741,62 +2096,14 @@ $userRole = $user['role'] ?? 'manager';
         tbody.innerHTML = existing + newRows;
     }
 
-    // View event details
-    window.viewEvent = async function(logId) {
-        try {
-            // Fetch all logs and find the one we need (in production, add a specific endpoint)
-            const response = await fetch(`${BASE}/api/analytics/audit-logs?limit=1000`, {
-                headers: getAuthHeaders(),
-                credentials: 'same-origin'
-            });
-            const data = await response.json();
-
-            if (data.success && data.logs) {
-                const log = data.logs.find(l => l.id == logId);
-                
-                if (!log) {
-                    alert('Event not found');
-                    return;
-                }
-                
-                const modal = document.getElementById('eventViewerModal');
-                const content = document.getElementById('eventViewerContent');
-                
-                content.innerHTML = `
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="text-sm font-medium text-gray-600">Event Type</label>
-                            <div class="text-lg font-semibold">${log.event_type}</div>
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-gray-600">Time</label>
-                            <div>${new Date(log.created_at).toLocaleString()}</div>
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-gray-600">User</label>
-                            <div>${log.user_name || log.user_full_name || '-'}</div>
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-gray-600">IP Address</label>
-                            <div>${log.ip_address || '-'}</div>
-                        </div>
-                        <div class="col-span-2">
-                            <label class="text-sm font-medium text-gray-600">Entity</label>
-                            <div>${log.entity_type || '-'} ${log.entity_id ? '#' + log.entity_id : ''}</div>
-                        </div>
-                        <div class="col-span-2">
-                            <label class="text-sm font-medium text-gray-600">Payload</label>
-                            <pre class="bg-gray-50 p-4 rounded text-xs overflow-auto max-h-96">${JSON.stringify(log.payload || {}, null, 2)}</pre>
-                        </div>
-                    </div>
-                `;
-                
-                modal.classList.remove('hidden');
-            }
-        } catch (error) {
-            console.error('Error loading event:', error);
-            alert('Error loading event details');
+    // View event details - navigate to new page
+    window.viewEvent = function(logId, event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
         }
+        // Navigate to audit trail details page
+        window.location.href = `${BASE}/dashboard/audit-trail/${logId}`;
     };
 
     // Load charts data
@@ -1847,7 +2154,7 @@ $userRole = $user['role'] ?? 'manager';
                 throw new Error('Invalid response from server');
             }
             
-            console.log('Charts API response:', {
+            debugLog('Charts API response:', {
                 success: data.success,
                 hasCharts: !!data.charts,
                 chartKeys: data.charts ? Object.keys(data.charts) : [],
@@ -1862,7 +2169,7 @@ $userRole = $user['role'] ?? 'manager';
                 const errorMessage = data.error || data.message || 'Unknown error';
                 console.error('Charts API error:', errorMessage);
                 // Don't clear charts, just log the error
-                console.warn('Charts API failed, keeping existing chart data');
+                debugWarn('Charts API failed, keeping existing chart data');
             }
         } catch (error) {
             console.error('Error loading charts:', error.message || error);
@@ -1964,7 +2271,7 @@ $userRole = $user['role'] ?? 'manager';
             }
         }
 
-        // Profit chart
+        // Profit chart (Bubble Chart)
         if (charts.profit && profitChart) {
             let labels = charts.profit.labels || [];
             let datasets = charts.profit.datasets || [];
@@ -1975,52 +2282,121 @@ $userRole = $user['role'] ?? 'manager';
             datasets = filtered.datasets;
             
             if (labels.length > 0 && datasets.length > 0) {
-                // Update colors to be more vibrant (no red) and add curve tension
-                datasets = datasets.map((dataset, idx) => {
-                    const colors = [
-                        { border: 'rgb(34, 197, 94)', bg: 'rgba(34, 197, 94, 0.1)' }, // Green
-                        { border: 'rgb(59, 130, 246)', bg: 'rgba(59, 130, 246, 0.1)' }, // Blue
-                        { border: 'rgb(234, 179, 8)', bg: 'rgba(234, 179, 8, 0.1)' }, // Yellow/Amber
-                        { border: 'rgb(168, 85, 247)', bg: 'rgba(168, 85, 247, 0.1)' }, // Purple
-                        { border: 'rgb(14, 165, 233)', bg: 'rgba(14, 165, 233, 0.1)' }  // Sky Blue
-                    ];
-                    const color = colors[idx % colors.length];
-                    return {
-                        ...dataset,
-                        borderColor: color.border,
-                        backgroundColor: color.bg,
-                        tension: 0.4, // Curved lines
-                        fill: true,
-                        borderWidth: 2
-                    };
-                });
+                // Extract revenue, cost, and profit data
+                let revenueData = [];
+                let costData = [];
+                let profitData = [];
                 
-                profitChart.data.labels = labels.map(label => {
-                    try {
-                        if (typeof label === 'string' && label.includes('-')) {
-                const date = new Date(label);
-                            if (!isNaN(date.getTime())) {
-                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                            }
-                        }
-                        return label;
-                    } catch (e) {
-                        return label;
+                datasets.forEach((dataset) => {
+                    if (dataset.label === 'Revenue') {
+                        revenueData = dataset.data || [];
+                    } else if (dataset.label === 'Cost') {
+                        costData = dataset.data || [];
+                    } else if (dataset.label === 'Profit') {
+                        profitData = dataset.data || [];
                     }
                 });
-                profitChart.data.datasets = datasets;
                 
-                // Center the chart by adjusting the x-axis
-                if (labels.length > 0) {
-                    profitChart.options.scales.x.offset = true;
+                // Find max cost for scaling bubble radius
+                const maxCost = Math.max(...costData, 1);
+                const minRadius = 5;
+                const maxRadius = 30;
+                
+                // Color function based on profit margin
+                function getBubbleColor(revenue, profit) {
+                    if (revenue === 0) {
+                        return {
+                            bg: 'rgba(156, 163, 175, 0.6)', // Gray for no revenue
+                            border: 'rgb(156, 163, 175)'
+                        };
+                    }
+                    
+                    const profitMargin = (profit / revenue) * 100;
+                    
+                    if (profitMargin < 0) {
+                        // Negative profit - red shades
+                        return {
+                            bg: 'rgba(239, 68, 68, 0.6)', // Red
+                            border: 'rgb(220, 38, 38)'
+                        };
+                    } else if (profitMargin < 10) {
+                        // Low profit margin (0-10%) - orange/yellow shades
+                        return {
+                            bg: 'rgba(251, 146, 60, 0.6)', // Orange
+                            border: 'rgb(249, 115, 22)'
+                        };
+                    } else if (profitMargin < 25) {
+                        // Medium profit margin (10-25%) - yellow/amber shades
+                        return {
+                            bg: 'rgba(234, 179, 8, 0.6)', // Amber
+                            border: 'rgb(202, 138, 4)'
+                        };
+                    } else if (profitMargin < 40) {
+                        // Good profit margin (25-40%) - light green shades
+                        return {
+                            bg: 'rgba(34, 197, 94, 0.6)', // Green
+                            border: 'rgb(22, 163, 74)'
+                        };
+                    } else {
+                        // Excellent profit margin (>40%) - dark green shades
+                        return {
+                            bg: 'rgba(16, 185, 129, 0.6)', // Emerald
+                            border: 'rgb(5, 150, 105)'
+                        };
+                    }
                 }
                 
+                // Create bubble data points: x = revenue, y = profit, r = cost (scaled)
+                const bubbleData = [];
+                const backgroundColorArray = [];
+                const borderColorArray = [];
+                
+                for (let i = 0; i < labels.length; i++) {
+                    const revenue = parseFloat(revenueData[i] || 0);
+                    const profit = parseFloat(profitData[i] || 0);
+                    const cost = parseFloat(costData[i] || 0);
+                    
+                    // Only add bubbles with meaningful data
+                    if (revenue > 0 || profit !== 0 || cost > 0) {
+                        // Scale radius based on cost (proportional to max cost)
+                        const radius = cost > 0 ? minRadius + ((cost / maxCost) * (maxRadius - minRadius)) : minRadius;
+                        
+                        // Get color based on profit margin
+                        const colors = getBubbleColor(revenue, profit);
+                        
+                        bubbleData.push({
+                            x: revenue,
+                            y: profit,
+                            r: radius,
+                            cost: cost, // Store actual cost for tooltip
+                            label: labels[i] // Store label for tooltip if needed
+                        });
+                        
+                        backgroundColorArray.push(colors.bg);
+                        borderColorArray.push(colors.border);
+                    }
+                }
+                
+                // Create bubble chart dataset with individual colors
+                const bubbleDataset = {
+                    label: 'Profit Breakdown',
+                    data: bubbleData,
+                    backgroundColor: backgroundColorArray,
+                    borderColor: borderColorArray,
+                    borderWidth: 2
+                };
+                
+                profitChart.data.datasets = [bubbleDataset];
+                profitChart.update('none');
+            } else {
+                // Clear chart if no data
+                profitChart.data.datasets = [];
                 profitChart.update('none');
             }
         }
 
         // Top products chart
-        console.log('Top Products chart check:', {
+        debugLog('Top Products chart check:', {
             hasTopProducts: !!charts.topProducts,
             topProductsData: charts.topProducts,
             chartInitialized: !!topProductsChart
@@ -2030,7 +2406,7 @@ $userRole = $user['role'] ?? 'manager';
             const labels = charts.topProducts.labels || [];
             const datasets = charts.topProducts.datasets || [];
             
-            console.log('Top Products data:', {
+            debugLog('Top Products data:', {
                 labelsCount: labels.length,
                 datasetsCount: datasets.length,
                 labelsSample: labels.slice(0, 5),
@@ -2044,7 +2420,7 @@ $userRole = $user['role'] ?? 'manager';
             if (!topProductsChart) {
                 // Chart not initialized yet, try to initialize it
                 const productsCtx = document.getElementById('topProductsChart');
-                console.log('Top Products chart not initialized, canvas element:', !!productsCtx);
+                debugLog('Top Products chart not initialized, canvas element:', !!productsCtx);
                 if (productsCtx) {
                     topProductsChart = new Chart(productsCtx, {
                         type: 'bar',
@@ -2067,9 +2443,9 @@ $userRole = $user['role'] ?? 'manager';
                             }
                         }
                     });
-                    console.log('Top Products chart initialized');
+                    debugLog('Top Products chart initialized');
                 } else {
-                    console.warn('Top Products chart canvas element not found');
+                    debugWarn('Top Products chart canvas element not found');
                 }
             }
             
@@ -2078,13 +2454,13 @@ $userRole = $user['role'] ?? 'manager';
                     topProductsChart.data.labels = labels;
                     topProductsChart.data.datasets = datasets;
                     topProductsChart.update('none');
-                    console.log('Top Products chart updated with', labels.length, 'products');
+                    debugLog('Top Products chart updated with', labels.length, 'products');
                 } else if (labels.length > 0 && datasets.length > 0) {
                     // Even if data array is empty, update with empty data to show labels
                     topProductsChart.data.labels = labels;
                     topProductsChart.data.datasets = datasets;
                     topProductsChart.update('none');
-                    console.log('Top Products chart updated with labels but empty data');
+                    debugLog('Top Products chart updated with labels but empty data');
                 } else {
                     // Reset chart if no data
                     topProductsChart.data.labels = [];
@@ -2096,13 +2472,13 @@ $userRole = $user['role'] ?? 'manager';
                         borderWidth: 1
                     }];
                     topProductsChart.update('none');
-                    console.warn('Top Products chart: No data available');
+                    debugWarn('Top Products chart: No data available');
                 }
             } else {
-                console.warn('Top Products chart not available after initialization attempt');
+                debugWarn('Top Products chart not available after initialization attempt');
             }
         } else {
-            console.warn('Top Products chart data not found in charts object');
+            debugWarn('Top Products chart data not found in charts object');
             if (topProductsChart) {
                 // Reset chart if no data
                 topProductsChart.data.labels = [];
@@ -2165,7 +2541,18 @@ $userRole = $user['role'] ?? 'manager';
             params.append('module', 'all');
             if (dateFrom) params.append('date_from', dateFrom);
             if (dateTo) params.append('date_to', dateTo);
-
+            
+            // Add customer filter if selected
+            const customerId = document.getElementById('filterCustomerId')?.value || '';
+            if (customerId) params.append('customer_id', customerId);
+            
+            // Add product/IMEI filter if selected
+            const productId = document.getElementById('filterProductId')?.value || '';
+            const productSearch = document.getElementById('filterProduct')?.value || '';
+            if (productId) params.append('product_id', productId);
+            if (productSearch && !productId) {
+                params.append('imei', productSearch);
+            }
 
             const response = await fetch(`${BASE}/api/audit-trail/data?${params.toString()}`, {
                 headers: getAuthHeaders(),
@@ -2206,35 +2593,115 @@ $userRole = $user['role'] ?? 'manager';
                 // Always ensure activity_logs is an array
                 const activityLogs = Array.isArray(data.activity_logs) ? data.activity_logs : [];
                 
+                // Debug logging
+                console.log('loadTransactions: Total activity_logs received:', activityLogs.length);
                 if (activityLogs.length > 0) {
+                    console.log('loadTransactions: Sample activity log structure:', activityLogs[0]);
+                    console.log('loadTransactions: All activity types:', activityLogs.map(log => log.activity_type || log.type || 'unknown'));
+                }
+                const swapLogs = activityLogs.filter(log => {
+                    const type = (log.activity_type || log.type || '').toLowerCase();
+                    const isSwap = type === 'swap';
+                    if (isSwap) {
+                        console.log('loadTransactions: Found swap log:', log);
+                    }
+                    return isSwap;
+                });
+                console.log('loadTransactions: Swap logs in response:', swapLogs.length);
+                if (swapLogs.length > 0) {
+                    console.log('loadTransactions: Sample swap log:', swapLogs[0]);
+                }
+                
+                if (activityLogs.length > 0) {
+                    // Debug: Log activity types for troubleshooting
+                    const activityTypes = activityLogs.map(log => log.activity_type || log.type || log.sale_type || 'unknown');
+                    const uniqueTypes = [...new Set(activityTypes)];
+                    console.log('loadTransactions: Activity types found:', uniqueTypes);
+                    console.log('loadTransactions: Filter type:', typeFilter);
+                    
                     // Convert activity logs to transaction format
                     transactions = activityLogs
                         .filter(log => {
                             // Filter by type if needed
                             if (typeFilter === 'all') return true;
-                            const logType = (log.activity_type || log.type || '').toLowerCase();
-                            const filterType = typeFilter.toLowerCase();
-                            // Map: sale/sales, repair/repairs, swap/swaps
-                            if (filterType === 'sale') return logType === 'sale' || logType === 'sales';
-                            if (filterType === 'repair') return logType === 'repair' || logType === 'repairs';
+                            const logType = (log.activity_type || log.type || log.sale_type || '').toLowerCase().trim();
+                            const filterType = typeFilter.toLowerCase().trim();
+                            
+                            // Debug specific repair filter
+                            if (filterType === 'repair') {
+                                const isRepair = logType === 'repair' || logType === 'repairs';
+                                if (isRepair) {
+                                    console.log('loadTransactions: Found repair log:', log);
+                                }
+                                return isRepair;
+                            }
+                            
+                            // Map: sale/sales (includes repair_part_sale), repair/repairs, swap/swaps
+                            if (filterType === 'sale') {
+                                return logType === 'sale' || logType === 'sales' || logType === 'repair_part_sale';
+                            }
                             if (filterType === 'swap') return logType === 'swap' || logType === 'swaps';
                             return logType === filterType;
                         })
                         .slice(0, 50) // Limit to 50 most recent
                         .map(log => {
                             const amount = parseFloat(log.amount || log.revenue || 0);
-                            const type = (log.activity_type || log.type || 'unknown').toLowerCase();
+                            // Use sale_type if available (for repair_part_sale), otherwise use activity_type
+                            let type = (log.sale_type || log.activity_type || log.type || 'unknown').toLowerCase();
+                            // Normalize repair_part_sale to 'sale' for display, but keep original for filtering
+                            const displayType = type === 'repair_part_sale' ? 'sale' : type;
+                            
+                            // Calculate profit based on transaction type
+                            let profit = 0;
+                            if (type === 'swap') {
+                                // For swaps, amount should be the profit from swap_profit_links (when both items are sold)
+                                profit = parseFloat(log.amount || 0);
+                            } else if (type === 'sale' || type === 'repair_part_sale') {
+                                // For sales, estimate 25% profit (or use actual if available)
+                                profit = parseFloat(log.profit || (log.amount || 0) * 0.25);
+                            } else if (type === 'repair') {
+                                // For repairs, profit is typically 0 in activity logs (handled separately)
+                                profit = parseFloat(log.profit || 0);
+                            }
                             
                             return {
-                                type: type,
+                                type: displayType,
+                                originalType: type, // Keep original for reference
                                 date: log.timestamp || log.date || log.created_at || new Date().toISOString(),
                                 customer: log.customer_name || log.customer || 'Walk-in Customer',
                                 amount: amount,
+                                profit: profit,
                                 status: log.status || 'completed',
                                 reference: log.reference || log.unique_id || log.id || '-',
-                                item: log.item || log.item_description || log.description || '-'
+                                item: log.item || log.item_description || log.description || '-',
+                                user_name: log.user_name || '-',
+                                user_role: log.user_role || '-'
                             };
                         });
+                    
+                    // Debug: Log transaction types
+                    const transactionTypes = transactions.map(t => t.type);
+                    const swapTransactions = transactions.filter(t => t.originalType === 'swap');
+                    const repairTransactions = transactions.filter(t => t.originalType === 'repair' || t.type === 'repair');
+                    console.log('loadTransactions: Transaction types:', [...new Set(transactionTypes)]);
+                    console.log('loadTransactions: Swap transactions after mapping:', swapTransactions.length);
+                    console.log('loadTransactions: Repair transactions after mapping:', repairTransactions.length);
+                    if (swapTransactions.length > 0) {
+                        console.log('loadTransactions: Sample swap transaction:', swapTransactions[0]);
+                    }
+                    if (repairTransactions.length > 0) {
+                        console.log('loadTransactions: Sample repair transaction:', repairTransactions[0]);
+                    } else if (typeFilter === 'repair') {
+                        console.warn('loadTransactions: Repair filter selected but no repair transactions found. Activity logs:', activityLogs.length);
+                        const repairLogs = activityLogs.filter(log => {
+                            const logType = (log.activity_type || log.type || log.sale_type || '').toLowerCase().trim();
+                            return logType === 'repair' || logType === 'repairs';
+                        });
+                        console.log('loadTransactions: Repair logs in activity_logs:', repairLogs.length);
+                        if (repairLogs.length > 0) {
+                            console.log('loadTransactions: Sample repair log:', repairLogs[0]);
+                        }
+                    }
                 }
                 
                 displayTransactions(transactions);
@@ -2257,31 +2724,69 @@ $userRole = $user['role'] ?? 'manager';
         let transactions = [];
         
         if (data.activity_logs && Array.isArray(data.activity_logs)) {
+            // Debug: Log activity types for troubleshooting
+            const activityTypes = data.activity_logs.map(log => log.activity_type || log.type || log.sale_type || 'unknown');
+            const uniqueTypes = [...new Set(activityTypes)];
+            console.log('loadTransactionsFromData: Activity types found:', uniqueTypes);
+            console.log('loadTransactionsFromData: Filter type:', typeFilter);
+            console.log('loadTransactionsFromData: Total activity logs:', data.activity_logs.length);
+            
             transactions = data.activity_logs
                 .filter(log => {
                     // Filter by type if needed
                     if (typeFilter === 'all') return true;
-                    const logType = (log.activity_type || log.type || '').toLowerCase();
-                    const filterType = typeFilter.toLowerCase();
-                    // Map: sale/sales, repair/repairs, swap/swaps
-                    if (filterType === 'sale') return logType === 'sale' || logType === 'sales';
-                    if (filterType === 'repair') return logType === 'repair' || logType === 'repairs';
+                    const logType = (log.sale_type || log.activity_type || log.type || '').toLowerCase().trim();
+                    const filterType = typeFilter.toLowerCase().trim();
+                    
+                    // Debug specific repair filter
+                    if (filterType === 'repair') {
+                        const isRepair = logType === 'repair' || logType === 'repairs';
+                        if (isRepair) {
+                            console.log('loadTransactionsFromData: Found repair log:', log);
+                        }
+                        return isRepair;
+                    }
+                    
+                    // Map: sale/sales (includes repair_part_sale), repair/repairs, swap/swaps
+                    if (filterType === 'sale') {
+                        return logType === 'sale' || logType === 'sales' || logType === 'repair_part_sale';
+                    }
                     if (filterType === 'swap') return logType === 'swap' || logType === 'swaps';
                     return logType === filterType;
                 })
                 .slice(0, 50) // Limit to 50 most recent
                 .map(log => {
                     const amount = parseFloat(log.amount || log.revenue || 0);
-                    const type = (log.activity_type || log.type || 'unknown').toLowerCase();
+                    // Use sale_type if available (for repair_part_sale), otherwise use activity_type
+                    let type = (log.sale_type || log.activity_type || log.type || 'unknown').toLowerCase();
+                    // Normalize repair_part_sale to 'sale' for display, but keep original for filtering
+                    const displayType = type === 'repair_part_sale' ? 'sale' : type;
+                    
+                    // Calculate profit based on transaction type
+                    let profit = 0;
+                    if (type === 'swap') {
+                        // For swaps, amount should be the profit from swap_profit_links (when both items are sold)
+                        profit = parseFloat(log.amount || 0);
+                    } else if (type === 'sale' || type === 'repair_part_sale') {
+                        // For sales, estimate 25% profit (or use actual if available)
+                        profit = parseFloat(log.profit || (log.amount || 0) * 0.25);
+                    } else if (type === 'repair') {
+                        // For repairs, profit is typically 0 in activity logs (handled separately)
+                        profit = parseFloat(log.profit || 0);
+                    }
                     
                     return {
-                        type: type,
+                        type: displayType,
+                        originalType: type, // Keep original for reference
                         date: log.timestamp || log.date || log.created_at || new Date().toISOString(),
                         customer: log.customer_name || log.customer || 'Walk-in Customer',
                         amount: amount,
+                        profit: profit,
                         status: log.status || 'completed',
                         reference: log.reference || log.unique_id || log.id || '-',
-                        item: log.item || log.item_description || log.description || '-'
+                        item: log.item || log.item_description || log.description || '-',
+                        user_name: log.user_name || '-',
+                        user_role: log.user_role || '-'
                     };
                 });
         }
@@ -2293,7 +2798,7 @@ $userRole = $user['role'] ?? 'manager';
     function displayTransactions(transactions) {
         const tbody = document.getElementById('transactionsTableBody');
         if (!tbody) {
-            console.warn('transactionsTableBody element not found');
+            debugWarn('transactionsTableBody element not found');
             return;
         }
         
@@ -2324,10 +2829,14 @@ $userRole = $user['role'] ?? 'manager';
                 'repair': 'bg-blue-100 text-blue-800',
                 'repairs': 'bg-blue-100 text-blue-800',
                 'swap': 'bg-purple-100 text-purple-800',
-                'swaps': 'bg-purple-100 text-purple-800'
+                'swaps': 'bg-purple-100 text-purple-800',
+                'repair_part_sale': 'bg-teal-100 text-teal-800' // Parts sold by repairers
             };
             const typeBadgeClass = typeClass[transaction.type] || 'bg-gray-100 text-gray-800';
-            const typeLabel = transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1);
+            // Show "Repair Parts" for repair_part_sale, otherwise capitalize first letter
+            let typeLabel = transaction.originalType === 'repair_part_sale' 
+                ? 'Repair Parts' 
+                : transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1);
             
             // Format date
             let dateStr = '-';
@@ -2337,7 +2846,7 @@ $userRole = $user['role'] ?? 'manager';
                     dateStr = date.toLocaleString();
                 }
             } catch (e) {
-                console.warn('Invalid date:', transaction.date);
+                debugWarn('Invalid date:', transaction.date);
             }
             
             // Format status
@@ -2347,17 +2856,17 @@ $userRole = $user['role'] ?? 'manager';
                 : 'bg-yellow-100 text-yellow-800';
             
             row.innerHTML = `
-                <td class="px-4 py-3 text-sm">
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">
                     <span class="px-2 py-1 rounded text-xs font-medium ${typeBadgeClass}">${typeLabel}</span>
                 </td>
-                <td class="px-4 py-3 text-sm">${dateStr}</td>
-                <td class="px-4 py-3 text-sm">${transaction.customer || '-'}</td>
-                <td class="px-4 py-3 text-sm font-medium">${formatCurrency(transaction.amount || 0)}</td>
-                <td class="px-4 py-3 text-sm">
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">${dateStr}</td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm hidden sm:table-cell">${transaction.customer || '-'}</td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium">${formatCurrency(transaction.amount || 0)}</td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm hidden md:table-cell">
                     <span class="px-2 py-1 rounded text-xs font-medium ${statusClass}">${status}</span>
                 </td>
-                <td class="px-4 py-3 text-sm">
-                    ${transaction.reference && transaction.reference !== '-' ? `<button onclick="traceItem('${transaction.reference}')" class="text-blue-600 hover:text-blue-800 text-sm">View</button>` : '-'}
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">
+                    ${transaction.reference && transaction.reference !== '-' ? `<button onclick="traceItem('${transaction.reference}')" class="text-blue-600 hover:text-blue-800 text-xs sm:text-sm">View</button>` : '-'}
                 </td>
             `;
             tbody.appendChild(row);
@@ -2398,26 +2907,34 @@ $userRole = $user['role'] ?? 'manager';
         const staffRole = selectedOption.textContent.match(/\(([^)]+)\)/)?.[1] || 'N/A';
         
         // Update staff name and role
-        document.getElementById('staffDetailName').textContent = staffName;
-        document.getElementById('staffDetailRole').textContent = staffRole;
+        const staffDetailNameEl = document.getElementById('staffDetailName');
+        const staffDetailRoleEl = document.getElementById('staffDetailRole');
+        if (staffDetailNameEl) staffDetailNameEl.textContent = staffName;
+        if (staffDetailRoleEl) staffDetailRoleEl.textContent = staffRole;
         
         // Hide technician breakdown initially (will be shown if technician data exists)
         document.getElementById('technicianBreakdownSection').classList.add('hidden');
         
         // Calculate totals from sales data (which is already filtered by staff_id)
+        // Priority: Use staff_activity.salespersons as primary source (most accurate for staff filtering)
         let totalSales = 0;
         let totalRevenue = 0;
         let totalProfit = 0;
         let totalLosses = 0;
         
-        // Use sales data directly (already filtered by staff_id when staff is selected)
-        if (data.sales) {
-            // Use period data if available (for selected date range), otherwise use monthly
-            // period is the same as filtered, which uses the date_from and date_to parameters
-            if (data.sales.period && (data.sales.period.count > 0 || data.sales.period.revenue > 0)) {
+        // First, try to get data from staff_activity (most accurate, specifically filtered by staff_id)
+        if (data.staff_activity && data.staff_activity.salespersons && data.staff_activity.salespersons.length > 0) {
+            const staff = data.staff_activity.salespersons[0];
+            // Use staff_activity data as it's specifically filtered for this staff member and date range
+            totalSales = parseInt(staff.sales_count || 0);
+            totalRevenue = parseFloat(staff.sales_revenue || 0);
+        } else if (data.sales) {
+            // Fallback to sales data if staff_activity is not available
+            // For totals, use the period data (which represents the selected date range)
+            if (data.sales.period) {
                 totalSales = parseInt(data.sales.period.count || 0);
                 totalRevenue = parseFloat(data.sales.period.revenue || 0);
-            } else if (data.sales.filtered && (data.sales.filtered.count > 0 || data.sales.filtered.revenue > 0)) {
+            } else if (data.sales.filtered) {
                 totalSales = parseInt(data.sales.filtered.count || 0);
                 totalRevenue = parseFloat(data.sales.filtered.revenue || 0);
             } else if (data.sales.monthly) {
@@ -2427,47 +2944,36 @@ $userRole = $user['role'] ?? 'manager';
                 totalSales = parseInt(data.sales.today.count || 0);
                 totalRevenue = parseFloat(data.sales.today.revenue || 0);
             }
-            
-            // Also check staff_activity for additional data (swaps, repairs)
+        }
+        
+        // Check for technician data (repairs) - add to totals if staff is a technician
         if (data.staff_activity) {
-            // Salesperson data
-            if (data.staff_activity.salespersons && data.staff_activity.salespersons.length > 0) {
-                const staff = data.staff_activity.salespersons[0];
-                    // Use sales data if it's higher (more accurate)
-                    if (staff.sales_count > totalSales) {
-                totalSales = parseInt(staff.sales_count || 0);
-                totalRevenue = parseFloat(staff.sales_revenue || 0);
-                    }
-            }
-            
-                // Technician data - separate workmanship and parts
+            // Technician data - separate workmanship and parts
             if (data.staff_activity.technicians && data.staff_activity.technicians.length > 0) {
                 const tech = data.staff_activity.technicians[0];
                 totalSales += parseInt(tech.repairs_count || 0);
-                    
-                    // For technicians, show workmanship and parts separately
-                    const workmanshipRevenue = parseFloat(tech.workmanship_revenue || 0);
-                    const labourCost = parseFloat(tech.labour_cost || 0);
-                    const workmanshipProfit = parseFloat(tech.workmanship_profit || (workmanshipRevenue - labourCost));
-                    const partsRevenue = parseFloat(tech.parts_revenue || 0);
-                    const partsCount = parseInt(tech.parts_count || 0);
-                    const partsProfit = parseFloat(tech.parts_profit || 0);
-                    const totalRepairRevenue = workmanshipRevenue + partsRevenue;
-                    
-                    totalRevenue += totalRepairRevenue;
-                    
-                    // Show technician breakdown section
-                    document.getElementById('technicianBreakdownSection').classList.remove('hidden');
-                    document.getElementById('staffWorkmanshipRevenue').textContent = formatCurrency(workmanshipRevenue);
-                    document.getElementById('staffLabourCost').textContent = formatCurrency(labourCost);
-                    document.getElementById('staffWorkmanshipProfit').textContent = formatCurrency(workmanshipProfit);
-                    document.getElementById('staffPartsRevenue').textContent = formatCurrency(partsRevenue);
-                    document.getElementById('staffPartsCount').textContent = partsCount;
-                    document.getElementById('staffPartsProfit').textContent = formatCurrency(partsProfit);
-                } else {
-                    // Hide technician breakdown for non-technicians
-                    document.getElementById('technicianBreakdownSection').classList.add('hidden');
-                }
+                
+                // For technicians, show workmanship and parts separately
+                const workmanshipRevenue = parseFloat(tech.workmanship_revenue || 0);
+                const labourCost = parseFloat(tech.labour_cost || 0);
+                const workmanshipProfit = parseFloat(tech.workmanship_profit || (workmanshipRevenue - labourCost));
+                const partsRevenue = parseFloat(tech.parts_revenue || 0);
+                const partsCount = parseInt(tech.parts_count || 0);
+                const partsProfit = parseFloat(tech.parts_profit || 0);
+                const totalRepairRevenue = workmanshipRevenue + partsRevenue;
+                
+                totalRevenue += totalRepairRevenue;
+                
+                // Show technician breakdown section
+                const breakdownSection = document.getElementById('technicianBreakdownSection');
+                if (breakdownSection) breakdownSection.classList.remove('hidden');
+                safeSetText('staffWorkmanshipRevenue', formatCurrency(workmanshipRevenue));
+                safeSetText('staffPartsRevenue', formatCurrency(partsRevenue));
+                safeSetText('staffPartsCount', partsCount);
+                safeSetText('staffPartsProfit', formatCurrency(partsProfit));
+            } else {
+                // Hide technician breakdown for non-technicians
+                document.getElementById('technicianBreakdownSection').classList.add('hidden');
             }
         }
         
@@ -2504,66 +3010,75 @@ $userRole = $user['role'] ?? 'manager';
         // For now, losses are only shown when profit is negative
         
         // Update summary metrics
-        document.getElementById('staffTotalSales').textContent = totalSales;
-        document.getElementById('staffTotalRevenue').textContent = formatCurrency(totalRevenue);
-        document.getElementById('staffTotalProfit').textContent = formatCurrency(totalProfit);
-        document.getElementById('staffTotalLosses').textContent = formatCurrency(totalLosses);
+        safeSetText('staffTotalSales', totalSales);
+        safeSetText('staffTotalRevenue', formatCurrency(totalRevenue));
+        safeSetText('staffTotalProfit', formatCurrency(totalProfit));
+        safeSetText('staffTotalLosses', formatCurrency(totalLosses));
         
-        // Update period breakdowns
+        // Update period breakdowns - use actual period data, not period for all
         if (data.sales) {
-            document.getElementById('staffTodaySales').textContent = data.sales.today?.count || 0;
-            document.getElementById('staffTodayRevenue').textContent = formatCurrency(data.sales.today?.revenue || 0);
+            // Today's data
+            safeSetText('staffTodaySales', data.sales.today?.count || 0);
+            safeSetText('staffTodayRevenue', formatCurrency(data.sales.today?.revenue || 0));
             
-            // Calculate week data (last 7 days)
-            const weekRevenue = data.sales.period?.revenue || data.sales.monthly?.revenue || 0;
-            const weekCount = data.sales.period?.count || data.sales.monthly?.count || 0;
-            document.getElementById('staffWeekSales').textContent = weekCount;
-            document.getElementById('staffWeekRevenue').textContent = formatCurrency(weekRevenue);
+            // Week data - calculate from profit_loss_breakdown weekly data or use period if it's a week range
+            // For now, use monthly as week approximation (we need proper week calculation)
+            // TODO: Add proper week calculation from profit_loss_breakdown.weekly
+            const weekRevenue = data.sales.monthly?.revenue || 0;
+            const weekCount = data.sales.monthly?.count || 0;
+            safeSetText('staffWeekSales', weekCount);
+            safeSetText('staffWeekRevenue', formatCurrency(weekRevenue));
             
-            document.getElementById('staffMonthSales').textContent = data.sales.monthly?.count || 0;
-            document.getElementById('staffMonthRevenue').textContent = formatCurrency(data.sales.monthly?.revenue || 0);
+            // Month data
+            safeSetText('staffMonthSales', data.sales.monthly?.count || 0);
+            safeSetText('staffMonthRevenue', formatCurrency(data.sales.monthly?.revenue || 0));
         }
         
-        // Calculate period profits - use profit_loss_breakdown as fallback
+        // Calculate period profits - calculate from profit_loss_breakdown for accurate period-specific profits
         let todayProfit = 0;
         let weekProfit = 0;
         let monthProfit = 0;
         
-        if (data.profit) {
-            todayProfit = parseFloat(data.profit.profit || 0);
-            weekProfit = parseFloat(data.profit.profit || 0);
-            monthProfit = parseFloat(data.profit.profit || 0);
-        }
-        
-        // Fallback to profit_loss_breakdown if profit is 0
-        if ((todayProfit === 0 && weekProfit === 0 && monthProfit === 0) && data.profit_loss_breakdown) {
+        // First try to get from profit_loss_breakdown for accurate period-specific data
+        if (data.profit_loss_breakdown) {
             // Get today's profit from daily breakdown
             if (data.profit_loss_breakdown.daily && data.profit_loss_breakdown.daily.length > 0) {
                 const today = new Date().toISOString().split('T')[0];
-                const todayData = data.profit_loss_breakdown.daily.find(d => d.date === today || d.date_str === today);
+                const todayData = data.profit_loss_breakdown.daily.find(d => 
+                    d.date === today || d.date_str === today || d.day === today
+                );
                 if (todayData) {
                     todayProfit = parseFloat(todayData.profit || 0);
                 }
             }
             
-            // Get week profit from weekly breakdown
+            // Get week profit from weekly breakdown (sum of last 7 days or current week)
             if (data.profit_loss_breakdown.weekly && data.profit_loss_breakdown.weekly.length > 0) {
-                // Get the most recent week
-                const latestWeek = data.profit_loss_breakdown.weekly[0];
-                weekProfit = parseFloat(latestWeek.profit || 0);
+                // Sum all weekly profits for the period, or use the most recent week
+                const recentWeeks = data.profit_loss_breakdown.weekly.slice(0, 1); // Most recent week
+                weekProfit = recentWeeks.reduce((sum, week) => sum + parseFloat(week.profit || 0), 0);
             }
             
             // Get month profit from monthly breakdown
             if (data.profit_loss_breakdown.monthly && data.profit_loss_breakdown.monthly.length > 0) {
-                // Get the most recent month
-                const latestMonth = data.profit_loss_breakdown.monthly[0];
-                monthProfit = parseFloat(latestMonth.profit || 0);
+                // Sum all monthly profits for the period, or use the most recent month
+                const recentMonths = data.profit_loss_breakdown.monthly.slice(0, 1); // Most recent month
+                monthProfit = recentMonths.reduce((sum, month) => sum + parseFloat(month.profit || 0), 0);
             }
         }
+        
+        // Fallback to data.profit if profit_loss_breakdown doesn't have data
+        if (todayProfit === 0 && weekProfit === 0 && monthProfit === 0 && data.profit) {
+            // Use the period profit for all if breakdown is not available
+            const periodProfit = parseFloat(data.profit.profit || 0);
+            todayProfit = periodProfit;
+            weekProfit = periodProfit;
+            monthProfit = periodProfit;
+        }
             
-            document.getElementById('staffTodayProfit').textContent = formatCurrency(todayProfit);
-        document.getElementById('staffWeekProfit').textContent = formatCurrency(weekProfit);
-            document.getElementById('staffMonthProfit').textContent = formatCurrency(monthProfit);
+        safeSetText('staffTodayProfit', formatCurrency(todayProfit));
+        safeSetText('staffWeekProfit', formatCurrency(weekProfit));
+        safeSetText('staffMonthProfit', formatCurrency(monthProfit));
         
         // Load transaction history
         loadStaffTransactionHistory(staffId, data);
@@ -2576,15 +3091,17 @@ $userRole = $user['role'] ?? 'manager';
         
         tbody.innerHTML = '';
         
-        // Combine sales, repairs, and swaps into transaction history
+        // Combine sales and repairs into transaction history
+        // Note: Swaps are excluded - they should be tracked separately on the swap page
         const transactions = [];
         
         // Get sales transactions for this staff
+        // Exclude swap transactions - swaps should be tracked separately on the swap page
+        // This matches the revenue calculation which also excludes swap sales
         if (data.activity_logs && data.activity_logs.length > 0) {
             const staffTransactions = data.activity_logs.filter(log => 
-                log.activity_type === 'sale' || 
-                log.activity_type === 'repair' || 
-                log.activity_type === 'swap'
+                (log.activity_type === 'sale' || log.activity_type === 'repair') &&
+                log.activity_type !== 'swap'
             );
             
             staffTransactions.forEach(log => {
@@ -2610,8 +3127,10 @@ $userRole = $user['role'] ?? 'manager';
                         // Fallback to 25% profit estimate
                         profit = parseFloat(log.amount || 0) * 0.25;
                     }
-                } else if (log.activity_type === 'swap') {
-                    profit = parseFloat(log.amount || 0);
+                } else if (log.activity_type === 'repair') {
+                    // For repairs, profit calculation would need repair-specific logic
+                    // For now, use 0 or calculate from repair data if available
+                    profit = parseFloat(log.amount || 0) * 0.20; // Estimate 20% profit for repairs
                 }
                 
                 transactions.push({
@@ -2661,12 +3180,12 @@ $userRole = $user['role'] ?? 'manager';
             }[transaction.type] || 'bg-gray-100 text-gray-800';
             
             row.innerHTML = `
-                <td class="px-4 py-3 text-sm">${new Date(transaction.date).toLocaleDateString()}</td>
-                <td class="px-4 py-3 text-sm"><span class="px-2 py-1 rounded text-xs font-medium ${typeClass}">${transaction.type || 'N/A'}</span></td>
-                <td class="px-4 py-3 text-sm">${transaction.reference || 'N/A'}</td>
-                <td class="px-4 py-3 text-sm text-right font-medium">${formatCurrency(transaction.amount || 0)}</td>
-                <td class="px-4 py-3 text-sm text-right ${transaction.profit >= 0 ? 'text-green-600' : 'text-red-600'}">${formatCurrency(transaction.profit || 0)}</td>
-                <td class="px-4 py-3 text-sm text-right"><span class="px-2 py-1 rounded text-xs bg-green-100 text-green-800">${transaction.status || 'N/A'}</span></td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">${new Date(transaction.date).toLocaleDateString()}</td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm"><span class="px-2 py-1 rounded text-xs font-medium ${typeClass}">${transaction.type || 'N/A'}</span></td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm hidden sm:table-cell">${transaction.reference || 'N/A'}</td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium">${formatCurrency(transaction.amount || 0)}</td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-right ${transaction.profit >= 0 ? 'text-green-600' : 'text-red-600'} hidden md:table-cell">${formatCurrency(transaction.profit || 0)}</td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-right"><span class="px-2 py-1 rounded text-xs bg-green-100 text-green-800">${transaction.status || 'N/A'}</span></td>
             `;
             tbody.appendChild(row);
         });
@@ -2676,21 +3195,133 @@ $userRole = $user['role'] ?? 'manager';
     window.clearStaffSelection = function() {
         document.getElementById('filterStaff').value = '';
         document.getElementById('staffDetailSection').classList.add('hidden');
+        document.getElementById('allStaffSummarySection').classList.remove('hidden');
         loadAnalytics(); // Reload without staff filter
+    }
+    
+    // Update All Staff Summary with data
+    function updateAllStaffSummary(data) {
+        // Get today's date
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Get today's profit from daily breakdown
+        let todaySales = 0;
+        let todayRevenue = 0;
+        let todayProfit = 0;
+        
+        if (data.profit_loss_breakdown && data.profit_loss_breakdown.daily && data.profit_loss_breakdown.daily.length > 0) {
+            const todayData = data.profit_loss_breakdown.daily.find(d => {
+                const dateStr = d.date || d.date_str || '';
+                return dateStr === today || dateStr.startsWith(today);
+            });
+            if (todayData) {
+                todaySales = parseInt(todayData.sales_count || 0);
+                todayRevenue = parseFloat(todayData.revenue || 0);
+                todayProfit = parseFloat(todayData.profit || 0);
+            }
+        }
+        
+        // If no daily breakdown, try to get from sales data
+        if (todaySales === 0 && todayRevenue === 0 && data.sales && data.sales.today) {
+            todaySales = parseInt(data.sales.today.count || 0);
+            todayRevenue = parseFloat(data.sales.today.revenue || 0);
+        }
+        
+        // Get week profit from weekly breakdown
+        let weekSales = 0;
+        let weekRevenue = 0;
+        let weekProfit = 0;
+        
+        if (data.profit_loss_breakdown && data.profit_loss_breakdown.weekly && data.profit_loss_breakdown.weekly.length > 0) {
+            // Get the latest week (first in array)
+            const latestWeek = data.profit_loss_breakdown.weekly[0];
+            weekSales = parseInt(latestWeek.sales_count || 0);
+            weekRevenue = parseFloat(latestWeek.revenue || 0);
+            weekProfit = parseFloat(latestWeek.profit || 0);
+        }
+        
+        // If no weekly breakdown, try to get from sales data
+        if (weekSales === 0 && weekRevenue === 0 && data.sales) {
+            const weekRevenueData = data.sales.period?.revenue || data.sales.weekly?.revenue || 0;
+            const weekCount = data.sales.period?.count || data.sales.weekly?.count || 0;
+            weekSales = parseInt(weekCount || 0);
+            weekRevenue = parseFloat(weekRevenueData || 0);
+        }
+        
+        // Get month profit from monthly breakdown
+        let monthSales = 0;
+        let monthRevenue = 0;
+        let monthProfit = 0;
+        
+        if (data.profit_loss_breakdown && data.profit_loss_breakdown.monthly && data.profit_loss_breakdown.monthly.length > 0) {
+            // Get the latest month (first in array)
+            const latestMonth = data.profit_loss_breakdown.monthly[0];
+            monthSales = parseInt(latestMonth.sales_count || 0);
+            monthRevenue = parseFloat(latestMonth.revenue || 0);
+            monthProfit = parseFloat(latestMonth.profit || 0);
+        }
+        
+        // If no monthly breakdown, try to get from sales data
+        if (monthSales === 0 && monthRevenue === 0 && data.sales) {
+            monthSales = parseInt(data.sales.monthly?.count || 0);
+            monthRevenue = parseFloat(data.sales.monthly?.revenue || 0);
+        }
+        
+        // Add swap profit to totals (swap profit is realized when customer item is resold)
+        // Swap profit should be included in the profit calculation
+        if (data.swaps) {
+            const todaySwapProfit = parseFloat(data.swaps.today?.profit || data.swaps.period?.profit || 0);
+            const weekSwapProfit = parseFloat(data.swaps.weekly?.profit || data.swaps.period?.profit || 0);
+            const monthSwapProfit = parseFloat(data.swaps.monthly?.profit || data.swaps.period?.profit || 0);
+            
+            todayProfit += todaySwapProfit;
+            weekProfit += weekSwapProfit;
+            monthProfit += monthSwapProfit;
+        }
+        
+        if (data.repairs) {
+            const repairCount = data.repairs.today?.count || 0;
+            const repairRevenue = data.repairs.today?.revenue || 0;
+            todaySales += parseInt(repairCount || 0);
+            todayRevenue += parseFloat(repairRevenue || 0);
+            
+            const weekRepairCount = data.repairs.weekly?.count || data.repairs.period?.count || 0;
+            const weekRepairRevenue = data.repairs.weekly?.revenue || data.repairs.period?.revenue || 0;
+            weekSales += parseInt(weekRepairCount || 0);
+            weekRevenue += parseFloat(weekRepairRevenue || 0);
+            
+            const monthRepairCount = data.repairs.monthly?.count || 0;
+            const monthRepairRevenue = data.repairs.monthly?.revenue || 0;
+            monthSales += parseInt(monthRepairCount || 0);
+            monthRevenue += parseFloat(monthRepairRevenue || 0);
+        }
+        
+        // Update the UI
+        safeSetText('allStaffTodaySales', todaySales);
+        safeSetText('allStaffTodayRevenue', formatCurrency(todayRevenue));
+        safeSetText('allStaffTodayProfit', formatCurrency(todayProfit));
+        
+        safeSetText('allStaffWeekSales', weekSales);
+        safeSetText('allStaffWeekRevenue', formatCurrency(weekRevenue));
+        safeSetText('allStaffWeekProfit', formatCurrency(weekProfit));
+        
+        safeSetText('allStaffMonthSales', monthSales);
+        safeSetText('allStaffMonthRevenue', formatCurrency(monthRevenue));
+        safeSetText('allStaffMonthProfit', formatCurrency(monthProfit));
     }
 
     // Update repairer stats (card style - showing totals across all repairers)
     function updateRepairerStats(technicians) {
-        console.log('Updating repairer stats with:', technicians);
+        debugLog('Updating repairer stats with:', technicians);
         
         if (!technicians || technicians.length === 0) {
             // Show zero values if no technicians
-            document.getElementById('repairerStatsRepairsCount').textContent = '0';
-            document.getElementById('repairerStatsTotalRevenue').textContent = formatCurrency(0);
-            document.getElementById('repairerStatsWorkmanshipRevenue').textContent = formatCurrency(0);
-            document.getElementById('repairerStatsPartsRevenue').textContent = formatCurrency(0);
-            document.getElementById('repairerStatsPartsCount').textContent = '0';
-            document.getElementById('repairerStatsTotalProfit').textContent = formatCurrency(0);
+            safeSetText('repairerStatsRepairsCount', '0');
+            safeSetText('repairerStatsTotalRevenue', formatCurrency(0));
+            safeSetText('repairerStatsWorkmanshipRevenue', formatCurrency(0));
+            safeSetText('repairerStatsPartsRevenue', formatCurrency(0));
+            safeSetText('repairerStatsPartsCount', '0');
+            safeSetText('repairerStatsTotalProfit', formatCurrency(0));
             return;
         }
         
@@ -2719,15 +3350,16 @@ $userRole = $user['role'] ?? 'manager';
         });
         
         const totalRevenue = totalWorkmanshipRevenue + totalPartsRevenue;
-        const totalProfit = totalWorkmanshipProfit + totalPartsProfit;
+        // Only show parts profit (items sold by technician), not workmanship profit
+        const totalProfit = totalPartsProfit;
         
         // Update the card with totals
-        document.getElementById('repairerStatsRepairsCount').textContent = totalRepairs;
-        document.getElementById('repairerStatsTotalRevenue').textContent = formatCurrency(totalRevenue);
-        document.getElementById('repairerStatsWorkmanshipRevenue').textContent = formatCurrency(totalWorkmanshipRevenue);
-        document.getElementById('repairerStatsPartsRevenue').textContent = formatCurrency(totalPartsRevenue);
-        document.getElementById('repairerStatsPartsCount').textContent = totalPartsCount;
-        document.getElementById('repairerStatsTotalProfit').textContent = formatCurrency(totalProfit);
+        safeSetText('repairerStatsRepairsCount', totalRepairs);
+        safeSetText('repairerStatsTotalRevenue', formatCurrency(totalRevenue));
+        safeSetText('repairerStatsWorkmanshipRevenue', formatCurrency(totalWorkmanshipRevenue));
+        safeSetText('repairerStatsPartsRevenue', formatCurrency(totalPartsRevenue));
+        safeSetText('repairerStatsPartsCount', totalPartsCount);
+        safeSetText('repairerStatsTotalProfit', formatCurrency(totalProfit));
         
         // Note: Repairer profit is now included in the backend profit calculation
         // So we don't need to add it again here to avoid double-counting
@@ -2737,17 +3369,25 @@ $userRole = $user['role'] ?? 'manager';
 
     // Update repairer parts sales display
     function updateRepairerPartsSales(data) {
+        // Check if a staff is selected - hide section if viewing all staff
+        const staffId = document.getElementById('filterStaff')?.value || '';
+        if (!staffId) {
+            // No staff selected (all staff view) - hide the section
+            document.getElementById('repairerPartsSection').classList.add('hidden');
+            return;
+        }
+        
         if (!data || !data.items || data.items.length === 0) {
             document.getElementById('repairerPartsSection').classList.add('hidden');
             return;
         }
         
-        // Show section
+        // Show section only when staff is selected
         document.getElementById('repairerPartsSection').classList.remove('hidden');
         
         // Update totals
-        document.getElementById('repairerPartsTotalRevenue').textContent = formatCurrency(data.total_revenue || 0);
-        document.getElementById('repairerPartsTotalProfit').textContent = formatCurrency(data.total_profit || 0);
+        safeSetText('repairerPartsTotalRevenue', formatCurrency(data.total_revenue || 0));
+        safeSetText('repairerPartsTotalProfit', formatCurrency(data.total_profit || 0));
         
         // Update table
         const tbody = document.getElementById('repairerPartsTableBody');
@@ -2760,20 +3400,20 @@ $userRole = $user['role'] ?? 'manager';
                 const dateStr = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
                 
                 row.innerHTML = `
-                    <td class="px-4 py-3 text-sm text-gray-900">${dateStr}</td>
-                    <td class="px-4 py-3 text-sm text-gray-900">${item.repairer_name || 'Unknown'}</td>
-                    <td class="px-4 py-3 text-sm">
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900">${dateStr}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900 hidden sm:table-cell">${item.repairer_name || 'Unknown'}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">
                         <a href="${BASE}/dashboard/repairs/${item.repair_id}" class="text-blue-600 hover:text-blue-800">
                             ${item.tracking_code || 'N/A'}
                         </a>
                     </td>
-                    <td class="px-4 py-3 text-sm text-gray-900">${item.customer_name || 'Walk-in'}</td>
-                    <td class="px-4 py-3 text-sm text-gray-900">${item.product_name || 'Unknown Product'}</td>
-                    <td class="px-4 py-3 text-sm text-gray-900">${item.quantity || 0}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(item.selling_price || 0)}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-600">${formatCurrency(item.cost_price || 0)}</td>
-                    <td class="px-4 py-3 text-sm text-right font-medium text-gray-900">${formatCurrency(item.revenue || 0)}</td>
-                    <td class="px-4 py-3 text-sm text-right font-medium text-green-600">${formatCurrency(item.profit || 0)}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900 hidden md:table-cell">${item.customer_name || 'Walk-in'}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900">${item.product_name || 'Unknown Product'}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900">${item.quantity || 0}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-right text-gray-900 hidden lg:table-cell">${formatCurrency(item.selling_price || 0)}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-right text-gray-600 hidden lg:table-cell">${formatCurrency(item.cost_price || 0)}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-gray-900">${formatCurrency(item.revenue || 0)}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-right font-medium text-green-600">${formatCurrency(item.profit || 0)}</td>
                 `;
                 tbody.appendChild(row);
             });
@@ -2782,189 +3422,7 @@ $userRole = $user['role'] ?? 'manager';
         }
     }
 
-    // Update profit/loss breakdown
-    function updateProfitLossBreakdown(breakdown) {
-        console.log('updateProfitLossBreakdown called with:', breakdown);
-        console.log('Breakdown structure:', {
-            hasBreakdown: !!breakdown,
-            hasDaily: !!(breakdown?.daily),
-            hasWeekly: !!(breakdown?.weekly),
-            hasMonthly: !!(breakdown?.monthly),
-            dailyType: typeof breakdown?.daily,
-            weeklyType: typeof breakdown?.weekly,
-            monthlyType: typeof breakdown?.monthly,
-            dailyIsArray: Array.isArray(breakdown?.daily),
-            weeklyIsArray: Array.isArray(breakdown?.weekly),
-            monthlyIsArray: Array.isArray(breakdown?.monthly),
-            dailyLength: breakdown?.daily?.length ?? 0,
-            weeklyLength: breakdown?.weekly?.length ?? 0,
-            monthlyLength: breakdown?.monthly?.length ?? 0
-        });
-        console.log('Full breakdown data:', JSON.stringify(breakdown, null, 2));
-        
-        if (!breakdown) {
-            console.warn('No breakdown data provided');
-            // If no breakdown data, show empty state
-            const dailyBody = document.getElementById('dailyBreakdownBody');
-            const weeklyBody = document.getElementById('weeklyBreakdownBody');
-            const monthlyBody = document.getElementById('monthlyBreakdownBody');
-            
-            if (dailyBody) dailyBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">No daily data</td></tr>';
-            if (weeklyBody) weeklyBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">No weekly data</td></tr>';
-            if (monthlyBody) monthlyBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">No monthly data</td></tr>';
-            return;
-        }
-        
-        // Daily breakdown
-        const dailyBody = document.getElementById('dailyBreakdownBody');
-        if (dailyBody) {
-            dailyBody.innerHTML = '';
-            console.log('Daily breakdown check:', {
-                hasDaily: !!breakdown.daily,
-                isArray: Array.isArray(breakdown.daily),
-                length: breakdown.daily?.length ?? 0,
-                sample: breakdown.daily?.slice(0, 3)
-            });
-            if (breakdown.daily && Array.isArray(breakdown.daily) && breakdown.daily.length > 0) {
-                breakdown.daily.forEach(day => {
-                    const row = document.createElement('tr');
-                    row.className = 'border-b hover:bg-gray-50';
-                    // Format date - handle both string and Date objects
-                    const dateStr = day.date || day.date_str || '';
-                    let dateObj;
-                    if (dateStr) {
-                        // Try parsing as YYYY-MM-DD format
-                        if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                            dateObj = new Date(dateStr + 'T00:00:00');
-                        } else {
-                            dateObj = new Date(dateStr);
-                        }
-                    } else {
-                        dateObj = new Date();
-                    }
-                    
-                    // Validate date
-                    if (isNaN(dateObj.getTime())) {
-                        console.warn('Invalid date in daily breakdown:', dateStr);
-                        dateObj = new Date();
-                    }
-                    
-                    row.innerHTML = `
-                        <td class="py-2">${dateObj.toLocaleDateString()}</td>
-                        <td class="text-right py-2">${day.sales_count || 0}</td>
-                        <td class="text-right py-2">${formatCurrency(day.revenue || 0)}</td>
-                        <td class="text-right py-2 ${(day.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}">${formatCurrency(day.profit || 0)}</td>
-                    `;
-                    dailyBody.appendChild(row);
-                });
-                console.log('Daily breakdown rendered:', breakdown.daily.length, 'days');
-            } else {
-                console.warn('No daily data available. Breakdown.daily:', breakdown.daily);
-                console.log('Date range:', document.getElementById('filterDateFrom')?.value, 'to', document.getElementById('filterDateTo')?.value);
-                dailyBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">No daily data</td></tr>';
-            }
-        }
-        
-        // Weekly breakdown
-        const weeklyBody = document.getElementById('weeklyBreakdownBody');
-        if (weeklyBody) {
-            weeklyBody.innerHTML = '';
-            console.log('Weekly breakdown check:', {
-                hasWeekly: !!breakdown.weekly,
-                isArray: Array.isArray(breakdown.weekly),
-                length: breakdown.weekly?.length ?? 0,
-                sample: breakdown.weekly?.slice(0, 3)
-            });
-            if (breakdown.weekly && Array.isArray(breakdown.weekly) && breakdown.weekly.length > 0) {
-                breakdown.weekly.forEach(week => {
-                    const row = document.createElement('tr');
-                    row.className = 'border-b hover:bg-gray-50';
-                    const weekYear = Math.floor(week.week / 100);
-                    const weekNum = week.week % 100;
-                    row.innerHTML = `
-                        <td class="py-2">Week ${weekNum}, ${weekYear}</td>
-                        <td class="text-right py-2">${week.sales_count || 0}</td>
-                        <td class="text-right py-2">${formatCurrency(week.revenue || 0)}</td>
-                        <td class="text-right py-2 ${(week.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}">${formatCurrency(week.profit || 0)}</td>
-                    `;
-                    weeklyBody.appendChild(row);
-                });
-                console.log('Weekly breakdown rendered:', breakdown.weekly.length, 'weeks');
-            } else {
-                console.warn('No weekly data available. Breakdown.weekly:', breakdown.weekly);
-                weeklyBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">No weekly data</td></tr>';
-            }
-        }
-        
-        // Monthly breakdown
-        const monthlyBody = document.getElementById('monthlyBreakdownBody');
-        const monthlyContainer = document.getElementById('monthlyBreakdownContainer');
-        if (monthlyBody) {
-            monthlyBody.innerHTML = '';
-            console.log('Monthly breakdown check:', {
-                hasMonthly: !!breakdown.monthly,
-                isArray: Array.isArray(breakdown.monthly),
-                length: breakdown.monthly?.length ?? 0,
-                sample: breakdown.monthly?.slice(0, 3)
-            });
-            if (breakdown.monthly && Array.isArray(breakdown.monthly) && breakdown.monthly.length > 0) {
-                breakdown.monthly.forEach(month => {
-                    const row = document.createElement('tr');
-                    row.className = 'border-b hover:bg-gray-50';
-                    // Handle month format - could be 'YYYY-MM' or other formats
-                    const monthStr = month.month || '';
-                    let monthName = monthStr;
-                    if (monthStr && monthStr.match(/^\d{4}-\d{2}$/)) {
-                        // Format: YYYY-MM
-                        const date = new Date(monthStr + '-01');
-                        monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-                    } else if (monthStr) {
-                        // Try to parse other formats
-                        try {
-                            const date = new Date(monthStr);
-                            if (!isNaN(date.getTime())) {
-                                monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-                            }
-                        } catch (e) {
-                            console.warn('Could not parse month:', monthStr);
-                        }
-                    }
-                    row.innerHTML = `
-                        <td class="py-2">${monthName}</td>
-                        <td class="text-right py-2">${month.sales_count || 0}</td>
-                        <td class="text-right py-2">${formatCurrency(month.revenue || 0)}</td>
-                        <td class="text-right py-2 ${(month.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}">${formatCurrency(month.profit || 0)}</td>
-                    `;
-                    monthlyBody.appendChild(row);
-                });
-                
-                // Show scrollbar only if more than 6 items
-                // Calculate max height: ~50px per row (header + 6 rows = ~350px)
-                if (monthlyContainer) {
-                    if (breakdown.monthly.length > 6) {
-                        monthlyContainer.style.maxHeight = '350px';
-                        monthlyContainer.style.overflowY = 'auto';
-                        monthlyContainer.style.overflowX = 'hidden';
-            } else {
-                        monthlyContainer.style.maxHeight = 'none';
-                        monthlyContainer.style.overflowY = 'visible';
-                        monthlyContainer.style.overflowX = 'auto';
-                    }
-                }
-                
-                console.log('Monthly breakdown rendered:', breakdown.monthly.length, 'months');
-            } else {
-                console.warn('No monthly data available. Breakdown.monthly:', breakdown.monthly);
-                monthlyBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">No monthly data</td></tr>';
-            }
-        }
-        
-        console.log('Profit/Loss Breakdown update complete:', {
-            daily: breakdown.daily?.length ?? 0,
-            weekly: breakdown.weekly?.length ?? 0,
-            monthly: breakdown.monthly?.length ?? 0
-        });
-    }
+    // Profit & Loss Breakdown function removed
 
     // Trace item from transaction (global function for onclick)
     window.traceItem = function(query) {
@@ -3002,17 +3460,33 @@ $userRole = $user['role'] ?? 'manager';
         loadingEl.classList.remove('hidden');
 
         try {
+            console.log('Trace search: Searching for:', query);
             const response = await fetch(`${BASE}/api/analytics/trace?q=${encodeURIComponent(query)}`);
             const data = await response.json();
+            
+            console.log('Trace search: Response:', data);
+            if (data.debug) {
+                console.log('Trace search: Debug info:', data.debug);
+            }
 
-            if (data.success && data.results) {
+            if (data.success && data.results && data.results.length > 0) {
+                console.log('Trace search: Found', data.results.length, 'results');
                 displayTraceResults(data.results);
             } else {
-                alert('No results found');
+                console.log('Trace search: No results found');
+                const resultsEl = document.getElementById('traceResults');
+                const bodyEl = document.getElementById('traceResultsBody');
+                let message = 'No results found';
+                if (data.debug) {
+                    message += ` (Query: ${data.debug.query}, Company ID: ${data.debug.company_id})`;
+                    console.log('Trace search: Debug -', data.debug.message);
+                }
+                bodyEl.innerHTML = `<tr><td colspan="7" class="px-4 py-3 text-center text-gray-500">${message}</td></tr>`;
+                resultsEl.classList.remove('hidden');
             }
         } catch (error) {
             console.error('Trace search error:', error);
-            alert('Error performing search');
+            alert('Error performing search: ' + error.message);
         } finally {
             loadingEl.classList.add('hidden');
         }
@@ -3026,21 +3500,64 @@ $userRole = $user['role'] ?? 'manager';
         bodyEl.innerHTML = '';
 
         if (results.length === 0) {
-            bodyEl.innerHTML = '<tr><td colspan="6" class="px-4 py-3 text-center text-gray-500">No results found</td></tr>';
+            bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-3 text-center text-gray-500">No results found</td></tr>';
             resultsEl.classList.remove('hidden');
             return;
         }
 
         results.forEach(result => {
             const row = document.createElement('tr');
-            row.className = 'hover:bg-gray-50';
+            row.className = 'hover:bg-gray-50 border-b border-gray-200';
+            
+            // Determine type badge color
+            let typeBadgeClass = 'bg-blue-100 text-blue-800';
+            if (result.type === 'swap') {
+                typeBadgeClass = 'bg-purple-100 text-purple-800';
+            } else if (result.type === 'repair') {
+                typeBadgeClass = 'bg-orange-100 text-orange-800';
+            } else if (result.type === 'sale') {
+                typeBadgeClass = 'bg-green-100 text-green-800';
+            }
+            
+            // Build action buttons based on type
+            let actionButtons = '';
+            if (result.type === 'swap' && result.id) {
+                actionButtons = `
+                    <a href="${BASE}/dashboard/swaps/${result.id}" target="_blank" 
+                       class="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 mr-2">
+                        <i class="fas fa-eye mr-1"></i> View Details
+                    </a>
+                    <a href="${BASE}/dashboard/swaps/${result.id}/receipt" target="_blank" 
+                       class="inline-flex items-center px-3 py-1 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100">
+                        <i class="fas fa-receipt mr-1"></i> Receipt
+                    </a>
+                `;
+            } else if (result.type === 'sale' && result.id) {
+                actionButtons = `
+                    <a href="${BASE}/dashboard/sales/${result.id}" target="_blank" 
+                       class="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100">
+                        <i class="fas fa-eye mr-1"></i> View Details
+                    </a>
+                `;
+            } else if (result.type === 'repair' && result.id) {
+                actionButtons = `
+                    <a href="${BASE}/dashboard/repairs/${result.id}" target="_blank" 
+                       class="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100">
+                        <i class="fas fa-eye mr-1"></i> View Details
+                    </a>
+                `;
+            }
+            
             row.innerHTML = `
-                <td class="px-4 py-3 text-sm"><span class="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">${result.type}</span></td>
-                <td class="px-4 py-3 text-sm">${new Date(result.date).toLocaleString()}</td>
-                <td class="px-4 py-3 text-sm font-medium">${formatCurrency(result.amount || 0)}</td>
-                <td class="px-4 py-3 text-sm">${result.customer || '-'}</td>
-                <td class="px-4 py-3 text-sm">${result.item || '-'}</td>
-                <td class="px-4 py-3 text-sm">${result.reference || '-'}</td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">
+                    <span class="px-2 py-1 rounded text-xs font-medium ${typeBadgeClass}">${result.type.toUpperCase()}</span>
+                </td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-700">${new Date(result.date).toLocaleString()}</td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900">${formatCurrency(result.amount || 0)}</td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-700 hidden sm:table-cell">${result.customer || '-'}</td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-700">${result.item || '-'}</td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-mono text-gray-600 hidden md:table-cell">${result.reference || '-'}</td>
+                <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">${actionButtons || '-'}</td>
             `;
             bodyEl.appendChild(row);
         });
@@ -3105,49 +3622,115 @@ $userRole = $user['role'] ?? 'manager';
             });
         }
 
-        // Profit Chart
+        // Profit Chart (Bubble Chart)
         const profitCtx = document.getElementById('profitChart');
         if (profitCtx) {
             profitChart = new Chart(profitCtx, {
-                type: 'line',
+                type: 'bubble',
                 data: {
-                    labels: [],
                     datasets: []
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: true,
                     elements: {
-                        line: {
-                            tension: 0.4, // Curved lines
-                            borderWidth: 2
-                        },
                         point: {
-                            radius: 4,
-                            hitRadius: 10,
-                            hoverRadius: 6
+                            borderWidth: 2,
+                            hoverBorderWidth: 3
                         }
                     },
                     plugins: {
                         legend: {
                             display: true,
-                            position: 'top'
+                            position: 'top',
+                            labels: {
+                                generateLabels: function(chart) {
+                                    return [
+                                        {
+                                            text: 'Excellent (>40% margin)',
+                                            fillStyle: 'rgba(16, 185, 129, 0.6)',
+                                            strokeStyle: 'rgb(5, 150, 105)',
+                                            lineWidth: 2
+                                        },
+                                        {
+                                            text: 'Good (25-40% margin)',
+                                            fillStyle: 'rgba(34, 197, 94, 0.6)',
+                                            strokeStyle: 'rgb(22, 163, 74)',
+                                            lineWidth: 2
+                                        },
+                                        {
+                                            text: 'Medium (10-25% margin)',
+                                            fillStyle: 'rgba(234, 179, 8, 0.6)',
+                                            strokeStyle: 'rgb(202, 138, 4)',
+                                            lineWidth: 2
+                                        },
+                                        {
+                                            text: 'Low (0-10% margin)',
+                                            fillStyle: 'rgba(251, 146, 60, 0.6)',
+                                            strokeStyle: 'rgb(249, 115, 22)',
+                                            lineWidth: 2
+                                        },
+                                        {
+                                            text: 'Loss (negative profit)',
+                                            fillStyle: 'rgba(239, 68, 68, 0.6)',
+                                            strokeStyle: 'rgb(220, 38, 38)',
+                                            lineWidth: 2
+                                        }
+                                    ];
+                                }
+                            }
                         },
                         tooltip: {
-                            mode: 'index',
-                            intersect: false
+                            callbacks: {
+                                title: function(context) {
+                                    const point = context[0].raw;
+                                    if (point.label) {
+                                        try {
+                                            const date = new Date(point.label);
+                                            if (!isNaN(date.getTime())) {
+                                                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                                            }
+                                        } catch (e) {
+                                            return point.label;
+                                        }
+                                    }
+                                    return 'Profit Breakdown';
+                                },
+                                label: function(context) {
+                                    const point = context.raw;
+                                    const cost = point.cost || 0;
+                                    const revenue = point.x || 0;
+                                    const profit = point.y || 0;
+                                    const profitMargin = revenue > 0 ? ((profit / revenue) * 100) : 0;
+                                    
+                                    return [
+                                        'Revenue: ₵' + revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                                        'Profit: ₵' + profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                                        'Cost: ₵' + cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                                        'Margin: ' + profitMargin.toFixed(2) + '%'
+                                    ];
+                                }
+                            }
                         }
                     },
                     scales: {
                         x: {
-                            reverse: false, // Oldest on left, newest on right
-                            offset: true, // Center the chart
+                            title: {
+                                display: true,
+                                text: 'Revenue (₵)'
+                            },
+                            beginAtZero: true,
                             ticks: {
-                                maxRotation: 45,
-                                minRotation: 0
+                                callback: function(value) {
+                                    return '₵' + value.toLocaleString();
+                                }
                             }
                         },
                         y: {
+                            title: {
+                                display: true,
+                                text: 'Profit (₵)'
+                            },
                             beginAtZero: true,
                             ticks: {
                                 callback: function(value) {
@@ -3219,4 +3802,5 @@ $userRole = $user['role'] ?? 'manager';
     }
 })();
 </script>
+
 

@@ -12,6 +12,52 @@ class InventoryController {
     public function __construct() {
         $this->productModel = new Product();
         $this->productSpecModel = new ProductSpec();
+        // Auto-run migration if needed
+        $this->checkAndRunMigration();
+    }
+    
+    /**
+     * Check if supplier tracking table exists and run migration if needed
+     */
+    private function checkAndRunMigration() {
+        try {
+            $db = \Database::getInstance()->getConnection();
+            $tableExists = $db->query("SHOW TABLES LIKE 'supplier_product_tracking'")->rowCount() > 0;
+            
+            if (!$tableExists) {
+                // Run migration
+                $migrationFile = __DIR__ . '/../../database/migrations/create_supplier_tracking.sql';
+                if (file_exists($migrationFile)) {
+                    $sql = file_get_contents($migrationFile);
+                    $statements = array_filter(
+                        array_map('trim', explode(';', $sql)),
+                        function($stmt) {
+                            return !empty($stmt) && !preg_match('/^\s*--/', $stmt);
+                        }
+                    );
+                    
+                    foreach ($statements as $statement) {
+                        if (empty(trim($statement))) continue;
+                        try {
+                            // Handle prepared statements
+                            if (preg_match('/^SET\s+@|PREPARE|EXECUTE|DEALLOCATE/', $statement)) {
+                                $db->exec($statement);
+                            } else {
+                                $db->exec($statement);
+                            }
+                        } catch (\PDOException $e) {
+                            // Ignore "already exists" errors
+                            if (strpos($e->getMessage(), 'already exists') === false && 
+                                strpos($e->getMessage(), 'Duplicate column') === false) {
+                                error_log("Migration error: " . $e->getMessage());
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            error_log("Error checking/running migration: " . $e->getMessage());
+        }
     }
 
     public function index() {
@@ -161,13 +207,52 @@ class InventoryController {
         // Don't check auth here - let JavaScript handle it since token is in localStorage
         // The dashboard HTML will check the token and redirect to login if needed
         
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $companyId = $_SESSION['user']['company_id'] ?? 1;
+        
         $categories = (new \App\Models\Category())->getAll();
+        $suppliers = (new \App\Models\Supplier())->getActiveForDropdown($companyId);
+        
+        // Check if coming from purchase order
+        $productData = null;
+        if (isset($_GET['from_po']) && isset($_GET['item_id'])) {
+            $purchaseOrderId = (int)$_GET['from_po'];
+            $itemId = (int)$_GET['item_id'];
+            
+            // Get purchase order item data
+            $purchaseOrderModel = new \App\Models\PurchaseOrder();
+            $order = $purchaseOrderModel->find($purchaseOrderId, $companyId);
+            
+            if ($order) {
+                $items = $purchaseOrderModel->getItems($purchaseOrderId);
+                foreach ($items as $item) {
+                    if ($item['id'] == $itemId) {
+                        // Pre-fill product data from purchase order item
+                        $productData = [
+                            'name' => $item['product_name'],
+                            'sku' => $item['product_sku'] ?? '',
+                            'cost_price' => $item['unit_cost'],
+                            'quantity' => $item['quantity'],
+                            'supplier' => $order['supplier_name'] ?? '',
+                            'description' => 'Received from Purchase Order #' . $order['order_number']
+                        ];
+                        break;
+                    }
+                }
+            }
+        }
         
         $page = 'inventory';
         $title = 'Add New Product';
         
         // Capture the view content
         ob_start();
+        // Pass product data to view if available
+        if ($productData) {
+            $GLOBALS['prefill_product_data'] = $productData;
+        }
         include __DIR__ . '/../Views/inventory_form.php';
         $content = ob_get_clean();
         
@@ -279,6 +364,36 @@ class InventoryController {
             error_log("Similar products found for '{$_POST['name']}': " . implode(', ', $similarInfo));
         }
             
+            // Extract model_name from specs - prioritize 'model' field from specifications
+            $modelName = null;
+            if (isset($_POST['specs']['model']) && !empty(trim($_POST['specs']['model']))) {
+                $modelName = trim($_POST['specs']['model']);
+            }
+            // Fallback to 'model_name' in specs if 'model' is not available
+            if (empty($modelName) && isset($_POST['specs']['model_name']) && !empty(trim($_POST['specs']['model_name']))) {
+                $modelName = trim($_POST['specs']['model_name']);
+            }
+            // Last fallback: check if model_name was provided directly (for backward compatibility)
+            if (empty($modelName) && isset($_POST['model_name']) && !empty(trim($_POST['model_name']))) {
+                $modelName = trim($_POST['model_name']);
+            }
+            
+            // Handle supplier_id
+            $supplierId = null;
+            $supplier = null;
+            if (!empty($_POST['supplier_id'])) {
+                $supplierId = (int)$_POST['supplier_id'];
+                if ($supplierId > 0) {
+                    $supplierModel = new \App\Models\Supplier();
+                    $supplier = $supplierModel->find($supplierId, $companyId);
+                    if (!$supplier) {
+                        throw new \Exception('Invalid supplier selected');
+                    }
+                } else {
+                    $supplierId = null;
+                }
+            }
+            
             // Prepare product data
             $productData = [
                 'company_id' => $companyId,
@@ -287,13 +402,14 @@ class InventoryController {
                 'subcategory_id' => $subcategoryId,
                 'brand_id' => $brandId,
                 'sku' => $sku,
-                'model_name' => $_POST['model_name'] ?? null,
+                'model_name' => $modelName,
                 'description' => $_POST['description'] ?? null,
                 'cost' => $_POST['cost_price'] ?? 0,
                 'price' => $_POST['selling_price'],
                 'quantity' => $_POST['quantity'] ?? 0,
                 'item_location' => $_POST['item_location'] ?? null, // New field for item location
-                'supplier' => $_POST['supplier'] ?? null,
+                'supplier_id' => $supplierId,
+                'supplier' => $supplier ? $supplier['name'] : null, // Keep supplier name for backward compatibility
                 'weight' => $_POST['weight'] ?? null,
                 'dimensions' => $_POST['dimensions'] ?? null,
                 'available_for_swap' => isset($_POST['available_for_swap']) ? 1 : 0,
@@ -364,6 +480,23 @@ class InventoryController {
                     }
                 }
                 
+                // Link product to supplier and create tracking record if supplier is selected
+                if ($supplierId) {
+                    $supplierModel = new \App\Models\Supplier();
+                    $initialQuantity = (int)($_POST['quantity'] ?? 0);
+                    $initialCost = floatval($_POST['cost_price'] ?? 0);
+                    $initialAmount = $initialQuantity * $initialCost;
+                    
+                    // Link product to supplier
+                    $supplierModel->linkProduct($supplierId, $productId, $companyId, [
+                        'supplier_product_code' => $sku ?? null,
+                        'unit_cost' => $initialCost
+                    ]);
+                    
+                    // Create or update supplier tracking record
+                    $this->updateSupplierTracking($companyId, $supplierId, $productId, $initialQuantity, $initialAmount);
+                }
+                
                 $_SESSION['flash_success'] = 'Product created successfully';
                 header('Location: ' . BASE_URL_PATH . '/dashboard/inventory');
                 exit;
@@ -399,9 +532,16 @@ class InventoryController {
             exit;
         }
         
+        // Load product specifications from product_specs table
+        $productSpecModel = new ProductSpec();
+        $specs = $productSpecModel->getByProduct($id);
+        // Keep specs as array for the view (JavaScript will JSON encode it)
+        $product['specs'] = !empty($specs) ? $specs : null;
+        
         $categories = (new \App\Models\Category())->getAll();
         $categoryId = $product['category_id'] ?? null;
         $brands = $categoryId ? (new \App\Models\Brand())->getByCategory($categoryId) : [];
+        $suppliers = (new \App\Models\Supplier())->getActiveForDropdown($companyId);
         
         $page = 'inventory';
         $title = 'Edit Product';
@@ -433,6 +573,12 @@ class InventoryController {
         try {
             // Get company_id from session (for web users)
             $companyId = $_SESSION['user']['company_id'] ?? 1; // Default to 1 for now
+            
+            // Fetch existing product to get old image URL
+            $product = $this->productModel->findInNew($id, $companyId);
+            if (!$product) {
+                throw new \Exception('Product not found');
+            }
             
             // Validate required fields
             if (empty($_POST['name']) || empty($_POST['category_id']) || empty($_POST['selling_price'])) {
@@ -469,13 +615,27 @@ class InventoryController {
                 }
             }
             
+            // Extract model_name from specs - prioritize 'model' field from specifications
+            $modelName = null;
+            if (isset($_POST['specs']['model']) && !empty(trim($_POST['specs']['model']))) {
+                $modelName = trim($_POST['specs']['model']);
+            }
+            // Fallback to 'model_name' in specs if 'model' is not available
+            if (empty($modelName) && isset($_POST['specs']['model_name']) && !empty(trim($_POST['specs']['model_name']))) {
+                $modelName = trim($_POST['specs']['model_name']);
+            }
+            // Last fallback: check if model_name was provided directly (for backward compatibility)
+            if (empty($modelName) && isset($_POST['model_name']) && !empty(trim($_POST['model_name']))) {
+                $modelName = trim($_POST['model_name']);
+            }
+            
             // Prepare product data
             $productData = [
                 'name' => $_POST['name'],
                 'category_id' => $_POST['category_id'],
                 'subcategory_id' => $subcategoryId,
                 'brand_id' => $brandId,
-                'model_name' => $_POST['model_name'] ?? null,
+                'model_name' => $modelName,
                 'description' => $_POST['description'] ?? null,
                 'cost' => $_POST['cost_price'] ?? 0,
                 'price' => $_POST['selling_price'],
@@ -574,7 +734,7 @@ class InventoryController {
                         }
                     }
                     if (!empty($specs)) {
-                        $productSpecModel = new \App\Models\ProductSpec();
+                        $productSpecModel = new ProductSpec();
                         $productSpecModel->setSpecs($id, $specs);
                     }
                 }
@@ -822,5 +982,74 @@ class InventoryController {
             ]);
         }
         exit;
+    }
+    
+    /**
+     * Update supplier product tracking
+     * Creates or updates tracking record for supplier-product relationship
+     */
+    private function updateSupplierTracking($companyId, $supplierId, $productId, $quantity, $amount) {
+        try {
+            $db = \Database::getInstance()->getConnection();
+            
+            // Check if tracking table exists
+            $tableExists = $db->query("SHOW TABLES LIKE 'supplier_product_tracking'")->rowCount() > 0;
+            if (!$tableExists) {
+                error_log("supplier_product_tracking table does not exist. Please run the migration.");
+                return;
+            }
+            
+            // Check if record exists
+            $checkStmt = $db->prepare("
+                SELECT id, total_quantity_received, total_amount_spent 
+                FROM supplier_product_tracking 
+                WHERE supplier_id = ? AND product_id = ? AND company_id = ?
+            ");
+            $checkStmt->execute([$supplierId, $productId, $companyId]);
+            $existing = $checkStmt->fetch(\PDO::FETCH_ASSOC);
+            
+            if ($existing) {
+                // Update existing record
+                $newTotalQuantity = $existing['total_quantity_received'] + $quantity;
+                $newTotalAmount = $existing['total_amount_spent'] + $amount;
+                
+                $updateStmt = $db->prepare("
+                    UPDATE supplier_product_tracking 
+                    SET total_quantity_received = ?,
+                        total_amount_spent = ?,
+                        last_restock_quantity = ?,
+                        last_restock_amount = ?,
+                        last_restock_date = NOW(),
+                        updated_at = NOW()
+                    WHERE id = ?
+                ");
+                $updateStmt->execute([
+                    $newTotalQuantity,
+                    $newTotalAmount,
+                    $quantity,
+                    $amount,
+                    $existing['id']
+                ]);
+            } else {
+                // Create new record
+                $insertStmt = $db->prepare("
+                    INSERT INTO supplier_product_tracking 
+                    (company_id, supplier_id, product_id, total_quantity_received, total_amount_spent,
+                     last_restock_quantity, last_restock_amount, last_restock_date, first_received_date, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW())
+                ");
+                $insertStmt->execute([
+                    $companyId,
+                    $supplierId,
+                    $productId,
+                    $quantity,
+                    $amount,
+                    $quantity,
+                    $amount
+                ]);
+            }
+        } catch (\Exception $e) {
+            error_log("Error updating supplier tracking: " . $e->getMessage());
+        }
     }
 }

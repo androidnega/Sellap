@@ -130,9 +130,17 @@ class StaffController {
         // Validate required fields
         $email = trim($_POST['email'] ?? '');
         $fullName = trim($_POST['full_name'] ?? $_POST['name'] ?? '');
+        $username = trim($_POST['username'] ?? '');
         
-        if (empty($email) || empty($fullName)) {
-            $_SESSION['error_message'] = 'Email and full name are required.';
+        if (empty($email) || empty($fullName) || empty($username)) {
+            $_SESSION['error_message'] = 'Email, full name, and username are required.';
+            header('Location: ' . BASE_URL_PATH . '/dashboard/staff/create');
+            exit;
+        }
+
+        // Validate username format (allow alphanumeric, dots, underscores, hyphens, and @)
+        if (!preg_match('/^[a-zA-Z0-9._@-]+$/', $username)) {
+            $_SESSION['error_message'] = 'Username can only contain letters, numbers, dots, underscores, hyphens, and @ symbol.';
             header('Location: ' . BASE_URL_PATH . '/dashboard/staff/create');
             exit;
         }
@@ -144,18 +152,11 @@ class StaffController {
             exit;
         }
 
-        // Generate username from email if not provided
-        $username = $_POST['username'] ?? $email;
-        
         // Check if username already exists in this company (company-scoped check)
         if ($this->staff->usernameExists($username, null, $companyId)) {
-            // Generate unique username by appending a number
-            $baseUsername = $username;
-            $counter = 1;
-            do {
-                $username = $baseUsername . $counter;
-                $counter++;
-            } while ($this->staff->usernameExists($username, null, $companyId));
+            $_SESSION['error_message'] = 'Username already exists in your company. Please use a different username.';
+            header('Location: ' . BASE_URL_PATH . '/dashboard/staff/create');
+            exit;
         }
 
         $data = [

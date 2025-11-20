@@ -256,7 +256,10 @@
                 </div>
             </div>
             
-            <div class="flex justify-end mt-6 pt-4 border-t border-gray-200">
+            <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
+                <button id="viewCustomerHistoryBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-history mr-2"></i>View History
+                </button>
                 <button id="closeViewCustomerModalBtn" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">
                     Close
                 </button>
@@ -429,7 +432,76 @@
     </div>
 </div>
 
+<!-- Error Modal -->
+<div id="errorModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="p-6">
+            <div class="flex items-center mb-4">
+                <div class="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-exclamation-triangle text-red-600"></i>
+                </div>
+                <h3 class="ml-3 text-lg font-medium text-gray-900">Error</h3>
+            </div>
+            <div class="mt-4">
+                <p id="errorModalMessage" class="text-sm text-gray-600"></p>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button id="closeErrorModal" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+// Global notification function - accessible from anywhere
+function showNotification(message, type = 'success') {
+    const notification = document.getElementById('customerNotification');
+    const notificationMessage = document.getElementById('customerNotificationMessage');
+    
+    if (notificationMessage) {
+        notificationMessage.textContent = message;
+    }
+    if (notification) {
+        notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-xl z-50 max-w-sm ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`;
+        notification.classList.remove('hidden');
+        
+        setTimeout(() => {
+            notification.classList.add('hidden');
+        }, 5000);
+    } else {
+        // Fallback to alert if notification element doesn't exist
+        alert(message);
+    }
+}
+
+// Global error modal function - shows centered modal for errors
+function showErrorModal(message) {
+    const errorModal = document.getElementById('errorModal');
+    const errorModalMessage = document.getElementById('errorModalMessage');
+    
+    if (errorModalMessage) {
+        errorModalMessage.textContent = message;
+    }
+    if (errorModal) {
+        errorModal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    } else {
+        // Fallback to alert if modal doesn't exist
+        alert(message);
+    }
+}
+
+// Close error modal
+function closeErrorModal() {
+    const errorModal = document.getElementById('errorModal');
+    if (errorModal) {
+        errorModal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById('customerModal');
     const form = document.getElementById('customerForm');
@@ -548,21 +620,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Show notification
-    function showNotification(message, type = 'success') {
-        if (notificationMessage) {
-            notificationMessage.textContent = message;
-        }
-        if (notification) {
-            notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-xl z-50 max-w-sm ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`;
-            notification.classList.remove('hidden');
-            
-            setTimeout(() => {
-                notification.classList.add('hidden');
-            }, 5000);
-        }
-    }
-
     // Close notification
     if (closeNotification) {
         closeNotification.addEventListener('click', function() {
@@ -571,7 +628,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Close error modal
+    const closeErrorModalBtn = document.getElementById('closeErrorModal');
+    const errorModal = document.getElementById('errorModal');
+    if (closeErrorModalBtn) {
+        closeErrorModalBtn.addEventListener('click', closeErrorModal);
+    }
+    
+    // Close error modal when clicking outside
+    if (errorModal) {
+        errorModal.addEventListener('click', function(e) {
+            if (e.target === errorModal) {
+                closeErrorModal();
+            }
+        });
+    }
 });
+
+// Store current customer data for history view
+let currentViewCustomerId = null;
+let currentViewCustomerName = null;
 
 // Global functions for customer actions
 async function viewCustomer(customerId) {
@@ -595,6 +672,10 @@ async function viewCustomer(customerId) {
         
         if (result.success) {
             const customer = result.data;
+            
+            // Store customer data for history view
+            currentViewCustomerId = customerId;
+            currentViewCustomerName = customer.full_name || 'Customer';
             
             // Populate view modal
             document.getElementById('viewCustomerId').textContent = customer.unique_id || 'N/A';
@@ -843,38 +924,49 @@ async function deleteCustomer(customerId, customerName) {
             credentials: 'same-origin'
         });
         
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
-            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        // Get response text first
+        const responseText = await response.text();
+        let result;
+        
+        try {
+            result = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('JSON parse error:', parseError);
+            console.error('Response text:', responseText);
+            showErrorModal('Failed to delete customer. Server returned an invalid response.');
+            return;
         }
         
-        const result = await response.json();
+        // Check if response indicates an error
+        if (!response.ok || !result.success) {
+            // Show clear error message in modal
+            const errorMessage = result.error || 'Failed to delete customer. Please try again or contact support.';
+            console.log('Delete error:', errorMessage);
+            showErrorModal(errorMessage);
+            return;
+        }
         
-        if (result.success) {
-            // Immediately remove the row from the table
-            const row = document.querySelector(`tr[data-customer-id="${customerId}"]`);
-            if (row) {
-                row.style.transition = 'opacity 0.3s';
-                row.style.opacity = '0';
-                setTimeout(() => {
-                    row.remove();
-                    // Update duplicate counts if needed
-                    updateDuplicateDisplay();
-                }, 300);
-            }
-            
-            showNotification('Customer deleted successfully!', 'success');
-            
-            // Refresh the list after a short delay to ensure consistency
+        // Success - remove the row from the table
+        const row = document.querySelector(`tr[data-customer-id="${customerId}"]`);
+        if (row) {
+            row.style.transition = 'opacity 0.3s';
+            row.style.opacity = '0';
             setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        } else {
-            showNotification(result.error || 'Failed to delete customer', 'error');
+                row.remove();
+                // Update duplicate counts if needed
+                updateDuplicateDisplay();
+            }, 300);
         }
+        
+        showNotification('Customer deleted successfully!', 'success');
+        
+        // Refresh the list after a short delay to ensure consistency
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
     } catch (error) {
         console.error('Error deleting customer:', error);
-        showNotification('Error deleting customer: ' + error.message, 'error');
+        showErrorModal('Error deleting customer: ' + (error.message || 'An unexpected error occurred. Please try again.'));
     }
 }
 
@@ -1007,6 +1099,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (closeViewBtn2) {
         closeViewBtn2.addEventListener('click', closeViewModal);
+    }
+    
+    // View History button
+    const viewHistoryBtn = document.getElementById('viewCustomerHistoryBtn');
+    if (viewHistoryBtn) {
+        viewHistoryBtn.addEventListener('click', function() {
+            if (currentViewCustomerId && currentViewCustomerName) {
+                // Close view modal first
+                closeViewModal();
+                // Open history modal
+                viewCustomerHistory(currentViewCustomerId, currentViewCustomerName);
+            }
+        });
     }
     
     if (viewModal) {

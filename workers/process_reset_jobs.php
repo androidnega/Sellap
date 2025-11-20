@@ -12,8 +12,8 @@
  *   --limit=N    Process up to N jobs (default: 10)
  *   --once       Process jobs once and exit (default: runs continuously)
  * 
- * Recommended cron setup:
- *   */5 * * * * cd /path/to/sellapp && php workers/process_reset_jobs.php --limit=10 --once
+ * Recommended cron setup (runs every 5 minutes):
+ *   0,5,10,15,20,25,30,35,40,45,50,55 * * * * cd /path/to/sellapp && php workers/process_reset_jobs.php --limit=10 --once
  */
 
 // Set error reporting

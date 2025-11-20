@@ -104,6 +104,8 @@ class AdminCompanyModulesController {
                 'staff_management' => 'Staff Management',
                 'reports_analytics' => 'Reports & Analytics',
                 'notifications_sms' => 'Notifications & SMS',
+                'suppliers' => 'Suppliers',
+                'purchase_orders' => 'Purchase Orders',
                 'manager_delete_sales' => 'Manager Delete Sales',
                 'manager_bulk_delete_sales' => 'Manager Bulk Delete Sales',
                 'manager_can_sell' => 'Manager Can Sell',
@@ -146,15 +148,27 @@ class AdminCompanyModulesController {
      * POST /api/admin/company/{id}/modules/toggle
      */
     public function toggleModule($companyId) {
+        // Clean output buffers
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        ob_start();
+        
         header('Content-Type: application/json');
         
         try {
+            // Start session if not already started
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            
             // Check authentication - System Admin only
             $this->checkAuth();
             
             // Validate company ID
             $companyId = trim($companyId ?? '');
             if (empty($companyId) || !is_numeric($companyId)) {
+                ob_end_clean();
                 http_response_code(400);
                 echo json_encode([
                     'success' => false,
@@ -165,25 +179,56 @@ class AdminCompanyModulesController {
             
             $companyId = (int)$companyId;
             
-            // Get request data
-            $input = json_decode(file_get_contents('php://input'), true);
+            // Get request data - try JSON first, then fall back to POST data
+            $input = null;
+            $rawInput = file_get_contents('php://input');
+            
+            if (!empty($rawInput)) {
+                $input = json_decode($rawInput, true);
+                // If JSON decode failed, try to parse as form data
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    parse_str($rawInput, $input);
+                }
+            }
+            
+            // Fall back to $_POST if JSON input is empty
+            if (empty($input) && !empty($_POST)) {
+                $input = $_POST;
+            }
+            
+            // If still empty, return error
+            if (empty($input)) {
+                ob_end_clean();
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Request data is required',
+                    'debug' => 'No input data received'
+                ]);
+                return;
+            }
+            
             $moduleKey = $input['module_key'] ?? null;
             $enabled = isset($input['enabled']) ? (bool)$input['enabled'] : null;
             
             if (!$moduleKey) {
+                ob_end_clean();
                 http_response_code(400);
                 echo json_encode([
                     'success' => false,
-                    'error' => 'Module key is required'
+                    'error' => 'Module key is required',
+                    'debug' => 'Received input: ' . json_encode($input)
                 ]);
                 return;
             }
             
             if ($enabled === null) {
+                ob_end_clean();
                 http_response_code(400);
                 echo json_encode([
                     'success' => false,
-                    'error' => 'Enabled status is required'
+                    'error' => 'Enabled status is required',
+                    'debug' => 'Received input: ' . json_encode($input)
                 ]);
                 return;
             }
@@ -214,6 +259,9 @@ class AdminCompanyModulesController {
                 'staff_management',
                 'reports_analytics',
                 'notifications_sms',
+                'suppliers',
+                'purchase_orders',
+                'charts',
                 'manager_delete_sales',
                 'manager_bulk_delete_sales',
                 'manager_can_sell',
@@ -234,6 +282,7 @@ class AdminCompanyModulesController {
             $result = $this->companyModuleModel->setModuleStatus($companyId, $moduleKey, $enabled);
             
             if ($result) {
+                ob_end_clean();
                 echo json_encode([
                     'success' => true,
                     'message' => 'Module status updated successfully',
@@ -248,7 +297,9 @@ class AdminCompanyModulesController {
             }
             
         } catch (\Exception $e) {
+            ob_end_clean();
             http_response_code(500);
+            error_log("AdminCompanyModulesController::toggleModule error: " . $e->getMessage());
             echo json_encode([
                 'success' => false,
                 'error' => $e->getMessage()
@@ -276,13 +327,57 @@ class AdminCompanyModulesController {
         }
         
         // Fall back to JWT authentication (for API routes or when session not available)
-        try {
-            $payload = AuthMiddleware::handle(['system_admin']);
-            return $payload;
-        } catch (\Exception $e) {
-            // JWT auth failed - check if we have session data anyway
+        $headers = function_exists('getallheaders') ? getallheaders() : [];
+        $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+        
+        if (strpos($authHeader, 'Bearer ') === 0) {
+            try {
+                $token = substr($authHeader, 7);
+                $auth = new \App\Services\AuthService();
+                $payload = $auth->validateToken($token);
+                
+                // Check role-based access
+                if ($payload->role !== 'system_admin') {
+                    http_response_code(403);
+                    header('Content-Type: application/json');
+                    echo json_encode([
+                        'success' => false,
+                        'error' => 'Unauthorized: System Admin access required'
+                    ]);
+                    exit;
+                }
+                
+                return $payload;
+            } catch (\Exception $e) {
+                // JWT validation failed - check if we have session data anyway
+                if (isset($_SESSION['user']) && is_array($_SESSION['user'])) {
+                    $userRole = $_SESSION['user']['role'] ?? '';
+                    if ($userRole !== 'system_admin') {
+                        http_response_code(403);
+                        header('Content-Type: application/json');
+                        echo json_encode([
+                            'success' => false,
+                            'error' => 'Unauthorized: System Admin access required'
+                        ]);
+                        exit;
+                    }
+                    // Return session user if valid
+                    return (object)$_SESSION['user'];
+                }
+                
+                // No valid session or JWT - return authentication error
+                http_response_code(401);
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Invalid or expired token',
+                    'message' => 'Please login again'
+                ]);
+                exit;
+            }
+        } else {
+            // No auth header - check if we have session data
             if (isset($_SESSION['user']) && is_array($_SESSION['user'])) {
-                // If session exists but role check failed, return error
                 $userRole = $_SESSION['user']['role'] ?? '';
                 if ($userRole !== 'system_admin') {
                     http_response_code(403);

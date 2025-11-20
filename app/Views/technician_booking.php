@@ -2,9 +2,11 @@
 // Technician Booking Form
 $partsAndAccessories = $GLOBALS['partsAndAccessories'] ?? [];
 $brands = $GLOBALS['brands'] ?? [];
+$products = $GLOBALS['products'] ?? []; // Phone products for device source
 
 // Debug: Log parts count
 error_log("technician_booking.php: partsAndAccessories count = " . count($partsAndAccessories));
+error_log("technician_booking.php: products (phones) count = " . count($products));
 ?>
 
 <div class="max-w-4xl mx-auto">
@@ -158,7 +160,7 @@ error_log("technician_booking.php: partsAndAccessories count = " . count($partsA
                     <label for="repair_cost" class="block text-sm font-medium text-gray-700 mb-1">Repair Cost (₵)</label>
                     <input type="number" id="repair_cost" name="repair_cost" step="0.01" min="0" value="0"
                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                           onchange="calculateTotal()">
+                           onchange="calculateTotal()" required>
                 </div>
                 
                 <div>
@@ -191,7 +193,7 @@ error_log("technician_booking.php: partsAndAccessories count = " . count($partsA
             <a href="<?= BASE_URL_PATH ?>/dashboard" class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
                 Cancel
             </a>
-            <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700" onclick="return validateForm()">
                 Create Repair Booking
             </button>
         </div>
@@ -288,16 +290,70 @@ function selectCustomer(id, name, phone) {
 // Toggle device details section
 function toggleDeviceDetails(productId) {
     const deviceSection = document.getElementById('device_details_section');
+    const deviceBrand = document.getElementById('device_brand');
+    const deviceModel = document.getElementById('device_model');
+    
     if (!productId || productId === '') {
         deviceSection.style.display = 'block';
+        // Ensure fields are enabled and visible
+        if (deviceBrand) {
+            deviceBrand.disabled = false;
+            deviceBrand.required = false; // Not required when product is selected
+        }
+        if (deviceModel) {
+            deviceModel.disabled = false;
+            deviceModel.required = false;
+        }
     } else {
         deviceSection.style.display = 'none';
+        // Clear device fields when product is selected (product has its own brand/model)
+        if (deviceBrand) {
+            deviceBrand.value = '';
+            deviceBrand.disabled = false; // Keep enabled so it submits (even if empty)
+        }
+        if (deviceModel) {
+            deviceModel.value = '';
+            deviceModel.disabled = false; // Keep enabled so it submits (even if empty)
+        }
     }
 }
 
 // Initialize - show device details by default
 document.addEventListener('DOMContentLoaded', function() {
     toggleDeviceDetails(document.getElementById('product_id').value);
+    
+    // Add form submit handler to ensure all data is captured
+    const form = document.getElementById('repairForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            // Double-check all required fields before submission
+            const issueDesc = document.getElementById('issue_description').value.trim();
+            const repairCost = document.getElementById('repair_cost').value;
+            
+            console.log('Form submit event - issue_description:', issueDesc);
+            console.log('Form submit event - repair_cost:', repairCost);
+            
+            // Ensure issue_description is not empty
+            if (!issueDesc) {
+                e.preventDefault();
+                alert('Issue description is required. Please describe the problem with the device.');
+                document.getElementById('issue_description').focus();
+                return false;
+            }
+            
+            // Ensure repair_cost field has a value (even if 0)
+            if (repairCost === '' || repairCost === null) {
+                document.getElementById('repair_cost').value = '0';
+            }
+            
+            // Log final form data
+            const finalFormData = new FormData(form);
+            console.log('Final form submission data:');
+            for (let [key, value] of finalFormData.entries()) {
+                console.log(key + ':', value);
+            }
+        });
+    }
 });
 
 // Handle parts selection
@@ -400,11 +456,85 @@ function calculatePartsCost() {
 }
 
 function calculateTotal() {
-    const repairCost = parseFloat(document.getElementById('repair_cost').value) || 0;
+    const repairCostInput = document.getElementById('repair_cost');
+    const repairCost = parseFloat(repairCostInput.value) || 0;
     const partsCost = parseFloat(document.getElementById('parts_cost').value) || 0;
     const total = repairCost + partsCost;
     
     document.getElementById('total_cost').value = total.toFixed(2);
     document.getElementById('total_cost_display').textContent = '₵' + total.toFixed(2);
+    
+    // Debug: Log to console to verify repair_cost is preserved
+    console.log('calculateTotal() - repairCost:', repairCost, 'partsCost:', partsCost, 'total:', total);
+}
+
+function validateForm() {
+    // Ensure all required fields are filled
+    const customerName = document.getElementById('customer_name').value.trim();
+    const customerContact = document.getElementById('customer_contact').value.trim();
+    const issueDescription = document.getElementById('issue_description').value.trim();
+    const repairCost = parseFloat(document.getElementById('repair_cost').value) || 0;
+    const partsCost = parseFloat(document.getElementById('parts_cost').value) || 0;
+    const totalCost = parseFloat(document.getElementById('total_cost').value) || 0;
+    
+    // Validate required fields
+    if (!customerName) {
+        alert('Please enter customer name');
+        document.getElementById('customer_name').focus();
+        return false;
+    }
+    
+    if (!customerContact) {
+        alert('Please enter customer contact');
+        document.getElementById('customer_contact').focus();
+        return false;
+    }
+    
+    if (!issueDescription) {
+        alert('Please enter issue description');
+        document.getElementById('issue_description').focus();
+        return false;
+    }
+    
+    // Ensure repair_cost is set if total_cost is greater than parts_cost
+    if (repairCost === 0 && totalCost > partsCost) {
+        // Auto-calculate repair_cost from total - parts
+        const calculatedRepairCost = totalCost - partsCost;
+        if (calculatedRepairCost > 0) {
+            document.getElementById('repair_cost').value = calculatedRepairCost.toFixed(2);
+        }
+    }
+    
+    // Ensure device_brand and device_model are included even if hidden
+    const deviceBrand = document.getElementById('device_brand');
+    const deviceModel = document.getElementById('device_model');
+    if (deviceBrand && deviceBrand.style.display === 'none') {
+        // Field is hidden but should still submit - ensure it's not disabled
+        deviceBrand.disabled = false;
+    }
+    if (deviceModel && deviceModel.style.display === 'none') {
+        deviceModel.disabled = false;
+    }
+    
+    // Log form data before submission for debugging
+    console.log('Form submission - customer_name:', customerName);
+    console.log('Form submission - customer_contact:', customerContact);
+    console.log('Form submission - issue_description:', issueDescription);
+    console.log('Form submission - repair_cost:', document.getElementById('repair_cost').value);
+    console.log('Form submission - parts_cost:', document.getElementById('parts_cost').value);
+    console.log('Form submission - total_cost:', document.getElementById('total_cost').value);
+    console.log('Form submission - product_id:', document.getElementById('product_id').value);
+    console.log('Form submission - device_brand:', document.getElementById('device_brand').value);
+    console.log('Form submission - device_model:', document.getElementById('device_model').value);
+    console.log('Form submission - accessories:', document.querySelectorAll('input[name^="accessories"]').length);
+    
+    // Log all form data as FormData
+    const formData = new FormData(document.getElementById('repairForm'));
+    console.log('Form submission - All form data:');
+    for (let [key, value] of formData.entries()) {
+        console.log(key + ':', value);
+    }
+    
+    return true;
 }
 </script>

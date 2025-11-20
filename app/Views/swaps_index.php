@@ -2,35 +2,30 @@
 // Swaps Index View - Table list with modal for phone comparison
 ?>
 
-<div class="w-full p-6">
-    <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">All Swaps</h1>
-        <div class="flex space-x-3">
+<div class="w-full p-3 sm:p-6 max-w-full overflow-x-hidden">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <h1 class="text-xl sm:text-2xl font-bold text-gray-800">All Swaps</h1>
+        <div class="flex flex-wrap gap-2 sm:gap-3">
             <?php 
             $userRole = $_SESSION['user']['role'] ?? '';
             $isManager = in_array($userRole, ['manager', 'admin', 'system_admin']);
             $isSalesperson = in_array($userRole, ['salesperson', 'manager', 'admin', 'system_admin']);
             ?>
             <?php if ($isManager): ?>
-                <button id="deleteSelectedSwapsBtn" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                    <i class="fas fa-trash mr-2"></i>Delete Selected (<span id="selectedSwapsCount">0</span>)
+                <button id="deleteSelectedSwapsBtn" class="bg-red-600 text-white px-3 py-2 sm:px-4 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base" disabled>
+                    <i class="fas fa-trash mr-1 sm:mr-2"></i><span class="hidden sm:inline">Delete Selected</span><span class="sm:hidden">Delete</span> (<span id="selectedSwapsCount">0</span>)
                 </button>
             <?php endif; ?>
             <?php if ($isManager): ?>
-                <button id="syncSwapsToInventoryBtn" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                    <i class="fas fa-sync mr-2"></i>Add Selected Swap Items to Products (<span id="selectedSwapsForSyncCount">0</span>)
+                <button id="syncSwapsToInventoryBtn" class="bg-purple-600 text-white px-3 py-2 sm:px-4 rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base" disabled>
+                    <i class="fas fa-sync mr-1 sm:mr-2"></i><span class="hidden sm:inline">Add Selected Swap Items</span><span class="sm:hidden">Add Items</span> (<span id="selectedSwapsForSyncCount">0</span>)
                 </button>
             <?php endif; ?>
-            <?php if (!empty($pendingSwappedItems)): ?>
-                <button id="syncToInventoryBtn" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                    <i class="fas fa-sync mr-2"></i>Add Selected Items to Products (<span id="selectedCount">0</span>)
-                </button>
-            <?php endif; ?>
-            <a href="<?= BASE_URL_PATH ?>/dashboard/swaps/resale" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
-                <i class="fas fa-box mr-2"></i>View Resale Items
+            <a href="<?= BASE_URL_PATH ?>/dashboard/swaps/resale" class="bg-green-600 text-white px-3 py-2 sm:px-4 rounded-md hover:bg-green-700 transition-colors text-sm sm:text-base">
+                <i class="fas fa-box mr-1 sm:mr-2"></i><span class="hidden sm:inline">View Resale Items</span><span class="sm:hidden">Resale</span>
             </a>
-            <a href="<?= BASE_URL_PATH ?>/dashboard/swaps/create" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
-                <i class="fas fa-plus mr-2"></i>New Swap
+            <a href="<?= BASE_URL_PATH ?>/dashboard/swaps/create" class="bg-blue-600 text-white px-3 py-2 sm:px-4 rounded-md hover:bg-blue-700 transition-colors text-sm sm:text-base">
+                <i class="fas fa-plus mr-1 sm:mr-2"></i><span class="hidden sm:inline">New Swap</span><span class="sm:hidden">New</span>
             </a>
         </div>
     </div>
@@ -53,7 +48,7 @@
     ?>
     
     <!-- Basic Stats Row -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
         <div class="bg-white p-2 rounded-lg shadow">
             <div class="text-xs text-gray-600">Total Swaps</div>
             <div class="text-lg font-bold text-gray-800"><?= $stats['total'] ?></div>
@@ -72,36 +67,65 @@
         </div>
     </div>
     
+    <?php if (!$isManager): ?>
+    <!-- Salesperson Stats Row - Value Information (No Profit) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div class="bg-indigo-50 p-3 sm:p-4 rounded-lg shadow border border-indigo-200">
+            <div class="text-xs sm:text-sm text-indigo-700 font-medium mb-1">Total Value</div>
+            <div class="text-xl sm:text-2xl font-bold text-indigo-800">₵<?= number_format($stats['total_value'] ?? 0, 2) ?></div>
+            <div class="text-xs text-indigo-600 mt-1">All swaps</div>
+        </div>
+        <div class="bg-blue-50 p-3 sm:p-4 rounded-lg shadow border border-blue-200">
+            <div class="text-xs sm:text-sm text-blue-700 font-medium mb-1">Items in Stock</div>
+            <div class="text-xl sm:text-2xl font-bold text-blue-800">
+                <?= $stats['in_stock'] ?? 0 ?>
+                <span class="text-xs sm:text-sm font-normal text-blue-600 ml-1 sm:ml-2">item<?= ($stats['in_stock'] ?? 0) != 1 ? 's' : '' ?></span>
+            </div>
+            <div class="text-xs text-blue-600 mt-1">₵<?= number_format($stats['in_stock_value'] ?? 0, 2) ?> value</div>
+        </div>
+        <div class="bg-emerald-50 p-3 sm:p-4 rounded-lg shadow border border-emerald-200">
+            <div class="text-xs sm:text-sm text-emerald-700 font-medium mb-1">Cash Received</div>
+            <div class="text-xl sm:text-2xl font-bold text-emerald-800">₵<?= number_format($stats['total_cash_received'] ?? 0, 2) ?></div>
+            <div class="text-xs text-emerald-600 mt-1"><?= $stats['cash_received_count'] ?? 0 ?> item<?= ($stats['cash_received_count'] ?? 0) != 1 ? 's' : '' ?> from customers</div>
+        </div>
+        <div class="bg-cyan-50 p-3 sm:p-4 rounded-lg shadow border border-cyan-200">
+            <div class="text-xs sm:text-sm text-cyan-700 font-medium mb-1">Swapped Items Value</div>
+            <div class="text-xl sm:text-2xl font-bold text-cyan-800">₵<?= number_format($stats['swapped_items_value'] ?? 0, 2) ?></div>
+            <div class="text-xs text-cyan-600 mt-1"><?= $stats['swapped_items_total'] ?? 0 ?> item<?= ($stats['swapped_items_total'] ?? 0) != 1 ? 's' : '' ?></div>
+        </div>
+    </div>
+    <?php endif; ?>
+    
     <?php if ($isManager): ?>
     <!-- Manager Stats Row - Simplified Swap Metrics -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div class="bg-emerald-50 p-4 rounded-lg shadow border border-emerald-200">
-            <div class="text-sm text-emerald-700 font-medium mb-1">Profit from Swaps</div>
-            <div class="text-2xl font-bold text-emerald-800">₵<?= number_format($stats['total_profit'] ?? 0, 2) ?></div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div class="bg-emerald-50 p-3 sm:p-4 rounded-lg shadow border border-emerald-200">
+            <div class="text-xs sm:text-sm text-emerald-700 font-medium mb-1">Profit from Swaps</div>
+            <div class="text-xl sm:text-2xl font-bold text-emerald-800">₵<?= number_format($stats['total_profit'] ?? 0, 2) ?></div>
             <div class="text-xs text-emerald-600 mt-1">Realized gains</div>
         </div>
-        <div class="bg-red-50 p-4 rounded-lg shadow border border-red-200">
-            <div class="text-sm text-red-700 font-medium mb-1">Loss from Swaps</div>
-            <div class="text-2xl font-bold text-red-800">₵<?= number_format($stats['total_loss'] ?? 0, 2) ?></div>
+        <div class="bg-red-50 p-3 sm:p-4 rounded-lg shadow border border-red-200">
+            <div class="text-xs sm:text-sm text-red-700 font-medium mb-1">Loss from Swaps</div>
+            <div class="text-xl sm:text-2xl font-bold text-red-800">₵<?= number_format($stats['total_loss'] ?? 0, 2) ?></div>
             <div class="text-xs text-red-600 mt-1">Realized losses</div>
         </div>
-        <div class="bg-blue-50 p-4 rounded-lg shadow border border-blue-200">
-            <div class="text-sm text-blue-700 font-medium mb-1">Unsold Items Value</div>
-            <div class="text-2xl font-bold text-blue-800">
+        <div class="bg-blue-50 p-3 sm:p-4 rounded-lg shadow border border-blue-200">
+            <div class="text-xs sm:text-sm text-blue-700 font-medium mb-1">Unsold Items Value</div>
+            <div class="text-xl sm:text-2xl font-bold text-blue-800">
                 ₵<?= number_format($stats['in_stock_value'] ?? 0, 2) ?>
-                <span class="text-sm font-normal text-blue-600 ml-2">(<?= $stats['in_stock'] ?? 0 ?> item<?= ($stats['in_stock'] ?? 0) != 1 ? 's' : '' ?>)</span>
+                <span class="text-xs sm:text-sm font-normal text-blue-600 ml-1 sm:ml-2">(<?= $stats['in_stock'] ?? 0 ?> item<?= ($stats['in_stock'] ?? 0) != 1 ? 's' : '' ?>)</span>
             </div>
         </div>
-        <div class="bg-indigo-50 p-4 rounded-lg shadow border border-indigo-200">
-            <div class="text-sm text-indigo-700 font-medium mb-1">Total Value</div>
-            <div class="text-2xl font-bold text-indigo-800">₵<?= number_format($stats['total_value'] ?? 0, 2) ?></div>
+        <div class="bg-indigo-50 p-3 sm:p-4 rounded-lg shadow border border-indigo-200">
+            <div class="text-xs sm:text-sm text-indigo-700 font-medium mb-1">Total Value</div>
+            <div class="text-xl sm:text-2xl font-bold text-indigo-800">₵<?= number_format($stats['total_value'] ?? 0, 2) ?></div>
             <div class="text-xs text-indigo-600 mt-1">All swaps</div>
         </div>
     </div>
     <?php endif; ?>
 
     <!-- Status Filter -->
-    <div class="mb-4 flex space-x-2">
+    <div class="mb-4 flex flex-wrap gap-2">
         <a href="<?= BASE_URL_PATH ?>/dashboard/swaps" class="px-4 py-2 rounded-md <?= !isset($_GET['status']) ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' ?>">
             All
         </a>
@@ -123,10 +147,11 @@
     <?php else: ?>
         <!-- Table View -->
         <div class="bg-white rounded-lg shadow overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
                             <?php 
                             $userRole = $_SESSION['user']['role'] ?? '';
                             $isManager = in_array($userRole, ['manager', 'admin', 'system_admin']);
@@ -136,27 +161,27 @@
                                 <input type="checkbox" id="selectAllSwaps" class="cursor-pointer" title="Select All">
                             <?php endif; ?>
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                             Transaction Code
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                             Product
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                             Customer
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                             Total Value
                         </th>
                         <?php if ($isManager): ?>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                             Profit
                         </th>
                         <?php endif; ?>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                             Status
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                             Actions
                         </th>
                     </tr>
@@ -164,17 +189,17 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                     <?php foreach ($swaps as $swap): ?>
                         <tr class="hover:bg-gray-50 swap-row" data-swap-id="<?= $swap['id'] ?? '' ?>">
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
                                 <?php 
                                 $userRole = $_SESSION['user']['role'] ?? '';
                                 $isManager = in_array($userRole, ['manager', 'admin', 'system_admin']);
                                 $isSalesperson = in_array($userRole, ['salesperson', 'manager', 'admin', 'system_admin']);
                                 ?>
                                 <?php if ($isManager): ?>
-                                    <input type="checkbox" class="swap-checkbox cursor-pointer" data-swap-id="<?= $swap['id'] ?? '' ?>" value="<?= $swap['id'] ?? '' ?>">
+                                    <input type="checkbox" class="swap-checkbox cursor-pointer" data-swap-id="<?= $swap['id'] ?? '' ?>" data-phone-value="<?= htmlspecialchars($swap['customer_product_value'] ?? 0) ?>" value="<?= $swap['id'] ?? '' ?>">
                                 <?php endif; ?>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
                                 <?php
                                 $transactionCode = $swap['transaction_code'] ?? $swap['unique_id'] ?? null;
                                 if (!$transactionCode && isset($swap['id'])) {
@@ -183,9 +208,9 @@
                                 ?>
                                 <span class="font-mono text-sm font-semibold"><?= htmlspecialchars($transactionCode ?? 'SWAP-' . str_pad($swap['id'] ?? 0, 6, '0', STR_PAD_LEFT)) ?></span>
                             </td>
-                            <td class="px-6 py-4">
-                                <div class="space-y-1">
-                                    <div class="text-sm font-medium text-gray-900">
+                            <td class="px-3 sm:px-6 py-4">
+                                <div class="space-y-1 min-w-[150px]">
+                                    <div class="text-xs sm:text-sm font-medium text-gray-900">
                                         <?php
                                         $productName = $swap['company_product_name'] ?? null;
                                         if (!$productName || $productName === 'N/A') {
@@ -205,15 +230,15 @@
                                     <?php endif; ?>
                                 </div>
                             </td>
-                            <td class="px-6 py-4">
-                                <div class="text-sm font-medium text-gray-900"><?= htmlspecialchars($swap['customer_name'] ?? $swap['customer_name_from_table'] ?? 'N/A') ?></div>
-                                <div class="text-sm text-gray-500"><?= htmlspecialchars($swap['customer_phone'] ?? '') ?></div>
+                            <td class="px-3 sm:px-6 py-4">
+                                <div class="text-xs sm:text-sm font-medium text-gray-900"><?= htmlspecialchars($swap['customer_name'] ?? $swap['customer_name_from_table'] ?? 'N/A') ?></div>
+                                <div class="text-xs text-gray-500"><?= htmlspecialchars($swap['customer_phone'] ?? '') ?></div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
                                 <span class="text-sm font-semibold text-gray-900">₵<?= number_format($swap['total_value'] ?? 0, 2) ?></span>
                             </td>
                             <?php if ($isManager): ?>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
                                 <?php
                                 $profit = null;
                                 $profitEstimate = isset($swap['profit_estimate']) && $swap['profit_estimate'] !== null ? floatval($swap['profit_estimate']) : null;
@@ -254,7 +279,7 @@
                                 <?php endif; ?>
                             </td>
                             <?php endif; ?>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
                                 <?php
                                 // Determine actual status based on swap status and resale status
                                 $swapStatus = $swap['status'] ?? 'pending';
@@ -294,8 +319,8 @@
                                     <?php endif; ?>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div class="flex items-center gap-2">
+                            <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex items-center gap-1 sm:gap-2">
                                     <button onclick='showSwapDetailsModal(<?= json_encode($swap) ?>)' 
                                             class="text-blue-600 hover:text-blue-900 p-2 rounded hover:bg-blue-50 transition-colors" 
                                             title="View Details">
@@ -335,6 +360,7 @@
                     <?php endforeach; ?>
                 </tbody>
             </table>
+            </div>
         </div>
     <?php endif; ?>
 </div>
@@ -351,12 +377,12 @@
             </div>
             <div class="mb-4">
                 <p class="text-sm text-gray-600 mb-2">Item: <span id="swapPriceModalItemName" class="font-semibold"></span></p>
-                <p class="text-xs text-gray-500">Estimated Value: ₵<span id="swapPriceModalEstimatedValue">0.00</span></p>
+                <p class="text-xs text-gray-500">Phone Value Price: ₵<span id="swapPriceModalEstimatedValue">0.00</span></p>
             </div>
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Resell Price (₵) *</label>
                 <input type="number" id="swapPriceModalResellPrice" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Enter resell price">
-                <p class="text-xs text-gray-500 mt-1">This is the price the item will be sold for in POS</p>
+                <p class="text-xs text-gray-500 mt-1">Default: Phone value price. You can change this price. This is the price the item will be sold for in POS.</p>
             </div>
             <div class="flex justify-end space-x-3">
                 <button onclick="closeSwapPriceModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">
@@ -384,189 +410,12 @@
             <!-- Content will be populated by JavaScript -->
         </div>
     </div>
-
-    <!-- Swapped Items Tracking Section -->
-    <?php if (!empty($pendingSwappedItems)): ?>
-    <div class="mt-8 bg-white rounded-lg shadow overflow-hidden">
-        <div class="p-4 bg-gray-50 border-b">
-            <h2 class="text-lg font-semibold text-gray-800">
-                <i class="fas fa-box-open mr-2"></i>Swapped Items Available for Resale (<?= count($pendingSwappedItems) ?>)
-            </h2>
-            <p class="text-sm text-gray-600 mt-1">Items received from customers that are ready to be resold</p>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
-                    <tr>
-                        <th class="p-3 text-left w-12">
-                            <input type="checkbox" id="selectAllSwappedItems" class="cursor-pointer" title="Select All">
-                        </th>
-                        <th class="p-3 text-left">Brand</th>
-                        <th class="p-3 text-left">Model</th>
-                        <th class="p-3 text-left">Condition</th>
-                        <th class="p-3 text-left">IMEI</th>
-                        <th class="p-3 text-right">Estimated Value</th>
-                        <th class="p-3 text-left">Transaction Code</th>
-                        <th class="p-3 text-left">Customer</th>
-                        <th class="p-3 text-left">Status</th>
-                        <th class="p-3 text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($pendingSwappedItems as $item): ?>
-                        <tr class="border-b swapped-item-row" data-item-id="<?= $item['id'] ?? '' ?>" style="background-color: #f3e8ff; color: #6b21a8;" onmouseover="this.style.backgroundColor='#e9d5ff'" onmouseout="this.style.backgroundColor='#f3e8ff'">
-                            <td class="p-3">
-                                <input type="checkbox" class="swapped-item-checkbox cursor-pointer" data-item-id="<?= $item['id'] ?? '' ?>" value="<?= $item['id'] ?? '' ?>">
-                            </td>
-                            <td class="p-3" style="color: #6b21a8;">
-                                <span class="inline-block px-2 py-1 rounded text-xs" style="background-color: #c4b5fd; color: #6b21a8;">
-                                    <?= htmlspecialchars($item['brand'] ?? 'N/A') ?>
-                                </span>
-                            </td>
-                            <td class="p-3 font-medium" style="color: #6b21a8;"><?= htmlspecialchars($item['model'] ?? 'N/A') ?></td>
-                            <td class="p-3">
-                                <span class="px-2 py-1 rounded text-xs" style="background-color: #c4b5fd; color: #6b21a8;">
-                                    <?= ucfirst($item['condition'] ?? 'used') ?>
-                                </span>
-                            </td>
-                            <td class="p-3 font-mono text-xs" style="color: #6b21a8;">
-                                <?= htmlspecialchars($item['imei'] ?? '-') ?>
-                            </td>
-                            <td class="p-3 text-right font-semibold" style="color: #6b21a8;">
-                                ₵<?= number_format($item['estimated_value'] ?? 0, 2) ?>
-                            </td>
-                            <td class="p-3 font-mono text-xs" style="color: #6b21a8;">
-                                <?= htmlspecialchars($item['transaction_code'] ?? 'N/A') ?>
-                            </td>
-                            <td class="p-3">
-                                <div class="text-sm">
-                                    <div class="font-medium" style="color: #6b21a8;"><?= htmlspecialchars($item['customer_name'] ?? 'N/A') ?></div>
-                                    <div class="text-xs" style="color: #6b21a8;"><?= htmlspecialchars($item['customer_phone'] ?? '') ?></div>
-                                </div>
-                            </td>
-                            <td class="p-3">
-                                <span class="px-2 py-1 rounded text-xs" style="background-color: #c4b5fd; color: #6b21a8;">
-                                    <?= ucfirst(str_replace('_', ' ', $item['status'] ?? 'in_stock')) ?>
-                                </span>
-                            </td>
-                            <td class="p-3 text-right">
-                                <a href="<?= BASE_URL_PATH ?>/dashboard/swaps/<?= $item['swap_id'] ?? '' ?>" 
-                                   class="text-sm font-medium hover:underline" style="color: #6b21a8;">
-                                    View Swap
-                                </a>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <?php endif; ?>
 </div>
 
 <script>
 let currentSwapData = null;
 
-// Sync swapped items to inventory
 document.addEventListener('DOMContentLoaded', function() {
-    const syncBtn = document.getElementById('syncToInventoryBtn');
-    const selectAllCheckbox = document.getElementById('selectAllSwappedItems');
-    const itemCheckboxes = document.querySelectorAll('.swapped-item-checkbox');
-    
-    // Update selected count and enable/disable sync button
-    function updateSelectedCount() {
-        const selected = document.querySelectorAll('.swapped-item-checkbox:checked');
-        const count = selected.length;
-        const countSpan = document.getElementById('selectedCount');
-        if (countSpan) {
-            countSpan.textContent = count;
-        }
-        if (syncBtn) {
-            syncBtn.disabled = count === 0;
-        }
-        
-        // Update select all checkbox state
-        if (selectAllCheckbox && itemCheckboxes.length > 0) {
-            selectAllCheckbox.checked = count === itemCheckboxes.length;
-            selectAllCheckbox.indeterminate = count > 0 && count < itemCheckboxes.length;
-        }
-    }
-    
-    // Select all functionality
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            itemCheckboxes.forEach(cb => {
-                cb.checked = this.checked;
-            });
-            updateSelectedCount();
-        });
-    }
-    
-    // Individual checkbox change
-    itemCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', updateSelectedCount);
-    });
-    
-    // Sync button click
-    if (syncBtn) {
-        syncBtn.addEventListener('click', function() {
-            const selected = Array.from(document.querySelectorAll('.swapped-item-checkbox:checked')).map(cb => parseInt(cb.value));
-            
-            if (selected.length === 0) {
-                alert('Please select at least one item to sync.');
-                return;
-            }
-            
-            if (!confirm(`This will add ${selected.length} selected swapped item(s) to products inventory. Continue?`)) {
-                return;
-            }
-            
-            const originalText = syncBtn.innerHTML;
-            syncBtn.disabled = true;
-            syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Syncing...';
-            
-            fetch('<?= BASE_URL_PATH ?>/api/swaps/sync-to-inventory', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({
-                    selected_ids: selected
-                })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => {
-                        throw new Error('Server returned: ' + text.substring(0, 100));
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    alert(data.message + (data.errors && data.errors.length > 0 ? '\n\nErrors: ' + data.errors.join(', ') : ''));
-                    // Reload page after 1 second
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                } else {
-                    alert('Error: ' + (data.message || 'Failed to sync swapped items'));
-                    syncBtn.disabled = false;
-                    syncBtn.innerHTML = originalText;
-                }
-            })
-            .catch(error => {
-                console.error('Sync error:', error);
-                alert('Error syncing swapped items: ' + error.message);
-                syncBtn.disabled = false;
-                syncBtn.innerHTML = originalText;
-            });
-        });
-    }
-    
-    // Initial count update
-    updateSelectedCount();
     
     // Swap selection for salespeople (sync to products) and managers (delete)
     <?php 
@@ -759,9 +608,39 @@ function showPriceModalForSwap(swapId, swapItemData) {
 function showBulkPriceModal(swapIds) {
     pendingSwapIds = swapIds;
     pendingSwapData = null;
+    
+    // Calculate total phone value price from selected swaps
+    let totalPhoneValue = 0;
+    let phoneValueCount = 0;
+    
+    swapIds.forEach(swapId => {
+        const checkbox = document.querySelector(`.swap-checkbox[data-swap-id="${swapId}"]`);
+        if (checkbox) {
+            const phoneValue = parseFloat(checkbox.getAttribute('data-phone-value') || 0);
+            if (phoneValue > 0) {
+                totalPhoneValue += phoneValue;
+                phoneValueCount++;
+            }
+        }
+    });
+    
+    // Calculate average phone value price
+    const averagePhoneValue = phoneValueCount > 0 ? (totalPhoneValue / phoneValueCount) : 0;
+    const phoneValueDisplay = averagePhoneValue > 0 ? averagePhoneValue.toFixed(2) : '0.00';
+    
     document.getElementById('swapPriceModalItemName').textContent = swapIds.length + ' selected swap(s)';
-    document.getElementById('swapPriceModalEstimatedValue').textContent = '0.00';
-    document.getElementById('swapPriceModalResellPrice').value = '';
+    
+    // Show average phone value price (this will be applied to all selected items)
+    if (phoneValueCount > 1) {
+        document.getElementById('swapPriceModalEstimatedValue').textContent = phoneValueDisplay + ' (Average)';
+    } else {
+        document.getElementById('swapPriceModalEstimatedValue').textContent = phoneValueDisplay;
+    }
+    
+    // Default resell price to average phone value price
+    const defaultPrice = averagePhoneValue > 0 ? averagePhoneValue.toFixed(2) : '';
+    document.getElementById('swapPriceModalResellPrice').value = defaultPrice;
+    
     document.getElementById('swapPriceModal').classList.remove('hidden');
 }
 
@@ -903,8 +782,10 @@ function showSwapDetailsModal(swapData) {
         }
     }
     
-    // Parse company specs
+    // Parse company specs - check both JSON column and individual spec fields
     let companySpecs = {};
+    
+    // First, try to parse from JSON column
     if (swapData.company_specs_json) {
         try {
             const decoded = JSON.parse(swapData.company_specs_json);
@@ -913,6 +794,51 @@ function showSwapDetailsModal(swapData) {
             }
         } catch (e) {
             // Not JSON, ignore
+        }
+    }
+    
+    // Also check individual spec fields from product_specs table
+    // These override JSON specs if both exist
+    if (swapData.company_spec_storage) {
+        companySpecs.storage = swapData.company_spec_storage;
+    }
+    if (swapData.company_spec_ram) {
+        companySpecs.ram = swapData.company_spec_ram;
+    }
+    if (swapData.company_spec_color) {
+        companySpecs.color = swapData.company_spec_color;
+    }
+    if (swapData.company_spec_battery) {
+        companySpecs.battery = swapData.company_spec_battery;
+    }
+    
+    
+    // Calculate cash received (added_cash)
+    let addedCash = 0;
+    if (swapData.added_cash && swapData.added_cash !== null && swapData.added_cash !== 'NULL' && parseFloat(swapData.added_cash) > 0) {
+        addedCash = parseFloat(swapData.added_cash);
+    } else if (swapData.cash_added && swapData.cash_added !== null && swapData.cash_added !== 'NULL' && parseFloat(swapData.cash_added) > 0) {
+        addedCash = parseFloat(swapData.cash_added);
+    } else if (swapData.difference_paid_by_company && swapData.difference_paid_by_company !== null) {
+        addedCash = -parseFloat(swapData.difference_paid_by_company);
+    }
+    
+    // If added_cash is still 0, calculate it from the difference
+    if (addedCash == 0 || addedCash <= 0) {
+        const totalValue = parseFloat(swapData.total_value || 0);
+        const companyProductPrice = parseFloat(swapData.company_product_price || 0);
+        const customerProductValue = parseFloat(swapData.customer_product_value || 0);
+        
+        // Use total_value if available, otherwise use company_product_price
+        const baseValue = totalValue > 0 ? totalValue : companyProductPrice;
+        
+        // If we have both base value and customer product value, calculate the difference
+        if (baseValue > 0 && customerProductValue > 0 && baseValue > customerProductValue) {
+            const calculatedAddedCash = baseValue - customerProductValue;
+            // Only use calculated value if it's positive (customer adds cash)
+            if (calculatedAddedCash > 0) {
+                addedCash = calculatedAddedCash;
+            }
         }
     }
     
@@ -929,16 +855,43 @@ function showSwapDetailsModal(swapData) {
                     <p class="text-sm font-bold text-gray-900">₵${parseFloat(swapData.total_value || 0).toFixed(2)}</p>
                 </div>
                 <div>
+                    <span class="text-sm font-medium text-gray-600">Top Up Cash:</span>
+                    <p class="text-sm font-bold text-emerald-700">₵${addedCash > 0 ? addedCash.toFixed(2) : '0.00'}</p>
+                    <p class="text-xs text-gray-500 mt-0.5">From customer</p>
+                </div>
+                <div>
                     <span class="text-sm font-medium text-gray-600">Date & Time:</span>
                     <p class="text-sm text-gray-700">${swapData.swap_date || swapData.created_at ? formatDateTime(swapData.swap_date || swapData.created_at) : 'N/A'}</p>
                 </div>
                 <div>
                     <span class="text-sm font-medium text-gray-600">Status:</span>
-                    <span class="px-2 py-1 rounded-full text-xs font-medium ${
-                        swapData.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        swapData.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-purple-100 text-purple-800'
-                    }">${(swapData.status || 'pending').charAt(0).toUpperCase() + (swapData.status || 'pending').slice(1)}</span>
+                    ${(() => {
+                        // Use same logic as table view: check resale_status first, then swap status
+                        const swapStatus = swapData.status || 'pending';
+                        const resaleStatus = swapData.resale_status || null;
+                        
+                        let displayStatus = 'Pending';
+                        let statusColor = 'bg-yellow-100 text-yellow-800';
+                        
+                        if (resaleStatus === 'sold') {
+                            displayStatus = 'Resold';
+                            statusColor = 'bg-purple-100 text-purple-800';
+                        } else if (resaleStatus === 'in_stock') {
+                            displayStatus = 'Completed';
+                            statusColor = 'bg-green-100 text-green-800';
+                        } else if (swapStatus === 'completed') {
+                            displayStatus = 'Completed';
+                            statusColor = 'bg-green-100 text-green-800';
+                        } else if (swapStatus === 'resold') {
+                            displayStatus = 'Resold';
+                            statusColor = 'bg-purple-100 text-purple-800';
+                        } else {
+                            displayStatus = 'Pending';
+                            statusColor = 'bg-yellow-100 text-yellow-800';
+                        }
+                        
+                        return `<span class="px-2 py-1 rounded-full text-xs font-medium ${statusColor}">${displayStatus}</span>`;
+                    })()}
                 </div>
             </div>
         </div>
@@ -1029,10 +982,22 @@ function showSwapDetailsModal(swapData) {
                             <span class="text-sm text-gray-900 font-semibold">${escapeHtml(swapData.company_brand || swapData.company_product_brand || '')}</span>
                         </div>
                     ` : ''}
-                    ${swapData.company_product_price ? `
+                    ${swapData.company_product_model || swapData.company_model ? `
                         <div class="flex items-center">
-                            <span class="text-sm font-medium text-gray-700 w-24">Price:</span>
-                            <span class="text-sm text-gray-900 font-semibold">₵${parseFloat(swapData.company_product_price).toFixed(2)}</span>
+                            <span class="text-sm font-medium text-gray-700 w-24">Model:</span>
+                            <span class="text-sm text-gray-900 font-semibold">${escapeHtml(swapData.company_product_model || swapData.company_model || '')}</span>
+                        </div>
+                    ` : ''}
+                    ${(swapData.company_imei && swapData.company_imei !== 'NULL' && swapData.company_imei !== null) || (companySpecs.imei && companySpecs.imei !== 'NULL' && companySpecs.imei !== null) ? `
+                        <div class="flex items-center">
+                            <span class="text-sm font-medium text-gray-700 w-24">IMEI:</span>
+                            <span class="text-sm text-gray-900">${escapeHtml(swapData.company_imei || companySpecs.imei || 'N/A')}</span>
+                        </div>
+                    ` : ''}
+                    ${(swapData.company_condition && swapData.company_condition !== 'NULL' && swapData.company_condition !== null) || (companySpecs.condition && companySpecs.condition !== 'NULL' && companySpecs.condition !== null) ? `
+                        <div class="flex items-center">
+                            <span class="text-sm font-medium text-gray-700 w-24">Condition:</span>
+                            <span class="text-sm text-gray-900">${escapeHtml((swapData.company_condition || companySpecs.condition || 'N/A').charAt(0).toUpperCase() + (swapData.company_condition || companySpecs.condition || 'N/A').slice(1))}</span>
                         </div>
                     ` : ''}
                     ${companySpecs.storage ? `
@@ -1053,16 +1018,16 @@ function showSwapDetailsModal(swapData) {
                             <span class="text-sm text-gray-900">${escapeHtml(companySpecs.color)}</span>
                         </div>
                     ` : ''}
-                    ${swapData.company_product_model || swapData.company_model ? `
+                    ${swapData.company_product_price ? `
                         <div class="flex items-center">
-                            <span class="text-sm font-medium text-gray-700 w-24">Model:</span>
-                            <span class="text-sm text-gray-900">${escapeHtml(swapData.company_product_model || swapData.company_model || '')}</span>
+                            <span class="text-sm font-medium text-gray-700 w-24">Price:</span>
+                            <span class="text-sm text-gray-900 font-semibold">₵${parseFloat(swapData.company_product_price).toFixed(2)}</span>
                         </div>
                     ` : ''}
-                    ${companySpecs.battery ? `
+                    ${companySpecs.battery || companySpecs.battery_health ? `
                         <div class="flex items-center">
                             <span class="text-sm font-medium text-gray-700 w-24">Battery:</span>
-                            <span class="text-sm text-gray-900">${escapeHtml(companySpecs.battery)}</span>
+                            <span class="text-sm text-gray-900">${escapeHtml(companySpecs.battery || companySpecs.battery_health || '')}</span>
                         </div>
                     ` : ''}
                 </div>

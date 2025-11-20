@@ -6,7 +6,7 @@
  * * * * * * php /path/to/app/Workers/alert_worker.php
  * 
  * Or every 5 minutes for non-critical:
- * */5 * * * * php /path/to/app/Workers/alert_worker.php
+ * *\/5 * * * * php /path/to/app/Workers/alert_worker.php
  */
 
 // Prevent web access

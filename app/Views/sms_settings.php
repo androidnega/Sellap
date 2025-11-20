@@ -82,12 +82,22 @@ $companyId = $_SESSION['user']['company_id'] ?? null;
                     </div>
                 </div>
             </div>
-            <!-- Recent SMS Logs -->
+            <!-- SMS Logs with Pagination -->
             <div>
-                <h4 class="font-semibold text-gray-700 mb-3 flex items-center">
-                    <i class="fas fa-list-alt text-teal-600 mr-2"></i>
-                    Recent SMS Activity (Last 20)
-                </h4>
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="font-semibold text-gray-700 flex items-center">
+                        <i class="fas fa-list-alt text-teal-600 mr-2"></i>
+                        SMS Activity History
+                    </h4>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-gray-600">Per page:</label>
+                        <select id="sms-logs-per-page" class="text-xs border border-gray-300 rounded px-2 py-1">
+                            <option value="25">25</option>
+                            <option value="50" selected>50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50">
@@ -104,6 +114,21 @@ $companyId = $_SESSION['user']['company_id'] ?? null;
                         </tbody>
                     </table>
                 </div>
+                <!-- Pagination Controls -->
+                <div id="sms-logs-pagination" class="mt-4 flex items-center justify-between">
+                    <div class="text-sm text-gray-600">
+                        <span id="sms-logs-info">Loading...</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="sms-logs-prev" class="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            <i class="fas fa-chevron-left mr-1"></i>Previous
+                        </button>
+                        <span id="sms-logs-page-info" class="text-sm text-gray-600 px-3">Page 1 of 1</span>
+                        <button id="sms-logs-next" class="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            Next<i class="fas fa-chevron-right ml-1"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -115,6 +140,12 @@ $companyId = $_SESSION['user']['company_id'] ?? null;
 <script>
 // BASE is already declared in the dashboard layout as a const
 // Just reference it directly - no need to redeclare
+
+// SMS logs pagination state
+let smsLogsCurrentPage = 1;
+let smsLogsPerPage = 50;
+let smsLogsTotalPages = 1;
+let smsLogsTotal = 0;
 
 // Load SMS data - expose globally so payment-success page can call it
 window.loadSMSData = async function loadSMSData() {
@@ -137,17 +168,79 @@ window.loadSMSData = async function loadSMSData() {
             updateSMSData(data.data.sms);
         } else {
             console.error('Failed to load SMS data:', data);
-            const logsTable = document.getElementById('sms-logs-table');
-            if (logsTable) {
-                logsTable.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-center text-gray-500">Failed to load SMS data</td></tr>';
-            }
         }
     } catch (error) {
         console.error('Error loading SMS data:', error);
+    }
+    
+    // Load SMS logs separately with pagination
+    loadSMSLogs();
+}
+
+// Load SMS logs with pagination
+async function loadSMSLogs(page = smsLogsCurrentPage, limit = smsLogsPerPage) {
+    try {
+        const token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
+        if (!token) {
+            console.error('No authentication token found');
+            return;
+        }
+        
+        const response = await fetch(BASE + `/api/sms/logs?page=${page}&limit=${limit}`, {
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateSMSLogs(data.logs || []);
+            updateSMSLogsPagination(data.pagination || {});
+        } else {
+            console.error('Failed to load SMS logs:', data);
+            const logsTable = document.getElementById('sms-logs-table');
+            if (logsTable) {
+                logsTable.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-center text-red-500">Failed to load SMS logs</td></tr>';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading SMS logs:', error);
         const logsTable = document.getElementById('sms-logs-table');
         if (logsTable) {
-            logsTable.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-center text-red-500">Error loading SMS data</td></tr>';
+            logsTable.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-center text-red-500">Error loading SMS logs</td></tr>';
         }
+    }
+}
+
+// Update SMS logs pagination info
+function updateSMSLogsPagination(pagination) {
+    smsLogsCurrentPage = pagination.page || 1;
+    smsLogsTotalPages = pagination.pages || 1;
+    smsLogsTotal = pagination.total || 0;
+    
+    // Update pagination info text
+    const infoEl = document.getElementById('sms-logs-info');
+    if (infoEl) {
+        const start = ((smsLogsCurrentPage - 1) * smsLogsPerPage) + 1;
+        const end = Math.min(smsLogsCurrentPage * smsLogsPerPage, smsLogsTotal);
+        infoEl.textContent = `Showing ${start}-${end} of ${smsLogsTotal} SMS messages`;
+    }
+    
+    // Update page info
+    const pageInfoEl = document.getElementById('sms-logs-page-info');
+    if (pageInfoEl) {
+        pageInfoEl.textContent = `Page ${smsLogsCurrentPage} of ${smsLogsTotalPages}`;
+    }
+    
+    // Update button states
+    const prevBtn = document.getElementById('sms-logs-prev');
+    const nextBtn = document.getElementById('sms-logs-next');
+    if (prevBtn) {
+        prevBtn.disabled = smsLogsCurrentPage <= 1;
+    }
+    if (nextBtn) {
+        nextBtn.disabled = smsLogsCurrentPage >= smsLogsTotalPages;
     }
 }
 
@@ -198,8 +291,8 @@ function updateSMSData(sms) {
         alertEl.classList.add('hidden');
     }
     
-    // Update SMS logs table
-    updateSMSLogs(sms.recent_logs || []);
+    // SMS logs are loaded separately with pagination
+    // Don't update logs here anymore
 }
 
 function updateSMSLogs(logs) {
@@ -266,6 +359,34 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Refresh every 2 minutes
     setInterval(loadSMSData, 120000);
+    
+    // Pagination event listeners
+    const prevBtn = document.getElementById('sms-logs-prev');
+    const nextBtn = document.getElementById('sms-logs-next');
+    const perPageSelect = document.getElementById('sms-logs-per-page');
+    
+    if (prevBtn) {
+        prevBtn.addEventListener('click', function() {
+            if (smsLogsCurrentPage > 1) {
+                loadSMSLogs(smsLogsCurrentPage - 1, smsLogsPerPage);
+            }
+        });
+    }
+    
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function() {
+            if (smsLogsCurrentPage < smsLogsTotalPages) {
+                loadSMSLogs(smsLogsCurrentPage + 1, smsLogsPerPage);
+            }
+        });
+    }
+    
+    if (perPageSelect) {
+        perPageSelect.addEventListener('change', function() {
+            smsLogsPerPage = parseInt(this.value);
+            loadSMSLogs(1, smsLogsPerPage); // Reset to page 1 when changing per page
+        });
+    }
 });
 </script>
 

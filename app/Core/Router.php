@@ -70,11 +70,29 @@ class Router {
         
         $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
         
+        // Aggressively remove kabz_events from URI in all forms (completely remove this path)
+        $uri = preg_replace('#/kabz_events(/|$)#', '/', $uri);
+        $uri = preg_replace('#^/kabz_events#', '', $uri);
+        $uri = str_replace('/kabz_events', '', $uri);
+        $uri = str_replace('kabz_events/', '', $uri);
+        $uri = str_replace('kabz_events', '', $uri);
+        
         // Remove base directory from URI if running in subdirectory
         $scriptName = dirname($_SERVER['SCRIPT_NAME']);
-        if ($scriptName !== '/') {
+        // Aggressively remove kabz_events from script name
+        $scriptName = preg_replace('#/kabz_events(/|$)#', '/', $scriptName);
+        $scriptName = preg_replace('#^/kabz_events#', '', $scriptName);
+        $scriptName = str_replace('/kabz_events', '', $scriptName);
+        $scriptName = str_replace('kabz_events/', '', $scriptName);
+        $scriptName = str_replace('kabz_events', '', $scriptName);
+        
+        if ($scriptName !== '/' && $scriptName !== '.' && !empty($scriptName)) {
             $uri = str_replace($scriptName, '', $uri);
         }
+        
+        // Final cleanup - ensure no kabz_events remains
+        $uri = preg_replace('#/kabz_events(/|$)#', '/', $uri);
+        $uri = str_replace('kabz_events', '', $uri);
         
         $uri = trim($uri, '/');
 
@@ -123,9 +141,7 @@ class Router {
         http_response_code(404);
         
         // For API requests, return JSON 404
-        if (strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false || 
-            strpos($_SERVER['REQUEST_URI'] ?? '', '/pos/') !== false ||
-            strpos($_SERVER['REQUEST_URI'] ?? '', '/dashboard/') !== false) {
+        if (strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false) {
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => false,
@@ -135,15 +151,105 @@ class Router {
                 'available_routes' => array_keys($this->routes[$method] ?? [])
             ]);
         } else {
-            echo "404 - Page Not Found<br>";
-            echo "Method: " . htmlspecialchars($method) . "<br>";
-            echo "URI: " . htmlspecialchars($uri) . "<br>";
-            if (isset($this->routes[$method])) {
-                echo "Available " . $method . " routes:<br>";
-                foreach (array_keys($this->routes[$method]) as $route) {
-                    echo "- " . htmlspecialchars($route) . "<br>";
-                }
+            // Show nice "Oops!" page with option to go to homepage
+            header('Content-Type: text/html; charset=utf-8');
+            $homeUrl = defined('BASE_URL_PATH') ? BASE_URL_PATH : '/sellapp';
+            // Ensure kabz_events is not in home URL
+            $homeUrl = preg_replace('#/kabz_events(/|$)#', '/', $homeUrl);
+            $homeUrl = str_replace('kabz_events', '', $homeUrl);
+            if (empty($homeUrl) || $homeUrl === '/') {
+                $homeUrl = '/sellapp';
             }
+            echo '<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+        .container {
+            text-align: center;
+            animation: fadeIn 0.6s ease-in;
+            max-width: 600px;
+            padding: 2rem;
+        }
+        .oops {
+            font-size: 12rem;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 1rem;
+            color: #1a1a1a;
+            animation: bounce 1s ease-in-out;
+        }
+        .message {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            color: #666;
+        }
+        .home-button {
+            display: inline-block;
+            padding: 1rem 2.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+            background: #667eea;
+            border: none;
+            border-radius: 8px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .home-button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        .home-button:active {
+            transform: translateY(0);
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="oops">Oops!</div>
+        <div class="message">This page doesn\'t exist</div>
+        <a href="' . htmlspecialchars($homeUrl) . '" class="home-button">Go to Homepage</a>
+    </div>
+</body>
+</html>';
         }
     }
 

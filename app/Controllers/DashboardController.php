@@ -65,6 +65,24 @@ class DashboardController {
      * Render enhanced manager dashboard
      */
     private function renderManagerDashboard() {
+        // Get user data from session
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $userData = $_SESSION['user'] ?? null;
+        $companyId = $userData['company_id'] ?? null;
+        $role = $userData['role'] ?? 'manager';
+        
+        // Get date range from request if provided (for filtering)
+        $dateFrom = $_GET['date_from'] ?? null;
+        $dateTo = $_GET['date_to'] ?? null;
+        
+        // Calculate dashboard metrics in PHP (with date range if provided)
+        $dashboardMetrics = $this->calculateDashboardMetrics($companyId, $role, $dateFrom, $dateTo);
+        
+        // Pass metrics to view
+        extract($dashboardMetrics);
+        
         // Use comprehensive dashboard if it exists, otherwise fallback to basic
         $comprehensiveDashboard = APP_PATH . '/Views/manager-dashboard-comprehensive.php';
         if (file_exists($comprehensiveDashboard)) {
@@ -72,6 +90,353 @@ class DashboardController {
         } else {
             include APP_PATH . '/Views/manager-dashboard.php';
         }
+    }
+    
+    /**
+     * Calculate dashboard metrics for manager dashboard (pure PHP)
+     */
+    private function calculateDashboardMetrics($companyId, $role = 'manager', $dateFrom = null, $dateTo = null) {
+        if (!$companyId) {
+            return $this->getEmptyMetrics();
+        }
+        
+        $db = \Database::getInstance()->getConnection();
+        $metrics = [];
+        
+        try {
+            // Get enabled modules
+            $companyModule = new CompanyModule();
+            $enabledModuleKeys = $role === 'system_admin' 
+                ? ['products_inventory', 'pos_sales', 'swap', 'repairs', 'customers', 'staff_management', 'reports_analytics']
+                : $companyModule->getEnabledModules($companyId);
+            
+            // POS / Sales metrics
+            if ($role === 'system_admin' || in_array('pos_sales', $enabledModuleKeys)) {
+                // Today's revenue - EXCLUDE swap transactions
+                // Use swap_id IS NULL to exclude all swap-related sales
+                $todayRevenueQuery = $db->prepare("
+                    SELECT COALESCE(SUM(final_amount), 0) as revenue 
+                    FROM pos_sales 
+                    WHERE company_id = ? AND DATE(created_at) = CURDATE()
+                    AND swap_id IS NULL
+                ");
+                $todayRevenueQuery->execute([$companyId]);
+                $metrics['today_revenue'] = (float)($todayRevenueQuery->fetch()['revenue'] ?? 0);
+                
+                // Today's sales count - EXCLUDE swap transactions
+                $todaySalesQuery = $db->prepare("
+                    SELECT COUNT(*) as count 
+                    FROM pos_sales 
+                    WHERE company_id = ? AND DATE(created_at) = CURDATE()
+                    AND swap_id IS NULL
+                ");
+                $todaySalesQuery->execute([$companyId]);
+                $metrics['today_sales'] = (int)($todaySalesQuery->fetch()['count'] ?? 0);
+                
+            } else {
+                $metrics['today_revenue'] = 0;
+                $metrics['today_sales'] = 0;
+            }
+            
+            // Repairs metrics
+            if ($role === 'system_admin' || in_array('repairs', $enabledModuleKeys)) {
+                $activeRepairsQuery = $db->prepare("
+                    SELECT COUNT(*) as count 
+                    FROM repairs 
+                    WHERE company_id = ? AND UPPER(repair_status) IN ('PENDING','IN_PROGRESS')
+                ");
+                $activeRepairsQuery->execute([$companyId]);
+                $metrics['active_repairs'] = (int)($activeRepairsQuery->fetch()['count'] ?? 0);
+            } else {
+                $metrics['active_repairs'] = 0;
+            }
+            
+            // Swap metrics
+            if ($role === 'system_admin' || in_array('swap', $enabledModuleKeys)) {
+                $pendingSwapsQuery = $db->prepare("
+                    SELECT COUNT(*) as count 
+                    FROM swaps 
+                    WHERE company_id = ? AND UPPER(swap_status) = 'PENDING'
+                ");
+                $pendingSwapsQuery->execute([$companyId]);
+                $metrics['pending_swaps'] = (int)($pendingSwapsQuery->fetch()['count'] ?? 0);
+            } else {
+                $metrics['pending_swaps'] = 0;
+            }
+            
+        } catch (\Exception $e) {
+            error_log("DashboardController::calculateDashboardMetrics - Error: " . $e->getMessage());
+            return $this->getEmptyMetrics();
+        }
+        
+        return $metrics;
+    }
+    
+    /**
+     * Calculate profit metrics from inventory products
+     * Now calculates monthly profit by default (or date range if provided)
+     */
+    private function calculateProfitMetrics($companyId, $db, $dateFrom = null, $dateTo = null) {
+        $result = [
+            'today_profit' => 0.00,
+            'monthly_profit' => 0.00,
+            'display_profit' => 0.00
+        ];
+        
+        try {
+            // Check which products table exists
+            $checkProductsNew = $db->query("SHOW TABLES LIKE 'products_new'");
+            $productsTable = ($checkProductsNew && $checkProductsNew->rowCount() > 0) ? 'products_new' : 'products';
+            
+            // Check which cost columns exist
+            $checkCostPrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost_price'");
+            $checkCost = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost'");
+            $checkPurchasePrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'purchase_price'");
+            $hasCostPrice = $checkCostPrice->rowCount() > 0;
+            $hasCost = $checkCost->rowCount() > 0;
+            $hasPurchasePrice = $checkPurchasePrice->rowCount() > 0;
+            
+            // Determine cost column to use (prioritize cost_price, then cost, then purchase_price)
+            $costColumn = '0';
+            if ($hasCostPrice) {
+                $costColumn = 'COALESCE(p.cost_price, p.cost, 0)';
+            } elseif ($hasCost) {
+                $costColumn = 'COALESCE(p.cost, 0)';
+            } elseif ($hasPurchasePrice) {
+                $costColumn = 'COALESCE(p.purchase_price, 0)';
+            }
+            
+            // Calculate today's profit (for reference)
+            $todayProfitQuery = $db->prepare("
+                SELECT 
+                    COALESCE(SUM(psi.total_price), 0) as revenue,
+                    COALESCE(SUM(CASE 
+                        WHEN p.id IS NOT NULL THEN psi.quantity * {$costColumn}
+                        ELSE 0
+                    END), 0) as cost
+                FROM pos_sale_items psi
+                INNER JOIN pos_sales ps ON psi.pos_sale_id = ps.id
+                LEFT JOIN {$productsTable} p ON psi.item_id = p.id AND p.company_id = ps.company_id
+                WHERE ps.company_id = ? 
+                AND DATE(ps.created_at) = CURDATE()
+                AND psi.item_id IS NOT NULL 
+                AND psi.item_id > 0
+            ");
+            $todayProfitQuery->execute([$companyId]);
+            $todayResult = $todayProfitQuery->fetch(\PDO::FETCH_ASSOC);
+            $todayRevenue = floatval($todayResult['revenue'] ?? 0);
+            $todayCost = floatval($todayResult['cost'] ?? 0);
+            $todayProfit = $todayRevenue - $todayCost;
+            if ($todayProfit < 0) $todayProfit = 0;
+            $result['today_profit'] = round($todayProfit, 2);
+            
+            // Calculate monthly profit (or date range profit if dates provided)
+            // Default to current month if no dates provided
+            // Try multiple matching strategies: by item_id, by description, or use fallback
+            if ($dateFrom && $dateTo) {
+                // Use provided date range
+                $dateFromStart = $dateFrom . ' 00:00:00';
+                $dateToEnd = $dateTo . ' 23:59:59';
+                $monthlyProfitQuery = $db->prepare("
+                    SELECT 
+                        COALESCE(SUM(psi.total_price), 0) as revenue,
+                        COALESCE(SUM(CASE 
+                            WHEN p.id IS NOT NULL THEN psi.quantity * {$costColumn}
+                            ELSE 0
+                        END), 0) as cost
+                    FROM pos_sale_items psi
+                    INNER JOIN pos_sales ps ON psi.pos_sale_id = ps.id
+                    LEFT JOIN {$productsTable} p ON (
+                        (psi.item_id = p.id AND p.company_id = ps.company_id)
+                        OR ((psi.item_id IS NULL OR psi.item_id = 0) AND LOWER(TRIM(psi.item_description)) = LOWER(TRIM(p.name)) AND p.company_id = ps.company_id)
+                    )
+                    WHERE ps.company_id = ? 
+                    AND ps.created_at >= ? 
+                    AND ps.created_at <= ?
+                    AND p.id IS NOT NULL
+                ");
+                $monthlyProfitQuery->execute([$companyId, $dateFromStart, $dateToEnd]);
+            } else {
+                // Default to current month (from day 1 to today)
+                // Match by item_id OR by description if item_id is missing
+                $monthlyProfitQuery = $db->prepare("
+                    SELECT 
+                        COALESCE(SUM(psi.total_price), 0) as revenue,
+                        COALESCE(SUM(CASE 
+                            WHEN p.id IS NOT NULL THEN psi.quantity * {$costColumn}
+                            ELSE 0
+                        END), 0) as cost
+                    FROM pos_sale_items psi
+                    INNER JOIN pos_sales ps ON psi.pos_sale_id = ps.id
+                    LEFT JOIN {$productsTable} p ON (
+                        (psi.item_id = p.id AND p.company_id = ps.company_id)
+                        OR ((psi.item_id IS NULL OR psi.item_id = 0) AND LOWER(TRIM(psi.item_description)) = LOWER(TRIM(p.name)) AND p.company_id = ps.company_id)
+                    )
+                    WHERE ps.company_id = ? 
+                    AND MONTH(ps.created_at) = MONTH(CURDATE()) 
+                    AND YEAR(ps.created_at) = YEAR(CURDATE())
+                    AND p.id IS NOT NULL
+                ");
+                $monthlyProfitQuery->execute([$companyId]);
+            }
+            
+            $monthlyResult = $monthlyProfitQuery->fetch(\PDO::FETCH_ASSOC);
+            $monthlyRevenue = floatval($monthlyResult['revenue'] ?? 0);
+            $monthlyCost = floatval($monthlyResult['cost'] ?? 0);
+            $monthlyProfit = $monthlyRevenue - $monthlyCost;
+            if ($monthlyProfit < 0) $monthlyProfit = 0;
+            
+            // If we have revenue but cost is 0, check if products exist but don't have cost values
+            // In this case, we can't calculate accurate profit, but we should log it
+            if ($monthlyRevenue > 0 && $monthlyCost == 0) {
+                // Check if products exist but have no cost
+                $checkProductsQuery = $db->prepare("
+                    SELECT COUNT(DISTINCT p.id) as products_found
+                    FROM pos_sale_items psi
+                    INNER JOIN pos_sales ps ON psi.pos_sale_id = ps.id
+                    LEFT JOIN {$productsTable} p ON (
+                        (psi.item_id = p.id AND p.company_id = ps.company_id)
+                        OR ((psi.item_id IS NULL OR psi.item_id = 0) AND LOWER(TRIM(psi.item_description)) = LOWER(TRIM(p.name)) AND p.company_id = ps.company_id)
+                    )
+                    WHERE ps.company_id = ? 
+                    AND MONTH(ps.created_at) = MONTH(CURDATE()) 
+                    AND YEAR(ps.created_at) = YEAR(CURDATE())
+                    AND p.id IS NOT NULL
+                ");
+                $checkProductsQuery->execute([$companyId]);
+                $productsFound = intval($checkProductsQuery->fetch()['products_found'] ?? 0);
+                
+                if ($productsFound > 0) {
+                    $warningMsg = "Profit Calculation WARNING - Company {$companyId}: Found {$productsFound} products but cost is 0. Products may not have cost values set.";
+                    error_log($warningMsg);
+                    
+                    // Also log to custom file
+                    $logFile = STORAGE_PATH . '/logs/profit_calculation.log';
+                    $logDir = dirname($logFile);
+                    if (!is_dir($logDir)) {
+                        @mkdir($logDir, 0755, true);
+                    }
+                    @file_put_contents($logFile, date('Y-m-d H:i:s') . " - " . $warningMsg . "\n", FILE_APPEND);
+                }
+            }
+            
+            $result['monthly_profit'] = round($monthlyProfit, 2);
+            
+            // Debug: Check if we're missing items due to item_id being NULL/0
+            $debugQuery = $db->prepare("
+                SELECT 
+                    COUNT(*) as total_items,
+                    SUM(CASE WHEN item_id IS NULL OR item_id = 0 THEN 1 ELSE 0 END) as items_without_id,
+                    SUM(CASE WHEN item_id IS NOT NULL AND item_id > 0 THEN 1 ELSE 0 END) as items_with_id,
+                    COALESCE(SUM(CASE WHEN item_id IS NULL OR item_id = 0 THEN total_price ELSE 0 END), 0) as revenue_without_id
+                FROM pos_sale_items psi
+                INNER JOIN pos_sales ps ON psi.pos_sale_id = ps.id
+                WHERE ps.company_id = ? 
+                AND MONTH(ps.created_at) = MONTH(CURDATE()) 
+                AND YEAR(ps.created_at) = YEAR(CURDATE())
+            ");
+            $debugQuery->execute([$companyId]);
+            $debugResult = $debugQuery->fetch(\PDO::FETCH_ASSOC);
+            
+            // Log to both PHP error log and custom file
+            $logMessages = [
+                "Profit Calculation Debug - Company: {$companyId}, Monthly Revenue: {$monthlyRevenue}, Monthly Cost: {$monthlyCost}, Monthly Profit: {$monthlyProfit}",
+                "Profit Calculation Debug - Total Items: " . ($debugResult['total_items'] ?? 0) . ", With ID: " . ($debugResult['items_with_id'] ?? 0) . ", Without ID: " . ($debugResult['items_without_id'] ?? 0) . ", Revenue Without ID: " . ($debugResult['revenue_without_id'] ?? 0)
+            ];
+            
+            foreach ($logMessages as $msg) {
+                error_log($msg);
+            }
+            
+            // Also log to custom file
+            $logFile = STORAGE_PATH . '/logs/profit_calculation.log';
+            $logDir = dirname($logFile);
+            if (!is_dir($logDir)) {
+                @mkdir($logDir, 0755, true);
+            }
+            foreach ($logMessages as $msg) {
+                @file_put_contents($logFile, date('Y-m-d H:i:s') . " - " . $msg . "\n", FILE_APPEND);
+            }
+            
+            // If we have revenue but no profit, and items are missing item_id, try to match by description
+            if ($monthlyRevenue > 0 && $monthlyProfit == 0 && ($debugResult['items_without_id'] ?? 0) > 0) {
+                $attemptMsg = "Profit Calculation: Attempting to match items by description for company {$companyId}";
+                error_log($attemptMsg);
+                
+                // Log to custom file
+                $logFile = STORAGE_PATH . '/logs/profit_calculation.log';
+                $logDir = dirname($logFile);
+                if (!is_dir($logDir)) {
+                    @mkdir($logDir, 0755, true);
+                }
+                @file_put_contents($logFile, date('Y-m-d H:i:s') . " - " . $attemptMsg . "\n", FILE_APPEND);
+                
+                // Try to calculate profit by matching item_description to product name
+                $descriptionMatchQuery = $db->prepare("
+                    SELECT 
+                        COALESCE(SUM(psi.total_price), 0) as revenue,
+                        COALESCE(SUM(psi.quantity * {$costColumn}), 0) as cost
+                    FROM pos_sale_items psi
+                    INNER JOIN pos_sales ps ON psi.pos_sale_id = ps.id
+                    LEFT JOIN {$productsTable} p ON (
+                        (psi.item_id = p.id AND p.company_id = ps.company_id)
+                        OR (psi.item_id IS NULL OR psi.item_id = 0) AND LOWER(TRIM(psi.item_description)) = LOWER(TRIM(p.name)) AND p.company_id = ps.company_id
+                    )
+                    WHERE ps.company_id = ? 
+                    AND MONTH(ps.created_at) = MONTH(CURDATE()) 
+                    AND YEAR(ps.created_at) = YEAR(CURDATE())
+                    AND p.id IS NOT NULL
+                ");
+                $descriptionMatchQuery->execute([$companyId]);
+                $descriptionResult = $descriptionMatchQuery->fetch(\PDO::FETCH_ASSOC);
+                $descRevenue = floatval($descriptionResult['revenue'] ?? 0);
+                $descCost = floatval($descriptionResult['cost'] ?? 0);
+                $descProfit = $descRevenue - $descCost;
+                if ($descProfit < 0) $descProfit = 0;
+                
+                if ($descProfit > $monthlyProfit) {
+                    $foundMsg = "Profit Calculation: Found profit via description matching: Revenue={$descRevenue}, Cost={$descCost}, Profit={$descProfit}";
+                    error_log($foundMsg);
+                    @file_put_contents($logFile, date('Y-m-d H:i:s') . " - " . $foundMsg . "\n", FILE_APPEND);
+                    $result['monthly_profit'] = round($descProfit, 2);
+                    $monthlyProfit = $descProfit;
+                }
+            }
+            
+            // Display profit: Always use monthly/date range profit (not today's)
+            $result['display_profit'] = round($monthlyProfit, 2);
+            
+        } catch (\Exception $e) {
+            $errorMsg = "DashboardController::calculateProfitMetrics - Error: " . $e->getMessage();
+            $errorTrace = "DashboardController::calculateProfitMetrics - Trace: " . $e->getTraceAsString();
+            
+            // Log to PHP error log
+            error_log($errorMsg);
+            error_log($errorTrace);
+            
+            // Also log to custom file
+            $logFile = STORAGE_PATH . '/logs/profit_calculation.log';
+            $logDir = dirname($logFile);
+            if (!is_dir($logDir)) {
+                @mkdir($logDir, 0755, true);
+            }
+            @file_put_contents($logFile, date('Y-m-d H:i:s') . " - " . $errorMsg . "\n", FILE_APPEND);
+            @file_put_contents($logFile, date('Y-m-d H:i:s') . " - " . $errorTrace . "\n", FILE_APPEND);
+        }
+        
+        return $result;
+    }
+    
+    /**
+     * Get empty metrics structure
+     */
+    private function getEmptyMetrics() {
+        return [
+            'today_revenue' => 0,
+            'today_sales' => 0,
+            'active_repairs' => 0,
+            'pending_swaps' => 0
+        ];
     }
     
     /**
@@ -98,17 +463,251 @@ class DashboardController {
         $companyId = $userData['company_id'] ?? null;
         $userId = $userData['id'] ?? null;
         
-        // Get technician's repairs
-        $repairModel = new \App\Models\Repair();
-        $pendingRepairs = $repairModel->findByTechnician($userId, $companyId, 'pending');
-        $inProgressRepairs = $repairModel->findByTechnician($userId, $companyId, 'in_progress');
-        $completedRepairs = $repairModel->findByTechnician($userId, $companyId, 'completed');
+        // Initialize arrays
+        $pendingRepairs = [];
+        $inProgressRepairs = [];
+        $completedRepairs = [];
+        $allRepairs = [];
         
-        // Get stats
-        $allRepairs = $repairModel->findByTechnician($userId, $companyId, null);
+        // Ensure user ID and company ID are valid integers
+        if (!empty($userId) && !empty($companyId)) {
+            // Ensure IDs are integers
+            $userId = (int)$userId;
+            $companyId = (int)$companyId;
+            
+            // Get technician's repairs - use direct queries for each status
+            $repairModel = new \App\Models\Repair();
+            $db = \Database::getInstance()->getConnection();
+            
+            // Get all repairs (for stats)
+            $allRepairs = $repairModel->findByTechnician($userId, $companyId, null);
+            
+            // Get repairs by status using direct queries (more reliable)
+            $pendingRepairs = $repairModel->findByTechnician($userId, $companyId, 'pending');
+            $inProgressRepairs = $repairModel->findByTechnician($userId, $companyId, 'in_progress');
+            $completedRepairs = $repairModel->findByTechnician($userId, $companyId, 'completed');
+            
+            // IMPORTANT: Also find repairs that have associated sales (parts sold by technician)
+            // These are repairs where the technician sold parts, even if they weren't assigned as the technician
+            $repairIdsFromSales = [];
+            try {
+                $salesQuery = $db->prepare("
+                    SELECT DISTINCT ps.notes
+                    FROM pos_sales ps
+                    WHERE ps.company_id = ?
+                      AND ps.created_by_user_id = ?
+                      AND (ps.notes LIKE 'Repair #%' OR ps.notes LIKE '%Products sold by repairer%')
+                ");
+                $salesQuery->execute([$companyId, $userId]);
+                $salesWithRepairNotes = $salesQuery->fetchAll(\PDO::FETCH_ASSOC);
+                
+                // Extract repair IDs from notes (format: "Repair #123 - Products sold by repairer")
+                foreach ($salesWithRepairNotes as $sale) {
+                    $notes = $sale['notes'] ?? '';
+                    if (preg_match('/Repair\s+#(\d+)/i', $notes, $matches)) {
+                        $repairId = intval($matches[1]);
+                        if ($repairId > 0) {
+                            $repairIdsFromSales[] = $repairId;
+                        }
+                    }
+                }
+                
+                // Get repairs that have sales but might not be in the technician's direct list
+                if (!empty($repairIdsFromSales)) {
+                    $repairIdsStr = implode(',', array_map('intval', array_unique($repairIdsFromSales)));
+                    
+                    // Check which repairs table exists
+                    $checkRepairsNew = $db->query("SHOW TABLES LIKE 'repairs_new'");
+                    $hasRepairsNew = $checkRepairsNew && $checkRepairsNew->rowCount() > 0;
+                    $repairsTable = $hasRepairsNew ? 'repairs_new' : 'repairs';
+                    $statusColumn = $hasRepairsNew ? 'status' : 'repair_status';
+                    
+                    // Build customer_contact_merged based on which table we're using
+                    // We'll use r.customer_contact directly and merge with c.phone_number in PHP
+                    if ($hasRepairsNew) {
+                        // repairs_new table has customer_contact column
+                        $contactSelect = "COALESCE(
+                            NULLIF(TRIM(c.phone_number), ''),
+                            NULLIF(TRIM(r.customer_contact), ''),
+                            ''
+                        ) as customer_contact_merged";
+                    } else {
+                        // repairs table doesn't have customer_contact, only customer_id
+                        $contactSelect = "COALESCE(
+                            NULLIF(TRIM(c.phone_number), ''),
+                            ''
+                        ) as customer_contact_merged";
+                    }
+                    
+                    // Get these repairs
+                    // Explicitly select all repair fields to ensure customer_name and customer_contact are included
+                    $salesRepairsQuery = $db->prepare("
+                        SELECT r.id, r.company_id, r.technician_id, r.product_id, r.device_brand, r.device_model,
+                               r.customer_name, r.customer_contact, r.customer_id, r.issue_description,
+                               r.repair_cost, r.parts_cost, r.accessory_cost, r.total_cost,
+                               r.status, r.repair_status, r.payment_status, r.tracking_code, r.notes, r.created_at, r.updated_at,
+                               p.name as product_name, 
+                               c.full_name as customer_name_from_table,
+                               c.phone_number,
+                               {$contactSelect}
+                        FROM {$repairsTable} r
+                        LEFT JOIN products p ON r.product_id = p.id
+                        LEFT JOIN customers c ON r.customer_id = c.id
+                        WHERE r.id IN ({$repairIdsStr})
+                          AND CAST(r.company_id AS UNSIGNED) = CAST(? AS UNSIGNED)
+                        ORDER BY r.created_at DESC
+                    ");
+                    $salesRepairsQuery->execute([$companyId]);
+                    $repairsFromSales = $salesRepairsQuery->fetchAll(\PDO::FETCH_ASSOC);
+                    
+                    // Normalize status and merge with existing repairs
+                    $existingRepairIds = array_column($allRepairs, 'id');
+                    foreach ($repairsFromSales as $repair) {
+                        // Normalize status
+                        if (!$hasRepairsNew && isset($repair['repair_status'])) {
+                            $repair['status'] = strtolower($repair['repair_status']);
+                        } elseif ($hasRepairsNew && isset($repair['status'])) {
+                            $repair['status'] = strtolower($repair['status']);
+                        }
+                        
+                        // Map customer name - prioritize merged data, then repair record, then customer table
+                        // Use customer_name_merged if available (from SQL COALESCE in Repair model)
+                        $customerName = '';
+                        if (isset($repair['customer_name_merged']) && !empty(trim($repair['customer_name_merged']))) {
+                            $customerName = trim($repair['customer_name_merged']);
+                        } elseif (isset($repair['customer_name']) && !empty(trim($repair['customer_name']))) {
+                            // r.customer_name from repair record (most reliable - actual booking data)
+                            $customerName = trim($repair['customer_name']);
+                        } elseif (isset($repair['customer_name_from_table']) && !empty(trim($repair['customer_name_from_table']))) {
+                            // Fall back to customer table
+                            $customerName = trim($repair['customer_name_from_table']);
+                        }
+                        // Only show "Unknown Customer" if we truly have no data (shouldn't happen for bookings)
+                        $repair['customer_name'] = $customerName ?: 'Unknown Customer';
+                        
+                        // Ensure customer_contact is properly set from multiple sources
+                        // Prioritize customer_contact_merged (from SQL COALESCE), then r.customer_contact, then phone_number
+                        $contact = '';
+                        if (isset($repair['customer_contact_merged']) && !empty(trim($repair['customer_contact_merged']))) {
+                            // Merged contact from SQL COALESCE (prioritizes repair record, then customer table)
+                            $contact = trim($repair['customer_contact_merged']);
+                        } elseif (!empty(trim($repair['customer_contact'] ?? ''))) {
+                            // r.customer_contact from repair record (most reliable)
+                            $contact = trim($repair['customer_contact']);
+                        } elseif (!empty(trim($repair['phone_number'] ?? ''))) {
+                            // c.phone_number from customers table
+                            $contact = trim($repair['phone_number']);
+                        }
+                        $repair['customer_contact'] = $contact;
+                        
+                        // Ensure issue_description is preserved - NEVER use notes as fallback (notes contains profit info)
+                        if (!empty(trim($repair['issue_description'] ?? ''))) {
+                            $repair['issue_description'] = trim($repair['issue_description']);
+                        } else {
+                            // Only use a generic default, never use notes field
+                            $repair['issue_description'] = 'Repair service';
+                        }
+                        
+                        // Add to allRepairs if not already there
+                        if (!in_array($repair['id'], $existingRepairIds)) {
+                            $allRepairs[] = $repair;
+                            $existingRepairIds[] = $repair['id'];
+                            
+                            // Add to appropriate status list
+                            $status = strtolower(trim($repair['status'] ?? ''));
+                            if ($status === 'pending' || $status === '' || $status === null) {
+                                $pendingRepairs[] = $repair;
+                            } elseif ($status === 'in_progress') {
+                                $inProgressRepairs[] = $repair;
+                            } elseif ($status === 'completed') {
+                                $completedRepairs[] = $repair;
+                            } elseif ($status === 'delivered') {
+                                // Delivered repairs are also counted in allRepairs for stats
+                                // They don't need a separate list, but they're included in the count
+                            }
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                error_log("Error finding repairs from sales: " . $e->getMessage());
+            }
+            
+            // Log for debugging
+            error_log("DashboardController::renderTechnicianDashboard() - User ID: {$userId}, Company ID: {$companyId}");
+            error_log("DashboardController::renderTechnicianDashboard() - Total repairs: " . count($allRepairs));
+            error_log("DashboardController::renderTechnicianDashboard() - Pending: " . count($pendingRepairs));
+            error_log("DashboardController::renderTechnicianDashboard() - In Progress: " . count($inProgressRepairs));
+            error_log("DashboardController::renderTechnicianDashboard() - Completed: " . count($completedRepairs));
+            error_log("DashboardController::renderTechnicianDashboard() - Repairs from sales: " . count($repairIdsFromSales));
+        }
         $totalRepairs = count($allRepairs);
         $totalRevenue = array_sum(array_column($allRepairs, 'total_cost'));
-        $completedCount = count(array_filter($allRepairs, fn($r) => $r['status'] === 'completed'));
+        
+        // Calculate counts from allRepairs to ensure accuracy
+        $completedCount = count(array_filter($allRepairs, function($r) {
+            $status = strtolower(trim($r['status'] ?? $r['repair_status'] ?? ''));
+            return $status === 'completed';
+        }));
+        
+        $pendingCount = count(array_filter($allRepairs, function($r) {
+            $status = strtolower(trim($r['status'] ?? $r['repair_status'] ?? ''));
+            return $status === 'pending' || $status === '';
+        }));
+        
+        $deliveredCount = count(array_filter($allRepairs, function($r) {
+            $status = strtolower(trim($r['status'] ?? $r['repair_status'] ?? ''));
+            return $status === 'delivered';
+        }));
+        
+        // Calculate repair cost and parts cost
+        $totalRepairCost = 0; // Workmanship/labour cost
+        $totalPartsCost = 0;  // Parts + accessories cost
+        foreach ($allRepairs as $repair) {
+            // Get repair cost (workmanship/labour) - check multiple possible field names
+            $repairCost = floatval($repair['repair_cost'] ?? $repair['labour_cost'] ?? 0);
+            // Get parts cost
+            $partsCost = floatval($repair['parts_cost'] ?? 0);
+            // Get accessory cost
+            $accessoryCost = floatval($repair['accessory_cost'] ?? 0);
+            // Get total cost
+            $totalCost = floatval($repair['total_cost'] ?? 0);
+            
+            // If individual costs are 0 but total_cost exists, use total_cost as repair_cost
+            // This handles cases where only total_cost is set
+            if ($repairCost == 0 && $partsCost == 0 && $accessoryCost == 0 && $totalCost > 0) {
+                // Use total_cost as repair_cost (workmanship)
+                $totalRepairCost += $totalCost;
+            } else {
+                // Sum repair costs (workmanship)
+                $totalRepairCost += $repairCost;
+                
+                // Sum parts cost - use parts_cost if set, otherwise accessory_cost
+                // When accessories are selected, parts_cost is set to equal accessory_cost in RepairController,
+                // so we use parts_cost as the primary source to avoid double counting
+                if ($partsCost > 0) {
+                    $totalPartsCost += $partsCost;
+                } else {
+                    // Only use accessory_cost if parts_cost is not set
+                    $totalPartsCost += $accessoryCost;
+                }
+            }
+        }
+        
+        // Ensure variables are defined even if empty
+        $totalRepairCost = $totalRepairCost ?? 0;
+        $totalPartsCost = $totalPartsCost ?? 0;
+        $completedCount = $completedCount ?? 0;
+        $pendingCount = $pendingCount ?? 0;
+        $deliveredCount = $deliveredCount ?? 0;
+        $pendingRepairs = $pendingRepairs ?? [];
+        $inProgressRepairs = $inProgressRepairs ?? [];
+        
+        // Pass variables to view
+        $GLOBALS['totalRepairCost'] = $totalRepairCost;
+        $GLOBALS['totalPartsCost'] = $totalPartsCost;
+        $GLOBALS['completedCount'] = $completedCount;
+        $GLOBALS['pendingCount'] = $pendingCount;
+        $GLOBALS['deliveredCount'] = $deliveredCount;
         
         $title = 'Technician Dashboard';
         
@@ -145,8 +744,109 @@ class DashboardController {
         window.APP_BASE_PATH = "' . $basePath . '";
         const BASE = window.APP_BASE_PATH || "";
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Preconnect to CDN for faster loading -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+    
+    <!-- Robust Tailwind CSS loader with online/offline detection and retry mechanism -->
+    <script>
+        (function() {
+            let tailwindLoaded = false;
+            let retryCount = 0;
+            const maxRetries = 10;
+            const retryDelay = 1000; // 1 second
+            
+            function loadTailwind() {
+                // Check if already loaded
+                if (tailwindLoaded || window.tailwind) {
+                    return;
+                }
+                
+                // Check if script already exists
+                const existingScript = document.querySelector("script[data-tailwind-loader]");
+                if (existingScript) {
+                    return;
+                }
+                
+                const script = document.createElement("script");
+                script.src = "https://cdn.tailwindcss.com";
+                script.async = true;
+                script.setAttribute("data-tailwind-loader", "true");
+                
+                script.onload = function() {
+                    tailwindLoaded = true;
+                    retryCount = 0;
+                    // Trigger a re-render to apply styles
+                    if (window.tailwind && typeof window.tailwind.refresh === "function") {
+                        window.tailwind.refresh();
+                    }
+                    // Show body once Tailwind is loaded
+                    document.body.classList.add("tailwind-loaded");
+                    // Dispatch custom event for other scripts
+                    window.dispatchEvent(new CustomEvent("tailwindLoaded"));
+                };
+                
+                script.onerror = function() {
+                    // Script failed to load
+                    if (retryCount < maxRetries) {
+                        retryCount++;
+                        setTimeout(loadTailwind, retryDelay);
+                    }
+                };
+                
+                document.head.appendChild(script);
+            }
+            
+            // Try loading immediately
+            loadTailwind();
+            
+            // Listen for online event and retry
+            window.addEventListener("online", function() {
+                if (!tailwindLoaded) {
+                    retryCount = 0; // Reset retry count when back online
+                    loadTailwind();
+                }
+            });
+            
+            // Periodic check when offline (in case online event doesn\'t fire)
+            let offlineCheckInterval = setInterval(function() {
+                if (navigator.onLine && !tailwindLoaded) {
+                    retryCount = 0;
+                    loadTailwind();
+                }
+            }, 2000); // Check every 2 seconds
+            
+            // Clear interval when Tailwind is loaded
+            const checkLoaded = setInterval(function() {
+                if (tailwindLoaded) {
+                    clearInterval(offlineCheckInterval);
+                    clearInterval(checkLoaded);
+                }
+            }, 500);
+            
+            // Fallback: Show body after 5 seconds even if Tailwind hasn\'t loaded
+            setTimeout(function() {
+                if (!tailwindLoaded) {
+                    document.body.classList.add("tailwind-loaded");
+                }
+            }, 5000);
+        })();
+    </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Hide body until Tailwind is loaded to prevent FOUC */
+        body {
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.2s ease-in;
+        }
+        
+        body.tailwind-loaded {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
     ' . $content . '
@@ -488,10 +1188,13 @@ class DashboardController {
             
             // POS / Sales metrics (only if module enabled)
             if ($role === 'system_admin' || in_array('pos_sales', $enabledModuleKeys)) {
+                // EXCLUDE swap transactions - swaps should only be tracked on swap page
+                // Use swap_id IS NULL to exclude all swap-related sales
                 $todayRevenueQuery = $db->prepare("
                     SELECT COALESCE(SUM(final_amount), 0) as revenue 
                     FROM pos_sales 
                     WHERE company_id = ? AND DATE(created_at) = CURDATE()
+                    AND swap_id IS NULL
                 ");
                 $todayRevenueQuery->execute([$companyId]);
                 $todayRevenue = $todayRevenueQuery->fetch()['revenue'] ?? 0;
@@ -500,14 +1203,18 @@ class DashboardController {
                     SELECT COUNT(*) as count 
                     FROM pos_sales 
                     WHERE company_id = ? AND DATE(created_at) = CURDATE()
+                    AND swap_id IS NULL
                 ");
                 $todaySalesQuery->execute([$companyId]);
                 $todaySales = $todaySalesQuery->fetch()['count'] ?? 0;
 
+                // EXCLUDE swap transactions - swaps should only be tracked on swap page
+                // Use swap_id IS NULL to exclude all swap-related sales
                 $monthlyRevenueQuery = $db->prepare("
                     SELECT COALESCE(SUM(final_amount), 0) as revenue 
                     FROM pos_sales 
                     WHERE company_id = ? AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())
+                    AND swap_id IS NULL
                 ");
                 $monthlyRevenueQuery->execute([$companyId]);
                 $monthlyRevenue = $monthlyRevenueQuery->fetch()['revenue'] ?? 0;
@@ -516,6 +1223,7 @@ class DashboardController {
                     SELECT COUNT(*) as count 
                     FROM pos_sales 
                     WHERE company_id = ? AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())
+                    AND swap_id IS NULL
                 ");
                 $monthlySalesQuery->execute([$companyId]);
                 $monthlySales = $monthlySalesQuery->fetch()['count'] ?? 0;
@@ -524,6 +1232,136 @@ class DashboardController {
                 $metrics['today_sales'] = (int)$todaySales;
                 $metrics['monthly_revenue'] = (float)$monthlyRevenue;
                 $metrics['monthly_sales'] = (int)$monthlySales;
+                
+                // Calculate profit from inventory products sold (by salesperson and technician)
+                try {
+                    // Check which products table exists
+                    $checkProductsNew = $db->query("SHOW TABLES LIKE 'products_new'");
+                    $productsTable = ($checkProductsNew && $checkProductsNew->rowCount() > 0) ? 'products_new' : 'products';
+                    
+                    // Check which cost columns exist
+                    $checkCostPrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost_price'");
+                    $checkCost = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost'");
+                    $checkPurchasePrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'purchase_price'");
+                    $hasCostPrice = $checkCostPrice->rowCount() > 0;
+                    $hasCost = $checkCost->rowCount() > 0;
+                    $hasPurchasePrice = $checkPurchasePrice->rowCount() > 0;
+                    
+                    // Determine cost column to use (prioritize cost_price, then cost, then purchase_price)
+                    $costColumn = '0';
+                    if ($hasCostPrice) {
+                        $costColumn = 'COALESCE(p.cost_price, p.cost, 0)';
+                    } elseif ($hasCost) {
+                        $costColumn = 'COALESCE(p.cost, 0)';
+                    } elseif ($hasPurchasePrice) {
+                        $costColumn = 'COALESCE(p.purchase_price, 0)';
+                    }
+                    
+                    error_log("Profit Calculation Debug - Products Table: {$productsTable}, Cost Column: {$costColumn}");
+                    
+                    // Calculate today's profit: Revenue - Cost (from inventory products only)
+                    // Include all sales from inventory products (both salesperson and technician)
+                    // Use LEFT JOIN first to see all items, then filter for those with valid products
+                    // This ensures we capture profit even if some products are missing cost data
+                    $todayProfitQuery = $db->prepare("
+                        SELECT 
+                            COALESCE(SUM(psi.total_price), 0) as revenue,
+                            COALESCE(SUM(CASE 
+                                WHEN p.id IS NOT NULL THEN psi.quantity * {$costColumn}
+                                ELSE 0
+                            END), 0) as cost,
+                            COUNT(DISTINCT psi.id) as item_count,
+                            COUNT(DISTINCT ps.id) as sale_count,
+                            SUM(CASE WHEN p.id IS NULL AND psi.item_id IS NOT NULL AND psi.item_id > 0 THEN 1 ELSE 0 END) as missing_products
+                        FROM pos_sale_items psi
+                        INNER JOIN pos_sales ps ON psi.pos_sale_id = ps.id
+                        LEFT JOIN {$productsTable} p ON psi.item_id = p.id AND p.company_id = ps.company_id
+                        WHERE ps.company_id = ? 
+                        AND DATE(ps.created_at) = CURDATE()
+                        AND psi.item_id IS NOT NULL 
+                        AND psi.item_id > 0
+                    ");
+                    $todayProfitQuery->execute([$companyId]);
+                    $todayProfitResult = $todayProfitQuery->fetch(\PDO::FETCH_ASSOC);
+                    $todayProfitRevenue = floatval($todayProfitResult['revenue'] ?? 0);
+                    $todayProfitCost = floatval($todayProfitResult['cost'] ?? 0);
+                    $todayItemCount = intval($todayProfitResult['item_count'] ?? 0);
+                    $todaySaleCount = intval($todayProfitResult['sale_count'] ?? 0);
+                    $todayMissingProducts = intval($todayProfitResult['missing_products'] ?? 0);
+                    $todayProfit = $todayProfitRevenue - $todayProfitCost;
+                    if ($todayProfit < 0) $todayProfit = 0; // Profit cannot be negative
+                    
+                    error_log("Profit Calculation Debug - Today: Revenue={$todayProfitRevenue}, Cost={$todayProfitCost}, Items={$todayItemCount}, Sales={$todaySaleCount}, Missing Products={$todayMissingProducts}, Profit={$todayProfit}");
+                    
+                    // Calculate monthly profit (current month)
+                    $monthlyProfitQuery = $db->prepare("
+                        SELECT 
+                            COALESCE(SUM(psi.total_price), 0) as revenue,
+                            COALESCE(SUM(CASE 
+                                WHEN p.id IS NOT NULL THEN psi.quantity * {$costColumn}
+                                ELSE 0
+                            END), 0) as cost,
+                            COUNT(DISTINCT psi.id) as item_count,
+                            COUNT(DISTINCT ps.id) as sale_count,
+                            SUM(CASE WHEN p.id IS NULL AND psi.item_id IS NOT NULL AND psi.item_id > 0 THEN 1 ELSE 0 END) as missing_products
+                        FROM pos_sale_items psi
+                        INNER JOIN pos_sales ps ON psi.pos_sale_id = ps.id
+                        LEFT JOIN {$productsTable} p ON psi.item_id = p.id AND p.company_id = ps.company_id
+                        WHERE ps.company_id = ? 
+                        AND MONTH(ps.created_at) = MONTH(CURDATE()) 
+                        AND YEAR(ps.created_at) = YEAR(CURDATE())
+                        AND psi.item_id IS NOT NULL 
+                        AND psi.item_id > 0
+                    ");
+                    $monthlyProfitQuery->execute([$companyId]);
+                    $monthlyProfitResult = $monthlyProfitQuery->fetch(\PDO::FETCH_ASSOC);
+                    $monthlyProfitRevenue = floatval($monthlyProfitResult['revenue'] ?? 0);
+                    $monthlyProfitCost = floatval($monthlyProfitResult['cost'] ?? 0);
+                    $monthlyItemCount = intval($monthlyProfitResult['item_count'] ?? 0);
+                    $monthlySaleCount = intval($monthlyProfitResult['sale_count'] ?? 0);
+                    $monthlyMissingProducts = intval($monthlyProfitResult['missing_products'] ?? 0);
+                    $monthlyProfit = $monthlyProfitRevenue - $monthlyProfitCost;
+                    if ($monthlyProfit < 0) $monthlyProfit = 0; // Profit cannot be negative
+                    
+                    error_log("Profit Calculation Debug - Monthly: Revenue={$monthlyProfitRevenue}, Cost={$monthlyProfitCost}, Items={$monthlyItemCount}, Sales={$monthlySaleCount}, Missing Products={$monthlyMissingProducts}, Profit={$monthlyProfit}");
+                    
+                    // Also calculate all-time profit for the dashboard (from all sales with inventory products)
+                    // This gives a better overview when today has no sales
+                    $allTimeProfitQuery = $db->prepare("
+                        SELECT 
+                            COALESCE(SUM(psi.total_price), 0) as revenue,
+                            COALESCE(SUM(CASE 
+                                WHEN p.id IS NOT NULL THEN psi.quantity * {$costColumn}
+                                ELSE 0
+                            END), 0) as cost
+                        FROM pos_sale_items psi
+                        INNER JOIN pos_sales ps ON psi.pos_sale_id = ps.id
+                        LEFT JOIN {$productsTable} p ON psi.item_id = p.id AND p.company_id = ps.company_id
+                        WHERE ps.company_id = ? 
+                        AND psi.item_id IS NOT NULL 
+                        AND psi.item_id > 0
+                    ");
+                    $allTimeProfitQuery->execute([$companyId]);
+                    $allTimeProfitResult = $allTimeProfitQuery->fetch(\PDO::FETCH_ASSOC);
+                    $allTimeProfitRevenue = floatval($allTimeProfitResult['revenue'] ?? 0);
+                    $allTimeProfitCost = floatval($allTimeProfitResult['cost'] ?? 0);
+                    $allTimeProfit = $allTimeProfitRevenue - $allTimeProfitCost;
+                    if ($allTimeProfit < 0) $allTimeProfit = 0;
+                    
+                    error_log("Profit Calculation Debug - All Time: Revenue={$allTimeProfitRevenue}, Cost={$allTimeProfitCost}, Profit={$allTimeProfit}");
+                    
+                    // Use monthly profit for today's profit display (since it's more meaningful when today has no sales)
+                    // But still provide today's profit separately
+                    $metrics['today_profit'] = round($todayProfit, 2);
+                    $metrics['monthly_profit'] = round($monthlyProfit, 2);
+                    // For dashboard display, show monthly profit if today is 0, otherwise show today's
+                    $metrics['display_profit'] = round(($todayProfit > 0 ? $todayProfit : $monthlyProfit), 2);
+                } catch (\Exception $e) {
+                    error_log("DashboardController::companyMetrics - Error calculating profit: " . $e->getMessage());
+                    error_log("DashboardController::companyMetrics - Error trace: " . $e->getTraceAsString());
+                    $metrics['today_profit'] = 0.00;
+                    $metrics['monthly_profit'] = 0.00;
+                }
                 
                 // Get payment statistics if partial payments module is enabled
                 if (CompanyModule::isEnabled($companyId, 'partial_payments')) {
@@ -1083,19 +1921,24 @@ class DashboardController {
             $minQtyDefault = 5; // Default minimum threshold for low stock
             
             // Simplified logic:
-            // Out of stock: quantity <= 0 OR status IN ('out_of_stock', 'OUT_OF_STOCK', 'sold')
+            // Out of stock: quantity > 0 AND status IN ('out_of_stock', 'OUT_OF_STOCK', 'sold')
+            // Note: Items with quantity = 0 are filtered out from product listings, so they should not appear in alerts
             // Low stock: quantity > 0 AND quantity <= minQtyDefault AND status = 'available'
             
             // Build WHERE conditions - items that are either out of stock OR low stock
             $alertConditions = [];
             
-            // Out of stock conditions
-            $outOfStockConditions = ["COALESCE(p.{$quantityCol}, 0) <= 0"];
+            // Out of stock conditions - only items with quantity > 0 that have out-of-stock status
+            // Items with quantity = 0 are filtered out from products, so exclude them from alerts
+            $outOfStockConditions = [];
             if ($hasStatus) {
-                // Check for various status values that indicate out of stock
-                $outOfStockConditions[] = "(LOWER(p.status) = 'out_of_stock' OR LOWER(p.status) = 'sold')";
+                // Only show items with quantity > 0 that have out-of-stock status
+                $outOfStockConditions[] = "(COALESCE(p.{$quantityCol}, 0) > 0 AND (LOWER(p.status) = 'out_of_stock' OR LOWER(p.status) = 'sold'))";
             }
-            $alertConditions[] = "(" . implode(' OR ', $outOfStockConditions) . ")";
+            // Only add out-of-stock condition if we have status column and conditions exist
+            if (!empty($outOfStockConditions)) {
+                $alertConditions[] = "(" . implode(' OR ', $outOfStockConditions) . ")";
+            }
             
             // Low stock conditions (quantity > 0 AND quantity <= threshold)
             // Don't restrict by status for low stock - any item with low quantity should alert
@@ -1125,15 +1968,16 @@ class DashboardController {
             $selectCols .= ($hasSupplier ? ", p.supplier" : ", NULL as supplier");
             
             // Build CASE statement for alert_type
-            $outOfStockCase = "COALESCE(p.{$quantityCol}, 0) <= 0";
+            // Only consider items with quantity > 0 as out of stock (items with quantity = 0 are filtered out)
+            $outOfStockCase = "FALSE"; // Default to false if no status column
             if ($hasStatus) {
-                $outOfStockCase = "({$outOfStockCase} OR LOWER(p.status) = 'out_of_stock' OR LOWER(p.status) = 'sold')";
+                $outOfStockCase = "(COALESCE(p.{$quantityCol}, 0) > 0 AND (LOWER(p.status) = 'out_of_stock' OR LOWER(p.status) = 'sold'))";
             }
             
             // Build ORDER BY clause
-            $orderByOutOfStock = "COALESCE(p.{$quantityCol}, 0) <= 0";
+            $orderByOutOfStock = "FALSE"; // Default to false if no status column
             if ($hasStatus) {
-                $orderByOutOfStock = "({$orderByOutOfStock} OR LOWER(p.status) = 'out_of_stock' OR LOWER(p.status) = 'sold')";
+                $orderByOutOfStock = "(COALESCE(p.{$quantityCol}, 0) > 0 AND (LOWER(p.status) = 'out_of_stock' OR LOWER(p.status) = 'sold'))";
             }
             
             // Initialize alerts array
@@ -1459,27 +2303,32 @@ class DashboardController {
             
             // Build SQL and parameters based on user role
             if ($filterByUser && $userId) {
-                // Salesperson - filter by user and exclude repair-related sales
+                // Salesperson - filter by user and exclude repair-related sales and swap transactions
                 // Repair sales have notes like "Repair #X - Products sold by repairer"
+                // EXCLUDE swap transactions - swaps should only be tracked on swap page
+                // Use swap_id IS NULL to exclude all swap-related sales
                 $excludeRepairSales = " AND (notes IS NULL OR (notes NOT LIKE '%Repair #%' AND notes NOT LIKE '%Products sold by repairer%'))";
-                $todaySalesSql = "SELECT COUNT(*) as count FROM pos_sales WHERE company_id = ? AND created_by_user_id = ? AND DATE(created_at) = ?{$excludeRepairSales}";
-                $todayRevenueSql = "SELECT COALESCE(SUM(final_amount), 0) as revenue FROM pos_sales WHERE company_id = ? AND created_by_user_id = ? AND DATE(created_at) = ?{$excludeRepairSales}";
-                $todayCustomersSql = "SELECT COUNT(DISTINCT customer_id) as count FROM pos_sales WHERE company_id = ? AND created_by_user_id = ? AND DATE(created_at) = ? AND customer_id IS NOT NULL{$excludeRepairSales}";
-                $weekSalesSql = "SELECT COUNT(*) as count FROM pos_sales WHERE company_id = ? AND created_by_user_id = ? AND DATE(created_at) >= ?{$excludeRepairSales}";
-                $weekRevenueSql = "SELECT COALESCE(SUM(final_amount), 0) as revenue FROM pos_sales WHERE company_id = ? AND created_by_user_id = ? AND DATE(created_at) >= ?{$excludeRepairSales}";
-                $totalCustomersSql = "SELECT COUNT(DISTINCT customer_id) as count FROM pos_sales WHERE company_id = ? AND created_by_user_id = ? AND customer_id IS NOT NULL{$excludeRepairSales}";
+                $excludeSwapSales = " AND swap_id IS NULL";
+                $todaySalesSql = "SELECT COUNT(*) as count FROM pos_sales WHERE company_id = ? AND created_by_user_id = ? AND DATE(created_at) = ?{$excludeRepairSales}{$excludeSwapSales}";
+                $todayRevenueSql = "SELECT COALESCE(SUM(final_amount), 0) as revenue FROM pos_sales WHERE company_id = ? AND created_by_user_id = ? AND DATE(created_at) = ?{$excludeRepairSales}{$excludeSwapSales}";
+                $todayCustomersSql = "SELECT COUNT(DISTINCT customer_id) as count FROM pos_sales WHERE company_id = ? AND created_by_user_id = ? AND DATE(created_at) = ? AND customer_id IS NOT NULL{$excludeRepairSales}{$excludeSwapSales}";
+                $weekSalesSql = "SELECT COUNT(*) as count FROM pos_sales WHERE company_id = ? AND created_by_user_id = ? AND DATE(created_at) >= ?{$excludeRepairSales}{$excludeSwapSales}";
+                $weekRevenueSql = "SELECT COALESCE(SUM(final_amount), 0) as revenue FROM pos_sales WHERE company_id = ? AND created_by_user_id = ? AND DATE(created_at) >= ?{$excludeRepairSales}{$excludeSwapSales}";
+                $totalCustomersSql = "SELECT COUNT(DISTINCT customer_id) as count FROM pos_sales WHERE company_id = ? AND created_by_user_id = ? AND customer_id IS NOT NULL{$excludeRepairSales}{$excludeSwapSales}";
                 
                 $todayParams = [$companyId, $userId, $today];
                 $weekParams = [$companyId, $userId, date('Y-m-d', strtotime('-7 days'))];
                 $allParams = [$companyId, $userId];
             } else {
                 // Manager/Admin - all company sales
-                $todaySalesSql = "SELECT COUNT(*) as count FROM pos_sales WHERE company_id = ? AND DATE(created_at) = ?";
-                $todayRevenueSql = "SELECT COALESCE(SUM(final_amount), 0) as revenue FROM pos_sales WHERE company_id = ? AND DATE(created_at) = ?";
-                $todayCustomersSql = "SELECT COUNT(DISTINCT customer_id) as count FROM pos_sales WHERE company_id = ? AND DATE(created_at) = ? AND customer_id IS NOT NULL";
-                $weekSalesSql = "SELECT COUNT(*) as count FROM pos_sales WHERE company_id = ? AND DATE(created_at) >= ?";
-                $weekRevenueSql = "SELECT COALESCE(SUM(final_amount), 0) as revenue FROM pos_sales WHERE company_id = ? AND DATE(created_at) >= ?";
-                $totalCustomersSql = "SELECT COUNT(DISTINCT customer_id) as count FROM pos_sales WHERE company_id = ? AND customer_id IS NOT NULL";
+                // EXCLUDE swap transactions - swaps should only be tracked on swap page
+                // Use swap_id IS NULL to exclude all swap-related sales
+                $todaySalesSql = "SELECT COUNT(*) as count FROM pos_sales WHERE company_id = ? AND DATE(created_at) = ? AND swap_id IS NULL";
+                $todayRevenueSql = "SELECT COALESCE(SUM(final_amount), 0) as revenue FROM pos_sales WHERE company_id = ? AND DATE(created_at) = ? AND swap_id IS NULL";
+                $todayCustomersSql = "SELECT COUNT(DISTINCT customer_id) as count FROM pos_sales WHERE company_id = ? AND DATE(created_at) = ? AND customer_id IS NOT NULL AND swap_id IS NULL";
+                $weekSalesSql = "SELECT COUNT(*) as count FROM pos_sales WHERE company_id = ? AND DATE(created_at) >= ? AND swap_id IS NULL";
+                $weekRevenueSql = "SELECT COALESCE(SUM(final_amount), 0) as revenue FROM pos_sales WHERE company_id = ? AND DATE(created_at) >= ? AND swap_id IS NULL";
+                $totalCustomersSql = "SELECT COUNT(DISTINCT customer_id) as count FROM pos_sales WHERE company_id = ? AND customer_id IS NOT NULL AND swap_id IS NULL";
                 
                 $todayParams = [$companyId, $today];
                 $weekParams = [$companyId, date('Y-m-d', strtotime('-7 days'))];
@@ -1522,11 +2371,67 @@ class DashboardController {
             $totalCustomersResult = $totalCustomersQuery->fetch(\PDO::FETCH_ASSOC);
             $totalCustomers = $totalCustomersResult ? (int)($totalCustomersResult['count'] ?? 0) : 0;
 
+            // Get monthly sold items count (current month)
+            $monthStart = date('Y-m-01');
+            $monthEnd = date('Y-m-t');
+            if ($filterByUser && $userId) {
+                $monthlyItemsSql = "SELECT COALESCE(SUM(psi.quantity), 0) as total_items
+                                   FROM pos_sales ps
+                                   INNER JOIN pos_sale_items psi ON ps.id = psi.pos_sale_id
+                                   WHERE ps.company_id = ? AND ps.created_by_user_id = ?
+                                   AND DATE(ps.created_at) >= ? AND DATE(ps.created_at) <= ?
+                                   AND (ps.notes IS NULL OR (ps.notes NOT LIKE '%Repair #%' AND ps.notes NOT LIKE '%Products sold by repairer%'))";
+                $monthlyParams = [$companyId, $userId, $monthStart, $monthEnd];
+            } else {
+                $monthlyItemsSql = "SELECT COALESCE(SUM(psi.quantity), 0) as total_items
+                                   FROM pos_sales ps
+                                   INNER JOIN pos_sale_items psi ON ps.id = psi.pos_sale_id
+                                   WHERE ps.company_id = ?
+                                   AND DATE(ps.created_at) >= ? AND DATE(ps.created_at) <= ?";
+                $monthlyParams = [$companyId, $monthStart, $monthEnd];
+            }
+            
+            $monthlyItemsQuery = $db->prepare($monthlyItemsSql);
+            $monthlyItemsQuery->execute($monthlyParams);
+            $monthlyItemsResult = $monthlyItemsQuery->fetch(\PDO::FETCH_ASSOC);
+            $monthlySoldItems = $monthlyItemsResult ? (int)($monthlyItemsResult['total_items'] ?? 0) : 0;
+
             // Get payment statistics if partial payments module is enabled
             $paymentStats = null;
+            $partialPaymentsCount = 0;
+            $pendingPaymentsAmount = 0;
+            
             if (CompanyModule::isEnabled($companyId, 'partial_payments')) {
                 try {
                     $salePaymentModel = new \App\Models\SalePayment();
+                    
+                    // Get all partial and unpaid sales (not just today)
+                    if ($filterByUser && $userId) {
+                        $partialPaymentsSql = "SELECT ps.id, ps.final_amount, ps.payment_status
+                                              FROM pos_sales ps
+                                              WHERE ps.company_id = ? AND ps.created_by_user_id = ?
+                                              AND (ps.payment_status = 'PARTIAL' OR ps.payment_status = 'UNPAID')
+                                              AND (ps.notes IS NULL OR (ps.notes NOT LIKE '%Repair #%' AND ps.notes NOT LIKE '%Products sold by repairer%'))";
+                        $partialParams = [$companyId, $userId];
+                    } else {
+                        $partialPaymentsSql = "SELECT ps.id, ps.final_amount, ps.payment_status
+                                              FROM pos_sales ps
+                                              WHERE ps.company_id = ?
+                                              AND (ps.payment_status = 'PARTIAL' OR ps.payment_status = 'UNPAID')";
+                        $partialParams = [$companyId];
+                    }
+                    
+                    $partialPaymentsQuery = $db->prepare($partialPaymentsSql);
+                    $partialPaymentsQuery->execute($partialParams);
+                    $partialSales = $partialPaymentsQuery->fetchAll(\PDO::FETCH_ASSOC);
+                    
+                    $partialPaymentsCount = count($partialSales);
+                    $pendingPaymentsAmount = 0;
+                    
+                    foreach ($partialSales as $sale) {
+                        $paymentStatsForSale = $salePaymentModel->getPaymentStats($sale['id'], $companyId);
+                        $pendingPaymentsAmount += $paymentStatsForSale['remaining'];
+                    }
                     
                     // Get today's sales for payment stats
                     if ($filterByUser && $userId) {
@@ -1568,7 +2473,9 @@ class DashboardController {
                     $paymentStats = [
                         'fully_paid' => $fullyPaid,
                         'partial' => $partial,
-                        'unpaid' => $unpaid
+                        'unpaid' => $unpaid,
+                        'total_partial_payments' => $partialPaymentsCount,
+                        'pending_amount' => round($pendingPaymentsAmount, 2)
                     ];
                 } catch (\Exception $e) {
                     error_log("DashboardController::salesMetrics - Error getting payment stats: " . $e->getMessage());
@@ -1581,7 +2488,8 @@ class DashboardController {
                 'customers' => $todayCustomers,
                 'week_sales' => $weekSales,
                 'week_revenue' => $weekRevenue,
-                'total_customers' => $totalCustomers
+                'total_customers' => $totalCustomers,
+                'monthly_sold_items' => $monthlySoldItems
             ];
             
             if ($paymentStats) {
@@ -1684,31 +2592,35 @@ class DashboardController {
         header('Content-Type: application/json');
         
         try {
-            // Try JWT auth first (for API calls)
+            // Start session first for web requests
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            
+            // Prioritize session-based auth for web requests
             $payload = null;
-            try {
-                $payload = AuthMiddleware::handle(['manager', 'admin', 'system_admin', 'salesperson', 'technician']);
-            } catch (\Exception $e) {
-                // If JWT fails, try session-based auth
-                if (session_status() === PHP_SESSION_NONE) {
-                    session_start();
-                }
-                $user = $_SESSION['user'] ?? null;
-                if (!$user) {
-                    http_response_code(401);
-                    echo json_encode([
-                        'success' => false,
-                        'error' => 'Authentication required'
-                    ]);
-                    return;
-                }
-                
-                // Create payload-like object from session
+            $user = $_SESSION['user'] ?? null;
+            
+            if ($user && is_array($user) && !empty($user['company_id'])) {
+                // User is authenticated via session
                 $payload = (object)[
                     'company_id' => $user['company_id'] ?? null,
                     'role' => $user['role'] ?? 'salesperson',
                     'id' => $user['id'] ?? null
                 ];
+            } else {
+                // If no session, try JWT auth (for API calls)
+                try {
+                    $payload = AuthMiddleware::handle(['manager', 'admin', 'system_admin', 'salesperson', 'technician']);
+                } catch (\Exception $e) {
+                    http_response_code(401);
+                    echo json_encode([
+                        'success' => false,
+                        'error' => 'Authentication required',
+                        'message' => 'Please login to access this resource'
+                    ]);
+                    return;
+                }
             }
             
             $companyId = $payload->company_id ?? null;
@@ -1755,28 +2667,178 @@ class DashboardController {
     private function getSalespersonStats($companyId, $userId = null) {
         $db = \Database::getInstance()->getConnection();
         
-            // Get user's own sales stats if userId provided (exclude repair-related sales)
+        // Initialize default values
+        $todayStats = ['count' => 0, 'revenue' => 0];
+        $weekStats = ['count' => 0, 'revenue' => 0];
+        $allTimeSalesStats = ['count' => 0, 'revenue' => 0];
+        $swapStats = ['count' => 0, 'revenue' => 0];
+        
+        try {
+            // Get user's own sales stats if userId provided (exclude repair-related sales and swap transactions)
             if ($userId) {
-                // Exclude repair sales: notes like "Repair #X - Products sold by repairer"
-                $excludeRepairSales = " AND (notes IS NULL OR (notes NOT LIKE '%Repair #%' AND notes NOT LIKE '%Products sold by repairer%'))";
-                $todaySalesQuery = $db->prepare("
-                    SELECT COUNT(*) as count, COALESCE(SUM(final_amount), 0) as revenue 
-                    FROM pos_sales 
-                    WHERE company_id = ? AND created_by_user_id = ? AND DATE(created_at) = CURDATE(){$excludeRepairSales}
-                ");
-                $todaySalesQuery->execute([$companyId, $userId]);
-                $todayStats = $todaySalesQuery->fetch(\PDO::FETCH_ASSOC);
+            // Exclude repair sales: notes like "Repair #X - Products sold by repairer"
+            // EXCLUDE swap transactions - swaps should only be tracked on swap page
+            // Use swap_id IS NULL to exclude all swap-related sales
+            $excludeRepairSales = " AND (notes IS NULL OR (notes NOT LIKE '%Repair #%' AND notes NOT LIKE '%Products sold by repairer%'))";
+            $excludeSwapSales = " AND swap_id IS NULL";
+            
+            // Today's sales
+            $todaySalesQuery = $db->prepare("
+                SELECT COUNT(*) as count, COALESCE(SUM(final_amount), 0) as revenue 
+                FROM pos_sales 
+                WHERE company_id = ? AND created_by_user_id = ? AND DATE(created_at) = CURDATE(){$excludeRepairSales}{$excludeSwapSales}
+            ");
+            $todaySalesQuery->execute([$companyId, $userId]);
+            $todayStats = $todaySalesQuery->fetch(\PDO::FETCH_ASSOC);
+            
+            // Week's sales
+            $weekSalesQuery = $db->prepare("
+                SELECT COUNT(*) as count, COALESCE(SUM(final_amount), 0) as revenue 
+                FROM pos_sales 
+                WHERE company_id = ? AND created_by_user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY){$excludeRepairSales}{$excludeSwapSales}
+            ");
+            $weekSalesQuery->execute([$companyId, $userId]);
+            $weekStats = $weekSalesQuery->fetch(\PDO::FETCH_ASSOC);
+            
+            // Monthly sales (total sales and sales revenue for current month)
+            $monthlySalesQuery = $db->prepare("
+                SELECT COUNT(*) as count, COALESCE(SUM(final_amount), 0) as revenue 
+                FROM pos_sales 
+                WHERE company_id = ? AND created_by_user_id = ? 
+                AND YEAR(created_at) = YEAR(CURDATE()) 
+                AND MONTH(created_at) = MONTH(CURDATE())
+                {$excludeRepairSales}{$excludeSwapSales}
+            ");
+            $monthlySalesQuery->execute([$companyId, $userId]);
+            $monthlySalesStats = $monthlySalesQuery->fetch(\PDO::FETCH_ASSOC);
+            
+            // Get swap stats - check which column exists for user reference
+            $checkHandledBy = $db->query("SHOW COLUMNS FROM swaps LIKE 'handled_by'");
+            $checkCreatedByUserId = $db->query("SHOW COLUMNS FROM swaps LIKE 'created_by_user_id'");
+            $checkCreatedBy = $db->query("SHOW COLUMNS FROM swaps LIKE 'created_by'");
+            $checkSalespersonId = $db->query("SHOW COLUMNS FROM swaps LIKE 'salesperson_id'");
+            
+            $hasHandledBy = $checkHandledBy && $checkHandledBy->rowCount() > 0;
+            $hasCreatedByUserId = $checkCreatedByUserId && $checkCreatedByUserId->rowCount() > 0;
+            $hasCreatedBy = $checkCreatedBy && $checkCreatedBy->rowCount() > 0;
+            $hasSalespersonId = $checkSalespersonId && $checkSalespersonId->rowCount() > 0;
+            
+            // Determine which column to use for user reference
+            $userColumn = null;
+            if ($hasSalespersonId) {
+                $userColumn = 'salesperson_id';
+            } elseif ($hasHandledBy) {
+                $userColumn = 'handled_by';
+            } elseif ($hasCreatedByUserId) {
+                $userColumn = 'created_by_user_id';
+            } elseif ($hasCreatedBy) {
+                $userColumn = 'created_by';
+            }
+            
+            // Get monthly swap stats if user column exists
+            if ($userColumn) {
+                // Check which columns exist for revenue calculation
+                $checkFinalPrice = $db->query("SHOW COLUMNS FROM swaps LIKE 'final_price'");
+                $checkAddedCash = $db->query("SHOW COLUMNS FROM swaps LIKE 'added_cash'");
+                $checkTotalValue = $db->query("SHOW COLUMNS FROM swaps LIKE 'total_value'");
+                $checkCashAdded = $db->query("SHOW COLUMNS FROM swaps LIKE 'cash_added'");
                 
-                $weekSalesQuery = $db->prepare("
-                    SELECT COUNT(*) as count, COALESCE(SUM(final_amount), 0) as revenue 
-                    FROM pos_sales 
-                    WHERE company_id = ? AND created_by_user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY){$excludeRepairSales}
-                ");
-                $weekSalesQuery->execute([$companyId, $userId]);
-                $weekStats = $weekSalesQuery->fetch(\PDO::FETCH_ASSOC);
-        } else {
-            $todayStats = ['count' => 0, 'revenue' => 0];
-            $weekStats = ['count' => 0, 'revenue' => 0];
+                $hasFinalPrice = $checkFinalPrice && $checkFinalPrice->rowCount() > 0;
+                $hasAddedCash = $checkAddedCash && $checkAddedCash->rowCount() > 0;
+                $hasTotalValue = $checkTotalValue && $checkTotalValue->rowCount() > 0;
+                $hasCashAdded = $checkCashAdded && $checkCashAdded->rowCount() > 0;
+                
+                // Build revenue calculation for current month
+                // Swap revenue should be:
+                // - For non-resold swaps: cash top-up only (added_cash)
+                // - For resold swaps: cash top-up + resale value (total_value, which includes both)
+                $checkGivenPhoneValue = $db->query("SHOW COLUMNS FROM swaps LIKE 'given_phone_value'");
+                $hasGivenPhoneValue = $checkGivenPhoneValue && $checkGivenPhoneValue->rowCount() > 0;
+                
+                // Check if swapped_items table exists to check resale status
+                $hasSwappedItems = false;
+                try {
+                    $check = $db->query("SHOW TABLES LIKE 'swapped_items'");
+                    $hasSwappedItems = $check->rowCount() > 0;
+                } catch (Exception $e) {
+                    $hasSwappedItems = false;
+                }
+                
+                if ($hasTotalValue) {
+                    // Use total_value which should contain Cash Top-up + Resold Price
+                    // total_value is calculated as: Cash Top-up (final_price - given_phone_value or added_cash) + Resold Price
+                    $swapQuery = $db->prepare("
+                        SELECT 
+                            COUNT(*) as count,
+                            COALESCE(SUM(total_value), 0) as revenue 
+                        FROM swaps s
+                        WHERE s.company_id = ? AND s.{$userColumn} = ?
+                        AND YEAR(s.created_at) = YEAR(CURDATE()) 
+                        AND MONTH(s.created_at) = MONTH(CURDATE())
+                    ");
+                } elseif ($hasFinalPrice && $hasGivenPhoneValue) {
+                    // Calculate revenue as cash top-up: final_price - given_phone_value
+                    $swapQuery = $db->prepare("
+                        SELECT 
+                            COUNT(*) as count,
+                            COALESCE(SUM(GREATEST(0, final_price - COALESCE(given_phone_value, 0))), 0) as revenue 
+                        FROM swaps 
+                        WHERE company_id = ? AND {$userColumn} = ?
+                        AND YEAR(created_at) = YEAR(CURDATE()) 
+                        AND MONTH(created_at) = MONTH(CURDATE())
+                    ");
+                } elseif ($hasFinalPrice) {
+                    // If given_phone_value doesn't exist, use final_price as fallback
+                    // But this might include the full transaction value, not just cash top-up
+                    $swapQuery = $db->prepare("
+                        SELECT 
+                            COUNT(*) as count,
+                            COALESCE(SUM(final_price), 0) as revenue 
+                        FROM swaps 
+                        WHERE company_id = ? AND {$userColumn} = ?
+                        AND YEAR(created_at) = YEAR(CURDATE()) 
+                        AND MONTH(created_at) = MONTH(CURDATE())
+                    ");
+                } elseif ($hasAddedCash) {
+                    // Fallback: Use added_cash directly (cash top-up only) if total_value doesn't exist
+                    $swapQuery = $db->prepare("
+                        SELECT 
+                            COUNT(*) as count,
+                            COALESCE(SUM(CASE WHEN added_cash > 0 THEN added_cash ELSE 0 END), 0) as revenue 
+                        FROM swaps 
+                        WHERE company_id = ? AND {$userColumn} = ?
+                        AND YEAR(created_at) = YEAR(CURDATE()) 
+                        AND MONTH(created_at) = MONTH(CURDATE())
+                    ");
+                } elseif ($hasCashAdded) {
+                    // Use cash_added column
+                    $swapQuery = $db->prepare("
+                        SELECT 
+                            COUNT(*) as count,
+                            COALESCE(SUM(CASE WHEN cash_added > 0 THEN cash_added ELSE 0 END), 0) as revenue 
+                        FROM swaps 
+                        WHERE company_id = ? AND {$userColumn} = ?
+                        AND YEAR(created_at) = YEAR(CURDATE()) 
+                        AND MONTH(created_at) = MONTH(CURDATE())
+                    ");
+                } else {
+                    // No revenue columns available
+                    $swapQuery = $db->prepare("
+                        SELECT COUNT(*) as count, 0 as revenue 
+                        FROM swaps 
+                        WHERE company_id = ? AND {$userColumn} = ?
+                        AND YEAR(created_at) = YEAR(CURDATE()) 
+                        AND MONTH(created_at) = MONTH(CURDATE())
+                    ");
+                }
+                
+                $swapQuery->execute([$companyId, $userId]);
+                $swapStats = $swapQuery->fetch(\PDO::FETCH_ASSOC);
+            }
+        }
+        } catch (\Exception $e) {
+            error_log("DashboardController::getSalespersonStats - Error: " . $e->getMessage());
+            error_log("DashboardController::getSalespersonStats - Trace: " . $e->getTraceAsString());
         }
         
         return [
@@ -1785,7 +2847,12 @@ class DashboardController {
             'week_revenue' => floatval($weekStats['revenue'] ?? 0),
             'week_sales' => intval($weekStats['count'] ?? 0),
             'total_customers' => 0,
-            'total_phones' => 0
+            'total_phones' => 0,
+            // Monthly metrics for dashboard cards (current month only)
+            'all_time_total_sales' => intval($monthlySalesStats['count'] ?? 0),
+            'all_time_sales_revenue' => floatval($monthlySalesStats['revenue'] ?? 0),
+            'total_swaps' => intval($swapStats['count'] ?? 0),
+            'swap_revenue' => floatval($swapStats['revenue'] ?? 0)
         ];
     }
 
@@ -2228,10 +3295,13 @@ class DashboardController {
         }
         
         // Total Sales Today
+        // EXCLUDE swap transactions - swaps should only be tracked on swap page
+        // Use swap_id IS NULL to exclude all swap-related sales
         $todaySalesQuery = $db->prepare("
             SELECT COALESCE(SUM(final_amount), 0) as total 
             FROM pos_sales 
             WHERE company_id = ? AND DATE(created_at) = CURDATE()
+            AND swap_id IS NULL
         ");
         $todaySalesQuery->execute([$companyId]);
         $todaySales = $todaySalesQuery->fetch()['total'] ?? 0;
@@ -2275,10 +3345,13 @@ class DashboardController {
         // Get previous day for trends
         $yesterday = date('Y-m-d', strtotime('-1 day'));
         
+        // EXCLUDE swap transactions - swaps should only be tracked on swap page
+        // Use swap_id IS NULL to exclude all swap-related sales
         $yesterdaySalesQuery = $db->prepare("
             SELECT COALESCE(SUM(final_amount), 0) as total 
             FROM pos_sales 
             WHERE company_id = ? AND DATE(created_at) = ?
+            AND swap_id IS NULL
         ");
         $yesterdaySalesQuery->execute([$companyId, $yesterday]);
         $yesterdaySales = $yesterdaySalesQuery->fetch()['total'] ?? 0;
@@ -2345,16 +3418,18 @@ class DashboardController {
             
             foreach ($allSwaps as $s) {
                 $resaleStatus = $s['resale_status'] ?? null;
-                $swapStatus = $s['status'] ?? 'pending';
+                // Check both status and swap_status columns
+                $swapStatus = $s['swap_status'] ?? $s['status'] ?? 'pending';
+                $swapStatusLower = strtolower($swapStatus);
                 
                 // Same logic as SwapController::index() - MUST MATCH VIEW DISPLAY
                 if ($resaleStatus === 'sold') {
                     $statusStats['resold']++;
                 } elseif ($resaleStatus === 'in_stock') {
                     $statusStats['completed']++;
-                } elseif ($swapStatus === 'resold') {
+                } elseif ($swapStatusLower === 'resold') {
                     $statusStats['resold']++;
-                } elseif ($swapStatus === 'completed') {
+                } elseif ($swapStatusLower === 'completed') {
                     $statusStats['completed']++;
                 } else {
                     $statusStats['pending']++;
@@ -2373,11 +3448,55 @@ class DashboardController {
             $calculatedEstimatedCount = 0;
             
             foreach ($allSwaps as $s) {
-                // Total value
-                $totalValue += floatval($s['total_value'] ?? 0);
+                // Total value calculation - use same logic as SwapController
+                // Get added_cash - check multiple possible column names
+                $addedCash = 0;
+                if (isset($s['added_cash']) && $s['added_cash'] !== null && $s['added_cash'] !== 'NULL' && floatval($s['added_cash']) > 0) {
+                    $addedCash = floatval($s['added_cash']);
+                } elseif (isset($s['cash_added']) && $s['cash_added'] !== null && $s['cash_added'] !== 'NULL' && floatval($s['cash_added']) > 0) {
+                    $addedCash = floatval($s['cash_added']);
+                }
+                
+                // If added_cash is still 0, calculate it from the difference (same as SwapController)
+                if ($addedCash == 0 || $addedCash <= 0) {
+                    $totalValueFromDb = floatval($s['total_value'] ?? 0);
+                    $companyProductPrice = floatval($s['company_product_price'] ?? 0);
+                    $customerProductValue = floatval($s['customer_product_value'] ?? 0);
+                    
+                    $baseValue = $totalValueFromDb > 0 ? $totalValueFromDb : $companyProductPrice;
+                    
+                    if ($baseValue > 0 && $customerProductValue > 0 && $baseValue > $customerProductValue) {
+                        $calculatedAddedCash = $baseValue - $customerProductValue;
+                        if ($calculatedAddedCash > 0) {
+                            $addedCash = $calculatedAddedCash;
+                        }
+                    }
+                }
+                
+                // Calculate total_value using same logic as SwapController
+                $dbTotalValue = floatval($s['total_value'] ?? 0);
+                $resaleStatus = $s['resale_status'] ?? null;
+                $swapStatus = $s['swap_status'] ?? $s['status'] ?? 'pending';
+                $isResold = ($resaleStatus === 'sold' || strtolower($swapStatus) === 'resold');
+                
+                // If swap is resold, total_value should include both added_cash and resale value
+                // If swap is not resold, total_value should only be added_cash
+                if ($isResold) {
+                    // For resold swaps, use total_value as-is (it should already include resale value)
+                    $totalValue += $dbTotalValue;
+                } else {
+                    // For non-resold swaps, use added_cash (cash top-up only)
+                    // If total_value is much larger than added_cash, it's probably an old swap with wrong value
+                    if ($dbTotalValue > 0 && $addedCash > 0 && $dbTotalValue > ($addedCash * 1.5)) {
+                        // Old swap format - use added_cash instead
+                        $totalValue += $addedCash;
+                    } else {
+                        // Use total_value if it seems correct, otherwise use added_cash
+                        $totalValue += ($dbTotalValue > 0 ? $dbTotalValue : $addedCash);
+                    }
+                }
                 
                 // In stock items (from resale_status === 'in_stock')
-                $resaleStatus = $s['resale_status'] ?? null;
                 if ($resaleStatus === 'in_stock') {
                     $inStockItems++;
                     $inStockValue += floatval($s['resell_price'] ?? $s['customer_product_value'] ?? 0);
@@ -2387,17 +3506,136 @@ class DashboardController {
                 $profitEstimate = isset($s['profit_estimate']) && $s['profit_estimate'] !== null ? floatval($s['profit_estimate']) : null;
                 $profitFinal = isset($s['final_profit']) && $s['final_profit'] !== null ? floatval($s['final_profit']) : null;
                 $profitStatus = $s['profit_status'] ?? null;
-                $swapStatus = $s['status'] ?? 'pending';
-                $isResold = ($resaleStatus === 'sold' || $swapStatus === 'resold');
+                // Check both status and swap_status columns (already set above, but ensure consistency)
+                $swapStatus = $s['swap_status'] ?? $s['status'] ?? 'pending';
+                $swapStatusLower = strtolower($swapStatus);
+                $isResold = ($resaleStatus === 'sold' || $swapStatusLower === 'resold');
                 
-                // Check if both sales are linked
-                $hasCompanySaleId = !empty($s['company_item_sale_id']);
-                $hasCustomerSaleId = !empty($s['customer_item_sale_id']);
+                // Check if both sales are linked by querying swap_profit_links directly
+                // (findByCompany doesn't include these fields)
+                $hasCompanySaleId = false;
+                $hasCustomerSaleId = false;
+                try {
+                    $checkSaleIds = $db->prepare("
+                        SELECT company_item_sale_id, customer_item_sale_id, status, final_profit
+                        FROM swap_profit_links 
+                        WHERE swap_id = ?
+                        LIMIT 1
+                    ");
+                    $checkSaleIds->execute([$s['id']]);
+                    $saleIdsCheck = $checkSaleIds->fetch(\PDO::FETCH_ASSOC);
+                    if ($saleIdsCheck) {
+                        $hasCompanySaleId = !empty($saleIdsCheck['company_item_sale_id']);
+                        $hasCustomerSaleId = !empty($saleIdsCheck['customer_item_sale_id']);
+                        // Use status and final_profit from swap_profit_links if available (more accurate)
+                        if (!empty($saleIdsCheck['status'])) {
+                            $profitStatus = $saleIdsCheck['status'];
+                        }
+                        if (!empty($saleIdsCheck['final_profit']) && $profitFinal === null) {
+                            $profitFinal = floatval($saleIdsCheck['final_profit']);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    error_log("DashboardController: Error checking sale IDs for swap #{$s['id']}: " . $e->getMessage());
+                }
+                
                 $bothItemsSold = $hasCompanySaleId && $hasCustomerSaleId;
                 
+                // Debug logging for specific swap
+                if ($s['id'] == 20252941 || $profitEstimate > 0) {
+                    error_log("DashboardController getSwapStatistics: Swap #{$s['id']} - Estimate: " . ($profitEstimate ?? 'null') . ", Final: " . ($profitFinal ?? 'null') . ", Status: " . ($profitStatus ?? 'null') . ", BothSold: " . ($bothItemsSold ? 'yes' : 'no') . ", HasCustomerSale: " . ($hasCustomerSaleId ? 'yes' : 'no'));
+                }
+                
                 if ($bothItemsSold) {
-                    // Both items sold - profit is realized
-                    if ($profitFinal === null || $profitStatus !== 'finalized') {
+                    // Both items sold - profit is realized (customer_item_sale_id exists)
+                    // Only count profit when customer item has been resold AND profit is finalized
+                    if ($hasCustomerSaleId) {
+                        if ($profitFinal === null || $profitStatus !== 'finalized') {
+                            try {
+                                $swapProfitLinkModel = new \App\Models\SwapProfitLink();
+                                $calculatedProfit = $swapProfitLinkModel->calculateSwapProfit($s['id']);
+                                if ($calculatedProfit !== null) {
+                                    $profitFinal = $calculatedProfit;
+                                    $profitStatus = 'finalized';
+                                }
+                            } catch (\Exception $e) {
+                                error_log("DashboardController: Error calculating profit for swap #{$s['id']}: " . $e->getMessage());
+                                // Do not use estimate as fallback - only count finalized profits
+                            }
+                        }
+                        
+                        // Only count finalized profits - never use estimates as realized gains
+                        if ($profitFinal !== null && $profitStatus === 'finalized') {
+                            $profitToUse = $profitFinal;
+                            $calculatedFinalProfit += $profitToUse;
+                            $calculatedFinalCount++;
+                            
+                            if ($profitToUse < 0) {
+                                $calculatedLoss += abs($profitToUse);
+                            }
+                        }
+                        // If profit is not finalized, don't count it (even if both items are sold)
+                    }
+                    // If both items are not sold (customer_item_sale_id doesn't exist), don't count profit
+                } elseif ($isResold) {
+                    // Item is resold - profit is realized (matches view logic and SwapController)
+                    // Check swap_profit_links table if final_profit column doesn't exist in swaps
+                    if ($profitFinal === null) {
+                        // Try to get profit from swap_profit_links table
+                        try {
+                            $profitLinkQuery = $db->prepare("
+                                SELECT final_profit, profit_estimate, status as profit_status, 
+                                       company_item_sale_id, customer_item_sale_id,
+                                       company_product_cost, customer_phone_value, amount_added_by_customer
+                                FROM swap_profit_links
+                                WHERE swap_id = ?
+                                LIMIT 1
+                            ");
+                            $profitLinkQuery->execute([$s['id']]);
+                            $profitLink = $profitLinkQuery->fetch(\PDO::FETCH_ASSOC);
+                            if ($profitLink) {
+                                $profitFinal = isset($profitLink['final_profit']) && $profitLink['final_profit'] !== null ? floatval($profitLink['final_profit']) : null;
+                                // If no final_profit but have profit_estimate, use it (matches view logic)
+                                if ($profitFinal === null && isset($profitLink['profit_estimate']) && $profitLink['profit_estimate'] !== null) {
+                                    $profitFinal = floatval($profitLink['profit_estimate']);
+                                }
+                                if ($profitStatus === null && isset($profitLink['profit_status'])) {
+                                    $profitStatus = $profitLink['profit_status'];
+                                }
+                                if (!$hasCustomerSaleId && isset($profitLink['customer_item_sale_id'])) {
+                                    $hasCustomerSaleId = !empty($profitLink['customer_item_sale_id']);
+                                }
+                                // If we have company_item_sale_id, try to calculate profit from the sale
+                                if ($profitFinal === null && !empty($profitLink['company_item_sale_id'])) {
+                                    try {
+                                        // Get sale details to calculate profit
+                                        $saleQuery = $db->prepare("
+                                            SELECT ps.final_amount, ps.total_cost
+                                            FROM pos_sales ps
+                                            WHERE ps.id = ?
+                                            LIMIT 1
+                                        ");
+                                        $saleQuery->execute([$profitLink['company_item_sale_id']]);
+                                        $sale = $saleQuery->fetch(\PDO::FETCH_ASSOC);
+                                        if ($sale) {
+                                            $sellingPrice = floatval($sale['final_amount'] ?? 0);
+                                            $costPrice = floatval($profitLink['company_product_cost'] ?? 0);
+                                            // Profit = Selling Price - Cost Price
+                                            $profitFinal = $sellingPrice - $costPrice;
+                                            error_log("DashboardController getSwapStatistics: Calculated profit for swap #{$s['id']} from sale: Selling Price ₵{$sellingPrice} - Cost ₵{$costPrice} = ₵{$profitFinal}");
+                                        }
+                                    } catch (\Exception $e) {
+                                        error_log("DashboardController getSwapStatistics: Error calculating profit from sale for swap #{$s['id']}: " . $e->getMessage());
+                                    }
+                                }
+                            }
+                        } catch (\Exception $e) {
+                            error_log("DashboardController getSwapStatistics: Error fetching profit from swap_profit_links for swap #{$s['id']}: " . $e->getMessage());
+                        }
+                    }
+                    
+                    // If still no final profit but item is resold, try to calculate it using SwapProfitLink model
+                    if ($profitFinal === null) {
                         try {
                             $swapProfitLinkModel = new \App\Models\SwapProfitLink();
                             $calculatedProfit = $swapProfitLinkModel->calculateSwapProfit($s['id']);
@@ -2406,34 +3644,39 @@ class DashboardController {
                                 $profitStatus = 'finalized';
                             }
                         } catch (\Exception $e) {
-                            error_log("DashboardController: Error calculating profit for swap #{$s['id']}: " . $e->getMessage());
-                            if ($profitEstimate !== null) {
-                                $profitFinal = $profitEstimate;
-                            }
+                            error_log("DashboardController getSwapStatistics: Error calculating profit for swap #{$s['id']}: " . $e->getMessage());
                         }
                     }
                     
-                    $profitToUse = $profitFinal !== null ? $profitFinal : ($profitEstimate !== null ? $profitEstimate : 0);
-                    $calculatedFinalProfit += $profitToUse;
-                    $calculatedFinalCount++;
-                    
-                    if ($profitToUse < 0) {
-                        $calculatedLoss += abs($profitToUse);
+                    // If we have final profit (from swaps table, swap_profit_links, calculated, or estimate), count it
+                    // Matches view logic: if resold and (profitFinal OR profitEstimate), show as realized
+                    if ($profitFinal !== null) {
+                        $profitToUse = $profitFinal;
+                        $calculatedFinalProfit += $profitToUse;
+                        $calculatedFinalCount++;
+                        if ($profitToUse < 0) {
+                            $calculatedLoss += abs($profitToUse);
+                        }
+                    } elseif ($profitEstimate !== null) {
+                        // If no final profit but have estimate and item is resold, use estimate (matches view logic)
+                        $profitToUse = $profitEstimate;
+                        $calculatedFinalProfit += $profitToUse;
+                        $calculatedFinalCount++;
+                        if ($profitToUse < 0) {
+                            $calculatedLoss += abs($profitToUse);
+                        }
+                        error_log("DashboardController getSwapStatistics: Using profit_estimate ₵{$profitEstimate} for resold swap #{$s['id']} (matches view logic)");
                     }
-                } elseif ($isResold || $profitStatus === 'finalized') {
-                    // Legacy: resold or finalized
-                    $profitToUse = $profitFinal !== null ? $profitFinal : ($profitEstimate !== null ? $profitEstimate : 0);
-                    if ($profitToUse != 0 || $profitFinal !== null) {
+                } elseif ($profitStatus === 'finalized' && $hasCustomerSaleId) {
+                    // Profit is finalized and customer item has been resold
+                    if ($profitFinal !== null) {
+                        $profitToUse = $profitFinal;
                         $calculatedFinalProfit += $profitToUse;
                         $calculatedFinalCount++;
                         if ($profitToUse < 0) {
                             $calculatedLoss += abs($profitToUse);
                         }
                     }
-                } elseif ($profitEstimate !== null) {
-                    // Estimated profit
-                    $calculatedEstimatedProfit += $profitEstimate;
-                    $calculatedEstimatedCount++;
                 }
             }
             
@@ -2575,6 +3818,9 @@ class DashboardController {
         // Calculate final profit (positive only) and loss (positive value of losses)
         $totalProfit = max(0, $calculatedFinalProfit); // Only positive profits
         $totalLoss = $calculatedLoss; // Losses as positive value
+        
+        // Debug logging
+        error_log("DashboardController getSwapStatistics: Calculated final profit: ₵{$calculatedFinalProfit}, Estimated profit: ₵{$calculatedEstimatedProfit}, Total profit (realized): ₵{$totalProfit}, Count: {$calculatedFinalCount}");
         
         return [
             'total_swaps' => (int)($statusStats['total'] ?? 0),
@@ -3108,21 +4354,250 @@ class DashboardController {
             $dateFromStart = $dateFrom . ' 00:00:00';
             $dateToEnd = $dateTo . ' 23:59:59';
             
+            // Calculate sales revenue from ALL sales (both technicians and salespersons)
+            // No filtering by created_by_user_id or role - includes all company sales
+            // EXCLUDE swap transactions - swaps should only be tracked on swap page
+            // Use swap_id IS NULL to exclude all swap-related sales
             $salesRevenueQuery = $db->prepare("
                 SELECT COALESCE(SUM(final_amount), 0) as total 
                 FROM pos_sales 
                 WHERE company_id = ? AND created_at >= ? AND created_at <= ?
+                AND swap_id IS NULL
             ");
             $salesRevenueQuery->execute([$companyId, $dateFromStart, $dateToEnd]);
             $salesRevenue = (float)($salesRevenueQuery->fetch()['total'] ?? 0);
+            error_log("Financial Summary - Sales Revenue: ₵{$salesRevenue} (includes all sales from technicians and salespersons, excluding swap transactions)");
         } catch (\Exception $e) {
             error_log("Error getting sales revenue: " . $e->getMessage());
             $salesRevenue = 0;
         }
         
-        // Swap Profit - use from swapStats if provided (already calculated correctly)
-        // Otherwise calculate from swap_profit_links table
+        // Swap Revenue and Profit
+        // Swap revenue should be:
+        // - For non-resold swaps: cash top-up only (added_cash)
+        // - For resold swaps: cash top-up + resale value (total_value, which includes both)
+        // The swapped item needs to be resold to realize its full value
+        $swapRevenue = 0;
         $swapProfit = 0;
+        
+        // Get swap revenue - cash top-up for non-resold, total_value (top-up + resale) for resold swaps
+        try {
+            // Check which columns exist
+            $checkAddedCash = $db->query("SHOW COLUMNS FROM swaps LIKE 'added_cash'");
+            $hasAddedCash = $checkAddedCash->rowCount() > 0;
+            $checkTotalValue = $db->query("SHOW COLUMNS FROM swaps LIKE 'total_value'");
+            $hasTotalValue = $checkTotalValue->rowCount() > 0;
+            $checkFinalPrice = $db->query("SHOW COLUMNS FROM swaps LIKE 'final_price'");
+            $hasFinalPrice = $checkFinalPrice->rowCount() > 0;
+            $checkCompanyProductId = $db->query("SHOW COLUMNS FROM swaps LIKE 'company_product_id'");
+            $hasCompanyProductId = $checkCompanyProductId->rowCount() > 0;
+            
+            // Check if swapped_items table exists to check resale status
+            $hasSwappedItems = false;
+            try {
+                $check = $db->query("SHOW TABLES LIKE 'swapped_items'");
+                $hasSwappedItems = $check->rowCount() > 0;
+            } catch (Exception $e) {
+                $hasSwappedItems = false;
+            }
+            
+            if ($hasTotalValue) {
+                // Use total_value which should contain Cash Top-up + Resold Price
+                // total_value is calculated as: Cash Top-up (final_price - given_phone_value or added_cash) + Resold Price
+                $swapRevenueQuery = $db->prepare("
+                    SELECT COALESCE(SUM(total_value), 0) as total 
+                    FROM swaps s
+                    WHERE s.company_id = ? 
+                    AND DATE(s.created_at) BETWEEN ? AND ?
+                ");
+                $swapRevenueQuery->execute([$companyId, $dateFrom, $dateTo]);
+                $swapRevenue = (float)($swapRevenueQuery->fetch()['total'] ?? 0);
+            } elseif ($hasAddedCash) {
+                // Fallback: Use added_cash directly (cash top-up only) if we can't check resale status
+                $swapRevenueQuery = $db->prepare("
+                    SELECT COALESCE(SUM(added_cash), 0) as total 
+                    FROM swaps 
+                    WHERE company_id = ? 
+                    AND DATE(created_at) BETWEEN ? AND ?
+                ");
+                $swapRevenueQuery->execute([$companyId, $dateFrom, $dateTo]);
+                $swapRevenue = (float)($swapRevenueQuery->fetch()['total'] ?? 0);
+            } elseif ($hasCompanyProductId) {
+                // Calculate added_cash from product prices: company_product_price - customer_product_estimated_value
+                // Check if swapped_items table exists
+                $hasSwappedItems = false;
+                try {
+                    $check = $db->query("SHOW TABLES LIKE 'swapped_items'");
+                    $hasSwappedItems = $check->rowCount() > 0;
+                } catch (Exception $e) {
+                    $hasSwappedItems = false;
+                }
+                
+                if ($hasSwappedItems) {
+                    // Calculate cash top-up from: company_product_price - customer_product_estimated_value
+                    // Use subquery to avoid double-counting when multiple swapped_items exist per swap
+                    // Get the first swapped_item per swap to calculate cash top-up
+                    $swapRevenueQuery = $db->prepare("
+                        SELECT COALESCE(SUM(cash_topup), 0) as total
+                        FROM (
+                            SELECT s.id,
+                                CASE 
+                                    WHEN p.price > 0 AND si.estimated_value > 0 AND (p.price - si.estimated_value) > 0 
+                                        THEN (p.price - si.estimated_value)
+                                    ELSE 0
+                                END as cash_topup
+                            FROM swaps s
+                            LEFT JOIN products p ON s.company_product_id = p.id AND p.company_id = s.company_id
+                            LEFT JOIN (
+                                SELECT swap_id, estimated_value, 
+                                       ROW_NUMBER() OVER (PARTITION BY swap_id ORDER BY id) as rn
+                                FROM swapped_items
+                            ) si ON s.id = si.swap_id AND si.rn = 1
+                            WHERE s.company_id = ? 
+                            AND DATE(s.created_at) BETWEEN ? AND ?
+                        ) as swap_calc
+                    ");
+                    $swapRevenueQuery->execute([$companyId, $dateFrom, $dateTo]);
+                    $swapRevenue = (float)($swapRevenueQuery->fetch()['total'] ?? 0);
+                    
+                    // Fallback if ROW_NUMBER() is not supported (older MySQL)
+                    if ($swapRevenue == 0) {
+                        $swapRevenueQuery2 = $db->prepare("
+                            SELECT COALESCE(SUM(cash_topup), 0) as total
+                            FROM (
+                                SELECT s.id,
+                                    CASE 
+                                        WHEN p.price > 0 AND si.estimated_value > 0 AND (p.price - si.estimated_value) > 0 
+                                            THEN (p.price - si.estimated_value)
+                                        ELSE 0
+                                    END as cash_topup
+                                FROM swaps s
+                                LEFT JOIN products p ON s.company_product_id = p.id AND p.company_id = s.company_id
+                                LEFT JOIN swapped_items si ON s.id = si.swap_id
+                                WHERE s.company_id = ? 
+                                AND DATE(s.created_at) BETWEEN ? AND ?
+                                GROUP BY s.id
+                            ) as swap_calc
+                        ");
+                        $swapRevenueQuery2->execute([$companyId, $dateFrom, $dateTo]);
+                        $swapRevenue = (float)($swapRevenueQuery2->fetch()['total'] ?? 0);
+                    }
+                } else {
+                    // Fallback: use total_value if it's reasonable (small amount, likely cash top-up)
+                    if ($hasTotalValue) {
+                        $swapRevenueQuery = $db->prepare("
+                            SELECT COALESCE(SUM(
+                                CASE 
+                                    WHEN total_value > 0 AND total_value <= 500 THEN total_value
+                                    ELSE 0
+                                END
+                            ), 0) as total 
+                            FROM swaps 
+                            WHERE company_id = ? 
+                            AND DATE(created_at) BETWEEN ? AND ?
+                        ");
+                        $swapRevenueQuery->execute([$companyId, $dateFrom, $dateTo]);
+                        $swapRevenue = (float)($swapRevenueQuery->fetch()['total'] ?? 0);
+                    }
+                }
+            } elseif ($hasFinalPrice) {
+                // final_price exists - calculate cash top-up from final_price - customer_product_value
+                // Check if swapped_items table exists to get customer product value
+                $hasSwappedItems = false;
+                try {
+                    $check = $db->query("SHOW TABLES LIKE 'swapped_items'");
+                    $hasSwappedItems = $check->rowCount() > 0;
+                } catch (Exception $e) {
+                    $hasSwappedItems = false;
+                }
+                
+                if ($hasSwappedItems) {
+                    // Calculate cash top-up: final_price - estimated_value (customer product value)
+                    // Use subquery to get first swapped_item per swap
+                    try {
+                        $swapRevenueQuery = $db->prepare("
+                            SELECT COALESCE(SUM(cash_topup), 0) as total
+                            FROM (
+                                SELECT s.id,
+                                    CASE 
+                                        WHEN s.final_price > 0 AND si.estimated_value > 0 AND (s.final_price - si.estimated_value) > 0 
+                                            THEN (s.final_price - si.estimated_value)
+                                        ELSE 0
+                                    END as cash_topup
+                                FROM swaps s
+                                LEFT JOIN (
+                                    SELECT swap_id, estimated_value, 
+                                           ROW_NUMBER() OVER (PARTITION BY swap_id ORDER BY id) as rn
+                                    FROM swapped_items
+                                ) si ON s.id = si.swap_id AND si.rn = 1
+                                WHERE s.company_id = ? 
+                                AND DATE(s.created_at) BETWEEN ? AND ?
+                            ) as swap_calc
+                        ");
+                        $swapRevenueQuery->execute([$companyId, $dateFrom, $dateTo]);
+                        $swapRevenue = (float)($swapRevenueQuery->fetch()['total'] ?? 0);
+                    } catch (\Exception $e) {
+                        // Fallback for older MySQL versions (no ROW_NUMBER)
+                        error_log("DashboardController getFinancialSummary: ROW_NUMBER() not supported, using fallback: " . $e->getMessage());
+                        $swapRevenueQuery = $db->prepare("
+                            SELECT COALESCE(SUM(cash_topup), 0) as total
+                            FROM (
+                                SELECT s.id,
+                                    CASE 
+                                        WHEN s.final_price > 0 AND si.estimated_value > 0 AND (s.final_price - si.estimated_value) > 0 
+                                            THEN (s.final_price - si.estimated_value)
+                                        ELSE 0
+                                    END as cash_topup
+                                FROM swaps s
+                                LEFT JOIN swapped_items si ON s.id = si.swap_id
+                                WHERE s.company_id = ? 
+                                AND DATE(s.created_at) BETWEEN ? AND ?
+                                GROUP BY s.id
+                            ) as swap_calc
+                        ");
+                        $swapRevenueQuery->execute([$companyId, $dateFrom, $dateTo]);
+                        $swapRevenue = (float)($swapRevenueQuery->fetch()['total'] ?? 0);
+                    }
+                } else {
+                    // No swapped_items table - can't calculate cash top-up, use 0
+                    $swapRevenue = 0;
+                }
+            } elseif ($hasTotalValue) {
+                // Fallback: use total_value if it's reasonable (small amount, likely cash top-up)
+                $swapRevenueQuery = $db->prepare("
+                    SELECT COALESCE(SUM(
+                        CASE 
+                            WHEN total_value > 0 AND total_value <= 500 THEN total_value
+                            ELSE 0
+                        END
+                    ), 0) as total 
+                    FROM swaps 
+                    WHERE company_id = ? 
+                    AND DATE(created_at) BETWEEN ? AND ?
+                ");
+                $swapRevenueQuery->execute([$companyId, $dateFrom, $dateTo]);
+                $swapRevenue = (float)($swapRevenueQuery->fetch()['total'] ?? 0);
+            } elseif ($hasCompanyProductId) {
+                // Try to get from company_product price
+                $swapRevenueQuery = $db->prepare("
+                    SELECT COALESCE(SUM(sp.price), 0) as total 
+                    FROM swaps s
+                    LEFT JOIN products sp ON s.company_product_id = sp.id
+                    WHERE s.company_id = ? 
+                    AND DATE(s.created_at) BETWEEN ? AND ?
+                ");
+                $swapRevenueQuery->execute([$companyId, $dateFrom, $dateTo]);
+                $swapRevenue = (float)($swapRevenueQuery->fetch()['total'] ?? 0);
+            } else {
+                $swapRevenue = 0;
+            }
+        } catch (\Exception $e) {
+            error_log("Error getting swap revenue: " . $e->getMessage());
+            $swapRevenue = 0;
+        }
+        
+        // Get swap profit - use from swapStats if provided (already calculated correctly)
+        // Otherwise calculate from swap_profit_links table
         if ($swapStats && isset($swapStats['total_profit'])) {
             // Use the already-calculated swap profit from getSwapStatistics()
             // This uses the same logic as SwapController, ensuring consistency
@@ -3131,18 +4606,35 @@ class DashboardController {
         } else {
             // Fallback: Calculate from database with date range filtering
             try {
+                // Only count profit when customer item has been resold (customer_item_sale_id exists) AND profit is finalized
+                // CRITICAL FIX: Filter by customer sale date (when item was resold), not swap creation date
+                // Never count estimated profits as realized gains
                 $swapProfitQuery = $db->prepare("
-                    SELECT COALESCE(SUM(final_profit), 0) as total 
+                    SELECT COALESCE(
+                        SUM(CASE 
+                            WHEN spl.customer_item_sale_id IS NOT NULL 
+                            AND spl.status = 'finalized' 
+                            AND spl.final_profit IS NOT NULL 
+                            THEN spl.final_profit 
+                            WHEN spl.customer_item_sale_id IS NOT NULL 
+                            AND spl.final_profit IS NOT NULL 
+                            THEN spl.final_profit
+                            ELSE 0 
+                        END), 0
+                    ) as total 
                     FROM swap_profit_links spl
                     INNER JOIN swaps s ON spl.swap_id = s.id
+                    LEFT JOIN pos_sales customer_sale ON spl.customer_item_sale_id = customer_sale.id
                     WHERE s.company_id = ? 
-                    AND spl.final_profit IS NOT NULL 
-                    AND spl.status = 'finalized'
-                    AND DATE(s.created_at) BETWEEN ? AND ?
+                    AND spl.customer_item_sale_id IS NOT NULL
+                    AND (
+                        (customer_sale.id IS NOT NULL AND DATE(customer_sale.created_at) BETWEEN ? AND ?)
+                        OR (customer_sale.id IS NULL AND DATE(s.created_at) BETWEEN ? AND ?)
+                    )
                 ");
-                $swapProfitQuery->execute([$companyId, $dateFrom, $dateTo]);
+                $swapProfitQuery->execute([$companyId, $dateFrom, $dateTo, $dateFrom, $dateTo]);
                 $swapProfit = (float)($swapProfitQuery->fetch()['total'] ?? 0);
-                error_log("Financial Summary: Calculated swap profit from DB (date filtered): ₵{$swapProfit} for period {$dateFrom} to {$dateTo}");
+                error_log("Financial Summary: Calculated swap profit from DB (date filtered by customer sale): ₵{$swapProfit} for period {$dateFrom} to {$dateTo}");
             } catch (\Exception $e) {
                 error_log("Error getting swap profit: " . $e->getMessage());
                 $swapProfit = 0;
@@ -3214,10 +4706,13 @@ class DashboardController {
             $hasCostCol = $checkCostCol->rowCount() > 0;
             
             if ($hasCostCol) {
+                // EXCLUDE swap transactions - swaps should only be tracked on swap page
+                // Use swap_id IS NULL to exclude all swap-related sales
                 $salesProfitQuery = $db->prepare("
                     SELECT COALESCE(SUM(final_amount - total_cost), 0) as profit 
                     FROM pos_sales 
                     WHERE company_id = ? AND DATE(created_at) BETWEEN ? AND ? AND total_cost IS NOT NULL
+                    AND swap_id IS NULL
                 ");
                 $salesProfitQuery->execute([$companyId, $dateFrom, $dateTo]);
                 $salesProfit = (float)($salesProfitQuery->fetch()['profit'] ?? 0);
@@ -3247,6 +4742,21 @@ class DashboardController {
                 $checkProductsNew = $db->query("SHOW TABLES LIKE 'products_new'");
                 $productsTable = ($checkProductsNew && $checkProductsNew->rowCount() > 0) ? 'products_new' : 'products';
                 
+                // Check which cost column exists (prioritize cost_price, then cost)
+                $checkCostPrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost_price'");
+                $checkCost = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost'");
+                $hasCostPrice = $checkCostPrice->rowCount() > 0;
+                $hasCost = $checkCost->rowCount() > 0;
+                
+                // Determine cost column to use (prioritize cost_price if both exist)
+                if ($hasCostPrice) {
+                    $costColumn = 'COALESCE(p.cost_price, p.cost, 0)';
+                } elseif ($hasCost) {
+                    $costColumn = 'COALESCE(p.cost, 0)';
+                } else {
+                    $costColumn = '0'; // No cost column found
+                }
+                
                 // Use datetime comparison to match audit trail (includes full day)
                 $dateFromStart = $dateFrom . ' 00:00:00';
                 $dateToEnd = $dateTo . ' 23:59:59';
@@ -3258,7 +4768,7 @@ class DashboardController {
                             -- Workmanship Profit: repair_cost (revenue) - labour_cost (cost)
                             COALESCE(SUM(r.repair_cost - COALESCE(r.labour_cost, r.repair_cost * 0.5, 0)), 0) as workmanship_profit,
                             -- Parts Profit: (selling_price - cost) * quantity
-                            COALESCE(SUM((ra.price - COALESCE(p.cost, 0)) * ra.quantity), 0) as parts_profit
+                            COALESCE(SUM((ra.price - {$costColumn}) * ra.quantity), 0) as parts_profit
                         FROM repairs_new r
                         LEFT JOIN repair_accessories ra ON r.id = ra.repair_id
                         LEFT JOIN {$productsTable} p ON ra.product_id = p.id AND p.company_id = r.company_id
@@ -3304,18 +4814,44 @@ class DashboardController {
             $checkTable = $db->query("SHOW TABLES LIKE 'products_new'");
             $productsTable = ($checkTable && $checkTable->rowCount() > 0) ? 'products_new' : 'products';
             
+            // Check which cost column exists (prioritize cost_price, then cost)
+            $checkCostPrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost_price'");
+            $checkCost = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost'");
+            $hasCostPrice = $checkCostPrice->rowCount() > 0;
+            $hasCost = $checkCost->rowCount() > 0;
+            
+            // Determine cost column to use (prioritize cost_price if both exist)
+            if ($hasCostPrice) {
+                $costColumn = 'COALESCE(p.cost_price, 0)';
+            } elseif ($hasCost) {
+                $costColumn = 'COALESCE(p.cost, 0)';
+            } else {
+                $costColumn = '0'; // No cost column found
+            }
+            
+            // Calculate sales cost with improved matching (by item_id OR by description)
+            // Includes ALL sales from both technicians and salespersons (no filtering by created_by_user_id or role)
+            // EXCLUDE swap transactions - swaps should only be tracked on swap page
+            // Use swap_id IS NULL to exclude all swap-related sales
             $salesCostQuery = $db->prepare("
-                SELECT COALESCE(SUM(
-                    (SELECT COALESCE(SUM(psi.quantity * COALESCE(p.cost, 0)), 0)
-                     FROM pos_sale_items psi 
-                     LEFT JOIN {$productsTable} p ON psi.item_id = p.id AND p.company_id = ps.company_id
-                     WHERE psi.pos_sale_id = ps.id)
-                ), 0) as cost
-                FROM pos_sales ps
-                WHERE ps.company_id = ? AND ps.created_at >= ? AND ps.created_at <= ?
+                SELECT COALESCE(SUM(psi.quantity * {$costColumn}), 0) as cost
+                FROM pos_sale_items psi
+                INNER JOIN pos_sales ps ON psi.pos_sale_id = ps.id
+                LEFT JOIN {$productsTable} p ON (
+                    (psi.item_id = p.id AND p.company_id = ps.company_id)
+                    OR ((psi.item_id IS NULL OR psi.item_id = 0) AND LOWER(TRIM(psi.item_description)) = LOWER(TRIM(p.name)) AND p.company_id = ps.company_id)
+                )
+                WHERE ps.company_id = ? 
+                AND ps.created_at >= ? 
+                AND ps.created_at <= ?
+                AND ps.swap_id IS NULL
+                AND p.id IS NOT NULL
             ");
             $salesCostQuery->execute([$companyId, $dateFromStart, $dateToEnd]);
             $salesCost = (float)($salesCostQuery->fetch()['cost'] ?? 0);
+            
+            // Log for debugging
+            error_log("Financial Summary - Sales Cost calculated: ₵{$salesCost} for company {$companyId} from {$dateFrom} to {$dateTo} (includes all sales from technicians and salespersons)");
         } catch (\Exception $e) {
             error_log("Error calculating sales cost: " . $e->getMessage());
             // Fallback: estimate 80% cost
@@ -3340,6 +4876,21 @@ class DashboardController {
                 $checkProductsNew = $db->query("SHOW TABLES LIKE 'products_new'");
                 $productsTable = ($checkProductsNew && $checkProductsNew->rowCount() > 0) ? 'products_new' : 'products';
                 
+                // Check which cost column exists (prioritize cost_price, then cost)
+                $checkCostPrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost_price'");
+                $checkCost = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost'");
+                $hasCostPrice = $checkCostPrice->rowCount() > 0;
+                $hasCost = $checkCost->rowCount() > 0;
+                
+                // Determine cost column to use (prioritize cost_price if both exist)
+                if ($hasCostPrice) {
+                    $costColumn = 'COALESCE(p.cost_price, p.cost, 0)';
+                } elseif ($hasCost) {
+                    $costColumn = 'COALESCE(p.cost, 0)';
+                } else {
+                    $costColumn = '0'; // No cost column found
+                }
+                
                 if ($hasRepairAccessories) {
                     // Calculate labour cost and parts cost
                     $repairerCostQuery = $db->prepare("
@@ -3347,7 +4898,7 @@ class DashboardController {
                             -- Labour Cost
                             COALESCE(SUM(COALESCE(r.labour_cost, r.repair_cost * 0.5, 0)), 0) as labour_cost,
                             -- Parts Cost: cost * quantity
-                            COALESCE(SUM(COALESCE(p.cost, 0) * ra.quantity), 0) as parts_cost
+                            COALESCE(SUM({$costColumn} * ra.quantity), 0) as parts_cost
                         FROM repairs_new r
                         LEFT JOIN repair_accessories ra ON r.id = ra.repair_id
                         LEFT JOIN {$productsTable} p ON ra.product_id = p.id AND p.company_id = r.company_id
@@ -3374,7 +4925,69 @@ class DashboardController {
             $repairerCost = 0;
         }
         
+        // Calculate swap cost from actual cost price of swapped items (Selling Price - Cost Price = Profit)
+        // Swap cost = Sum of cost prices of all company products given in swaps
+        // This matches the audit trail calculation for consistency
+        $swapCost = 0;
+        if ($swapRevenue > 0) {
+            try {
+                // Check which products table exists
+                $checkProductsNew = $db->query("SHOW TABLES LIKE 'products_new'");
+                $productsTable = ($checkProductsNew && $checkProductsNew->rowCount() > 0) ? 'products_new' : 'products';
+                
+                // Check which cost columns exist
+                $checkCostPrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost_price'");
+                $checkCost = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost'");
+                $checkPurchasePrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'purchase_price'");
+                $hasCostPrice = $checkCostPrice->rowCount() > 0;
+                $hasCost = $checkCost->rowCount() > 0;
+                $hasPurchasePrice = $checkPurchasePrice->rowCount() > 0;
+                
+                // Determine cost column to use (prioritize cost_price, then cost, then purchase_price)
+                $costColumn = '0';
+                if ($hasCostPrice) {
+                    $costColumn = 'COALESCE(p.cost_price, 0)';
+                } elseif ($hasCost) {
+                    $costColumn = 'COALESCE(p.cost, 0)';
+                } elseif ($hasPurchasePrice) {
+                    $costColumn = 'COALESCE(p.purchase_price, 0)';
+                }
+                
+                // Calculate swap cost: Sum of cost prices of company products given in swaps
+                $swapCostQuery = $db->prepare("
+                    SELECT COALESCE(SUM({$costColumn}), 0) as total_cost
+                    FROM swaps s
+                    LEFT JOIN {$productsTable} p ON s.company_product_id = p.id AND p.company_id = s.company_id
+                    WHERE s.company_id = ?
+                    AND DATE(s.created_at) >= ?
+                    AND DATE(s.created_at) <= ?
+                ");
+                $swapCostQuery->execute([$companyId, $dateFrom, $dateTo]);
+                $swapCostResult = $swapCostQuery->fetch(\PDO::FETCH_ASSOC);
+                $swapCost = floatval($swapCostResult['total_cost'] ?? 0);
+                
+                error_log("Financial Summary: Swap cost calculated from products table: ₵{$swapCost} (using {$costColumn})");
+            } catch (\Exception $e) {
+                error_log("Financial Summary: Error calculating swap cost from products: " . $e->getMessage());
+                // Fallback: calculate from revenue and profit if available
+                if ($swapRevenue > 0 && $swapProfit > 0) {
+                    $swapCost = $swapRevenue - $swapProfit;
+                    error_log("Financial Summary: Using fallback swap cost calculation: ₵{$swapCost}");
+                }
+            }
+        }
+        
+        if ($swapCost < 0) {
+            error_log("Financial Summary WARNING: Negative swap cost detected (₵{$swapCost}), setting to 0");
+            $swapCost = 0;
+        }
+        
+        // Revenue = Sales Revenue (from POS sales by salesperson and technician) + Repair Revenue (from technicians)
+        // Note: Resold swap items are already included in sales revenue as they are regular POS sales
+        // Revenue should NOT include swap profit - profit is calculated separately
         $totalRevenue = $salesRevenue + $repairRevenue;
+        
+        // Total cost = Sales Cost + Repairer Cost (NO swap cost in total - swap profit already accounts for it)
         $totalCost = $salesCost + $repairerCost;
         
         // Validate and prevent anomalies
@@ -3392,16 +5005,30 @@ class DashboardController {
         
         // Calculate profit as Selling Price - Cost Price (Revenue - Cost)
         // This is the standard profit formula: Profit = Revenue - Cost
-        $totalProfit = $totalRevenue - $totalCost;
+        // ALWAYS calculate profit as Revenue - Cost (matching audit trail logic)
+        // This is the unified formula for all items: Sales, Swaps, and Repairs
+        $salesProfit = $salesRevenue - $salesCost;
+        if ($salesProfit < 0) $salesProfit = 0;
         
-        // Validate profit calculation
-        // Profit can be negative (loss), but log if it seems anomalous
-        if ($totalProfit < 0 && $totalRevenue > 100) {
-            // Large loss might indicate data issue, but allow it (could be legitimate)
-            error_log("Financial Summary INFO: Loss detected - Revenue: ₵{$totalRevenue}, Cost: ₵{$totalCost}, Profit: ₵{$totalProfit}");
+        // Note: $repairerProfit is already calculated earlier in this function (around line 4660)
+        // Ensure repairer profit is not negative
+        if ($repairerProfit < 0) $repairerProfit = 0;
+        
+        // Calculate total profit = Sales Profit + Swap Profit + Repairer Profit
+        // Swap profit is the realized gain from swap transactions (when customer item is resold)
+        // This is separate from sales revenue - it's the additional profit from the swap transaction itself
+        // Note: Resold swap items are included in sales revenue, but swap profit is the realized gain
+        // from the swap transaction (difference between customer item value and resale price, minus costs)
+        $totalProfit = $salesProfit + $swapProfit + $repairerProfit;
+        
+        // Profit cannot be negative
+        if ($totalProfit < 0) {
+            error_log("Financial Summary WARNING: Calculated profit is negative (₵{$totalProfit}). Sales Profit: ₵{$salesProfit}, Swap Profit: ₵{$swapProfit}, Repairer Profit: ₵{$repairerProfit}. Setting profit to 0.");
+            $totalProfit = 0;
         }
         
-        // Calculate profit margin (can be negative for losses)
+        // Calculate profit margin based on total revenue (sales + repairs)
+        // Note: Swap profit is separate and not included in revenue calculation
         $profitMargin = $totalRevenue > 0 ? ($totalProfit / $totalRevenue) * 100 : 0;
         
         // Round values to 2 decimal places to prevent floating point anomalies
@@ -3409,21 +5036,26 @@ class DashboardController {
         $totalCost = round($totalCost, 2);
         $totalProfit = round($totalProfit, 2);
         $profitMargin = round($profitMargin, 2);
+        $salesProfit = round($salesProfit, 2);
         
-        error_log("Financial Summary - Revenue: ₵{$totalRevenue}, Cost: ₵{$totalCost} (Sales: ₵{$salesCost}, Repairer: ₵{$repairerCost}), Profit: ₵{$totalProfit}, Margin: {$profitMargin}%");
-        error_log("Financial Summary Breakdown - Sales Revenue: ₵{$salesRevenue}, Sales Profit: ₵{$salesProfit}, Swap Profit: ₵{$swapProfit}, Repairer Profit: ₵{$repairerProfit}");
+        error_log("Financial Summary - Revenue: ₵{$totalRevenue} (Sales: ₵{$salesRevenue} + Repairs: ₵{$repairRevenue}), Cost: ₵{$totalCost} (Sales: ₵{$salesCost} + Repairer: ₵{$repairerCost}), Sales Profit: ₵{$salesProfit}, Swap Profit: ₵{$swapProfit}, Repairer Profit: ₵{$repairerProfit}, Total Profit: ₵{$totalProfit}, Margin: {$profitMargin}%");
+        error_log("Financial Summary Breakdown - Sales Revenue: ₵{$salesRevenue}, Sales Cost: ₵{$salesCost}, Sales Profit: ₵{$salesProfit}, Repair Revenue: ₵{$repairRevenue}, Repairer Cost: ₵{$repairerCost}, Repairer Profit: ₵{$repairerProfit}, Swap Revenue (value given): ₵{$swapRevenue}, Swap Cost: ₵{$swapCost}, Swap Profit (realized): ₵{$swapProfit}");
         
         return [
             'total_revenue' => (float)$totalRevenue, // Already rounded
             'total_cost' => (float)$totalCost, // Already rounded
             'sales_revenue' => (float)round($salesRevenue, 2),
             'sales_cost' => (float)round($salesCost, 2),
+            'sales_profit' => (float)$salesProfit, // Sales profit (revenue - cost) from inventory products
+            'swap_revenue' => (float)round($swapRevenue, 2),
+            'swap_total_value' => (float)round($swapRevenue, 2), // Alias for compatibility
+            'swap_cost' => (float)round($swapCost, 2),
             'swap_profit' => (float)round($swapProfit, 2),
             'repair_revenue' => (float)round($repairRevenue, 2),
             'repair_parts_count' => (int)$repairPartsCount, // Number of products sold as spare parts
             'repairer_profit' => (float)round($repairerProfit, 2),
             'repairer_cost' => (float)round($repairerCost, 2),
-            'total_profit' => (float)$totalProfit, // Already rounded above
+            'total_profit' => (float)$totalProfit, // Total profit = Sales Profit + Swap Profit + Repairer Profit
             'profit_margin' => (float)$profitMargin // Already rounded above
         ];
     }
@@ -3509,6 +5141,8 @@ class DashboardController {
         $stats = [];
         
         // Get company sales stats (only if POS module enabled)
+        // EXCLUDE swap transactions - swaps should only be tracked on swap page
+        // Use swap_id IS NULL to exclude all swap-related sales
         if (in_array('pos_sales', $enabledModuleKeys)) {
             $salesQuery = $db->prepare("
                 SELECT 
@@ -3517,6 +5151,7 @@ class DashboardController {
                     AVG(final_amount) as avg_sale
                 FROM pos_sales 
                 WHERE company_id = ?
+                AND swap_id IS NULL
             ");
             $salesQuery->execute([$companyId]);
             $salesData = $salesQuery->fetch();
@@ -3569,31 +5204,39 @@ class DashboardController {
             $stats['completed_repairs'] = (int)($repairsStats['completed_repairs'] ?? 0);
         }
         
-        // Get swap stats using models (only if swap module enabled)
+        // Get swap stats using getSwapStatistics() - same method as swap page
+        // This ensures consistency: profit is only realized when customer item is resold AND profit is finalized
         if (in_array('swap', $enabledModuleKeys)) {
             $swapStats = [];
             try {
-                $swapModel = new \App\Models\Swap();
-                $swapModelStats = $swapModel->getStats($companyId);
+                // Use getSwapStatistics() which uses the same logic as SwapController::index()
+                // This ensures the profit calculation matches exactly what's shown on the swap page
+                // Pass null for date range to get all-time stats (same as swap page)
+                $swapStatsData = $this->getSwapStatistics($companyId, null, null);
                 
-                // Get swapped items stats
-                $swappedItemModel = new \App\Models\SwappedItem();
-                $swappedItemsStats = $swappedItemModel->getStats($companyId);
-                
-                // Get profit stats
-                $swapProfitLinkModel = new \App\Models\SwapProfitLink();
-                $profitStats = $swapProfitLinkModel->getStats($companyId);
+                // Debug logging
+                error_log("DashboardController getCompanyStats: Swap stats data - total_profit: " . ($swapStatsData['total_profit'] ?? 'null') . ", estimated_profit: " . ($swapStatsData['estimated_profit'] ?? 'null'));
                 
                 $swapStats = [
-                    'total_swaps' => (int)($swapModelStats['total_swaps'] ?? 0),
-                    'total_swap_value' => (float)($swapModelStats['total_value'] ?? 0),
-                    'total_cash_received' => (float)($swapModelStats['total_cash_received'] ?? 0),
-                    'in_stock_items' => (int)($swappedItemsStats['in_stock_items'] ?? 0),
-                    'sold_items' => (int)($swappedItemsStats['sold_items'] ?? 0),
-                    'total_estimated_profit' => (float)($profitStats['total_estimated_profit'] ?? 0),
-                    'total_final_profit' => (float)($profitStats['total_final_profit'] ?? 0),
-                    'realized_profit_count' => (int)($profitStats['finalized_links'] ?? 0)
+                    'total_swaps' => (int)($swapStatsData['total_swaps'] ?? 0),
+                    'total_swap_value' => (float)($swapStatsData['total_value'] ?? 0),
+                    'in_stock_items' => (int)($swapStatsData['in_stock_items'] ?? 0),
+                    'sold_items' => (int)($swapStatsData['sold_items'] ?? 0),
+                    'total_estimated_profit' => (float)($swapStatsData['estimated_profit'] ?? 0),
+                    'total_final_profit' => (float)($swapStatsData['total_profit'] ?? 0), // Realized gains only - same as swap page
+                    'realized_profit_count' => 0 // Not tracked in getSwapStatistics, but that's okay
                 ];
+                
+                error_log("DashboardController getCompanyStats: Swap profit set to: ₵" . $swapStats['total_final_profit']);
+                
+                // Get cash received from swap model (not calculated in getSwapStatistics)
+                try {
+                    $swapModel = new \App\Models\Swap();
+                    $swapModelStats = $swapModel->getStats($companyId);
+                    $swapStats['total_cash_received'] = (float)($swapModelStats['total_cash_received'] ?? 0);
+                } catch (\Exception $e) {
+                    $swapStats['total_cash_received'] = 0;
+                }
             } catch (\Exception $e) {
                 error_log("DashboardController: Error loading swap stats - " . $e->getMessage());
                 $swapStats = [
@@ -3640,6 +5283,102 @@ class DashboardController {
             
             $stats['products'] = $productStats;
         }
+        
+        // Calculate total profit (Sales profit + Swap profit)
+        $totalProfit = 0;
+        $salesProfit = 0;
+        $swapProfit = 0;
+        
+        // Calculate sales profit (revenue - cost from sales history)
+        if (in_array('pos_sales', $enabledModuleKeys)) {
+            try {
+                // Determine which products table exists
+                $checkProductsNew = $db->query("SHOW TABLES LIKE 'products_new'");
+                $productsTable = ($checkProductsNew && $checkProductsNew->rowCount() > 0) ? 'products_new' : 'products';
+                
+                // Check which cost column exists (prioritize cost_price, then cost)
+                $checkCostPrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost_price'");
+                $checkCost = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost'");
+                $hasCostPrice = $checkCostPrice->rowCount() > 0;
+                $hasCost = $checkCost->rowCount() > 0;
+                
+                // Determine cost column to use
+                if ($hasCostPrice) {
+                    $costColumn = 'COALESCE(p.cost_price, p.cost, 0)';
+                } elseif ($hasCost) {
+                    $costColumn = 'COALESCE(p.cost, 0)';
+                } else {
+                    $costColumn = '0';
+                }
+                
+                // Calculate sales profit: revenue - cost
+                // EXCLUDE swap transactions - swaps should only be tracked on swap page
+                // Use same logic as sales history page (POSController::apiSales)
+                // Check if is_swap_mode column exists
+                $checkIsSwapMode = $db->query("SHOW COLUMNS FROM pos_sales LIKE 'is_swap_mode'");
+                $hasIsSwapMode = $checkIsSwapMode->rowCount() > 0;
+                
+                // Build WHERE clause to exclude swap sales (same as sales history page)
+                $whereClause = "ps.company_id = ?";
+                if ($hasIsSwapMode) {
+                    $whereClause .= " AND (ps.is_swap_mode = 0 OR ps.is_swap_mode IS NULL)";
+                } else {
+                    // Fallback: use swap_id IS NULL if is_swap_mode doesn't exist
+                    $checkSwapId = $db->query("SHOW COLUMNS FROM pos_sales LIKE 'swap_id'");
+                    $hasSwapId = $checkSwapId->rowCount() > 0;
+                    if ($hasSwapId) {
+                        $whereClause .= " AND ps.swap_id IS NULL";
+                    }
+                }
+                
+                $salesProfitQuery = $db->prepare("
+                    SELECT 
+                        COALESCE(SUM(ps.final_amount), 0) as revenue,
+                        COALESCE(SUM(
+                            (SELECT COALESCE(SUM(psi.quantity * {$costColumn}), 0)
+                             FROM pos_sale_items psi 
+                             LEFT JOIN {$productsTable} p ON (
+                                 (psi.item_id = p.id AND p.company_id = ps.company_id)
+                                 OR ((psi.item_id IS NULL OR psi.item_id = 0) AND LOWER(TRIM(psi.item_description)) = LOWER(TRIM(p.name)) AND p.company_id = ps.company_id)
+                             )
+                             WHERE psi.pos_sale_id = ps.id AND p.id IS NOT NULL)
+                        ), 0) as cost
+                    FROM pos_sales ps
+                    WHERE {$whereClause}
+                ");
+                $salesProfitQuery->execute([$companyId]);
+                $salesProfitData = $salesProfitQuery->fetch(\PDO::FETCH_ASSOC);
+                
+                $salesRevenue = floatval($salesProfitData['revenue'] ?? 0);
+                $salesCost = floatval($salesProfitData['cost'] ?? 0);
+                $salesProfit = $salesRevenue - $salesCost;
+                if ($salesProfit < 0) $salesProfit = 0;
+                
+                // Debug logging
+                error_log("DashboardController getCompanyStats: Sales Profit Calculation - Revenue: ₵{$salesRevenue}, Cost: ₵{$salesCost}, Profit: ₵{$salesProfit}");
+            } catch (\Exception $e) {
+                error_log("DashboardController: Error calculating sales profit - " . $e->getMessage());
+                $salesProfit = 0;
+            }
+        }
+        
+        // Get swap profit (realized gains from swaps)
+        if (in_array('swap', $enabledModuleKeys) && isset($stats['swaps'])) {
+            // Use the total_final_profit from swap stats (realized gains)
+            $swapProfit = floatval($stats['swaps']['total_final_profit'] ?? 0);
+            error_log("DashboardController getCompanyStats: Using swap profit from stats: ₵{$swapProfit}");
+        } else {
+            error_log("DashboardController getCompanyStats: Swap module not enabled or swap stats not found");
+        }
+        
+        // Total profit = Sales profit + Swap profit
+        $totalProfit = $salesProfit + $swapProfit;
+        
+        error_log("DashboardController getCompanyStats: Final profit calculation - Sales: ₵{$salesProfit}, Swap: ₵{$swapProfit}, Total: ₵{$totalProfit}");
+        
+        $stats['total_profit'] = round($totalProfit, 2);
+        $stats['sales_profit'] = round($salesProfit, 2);
+        $stats['swap_profit'] = round($swapProfit, 2);
         
         return $stats;
     }
@@ -3809,6 +5548,11 @@ class DashboardController {
      * GET /api/dashboard/check-module?module_key=dashboard_charts
      */
     public function checkModule() {
+        // Start session first (for web dashboard calls)
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
         // Clean any output buffers
         while (ob_get_level() > 0) {
             ob_end_clean();
@@ -3818,29 +5562,45 @@ class DashboardController {
         header('Content-Type: application/json');
         
         try {
-            // Try JWT auth first (for API calls)
             $payload = null;
-            try {
-                $payload = AuthMiddleware::handle(['manager', 'admin', 'system_admin', 'salesperson']);
-            } catch (\Exception $e) {
-                // If JWT fails, try session-based auth
-                if (session_status() === PHP_SESSION_NONE) {
-                    session_start();
-                }
-                $user = $_SESSION['user'] ?? null;
-                if (!$user) {
-                    ob_end_clean();
-                    http_response_code(401);
-                    echo json_encode(['success' => false, 'error' => 'Authentication required']);
-                    return;
-                }
-                
+            
+            // Try session-based auth first (for web dashboard)
+            $user = $_SESSION['user'] ?? null;
+            if ($user && is_array($user)) {
                 // Create payload-like object from session
                 $payload = (object)[
                     'company_id' => $user['company_id'] ?? null,
                     'role' => $user['role'] ?? 'salesperson',
                     'id' => $user['id'] ?? null
                 ];
+            } else {
+                // If no session, try JWT auth (for API calls)
+                $headers = function_exists('getallheaders') ? getallheaders() : [];
+                $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+                
+                if (strpos($authHeader, 'Bearer ') === 0) {
+                    try {
+                        $token = substr($authHeader, 7);
+                        $auth = new AuthService();
+                        $payload = $auth->validateToken($token);
+                        
+                        // Check role-based access
+                        $allowedRoles = ['manager', 'admin', 'system_admin', 'salesperson'];
+                        if (!in_array($payload->role, $allowedRoles, true)) {
+                            throw new \Exception('Unauthorized role');
+                        }
+                    } catch (\Exception $e) {
+                        ob_end_clean();
+                        http_response_code(401);
+                        echo json_encode(['success' => false, 'error' => 'Invalid or expired token']);
+                        return;
+                    }
+                } else {
+                    ob_end_clean();
+                    http_response_code(401);
+                    echo json_encode(['success' => false, 'error' => 'Authentication required']);
+                    return;
+                }
             }
             
             $companyId = $payload->company_id ?? null;
@@ -3872,6 +5632,11 @@ class DashboardController {
      * POST /api/dashboard/toggle-module
      */
     public function toggleModule() {
+        // Start session first (for web dashboard calls)
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
         // Clean any output buffers
         while (ob_get_level() > 0) {
             ob_end_clean();
@@ -3881,29 +5646,45 @@ class DashboardController {
         header('Content-Type: application/json');
         
         try {
-            // Try JWT auth first (for API calls)
             $payload = null;
-            try {
-                $payload = AuthMiddleware::handle(['manager', 'admin', 'system_admin']);
-            } catch (\Exception $e) {
-                // If JWT fails, try session-based auth
-                if (session_status() === PHP_SESSION_NONE) {
-                    session_start();
-                }
-                $user = $_SESSION['user'] ?? null;
-                if (!$user) {
-                    ob_end_clean();
-                    http_response_code(401);
-                    echo json_encode(['success' => false, 'error' => 'Authentication required']);
-                    return;
-                }
-                
+            
+            // Try session-based auth first (for web dashboard)
+            $user = $_SESSION['user'] ?? null;
+            if ($user && is_array($user)) {
                 // Create payload-like object from session
                 $payload = (object)[
                     'company_id' => $user['company_id'] ?? null,
                     'role' => $user['role'] ?? 'salesperson',
                     'id' => $user['id'] ?? null
                 ];
+            } else {
+                // If no session, try JWT auth (for API calls)
+                $headers = function_exists('getallheaders') ? getallheaders() : [];
+                $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+                
+                if (strpos($authHeader, 'Bearer ') === 0) {
+                    try {
+                        $token = substr($authHeader, 7);
+                        $auth = new AuthService();
+                        $payload = $auth->validateToken($token);
+                        
+                        // Check role-based access
+                        $allowedRoles = ['manager', 'admin', 'system_admin'];
+                        if (!in_array($payload->role, $allowedRoles, true)) {
+                            throw new \Exception('Unauthorized role');
+                        }
+                    } catch (\Exception $e) {
+                        ob_end_clean();
+                        http_response_code(401);
+                        echo json_encode(['success' => false, 'error' => 'Invalid or expired token']);
+                        return;
+                    }
+                } else {
+                    ob_end_clean();
+                    http_response_code(401);
+                    echo json_encode(['success' => false, 'error' => 'Authentication required']);
+                    return;
+                }
             }
             
             $companyId = $payload->company_id ?? null;
@@ -3912,6 +5693,7 @@ class DashboardController {
             $enabled = isset($input['enabled']) ? (bool)$input['enabled'] : null;
             
             if (!$companyId || !$moduleKey || $enabled === null) {
+                ob_end_clean();
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'Company ID, module key, and enabled status required']);
                 return;
@@ -3942,41 +5724,38 @@ class DashboardController {
      * GET /api/dashboard/charts-data
      */
     public function chartsData() {
-        // Clean any output buffers
+        // Start session FIRST before any output buffering (session params set in config/app.php)
+        try {
+            if (session_status() === PHP_SESSION_NONE) {
+                @session_start(); // Suppress warnings
+            }
+        } catch (\Exception $e) {
+            error_log("Charts data: Session start error: " . $e->getMessage());
+        }
+        
+        // Clean any output buffers (after session is started)
         while (ob_get_level() > 0) {
             ob_end_clean();
         }
         ob_start();
         
-        header('Content-Type: application/json');
+        // Set headers first
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
         
         try {
-            // Try JWT auth first (for API calls)
-            $payload = null;
-            try {
-                $payload = AuthMiddleware::handle(['manager', 'admin', 'system_admin']);
-            } catch (\Exception $e) {
-                // If JWT fails, try session-based auth
-                if (session_status() === PHP_SESSION_NONE) {
-                    session_start();
-                }
-                $user = $_SESSION['user'] ?? null;
-                if (!$user) {
-                    ob_end_clean();
-                    http_response_code(401);
-                    echo json_encode(['success' => false, 'error' => 'Authentication required']);
-                    return;
-                }
-                
-                // Create payload-like object from session
-                $payload = (object)[
-                    'company_id' => $user['company_id'] ?? null,
-                    'role' => $user['role'] ?? 'salesperson',
-                    'id' => $user['id'] ?? null
-                ];
+            // Get user from session
+            $user = $_SESSION['user'] ?? null;
+            
+            if (!$user) {
+                ob_end_clean();
+                http_response_code(401);
+                echo json_encode(['success' => false, 'error' => 'Authentication required']);
+                return;
             }
             
-            $companyId = $payload->company_id ?? null;
+            $companyId = $user['company_id'] ?? null;
             
             if (!$companyId) {
                 ob_end_clean();
@@ -3985,26 +5764,63 @@ class DashboardController {
                 return;
             }
             
-            $db = \Database::getInstance()->getConnection();
+            // Get database connection
+            try {
+                // Ensure Database class is loaded
+                if (!class_exists('Database')) {
+                    require_once __DIR__ . '/../../config/database.php';
+                }
+                
+                $db = \Database::getInstance()->getConnection();
+                if (!$db) {
+                    throw new \Exception('Database connection failed');
+                }
+            } catch (\Exception $e) {
+                ob_end_clean();
+                http_response_code(500);
+                error_log("Charts data: Database connection error: " . $e->getMessage());
+                echo json_encode([
+                    'success' => false, 
+                    'error' => 'Database connection failed',
+                    'debug' => [
+                        'message' => $e->getMessage(),
+                        'file' => basename($e->getFile()),
+                        'line' => $e->getLine()
+                    ]
+                ]);
+                return;
+            }
             
             // Sales Trends - Last 7 days
             $salesTrends = [];
             $labels = [];
             $revenue = [];
             
-            for ($i = 6; $i >= 0; $i--) {
-                $date = date('Y-m-d', strtotime("-$i days"));
-                $dayName = date('D', strtotime($date));
-                $labels[] = $dayName;
-                
-                $query = $db->prepare("
-                    SELECT COALESCE(SUM(final_amount), 0) as total
-                    FROM pos_sales
-                    WHERE company_id = ? AND DATE(created_at) = ?
-                ");
-                $query->execute([$companyId, $date]);
-                $result = $query->fetch(\PDO::FETCH_ASSOC);
-                $revenue[] = floatval($result['total'] ?? 0);
+            try {
+                for ($i = 6; $i >= 0; $i--) {
+                    $date = date('Y-m-d', strtotime("-$i days"));
+                    $dayName = date('D', strtotime($date));
+                    $labels[] = $dayName;
+                    
+                    try {
+                        $query = $db->prepare("
+                            SELECT COALESCE(SUM(final_amount), 0) as total
+                            FROM pos_sales
+                            WHERE company_id = ? AND DATE(created_at) = ?
+                        ");
+                        $query->execute([$companyId, $date]);
+                        $result = $query->fetch(\PDO::FETCH_ASSOC);
+                        $revenue[] = floatval($result['total'] ?? 0);
+                    } catch (\Exception $e) {
+                        error_log("Charts data: Error getting revenue for date {$date}: " . $e->getMessage());
+                        $revenue[] = 0;
+                    }
+                }
+            } catch (\Exception $e) {
+                error_log("Charts data: Error building sales trends: " . $e->getMessage());
+                // Set default values
+                $labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                $revenue = [0, 0, 0, 0, 0, 0, 0];
             }
             
             $salesTrends = [
@@ -4016,38 +5832,94 @@ class DashboardController {
             $activityDistribution = [];
             
             // Sales count
-            $salesQuery = $db->prepare("SELECT COUNT(*) as count FROM pos_sales WHERE company_id = ?");
-            $salesQuery->execute([$companyId]);
-            $salesCount = $salesQuery->fetch(\PDO::FETCH_ASSOC)['count'] ?? 0;
+            $salesCount = 0;
+            try {
+                $salesQuery = $db->prepare("SELECT COUNT(*) as count FROM pos_sales WHERE company_id = ?");
+                $salesQuery->execute([$companyId]);
+                $salesCount = (int)($salesQuery->fetch(\PDO::FETCH_ASSOC)['count'] ?? 0);
+            } catch (\Exception $e) {
+                error_log("Charts data: Error getting sales count: " . $e->getMessage());
+            }
             
-            // Repairs count
-            $repairsQuery = $db->prepare("SELECT COUNT(*) as count FROM repairs WHERE company_id = ?");
-            $repairsQuery->execute([$companyId]);
-            $repairsCount = $repairsQuery->fetch(\PDO::FETCH_ASSOC)['count'] ?? 0;
+            // Repairs count - try repairs_new first, fallback to repairs
+            $repairsCount = 0;
+            try {
+                // Try repairs_new first
+                try {
+                    $repairsQuery = $db->prepare("SELECT COUNT(*) as count FROM repairs_new WHERE company_id = ?");
+                    $repairsQuery->execute([$companyId]);
+                    $repairsCount = (int)($repairsQuery->fetch(\PDO::FETCH_ASSOC)['count'] ?? 0);
+                } catch (\Exception $e) {
+                    // repairs_new doesn't exist or failed, try repairs table
+                    try {
+                        $repairsQuery = $db->prepare("SELECT COUNT(*) as count FROM repairs WHERE company_id = ?");
+                        $repairsQuery->execute([$companyId]);
+                        $repairsCount = (int)($repairsQuery->fetch(\PDO::FETCH_ASSOC)['count'] ?? 0);
+                    } catch (\Exception $e2) {
+                        error_log("Charts data: Error getting repairs count from both tables: " . $e2->getMessage());
+                        $repairsCount = 0;
+                    }
+                }
+            } catch (\Exception $e) {
+                error_log("Charts data: Error getting repairs count: " . $e->getMessage());
+            }
             
             // Swaps count
-            $swapsQuery = $db->prepare("SELECT COUNT(*) as count FROM swaps WHERE company_id = ?");
-            $swapsQuery->execute([$companyId]);
-            $swapsCount = $swapsQuery->fetch(\PDO::FETCH_ASSOC)['count'] ?? 0;
+            $swapsCount = 0;
+            try {
+                $swapsQuery = $db->prepare("SELECT COUNT(*) as count FROM swaps WHERE company_id = ?");
+                $swapsQuery->execute([$companyId]);
+                $swapsCount = (int)($swapsQuery->fetch(\PDO::FETCH_ASSOC)['count'] ?? 0);
+            } catch (\Exception $e) {
+                error_log("Charts data: Error getting swaps count: " . $e->getMessage());
+            }
             
             // Customers count
-            $customersQuery = $db->prepare("SELECT COUNT(*) as count FROM customers WHERE company_id = ?");
-            $customersQuery->execute([$companyId]);
-            $customersCount = $customersQuery->fetch(\PDO::FETCH_ASSOC)['count'] ?? 0;
+            $customersCount = 0;
+            try {
+                $customersQuery = $db->prepare("SELECT COUNT(*) as count FROM customers WHERE company_id = ?");
+                $customersQuery->execute([$companyId]);
+                $customersCount = (int)($customersQuery->fetch(\PDO::FETCH_ASSOC)['count'] ?? 0);
+            } catch (\Exception $e) {
+                error_log("Charts data: Error getting customers count: " . $e->getMessage());
+            }
             
-            // Products count
-            $productsQuery = $db->prepare("SELECT COUNT(*) as count FROM products WHERE company_id = ?");
-            $productsQuery->execute([$companyId]);
-            $productsCount = $productsQuery->fetch(\PDO::FETCH_ASSOC)['count'] ?? 0;
+            // Products count - try products_new first, fallback to products
+            $productsCount = 0;
+            try {
+                // Try products_new first
+                try {
+                    $productsQuery = $db->prepare("SELECT COUNT(*) as count FROM products_new WHERE company_id = ?");
+                    $productsQuery->execute([$companyId]);
+                    $productsCount = (int)($productsQuery->fetch(\PDO::FETCH_ASSOC)['count'] ?? 0);
+                } catch (\Exception $e) {
+                    // products_new doesn't exist or failed, try products table
+                    try {
+                        $productsQuery = $db->prepare("SELECT COUNT(*) as count FROM products WHERE company_id = ?");
+                        $productsQuery->execute([$companyId]);
+                        $productsCount = (int)($productsQuery->fetch(\PDO::FETCH_ASSOC)['count'] ?? 0);
+                    } catch (\Exception $e2) {
+                        error_log("Charts data: Error getting products count from both tables: " . $e2->getMessage());
+                        $productsCount = 0;
+                    }
+                }
+            } catch (\Exception $e) {
+                error_log("Charts data: Error getting products count: " . $e->getMessage());
+            }
             
             // Technicians count
-            $techniciansQuery = $db->prepare("
-                SELECT COUNT(*) as count 
-                FROM users 
-                WHERE company_id = ? AND role = 'technician'
-            ");
-            $techniciansQuery->execute([$companyId]);
-            $techniciansCount = $techniciansQuery->fetch(\PDO::FETCH_ASSOC)['count'] ?? 0;
+            $techniciansCount = 0;
+            try {
+                $techniciansQuery = $db->prepare("
+                    SELECT COUNT(*) as count 
+                    FROM users 
+                    WHERE company_id = ? AND role = 'technician'
+                ");
+                $techniciansQuery->execute([$companyId]);
+                $techniciansCount = (int)($techniciansQuery->fetch(\PDO::FETCH_ASSOC)['count'] ?? 0);
+            } catch (\Exception $e) {
+                error_log("Charts data: Error getting technicians count: " . $e->getMessage());
+            }
             
             $activityDistribution = [
                 'labels' => ['Sales', 'Repairs', 'Swaps', 'Customers', 'Products', 'Technicians'],
@@ -4062,18 +5934,65 @@ class DashboardController {
             ];
             
             ob_end_clean();
-            echo json_encode([
+            
+            // Ensure all values are JSON-serializable
+            $response = [
                 'success' => true,
                 'data' => [
-                    'sales_trends' => $salesTrends,
-                    'activity_distribution' => $activityDistribution
+                    'sales_trends' => [
+                        'labels' => array_map('strval', $labels),
+                        'revenue' => array_map('floatval', $revenue)
+                    ],
+                    'activity_distribution' => [
+                        'labels' => array_map('strval', $activityDistribution['labels']),
+                        'values' => array_map('intval', $activityDistribution['values'])
+                    ]
                 ]
-            ], JSON_NUMERIC_CHECK);
+            ];
+            
+            $json = json_encode($response, JSON_NUMERIC_CHECK);
+            if ($json === false) {
+                throw new \Exception('JSON encoding failed: ' . json_last_error_msg());
+            }
+            
+            echo $json;
             
         } catch (\Exception $e) {
             ob_end_clean();
             http_response_code(500);
-            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            $errorMsg = $e->getMessage();
+            $errorFile = $e->getFile();
+            $errorLine = $e->getLine();
+            error_log("Charts data error: $errorMsg in $errorFile:$errorLine");
+            error_log("Charts data stack trace: " . $e->getTraceAsString());
+            echo json_encode([
+                'success' => false, 
+                'error' => 'Internal server error',
+                'debug' => [
+                    'message' => $errorMsg,
+                    'file' => basename($errorFile),
+                    'line' => $errorLine,
+                    'trace' => explode("\n", $e->getTraceAsString())
+                ]
+            ]);
+        } catch (\Error $e) {
+            ob_end_clean();
+            http_response_code(500);
+            $errorMsg = $e->getMessage();
+            $errorFile = $e->getFile();
+            $errorLine = $e->getLine();
+            error_log("Charts data fatal error: $errorMsg in $errorFile:$errorLine");
+            error_log("Charts data fatal stack trace: " . $e->getTraceAsString());
+            echo json_encode([
+                'success' => false, 
+                'error' => 'Fatal error',
+                'debug' => [
+                    'message' => $errorMsg,
+                    'file' => basename($errorFile),
+                    'line' => $errorLine,
+                    'trace' => explode("\n", $e->getTraceAsString())
+                ]
+            ]);
         }
     }
 }

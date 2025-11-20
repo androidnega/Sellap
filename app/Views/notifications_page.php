@@ -243,6 +243,29 @@ async function viewNotification(notificationId) {
         
         if (data.success && data.notification) {
             const notif = data.notification;
+            
+            // Mark notification as read when viewed (for repair notifications and other database notifications)
+            if (!notif.read && (notif.type === 'repair' || (typeof notificationId === 'string' && (notificationId.startsWith('notif_') || !isNaN(parseInt(notificationId)))))) {
+                try {
+                    const markReadResponse = await fetch(baseUrl + '/api/notifications/mark-read', {
+                        method: 'POST',
+                        headers: headers,
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ notification_id: notificationId })
+                    });
+                    if (markReadResponse.ok) {
+                        // Update the notification in the list
+                        const notifIndex = allNotifications.findIndex(n => n.id === notificationId);
+                        if (notifIndex !== -1) {
+                            allNotifications[notifIndex].read = true;
+                            renderNotifications();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error marking notification as read:', error);
+                }
+            }
+            
             const details = document.getElementById('notificationDetails');
             
             // Format notification data based on type

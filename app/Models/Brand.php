@@ -39,12 +39,14 @@ class Brand {
         ");
         $stmt->execute([$categoryId]);
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        // Additional deduplication by ID in case of multiple duplicates
+        // Deduplicate by name (case-insensitive) to avoid duplicates like "Samsung, Samsung"
         $unique = [];
-        $seen = [];
+        $seenNames = [];
         foreach ($results as $row) {
-            if (!isset($seen[$row['id']])) {
-                $seen[$row['id']] = true;
+            $normalizedName = strtolower(trim($row['name']));
+            // Only add if we haven't seen this brand name before (case-insensitive)
+            if (!isset($seenNames[$normalizedName])) {
+                $seenNames[$normalizedName] = true;
                 $unique[] = $row;
             }
         }
@@ -83,16 +85,32 @@ class Brand {
      * Create a new brand
      */
     public function create(array $data) {
-        $stmt = $this->db->prepare("
-            INSERT INTO brands (name, description, category_id) 
-            VALUES (?, ?, ?)
-        ");
+        // Check if description column exists
+        $hasDescription = $this->checkColumnExists('description');
         
-        $stmt->execute([
-            $data['name'],
-            $data['description'] ?? null,
-            $data['category_id'] ?? null
-        ]);
+        if ($hasDescription) {
+            $stmt = $this->db->prepare("
+                INSERT INTO brands (name, description, category_id) 
+                VALUES (?, ?, ?)
+            ");
+            
+            $stmt->execute([
+                $data['name'],
+                $data['description'] ?? null,
+                $data['category_id'] ?? null
+            ]);
+        } else {
+            // Description column doesn't exist, don't include it
+            $stmt = $this->db->prepare("
+                INSERT INTO brands (name, category_id) 
+                VALUES (?, ?)
+            ");
+            
+            $stmt->execute([
+                $data['name'],
+                $data['category_id'] ?? null
+            ]);
+        }
         
         return $this->db->lastInsertId();
     }
@@ -101,18 +119,36 @@ class Brand {
      * Update a brand
      */
     public function update($id, array $data) {
-        $stmt = $this->db->prepare("
-            UPDATE brands SET 
-                name = ?, description = ?, category_id = ?
-            WHERE id = ?
-        ");
+        // Check if description column exists
+        $hasDescription = $this->checkColumnExists('description');
         
-        return $stmt->execute([
-            $data['name'],
-            $data['description'] ?? null,
-            $data['category_id'] ?? null,
-            $id
-        ]);
+        if ($hasDescription) {
+            $stmt = $this->db->prepare("
+                UPDATE brands SET 
+                    name = ?, description = ?, category_id = ?
+                WHERE id = ?
+            ");
+            
+            return $stmt->execute([
+                $data['name'],
+                $data['description'] ?? null,
+                $data['category_id'] ?? null,
+                $id
+            ]);
+        } else {
+            // Description column doesn't exist, don't include it
+            $stmt = $this->db->prepare("
+                UPDATE brands SET 
+                    name = ?, category_id = ?
+                WHERE id = ?
+            ");
+            
+            return $stmt->execute([
+                $data['name'],
+                $data['category_id'] ?? null,
+                $id
+            ]);
+        }
     }
 
     /**
@@ -210,6 +246,22 @@ class Brand {
         }
         // Default to products table
         return 'products';
+    }
+
+    /**
+     * Check if a column exists in the brands table
+     */
+    private function checkColumnExists($columnName) {
+        try {
+            // Get all columns from brands table
+            $stmt = $this->db->query("SHOW COLUMNS FROM brands");
+            $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            // Check if the column name exists (case-insensitive)
+            return in_array(strtolower($columnName), array_map('strtolower', $columns));
+        } catch (\Exception $e) {
+            error_log("Brand::checkColumnExists() - Error checking column: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**

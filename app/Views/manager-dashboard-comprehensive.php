@@ -136,16 +136,6 @@ ob_start();
                                 <p class="text-xs text-gray-600">All income sources combined</p>
                             </div>
                             
-                            <!-- Total Profit -->
-                            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 sm:p-4 md:p-6 shadow-sm overflow-hidden">
-                                <div class="flex items-center justify-between mb-2 sm:mb-3">
-                                    <i class="fas fa-chart-line text-blue-600 text-base sm:text-xl md:text-2xl"></i>
-                                    <span class="text-xs text-blue-600 font-medium bg-blue-200 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">Profit</span>
-                                </div>
-                                <p class="text-lg sm:text-2xl md:text-3xl font-bold text-gray-900 mb-1 truncate" id="sales-total-profit">₵0.00</p>
-                                <p class="text-xs text-gray-600">Net profit after costs</p>
-                            </div>
-                            
                             <!-- Total Transactions -->
                             <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 sm:p-4 md:p-6 shadow-sm overflow-hidden">
                                 <div class="flex items-center justify-between mb-2 sm:mb-3">
@@ -164,6 +154,16 @@ ob_start();
                                 </div>
                                 <p class="text-lg sm:text-2xl md:text-3xl font-bold text-gray-900 mb-1" id="sales-profit-margin">0%</p>
                                 <p class="text-xs text-gray-600">Profit percentage</p>
+                            </div>
+                            
+                            <!-- Total Profit -->
+                            <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-3 sm:p-4 md:p-6 shadow-sm overflow-hidden">
+                                <div class="flex items-center justify-between mb-2 sm:mb-3">
+                                    <i class="fas fa-dollar-sign text-emerald-600 text-base sm:text-xl md:text-2xl"></i>
+                                    <span class="text-xs text-emerald-600 font-medium bg-emerald-200 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">Profit</span>
+                                </div>
+                                <p class="text-lg sm:text-2xl md:text-3xl font-bold text-gray-900 mb-1 truncate" id="sales-total-profit">₵0.00</p>
+                                <p class="text-xs text-gray-600">Realized gains</p>
                             </div>
                         </div>
                         
@@ -191,15 +191,20 @@ ob_start();
                                 <p class="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 truncate" id="sales-revenue-breakdown">₵0.00</p>
                             </div>
                             
-                            <!-- Swap Profit -->
+                            <!-- Swap Revenue & Profit -->
                             <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg p-3 sm:p-4 md:p-5 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                                 <div class="flex items-center justify-between mb-2 sm:mb-3">
                                     <div class="p-1.5 sm:p-2 bg-indigo-100 rounded-lg">
                                         <i class="fas fa-exchange-alt text-indigo-400 text-sm sm:text-base md:text-lg"></i>
                                     </div>
-                                    <span class="text-xs text-indigo-500 font-medium">From Swaps</span>
+                                    <span class="text-xs text-indigo-500 font-medium">Swap Revenue</span>
                                 </div>
                                 <p class="text-lg sm:text-xl md:text-2xl font-bold text-indigo-600 truncate" id="sales-swap-profit-breakdown">₵0.00</p>
+                                <p class="text-xs text-indigo-500 mt-1">
+                                    <span id="sales-swap-revenue-breakdown">Profit: ₵0.00</span>
+                                    <span class="ml-2">•</span>
+                                    <span id="sales-swap-count-breakdown">Items: 0</span>
+                                </p>
                             </div>
                             
                             <!-- Repair Revenue -->
@@ -275,14 +280,63 @@ ob_start();
             };
         }
         
+        // Auto logout function when session expires
+        async function autoLogout() {
+            try {
+                // Call logout API endpoint to destroy server session
+                await fetch((typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '')) + '/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+            } catch (error) {
+                console.error('Logout API error:', error);
+            } finally {
+                // Clear local storage
+                localStorage.removeItem('token');
+                localStorage.removeItem('sellapp_token');
+                localStorage.removeItem('sellapp_user');
+                
+                // Clear session storage
+                sessionStorage.clear();
+                
+                // Redirect to login page
+                const baseUrl = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '');
+                window.location.href = baseUrl + '/';
+            }
+        }
+        
+        // Check if error is due to expired session
+        function isSessionExpired(status, errorMessage) {
+            if (status === 401) {
+                return true;
+            }
+            if (errorMessage && (
+                errorMessage.toLowerCase().includes('unauthorized') ||
+                errorMessage.toLowerCase().includes('session expired') ||
+                errorMessage.toLowerCase().includes('authentication required') ||
+                errorMessage.toLowerCase().includes('invalid or expired token')
+            )) {
+                return true;
+            }
+            return false;
+        }
+        
         // Load comprehensive manager overview
         async function loadManagerOverview() {
             const loadingEl = document.getElementById('dashboard-loading');
             const contentEl = document.getElementById('dashboard-content');
             
-            loadingEl.classList.remove('hidden');
-            contentEl.classList.add('hidden');
+            // Ensure page is visible
+            if (document.body) {
+                document.body.style.display = '';
+            }
             
+            if (loadingEl) loadingEl.classList.remove('hidden');
+            if (contentEl) contentEl.classList.add('hidden');
+        
             const dateFromEl = document.getElementById('date-from');
             const dateToEl = document.getElementById('date-to');
             const dateFrom = dateFromEl ? dateFromEl.value : '';
@@ -302,7 +356,16 @@ ob_start();
                 
                 if (!res.ok) {
                     const errorData = await res.json().catch(() => ({ error: 'Unknown server error', message: `HTTP ${res.status}: ${res.statusText}` }));
-                    throw new Error(errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+                    const errorMsg = errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`;
+                    
+                    // Check if session expired
+                    if (isSessionExpired(res.status, errorMsg)) {
+                        console.log('Session expired, auto-logging out...');
+                        await autoLogout();
+                        return; // Exit early, redirect will happen in autoLogout
+                    }
+                    
+                    throw new Error(errorMsg);
                 }
                 
                 const data = await res.json();
@@ -314,7 +377,7 @@ ob_start();
                     updateOverview(d.overview);
                     
                     // 2. Sales & Revenue Metrics
-                    updateSalesMetrics(d.financial, d.sales, d.overview, d.date_range);
+                    updateSalesMetrics(d.financial, d.sales, d.overview, d.date_range, d.swaps);
                     
                     // 3. Load payment stats for people owing
                     loadPeopleOwing();
@@ -326,92 +389,149 @@ ob_start();
                         }
                     }, 500);
                     
-                    loadingEl.classList.add('hidden');
-                    contentEl.classList.remove('hidden');
+                    if (loadingEl) loadingEl.classList.add('hidden');
+                    if (contentEl) contentEl.classList.remove('hidden');
                 } else {
                     const errorMsg = data.message || data.error || 'Failed to load dashboard';
+                    
+                    // Check if session expired
+                    if (isSessionExpired(null, errorMsg)) {
+                        console.log('Session expired, auto-logging out...');
+                        await autoLogout();
+                        return; // Exit early, redirect will happen in autoLogout
+                    }
+                    
                     console.error('Dashboard API Error:', data);
                     throw new Error(errorMsg);
                 }
             } catch (error) {
+                // Check if session expired
+                if (isSessionExpired(null, error.message)) {
+                    console.log('Session expired, auto-logging out...');
+                    await autoLogout();
+                    return; // Exit early, redirect will happen in autoLogout
+                }
+                
+                // Only show error for non-authentication errors
                 console.error('Error loading dashboard:', error);
-                loadingEl.innerHTML = `
-                    <div class="bg-red-50 border border-red-200 rounded-lg p-6">
-                        <h3 class="text-red-800 font-bold mb-2">Error Loading Dashboard</h3>
-                        <p class="text-red-600">${error.message}</p>
-                        <button onclick="loadManagerOverview()" class="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-                            <i class="fas fa-redo mr-2"></i>Retry
-                        </button>
-                    </div>
-                `;
+                
+                // Ensure page is visible even on error
+                if (document.body) {
+                    document.body.style.display = '';
+                }
+                
+                const loadingEl = document.getElementById('dashboard-loading');
+                if (loadingEl) {
+                    loadingEl.innerHTML = `
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                            <h3 class="text-red-800 font-bold mb-2">Error Loading Dashboard</h3>
+                            <p class="text-red-600">${error.message}</p>
+                            <button onclick="loadManagerOverview()" class="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+                                <i class="fas fa-redo mr-2"></i>Retry
+                            </button>
+                        </div>
+                    `;
+                }
+                
+                // Show content even if there's an error
+                const contentEl = document.getElementById('dashboard-content');
+                if (contentEl) {
+                    contentEl.classList.remove('hidden');
+                }
             }
         }
         
         function updateOverview(overview) {
-            document.getElementById('overview-total-products').textContent = overview.total_products || 0;
-            document.getElementById('overview-today-sales').textContent = '₵' + (overview.today_sales || 0).toFixed(2);
-            document.getElementById('overview-today-swaps').textContent = overview.today_swaps || 0;
-            document.getElementById('overview-today-repairs').textContent = overview.today_repairs || 0;
-            document.getElementById('overview-total-customers').textContent = overview.total_customers || 0;
-            document.getElementById('overview-active-staff').textContent = overview.active_staff || 0;
+            try {
+                const safeUpdate = (id, value) => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = value;
+                };
+                
+                safeUpdate('overview-total-products', overview.total_products || 0);
+                safeUpdate('overview-today-sales', '₵' + (overview.today_sales || 0).toFixed(2));
+                safeUpdate('overview-today-swaps', overview.today_swaps || 0);
+                safeUpdate('overview-today-repairs', overview.today_repairs || 0);
+                safeUpdate('overview-total-customers', overview.total_customers || 0);
+                safeUpdate('overview-active-staff', overview.active_staff || 0);
             
-            // Update trends
-            const trend = overview.trends?.sales || 0;
-            const trendEl = document.getElementById('overview-sales-trend');
-            if (trend > 0) {
-                trendEl.innerHTML = `<span class="text-green-600">▲ ${Math.abs(trend).toFixed(1)}%</span>`;
-            } else if (trend < 0) {
-                trendEl.innerHTML = `<span class="text-red-600">▼ ${Math.abs(trend).toFixed(1)}%</span>`;
-            } else {
-                trendEl.innerHTML = `<span class="text-gray-500">—</span>`;
+                // Update trends
+                const trend = overview.trends?.sales || 0;
+                const trendEl = document.getElementById('overview-sales-trend');
+                if (trendEl) {
+                    if (trend > 0) {
+                        trendEl.innerHTML = `<span class="text-green-600">▲ ${Math.abs(trend).toFixed(1)}%</span>`;
+                    } else if (trend < 0) {
+                        trendEl.innerHTML = `<span class="text-red-600">▼ ${Math.abs(trend).toFixed(1)}%</span>`;
+                    } else {
+                        trendEl.innerHTML = `<span class="text-gray-500">—</span>`;
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating overview:', error);
             }
         }
         
-        function updateSalesMetrics(financial, sales, overview, dateRange) {
-            // Total Revenue
-            const totalRevenue = financial?.total_revenue || 0;
-            document.getElementById('sales-total-revenue').textContent = '₵' + totalRevenue.toFixed(2);
-            
-            // Total Profit - check multiple possible property names
-            let totalProfit = 0;
-            if (financial) {
-                totalProfit = financial.total_profit ?? financial.profit ?? financial.gross_profit ?? 0;
-            }
-            
-            document.getElementById('sales-total-profit').textContent = '₵' + totalProfit.toFixed(2);
-            
-            // Total Transactions (Sales count) - try multiple sources
-            const totalTransactions = sales?.total_transactions || 
-                                     sales?.total_sales || 
-                                     sales?.sales_count ||
-                                     overview?.total_sales || 
-                                     0;
-            document.getElementById('sales-total-transactions').textContent = totalTransactions;
-            
-            // Profit Margin
-            const profitMargin = financial?.profit_margin || 0;
-            document.getElementById('sales-profit-margin').textContent = profitMargin.toFixed(1) + '%';
+        function updateSalesMetrics(financial, sales, overview, dateRange, swaps) {
+            try {
+                const safeUpdate = (id, value) => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = value;
+                };
+                
+                // Total Revenue
+                const totalRevenue = financial?.total_revenue || 0;
+                safeUpdate('sales-total-revenue', '₵' + totalRevenue.toFixed(2));
+                
+                // Total Transactions (Sales count) - try multiple sources
+                const totalTransactions = sales?.total_transactions || 
+                                         sales?.total_sales || 
+                                         sales?.sales_count ||
+                                         overview?.total_sales || 
+                                         0;
+                safeUpdate('sales-total-transactions', totalTransactions);
+                
+                // Profit Margin
+                const profitMargin = financial?.profit_margin || 0;
+                safeUpdate('sales-profit-margin', profitMargin.toFixed(1) + '%');
+                
+                // Total Profit (Sales + Swaps) - Calculate from sales profit and swap profit
+                // This matches the calculation in getCompanyStats: sales_profit + swap_profit
+                const salesProfitValue = financial?.sales_profit || 0;
+                const swapProfitValue = financial?.swap_profit || 0;
+                const totalProfit = salesProfitValue + swapProfitValue;
+                safeUpdate('sales-total-profit', '₵' + totalProfit.toFixed(2));
             
             // People Owing - will be loaded separately via payment stats (see loadPeopleOwing function)
             
-            // Breakdown
-            document.getElementById('sales-revenue-breakdown').textContent = '₵' + (financial?.sales_revenue || 0).toFixed(2);
-            document.getElementById('sales-swap-profit-breakdown').textContent = '₵' + (financial?.swap_profit || 0).toFixed(2);
-            document.getElementById('sales-repair-revenue-breakdown').textContent = '₵' + (financial?.repair_revenue || 0).toFixed(2);
-            
-            // Products sold by repairer count
-            const repairPartsCount = financial?.repair_parts_count ?? 0;
-            const repairPartsCountEl = document.getElementById('repair-parts-count');
-            if (repairPartsCountEl) {
-                repairPartsCountEl.textContent = repairPartsCount;
-                console.log('Repair parts count updated:', repairPartsCount);
-            } else {
-                console.error('Element with id "repair-parts-count" not found');
-            }
-            
-            // Date Range
-            if (dateRange) {
-                document.getElementById('performance-date-range').textContent = `Period: ${dateRange.from} to ${dateRange.to}`;
+                // Breakdown
+                safeUpdate('sales-revenue-breakdown', '₵' + (financial?.sales_revenue || 0).toFixed(2));
+                // Swap: Show revenue in main amount, profit in subtitle, and count
+                const swapRevenue = financial?.swap_revenue || financial?.swap_total_value || 0;
+                const swapProfit = financial?.swap_profit || 0;
+                const swapCount = swaps?.total_swaps || swaps?.count || 0;
+                // FIXED: Show revenue in main, profit in subtitle (was reversed before)
+                safeUpdate('sales-swap-profit-breakdown', '₵' + swapRevenue.toFixed(2));
+                safeUpdate('sales-swap-revenue-breakdown', 'Profit: ₵' + swapProfit.toFixed(2));
+                const swapCountEl = document.getElementById('sales-swap-count-breakdown');
+                if (swapCountEl) {
+                    swapCountEl.textContent = 'Items: ' + swapCount;
+                }
+                safeUpdate('sales-repair-revenue-breakdown', '₵' + (financial?.repair_revenue || 0).toFixed(2));
+                
+                // Products sold by repairer count
+                const repairPartsCount = financial?.repair_parts_count ?? 0;
+                const repairPartsCountEl = document.getElementById('repair-parts-count');
+                if (repairPartsCountEl) {
+                    repairPartsCountEl.textContent = repairPartsCount;
+                }
+                
+                // Date Range
+                if (dateRange) {
+                    safeUpdate('performance-date-range', `Period: ${dateRange.from} to ${dateRange.to}`);
+                }
+            } catch (error) {
+                console.error('Error updating sales metrics:', error);
             }
         }
         
@@ -429,11 +549,28 @@ ob_start();
                 });
                 
                 if (!res.ok) {
+                    // Check if session expired
+                    const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}: ${res.statusText}` }));
+                    const errorMsg = errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`;
+                    
+                    if (isSessionExpired(res.status, errorMsg)) {
+                        console.log('Session expired in loadPeopleOwing, auto-logging out...');
+                        await autoLogout();
+                        return;
+                    }
+                    
                     console.error('Failed to load payment stats:', res.status, res.statusText);
                     return;
                 }
                 
                 const data = await res.json();
+                
+                // Check if response indicates session expired
+                if (data.error && isSessionExpired(null, data.error)) {
+                    console.log('Session expired in loadPeopleOwing, auto-logging out...');
+                    await autoLogout();
+                    return;
+                }
                 
                 if (data.success && data.metrics && data.metrics.payment_stats) {
                     const stats = data.metrics.payment_stats;
@@ -445,6 +582,13 @@ ob_start();
                     }
                 }
             } catch (error) {
+                // Check if session expired
+                if (isSessionExpired(null, error.message)) {
+                    console.log('Session expired in loadPeopleOwing, auto-logging out...');
+                    await autoLogout();
+                    return;
+                }
+                
                 console.error('Error loading people owing:', error);
                 // Silently fail - this is not critical functionality
             }
@@ -489,19 +633,29 @@ ob_start();
             }
         }
         
+        // Chart loading state to prevent duplicate calls
+        let chartsLoading = false;
+        let chartsLoaded = false;
+        
         // Load charts data and render
         async function loadCharts() {
-            console.log('Loading charts...');
+            // Prevent duplicate calls
+            if (chartsLoading || chartsLoaded) {
+                return;
+            }
+            
+            chartsLoading = true;
+            
             const salesCtx = document.getElementById('salesTrendsChart');
             const activityCtx = document.getElementById('activityDistributionChart');
             
             if (!salesCtx || !activityCtx) {
-                console.error('Chart canvas elements not found!');
+                chartsLoading = false;
                 return;
             }
             
             if (typeof Chart === 'undefined') {
-                console.error('Chart.js library not loaded!');
+                chartsLoading = false;
                 return;
             }
             
@@ -515,24 +669,82 @@ ob_start();
                 });
                 
                 if (!res.ok) {
+                    // Get the error response body
+                    const errorText = await res.text();
+                    
+                    // Try to parse as JSON to check for session expiration
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        const errorMsg = errorData.message || errorData.error || `HTTP ${res.status}: ${res.statusText}`;
+                        
+                        // Check if session expired
+                        if (isSessionExpired(res.status, errorMsg)) {
+                            console.log('Session expired in loadCharts, auto-logging out...');
+                            chartsLoading = false;
+                            await autoLogout();
+                            return;
+                        }
+                        
+                        console.error('Error details:', errorData);
+                        if (errorData.debug) {
+                            console.error('Debug info:', errorData.debug);
+                            alert(`Charts Error: ${errorData.debug.message}\nFile: ${errorData.debug.file}\nLine: ${errorData.debug.line}`);
+                        }
+                    } catch (e) {
+                        // If not JSON, check status code
+                        if (isSessionExpired(res.status, errorText)) {
+                            console.log('Session expired in loadCharts, auto-logging out...');
+                            chartsLoading = false;
+                            await autoLogout();
+                            return;
+                        }
+                        console.error('Could not parse error response');
+                    }
+                    
                     console.error('Failed to load charts data:', res.status);
+                    console.error('Error response body:', errorText);
+                    
                     renderSalesTrendsChart({ labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], revenue: [0, 0, 0, 0, 0, 0, 0] });
                     renderActivityDistributionChart({ labels: ['Sales', 'Repairs', 'Swaps', 'Customers', 'Products', 'Technicians'], values: [0, 0, 0, 0, 0, 0] });
+                    chartsLoaded = true;
+                    chartsLoading = false;
                     return;
                 }
                 
                 const data = await res.json();
+                
+                // Check if response indicates session expired
+                if (data.error && isSessionExpired(null, data.error)) {
+                    console.log('Session expired in loadCharts (data response), auto-logging out...');
+                    chartsLoading = false;
+                    await autoLogout();
+                    return;
+                }
+                
                 if (data.success && data.data) {
                     renderSalesTrendsChart(data.data.sales_trends || { labels: [], revenue: [] });
                     renderActivityDistributionChart(data.data.activity_distribution || { labels: [], values: [] });
+                    chartsLoaded = true;
                 } else {
                     renderSalesTrendsChart({ labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], revenue: [0, 0, 0, 0, 0, 0, 0] });
                     renderActivityDistributionChart({ labels: ['Sales', 'Repairs', 'Swaps', 'Customers', 'Products', 'Technicians'], values: [0, 0, 0, 0, 0, 0] });
+                    chartsLoaded = true;
                 }
             } catch (error) {
+                // Check if session expired
+                if (isSessionExpired(null, error.message)) {
+                    console.log('Session expired in loadCharts (catch), auto-logging out...');
+                    chartsLoading = false;
+                    await autoLogout();
+                    return;
+                }
+                
                 console.error('Error loading charts:', error);
                 renderSalesTrendsChart({ labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], revenue: [0, 0, 0, 0, 0, 0, 0] });
                 renderActivityDistributionChart({ labels: ['Sales', 'Repairs', 'Swaps', 'Customers', 'Products', 'Technicians'], values: [0, 0, 0, 0, 0, 0] });
+                chartsLoaded = true;
+            } finally {
+                chartsLoading = false;
             }
         }
         
@@ -659,6 +871,7 @@ ob_start();
                 activityDistributionChart.destroy();
                 activityDistributionChart = null;
             }
+            chartsLoaded = false; // Reset flag so charts can be reloaded
         }
         
         function updateTopBrandsChart(brands) {
@@ -885,9 +1098,25 @@ ob_start();
             }
         };
         
-        // Initialize dashboard on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        // Initialize dashboard immediately
+        function initializeManagerDashboard() {
+            // Make page visible immediately
+            if (document.body) {
+                document.body.style.display = '';
+            }
+            // Load data immediately
             loadManagerOverview();
+        }
+        
+        // Initialize immediately when ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeManagerDashboard);
+        } else {
+            // DOM already loaded - initialize immediately
+            initializeManagerDashboard();
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
             
             // Attach export button event listener
             const exportBtn = document.getElementById('export-dashboard-btn');

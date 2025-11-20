@@ -305,6 +305,12 @@ $router->post('dashboard/inventory/bulk-delete', function() {
     $controller->bulkDelete();
 });
 
+// Inventory Search API (for autocomplete/search)
+$router->get('api/inventory/search', function() {
+    $controller = new \App\Controllers\InventoryController();
+    $controller->apiSearch();
+});
+
 // ========================================
 // RESTOCK ROUTES
 // ========================================
@@ -481,6 +487,138 @@ $router->post('dashboard/brands/update/{id}', function($id) {
 $router->get('dashboard/brands/delete/{id}', function($id) {
     $controller = new \App\Controllers\BrandManagementController();
     $controller->delete($id);
+});
+
+// ========================================
+// SUPPLIER ROUTES
+// ========================================
+
+// Suppliers Index
+$router->get('dashboard/suppliers', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+    $GLOBALS['currentPage'] = 'suppliers';
+    $controller = new \App\Controllers\SupplierController();
+    $controller->index();
+});
+
+// Suppliers Create Form
+$router->get('dashboard/suppliers/create', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+    $GLOBALS['currentPage'] = 'suppliers';
+    $controller = new \App\Controllers\SupplierController();
+    $controller->create();
+});
+
+// Suppliers Store (POST)
+$router->post('dashboard/suppliers/store', function() {
+    $controller = new \App\Controllers\SupplierController();
+    $controller->store();
+});
+
+// Suppliers View
+$router->get('dashboard/suppliers/view/{id}', function($id) {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+    $GLOBALS['currentPage'] = 'suppliers';
+    $controller = new \App\Controllers\SupplierController();
+    $controller->view($id);
+});
+
+// Suppliers Edit Form
+$router->get('dashboard/suppliers/edit/{id}', function($id) {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+    $GLOBALS['currentPage'] = 'suppliers';
+    $controller = new \App\Controllers\SupplierController();
+    $controller->edit($id);
+});
+
+// Suppliers Update (POST)
+$router->post('dashboard/suppliers/update/{id}', function($id) {
+    $controller = new \App\Controllers\SupplierController();
+    $controller->update($id);
+});
+
+// Suppliers Delete
+$router->get('dashboard/suppliers/delete/{id}', function($id) {
+    $controller = new \App\Controllers\SupplierController();
+    $controller->delete($id);
+});
+
+// API: Get Suppliers for dropdown
+$router->get('api/suppliers', function() {
+    $controller = new \App\Controllers\SupplierController();
+    $controller->apiGetSuppliers();
+});
+
+// API: Link product to supplier
+$router->post('api/suppliers/link-product', function() {
+    $controller = new \App\Controllers\SupplierController();
+    $controller->linkProduct();
+});
+
+// ========================================
+// PURCHASE ORDER ROUTES
+// ========================================
+
+// Purchase Orders Index
+$router->get('dashboard/purchase-orders', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+    $GLOBALS['currentPage'] = 'purchase_orders';
+    $controller = new \App\Controllers\PurchaseOrderController();
+    $controller->index();
+});
+
+// Purchase Orders Create Form
+$router->get('dashboard/purchase-orders/create', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+    $GLOBALS['currentPage'] = 'purchase_orders';
+    $controller = new \App\Controllers\PurchaseOrderController();
+    $controller->create();
+});
+
+// Purchase Orders Store (POST)
+$router->post('dashboard/purchase-orders/store', function() {
+    $controller = new \App\Controllers\PurchaseOrderController();
+    $controller->store();
+});
+
+// Purchase Orders View
+$router->get('dashboard/purchase-orders/view/{id}', function($id) {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+    $GLOBALS['currentPage'] = 'purchase_orders';
+    $controller = new \App\Controllers\PurchaseOrderController();
+    $controller->view($id);
+});
+
+// Purchase Orders Edit Form
+$router->get('dashboard/purchase-orders/edit/{id}', function($id) {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+    $GLOBALS['currentPage'] = 'purchase_orders';
+    $controller = new \App\Controllers\PurchaseOrderController();
+    $controller->edit($id);
+});
+
+// Purchase Orders Update (POST)
+$router->post('dashboard/purchase-orders/update/{id}', function($id) {
+    $controller = new \App\Controllers\PurchaseOrderController();
+    $controller->update($id);
+});
+
+// Purchase Orders Delete
+$router->get('dashboard/purchase-orders/delete/{id}', function($id) {
+    $controller = new \App\Controllers\PurchaseOrderController();
+    $controller->delete($id);
+});
+
+// Purchase Orders Mark as Received (POST)
+$router->post('dashboard/purchase-orders/mark-received/{id}', function($id) {
+    $controller = new \App\Controllers\PurchaseOrderController();
+    $controller->markAsReceived($id);
+});
+
+// API: Search Products for Purchase Order
+$router->get('api/purchase-orders/search-products', function() {
+    $controller = new \App\Controllers\PurchaseOrderController();
+    $controller->apiSearchProducts();
 });
 
 // ========================================
@@ -678,23 +816,32 @@ $router->get('dashboard/companies/{id}/modules', function($id) {
 // SETTINGS ROUTES
 // ========================================
 
-// SMS Settings (Manager/Admin)
+// SMS Settings (Manager and System Admin)
 $router->get('dashboard/sms-settings', function() {
-    \App\Middleware\WebAuthMiddleware::handle(['manager', 'admin', 'system_admin']);
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'system_admin']);
     $GLOBALS['currentPage'] = 'sms-settings';
     $controller = new \App\Controllers\ProfileController();
     $controller->smsSettings();
 });
 
-// SMS Purchase Page
+// Company Settings (Manager and System Admin)
+$router->get('dashboard/company-settings', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'system_admin']);
+    $GLOBALS['currentPage'] = 'company-settings';
+    $controller = new \App\Controllers\CompanyWebController();
+    $controller->companySettings();
+});
+
+// SMS Purchase Page (Manager and System Admin)
 $router->get('dashboard/sms/purchase', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'system_admin']);
     $controller = new \App\Controllers\ProfileController();
     $controller->smsPurchase();
 });
 
-// SMS Payment Success Page
+// SMS Payment Success Page (Manager and System Admin)
 $router->get('dashboard/sms/payment-success', function() {
-    \App\Middleware\WebAuthMiddleware::handle(['manager', 'admin', 'system_admin']);
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'system_admin']);
     $paymentId = $_GET['payment_id'] ?? null;
     require_once __DIR__ . '/../app/Views/payment-success.php';
     exit;
@@ -708,10 +855,49 @@ $router->get('dashboard/profile', function() {
     $controller->profile();
 });
 
-// System Settings Page (System Admin and Admin only - restrict manager, salesperson, technician)
+// Profile Update API
+$router->post('api/profile/update', function() {
+    // Clean output buffers
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    ob_start();
+    
+    header('Content-Type: application/json');
+    
+    try {
+        $controller = new \App\Controllers\ProfileController();
+        $controller->updateProfile();
+    } catch (\Exception $e) {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        http_response_code(500);
+        header('Content-Type: application/json');
+        error_log("Profile Update Route Error: " . $e->getMessage());
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    } catch (\Error $e) {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        http_response_code(500);
+        header('Content-Type: application/json');
+        error_log("Profile Update Route Fatal Error: " . $e->getMessage());
+        echo json_encode([
+            'success' => false,
+            'error' => 'Internal server error',
+            'message' => $e->getMessage()
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+});
+
+// System Settings Page (System Admin only - restrict all other roles)
 $router->get('dashboard/system-settings', function() {
     try {
-        \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin']);
+        \App\Middleware\WebAuthMiddleware::handle(['system_admin']);
         $GLOBALS['currentPage'] = 'settings';
         $controller = new \App\Controllers\SettingsController();
         $controller->index();
@@ -879,10 +1065,28 @@ $router->post('dashboard/swaps/update-status/{id}', function($id) {
     $controller->updateStatus($id);
 });
 
-// Swaps Delete
+// Swaps Delete (GET - for redirects)
 $router->get('dashboard/swaps/delete/{id}', function($id) {
     $controller = new \App\Controllers\SwapController();
     $controller->delete($id);
+});
+
+// Swaps Delete API (DELETE method)
+$router->delete('api/swaps/{id}', function($id) {
+    $controller = new \App\Controllers\SwapController();
+    $controller->delete($id);
+});
+
+// Swaps Delete API (POST alternative for method override)
+$router->post('api/swaps/{id}/delete', function($id) {
+    $controller = new \App\Controllers\SwapController();
+    $controller->delete($id);
+});
+
+// Swaps Sync to Inventory API
+$router->post('api/swaps/sync-to-inventory', function() {
+    $controller = new \App\Controllers\SwapController();
+    $controller->syncToInventory();
 });
 
 // ========================================
@@ -938,6 +1142,17 @@ $router->post('dashboard/repairs/update-payment-status/{id}', function($id) {
     $controller->updatePaymentStatus($id);
 });
 
+$router->post('dashboard/repairs/delete/{id}', function($id) {
+    $controller = new \App\Controllers\RepairController();
+    $controller->delete($id);
+});
+
+// Repairs Search API (for live search)
+$router->get('api/repairs/search', function() {
+    $controller = new \App\Controllers\RepairController();
+    $controller->apiSearch();
+});
+
 // ========================================
 // TECHNICIAN DASHBOARD ROUTES
 // ========================================
@@ -945,20 +1160,18 @@ $router->post('dashboard/repairs/update-payment-status/{id}', function($id) {
 // Note: Main technician dashboard is handled by DashboardController at /dashboard
 // This ensures technicians use /dashboard like all other roles
 
-// Technician Booking
-$router->get('dashboard/technician/booking', function() {
-    \App\Middleware\WebAuthMiddleware::handle(['technician', 'system_admin']);
+// Booking (for technicians and managers)
+$router->get('dashboard/booking', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['technician', 'manager', 'admin', 'system_admin']);
     $GLOBALS['currentPage'] = 'booking';
     $controller = new \App\Controllers\TechnicianController();
     $controller->booking();
 });
 
-// Technician My Repairs
+// Technician My Repairs - Redirect to main repairs route (which handles technicians)
 $router->get('dashboard/technician/repairs', function() {
-    \App\Middleware\WebAuthMiddleware::handle(['technician', 'system_admin']);
-    $GLOBALS['currentPage'] = 'repairs';
-    $controller = new \App\Controllers\TechnicianController();
-    $controller->myRepairs();
+    header('Location: ' . BASE_URL_PATH . '/dashboard/repairs');
+    exit;
 });
 
 // ========================================
@@ -985,9 +1198,9 @@ $router->get('api/reports/preview', function() {
     $controller->preview();
 });
 
-// Settings route
+// Settings route (System Admin only - removed from admin/manager access)
 $router->get('dashboard/settings', function() {
-    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin']);
     $GLOBALS['currentPage'] = 'settings';
     $controller = new \App\Controllers\SettingsController();
     $controller->index();
@@ -1061,6 +1274,20 @@ $router->get('dashboard/pos/sales-history', function() {
     $controller->salesHistory();
 });
 
+// POS Sales History (legacy route - redirect for backward compatibility)
+$router->get('pos/sales-history', function() {
+    header('Location: ' . BASE_URL_PATH . '/dashboard/pos/sales-history');
+    exit;
+});
+
+// Sales History (alternative route for technicians)
+$router->get('dashboard/sales-history', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson', 'technician']);
+    $GLOBALS['currentPage'] = 'sales-history';
+    $controller = new \App\Controllers\POSController();
+    $controller->salesHistory();
+});
+
 // Partial Payments Management
 $router->get('dashboard/pos/partial-payments', function() {
     \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson']);
@@ -1068,10 +1295,23 @@ $router->get('dashboard/pos/partial-payments', function() {
     $controller->partialPayments();
 });
 
+// POS Swap Checkout (POST)
+$router->post('dashboard/pos/swap/checkout', function() {
+    $controller = new \App\Controllers\POSController();
+    $controller->processSwapSale();
+});
+
 // POS Receipt
 $router->get('pos/receipt/{id}', function($id) {
     $controller = new \App\Controllers\POSController();
     $controller->generateReceipt($id);
+});
+
+// Sales Detail View (for audit trail links)
+$router->get('dashboard/sales/{id}', function($id) {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson']);
+    $controller = new \App\Controllers\POSController();
+    $controller->showSale($id);
 });
 
 // ========================================
@@ -1084,6 +1324,13 @@ $router->get('dashboard/audit-trail', function() {
     $GLOBALS['currentPage'] = 'audit-trail';
     $controller = new \App\Controllers\ManagerAnalyticsController();
     $controller->index();
+});
+
+$router->get('dashboard/audit-trail/{id}', function($id) {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+    $GLOBALS['currentPage'] = 'audit-trail';
+    $controller = new \App\Controllers\ManagerAnalyticsController();
+    $controller->show($id);
 });
 
 // Analytics Overview API
@@ -1206,14 +1453,30 @@ $router->post('dashboard/backup/export', function() {
     $controller->export();
 });
 
-$router->post('dashboard/backup/import', function() {
+$router->get('api/backups', function() {
     $controller = new \App\Controllers\BackupController();
-    $controller->import();
+    $controller->getAllBackups();
 });
 
 $router->get('api/company/{id}/backups', function($id) {
     $controller = new \App\Controllers\BackupController();
     $controller->getBackups($id);
+});
+
+$router->delete('api/backups/{id}', function($id) {
+    $controller = new \App\Controllers\BackupController();
+    $controller->delete($id);
+});
+
+// POST fallback for DELETE (for servers that don't support DELETE method)
+$router->post('api/backups/{id}/delete', function($id) {
+    $controller = new \App\Controllers\BackupController();
+    $controller->delete($id);
+});
+
+$router->post('api/backups/bulk-delete', function() {
+    $controller = new \App\Controllers\BackupController();
+    $controller->bulkDelete();
 });
 
 $router->get('dashboard/backup/download/{id}', function($id) {
@@ -1282,6 +1545,12 @@ $router->get('api/customers/{id}/history', function($id) {
 $router->get('api/customers/count', function() {
     $controller = new \App\Controllers\CustomerController();
     $controller->getTotalCount();
+});
+
+// Customer Search API (for autocomplete/search)
+$router->get('api/customers/search', function() {
+    $controller = new \App\Controllers\CustomerController();
+    $controller->quickSearch();
 });
 
 // Update Customer API
@@ -1407,6 +1676,57 @@ $ensureJsonOutput = function() {
 // ========================================
 // COMPANY API ROUTES
 // ========================================
+
+// Get company SMS settings (Manager and System Admin)
+$router->get('api/company/settings', function() use ($ensureJsonOutput) {
+    $ensureJsonOutput();
+    try {
+        $controller = new \App\Controllers\CompanyController();
+        $controller->getSMSSettings();
+    } catch (\Exception $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    } catch (\Error $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Internal server error']);
+    }
+});
+
+// Update company SMS settings (Manager and System Admin)
+$router->post('api/company/settings/update', function() use ($ensureJsonOutput) {
+    $ensureJsonOutput();
+    try {
+        $controller = new \App\Controllers\CompanyController();
+        $controller->updateSMSSettings();
+    } catch (\Exception $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    } catch (\Error $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Internal server error']);
+    }
+});
+
+// Get company SMS balance (Manager and System Admin)
+$router->get('api/company/sms-balance', function() use ($ensureJsonOutput) {
+    $ensureJsonOutput();
+    try {
+        $controller = new \App\Controllers\CompanyController();
+        $controller->getSMSBalance();
+    } catch (\Exception $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    } catch (\Error $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Internal server error']);
+    }
+});
 
 // Companies Delete (POST for password confirmation)
 $router->post('api/companies/{id}/delete', function($id) use ($ensureJsonOutput) {
@@ -1681,6 +2001,20 @@ $router->post('api/dashboard/toggle-module', function() use ($ensureJsonOutput) 
 
 // Charts Data API
 $router->get('api/dashboard/charts-data', function() use ($ensureJsonOutput) {
+    // Start session FIRST before any output handling (session params already set in config/app.php)
+    try {
+        if (session_status() === PHP_SESSION_NONE) {
+            @session_start(); // @ to suppress warnings if session already started
+        }
+    } catch (\Exception $e) {
+        error_log("Charts data route: Session start error: " . $e->getMessage());
+        // Return error immediately if session fails
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Session error', 'message' => $e->getMessage()]);
+        return;
+    }
+    
     $ensureJsonOutput();
     try {
         $controller = new \App\Controllers\DashboardController();
@@ -1688,11 +2022,37 @@ $router->get('api/dashboard/charts-data', function() use ($ensureJsonOutput) {
     } catch (\Exception $e) {
         ob_end_clean();
         http_response_code(500);
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        $errorMsg = $e->getMessage();
+        $errorFile = $e->getFile();
+        $errorLine = $e->getLine();
+        error_log("Charts data route error: $errorMsg in $errorFile:$errorLine");
+        error_log("Charts data route stack trace: " . $e->getTraceAsString());
+        echo json_encode([
+            'success' => false, 
+            'error' => 'Internal server error', 
+            'debug' => [
+                'message' => $errorMsg,
+                'file' => basename($errorFile),
+                'line' => $errorLine
+            ]
+        ]);
     } catch (\Error $e) {
         ob_end_clean();
         http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Internal server error']);
+        $errorMsg = $e->getMessage();
+        $errorFile = $e->getFile();
+        $errorLine = $e->getLine();
+        error_log("Charts data route fatal error: $errorMsg in $errorFile:$errorLine");
+        error_log("Charts data route fatal stack trace: " . $e->getTraceAsString());
+        echo json_encode([
+            'success' => false, 
+            'error' => 'Fatal error', 
+            'debug' => [
+                'message' => $errorMsg,
+                'file' => basename($errorFile),
+                'line' => $errorLine
+            ]
+        ]);
     }
 });
 
@@ -1828,19 +2188,146 @@ $router->get('api/admin/health', function() use ($ensureJsonOutput) {
 });
 
 // Admin Analytics API
-$router->get('api/admin/analytics', function() use ($ensureJsonOutput) {
-    $ensureJsonOutput();
+$router->get('api/admin/analytics', function() {
+    // Ensure Database class is loaded
+    if (!class_exists('Database')) {
+        require_once __DIR__ . '/../config/database.php';
+    }
+    
+    // Clean output buffers
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    ob_start();
+    
     try {
         $controller = new \App\Controllers\AdminController();
         $controller->analytics();
     } catch (\Exception $e) {
-        ob_end_clean();
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
         http_response_code(500);
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        header('Content-Type: application/json');
+        error_log("Admin Analytics Route Error: " . $e->getMessage());
+        error_log("Stack: " . $e->getTraceAsString());
+        echo json_encode([
+            'success' => false, 
+            'error' => $e->getMessage(),
+            'file' => basename($e->getFile()),
+            'line' => $e->getLine()
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     } catch (\Error $e) {
-        ob_end_clean();
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
         http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Internal server error']);
+        header('Content-Type: application/json');
+        error_log("Admin Analytics Route Fatal Error: " . $e->getMessage());
+        error_log("Stack: " . $e->getTraceAsString());
+        echo json_encode([
+            'success' => false, 
+            'error' => 'Internal server error',
+            'message' => $e->getMessage(),
+            'file' => basename($e->getFile()),
+            'line' => $e->getLine()
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+});
+
+// Admin Company Performance API
+$router->get('api/admin/company-performance', function() {
+    // Ensure Database class is loaded
+    if (!class_exists('Database')) {
+        require_once __DIR__ . '/../config/database.php';
+    }
+    
+    // Clean output buffers
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    ob_start();
+    
+    try {
+        $controller = new \App\Controllers\AdminController();
+        $controller->companyPerformance();
+    } catch (\Exception $e) {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        http_response_code(500);
+        header('Content-Type: application/json');
+        error_log("Company Performance Route Error: " . $e->getMessage());
+        error_log("Stack: " . $e->getTraceAsString());
+        echo json_encode([
+            'success' => false, 
+            'error' => $e->getMessage(),
+            'file' => basename($e->getFile()),
+            'line' => $e->getLine()
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    } catch (\Error $e) {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        http_response_code(500);
+        header('Content-Type: application/json');
+        error_log("Company Performance Route Fatal Error: " . $e->getMessage());
+        error_log("Stack: " . $e->getTraceAsString());
+        echo json_encode([
+            'success' => false, 
+            'error' => 'Internal server error',
+            'message' => $e->getMessage(),
+            'file' => basename($e->getFile()),
+            'line' => $e->getLine()
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+});
+
+// Admin Company Audit API
+$router->get('api/admin/company-audit', function() {
+    // Ensure Database class is loaded
+    if (!class_exists('Database')) {
+        require_once __DIR__ . '/../config/database.php';
+    }
+    
+    // Clean output buffers
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    ob_start();
+    
+    try {
+        $controller = new \App\Controllers\AdminController();
+        $controller->companyAudit();
+    } catch (\Exception $e) {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        http_response_code(500);
+        header('Content-Type: application/json');
+        error_log("Company Audit Route Error: " . $e->getMessage());
+        error_log("Stack: " . $e->getTraceAsString());
+        echo json_encode([
+            'success' => false, 
+            'error' => $e->getMessage(),
+            'file' => basename($e->getFile()),
+            'line' => $e->getLine()
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    } catch (\Error $e) {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        http_response_code(500);
+        header('Content-Type: application/json');
+        error_log("Company Audit Route Fatal Error: " . $e->getMessage());
+        error_log("Stack: " . $e->getTraceAsString());
+        echo json_encode([
+            'success' => false, 
+            'error' => 'Internal server error',
+            'message' => $e->getMessage(),
+            'file' => basename($e->getFile()),
+            'line' => $e->getLine()
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 });
 
@@ -2129,6 +2616,14 @@ $router->get('dashboard/companies/{id}/reset', function($id) {
     include __DIR__ . '/../app/Views/admin_reset_company.php';
 });
 
+// Company Restore Points Page
+$router->get('dashboard/companies/{id}/restore-points', function($id) {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin']);
+    $GLOBALS['currentPage'] = 'companies';
+    $controller = new \App\Controllers\RestorePointController();
+    $controller->index($id);
+});
+
 // System Reset Page
 $router->get('dashboard/reset', function() {
     \App\Middleware\WebAuthMiddleware::handle(['system_admin']);
@@ -2155,6 +2650,60 @@ $router->get('dashboard/admin/reset/{id}', function($id) {
 // RESET API ROUTES (PHASE B)
 // ========================================
 
+// Get confirmation code for company reset
+$router->get('api/admin/companies/{id}/reset/confirm-code', function($id) {
+    // Start session if not already started
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    
+    // Check authentication
+    $authenticated = false;
+    $userData = $_SESSION['user'] ?? null;
+    
+    if ($userData && is_array($userData) && isset($userData['role']) && $userData['role'] === 'system_admin') {
+        $authenticated = true;
+    } else {
+        try {
+            $payload = \App\Middleware\AuthMiddleware::handle(['system_admin']);
+            $authenticated = true;
+        } catch (\Exception $e) {
+            if (isset($_SESSION['user']) && $_SESSION['user']['role'] === 'system_admin') {
+                $authenticated = true;
+            }
+        }
+    }
+    
+    if (!$authenticated) {
+        http_response_code(401);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Unauthorized']);
+        exit;
+    }
+    
+    // Generate a random confirmation code
+    $randomPart = strtoupper(substr(md5(uniqid(rand(), true)), 0, 6));
+    $confirmCode = "RESET COMPANY {$id}-{$randomPart}";
+    
+    // Initialize session array if not exists
+    if (!isset($_SESSION['reset_confirm_codes'])) {
+        $_SESSION['reset_confirm_codes'] = [];
+    }
+    
+    // Store in session with company ID and timestamp
+    $_SESSION['reset_confirm_codes'][$id] = [
+        'code' => $confirmCode,
+        'timestamp' => time(),
+        'expires' => time() + 3600 // Expires in 1 hour
+    ];
+    
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => true,
+        'confirm_code' => $confirmCode
+    ]);
+});
+
 // Company Reset API (combined preview + execute)
 $router->post('api/admin/companies/{id}/reset', function($id) {
     $controller = new \App\Controllers\ResetController();
@@ -2167,10 +2716,60 @@ $router->post('api/admin/system/reset', function() {
     $controller->resetSystem();
 });
 
+// ========================================
+// RESTORE POINTS API ROUTES
+// ========================================
+
+// Create restore point
+$router->post('api/restore-points/create', function() {
+    $controller = new \App\Controllers\RestorePointController();
+    $controller->create();
+});
+
+// Restore from restore point
+$router->post('api/restore-points/restore', function() {
+    $controller = new \App\Controllers\RestorePointController();
+    $controller->restore();
+});
+
+// Also allow GET for testing (will return error if not POST with body)
+$router->get('api/restore-points/restore', function() {
+    header('Content-Type: application/json');
+    http_response_code(405);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Method not allowed. Use POST method with JSON body.'
+    ]);
+});
+
+// List restore points
+$router->get('api/restore-points/company/{id}', function($id) {
+    $controller = new \App\Controllers\RestorePointController();
+    $controller->list($id);
+});
+
+// Delete restore point
+$router->post('api/restore-points/delete', function() {
+    $controller = new \App\Controllers\RestorePointController();
+    $controller->delete();
+});
+
 // List Reset Actions (must come before dynamic route)
 $router->get('api/admin/reset/actions', function() {
     $controller = new \App\Controllers\ResetController();
     $controller->listActions();
+});
+
+// Delete Reset Action (single)
+$router->delete('api/admin/reset/actions/{id}', function($id) {
+    $controller = new \App\Controllers\ResetController();
+    $controller->deleteAction($id);
+});
+
+// Delete Reset Actions (bulk)
+$router->post('api/admin/reset/actions/delete', function() {
+    $controller = new \App\Controllers\ResetController();
+    $controller->deleteActions();
 });
 
 // Get Reset Action Details
@@ -2180,62 +2779,158 @@ $router->get('api/admin/reset/{admin_action_id}', function($admin_action_id) {
 });
 
 // ========================================
+// BACKUP SCHEDULER ROUTES
+// ========================================
+
+// Run scheduled backups manually (admin only)
+$router->post('api/admin/backups/run-scheduled', function() {
+    $controller = new \App\Controllers\BackupSchedulerController();
+    $controller->run();
+});
+
+// Get backup statistics
+$router->get('api/admin/backups/stats', function() {
+    $controller = new \App\Controllers\BackupSchedulerController();
+    $controller->stats();
+});
+
+// ========================================
 // BACKUP ROUTES
 // ========================================
 
 // Backup Download Route
 $router->get('api/admin/backup/download/{backupId}', function($backupId) {
-    // Set JSON header first to prevent HTML output
-    header('Content-Type: application/json');
-    ob_start();
+    // Clean any existing output
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
     
     try {
-        $payload = \App\Middleware\AuthMiddleware::handle(['system_admin', 'manager']);
+        // Start session if not already started
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
         
-        $backupService = new \App\Services\BackupService();
-        $backupPath = $backupService->getBackupPath($backupId);
+        // Try session-based authentication first (for web requests)
+        $authenticated = false;
+        $userData = $_SESSION['user'] ?? null;
+        $allowedRoles = ['system_admin', 'manager'];
         
-        if (!$backupPath || !is_dir($backupPath)) {
-            ob_end_clean();
+        if ($userData && is_array($userData) && isset($userData['role']) && in_array($userData['role'], $allowedRoles)) {
+            $authenticated = true;
+        } else {
+            // Fall back to JWT authentication (for API requests)
+            try {
+                $payload = \App\Middleware\AuthMiddleware::handle($allowedRoles);
+                $authenticated = true;
+            } catch (\Exception $e) {
+                // JWT auth failed, check if session exists as fallback
+                if (isset($_SESSION['user']) && in_array($_SESSION['user']['role'] ?? '', $allowedRoles)) {
+                    $authenticated = true;
+                } else {
+                    while (ob_get_level() > 0) {
+                        ob_end_clean();
+                    }
+                    http_response_code(401);
+                    header('Content-Type: application/json');
+                    echo json_encode([
+                        'success' => false,
+                        'error' => 'Unauthorized',
+                        'message' => 'Authentication required. Please login as system administrator or manager.'
+                    ]);
+                    exit;
+                }
+            }
+        }
+        
+        if (!$authenticated) {
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+            http_response_code(401);
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'error' => 'Unauthorized',
+                'message' => 'Authentication required. Please login as system administrator or manager.'
+            ]);
+            exit;
+        }
+        
+        // Get backup record from database
+        $backupModel = new \App\Models\Backup();
+        
+        // For managers, only show backups for their company
+        $companyId = null;
+        if (isset($userData['role']) && $userData['role'] === 'manager') {
+            $companyId = $userData['company_id'] ?? null;
+        }
+        
+        $backup = $backupModel->find($backupId, $companyId);
+        
+        if (!$backup) {
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
             http_response_code(404);
+            header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Backup not found']);
-            return;
+            exit;
         }
         
-        // Create zip archive of backup
-        $zipFile = $backupService->createBackupZip($backupId, $backupPath);
-        
-        if (!$zipFile || !file_exists($zipFile)) {
-            ob_end_clean();
-            http_response_code(500);
-            echo json_encode(['success' => false, 'error' => 'Failed to create backup archive']);
-            return;
+        // Check access for managers
+        if (isset($userData['role']) && $userData['role'] === 'manager') {
+            $userCompanyId = $userData['company_id'] ?? null;
+            if ($backup['company_id'] != $userCompanyId) {
+                while (ob_get_level() > 0) {
+                    ob_end_clean();
+                }
+                http_response_code(403);
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                exit;
+            }
         }
         
-        ob_end_clean();
+        // Get file path from backup record
+        $filePath = $backup['file_path'] ?? null;
+        
+        if (!$filePath || !file_exists($filePath)) {
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+            http_response_code(404);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Backup file not found']);
+            exit;
+        }
         
         // Send file for download
         header('Content-Type: application/zip');
-        header('Content-Disposition: attachment; filename="' . basename($zipFile) . '"');
-        header('Content-Length: ' . filesize($zipFile));
+        header('Content-Disposition: attachment; filename="' . basename($filePath) . '"');
+        header('Content-Length: ' . filesize($filePath));
         header('Cache-Control: no-cache, must-revalidate');
         header('Pragma: no-cache');
         
-        readfile($zipFile);
-        
-        // Optionally delete zip after download (uncomment if needed)
-        // unlink($zipFile);
-        
+        readfile($filePath);
         exit;
         
     } catch (\Exception $e) {
-        ob_end_clean();
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
         http_response_code(500);
+        header('Content-Type: application/json');
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        exit;
     } catch (\Error $e) {
-        ob_end_clean();
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
         http_response_code(500);
+        header('Content-Type: application/json');
         echo json_encode(['success' => false, 'error' => 'Internal server error: ' . $e->getMessage()]);
+        exit;
     }
 });
 
@@ -2297,7 +2992,7 @@ $router->post('api/admin/backup/company', function() {
             ob_end_clean();
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'company_id is required']);
-            return;
+            exit;
         }
         
         $backupService = new \App\Services\BackupService();
@@ -2309,16 +3004,32 @@ $router->post('api/admin/backup/company', function() {
             'backup_id' => $backupId,
             'message' => 'Backup created successfully'
         ]);
-    } catch (\Exception $e) {
+        exit;
+    } catch (\Throwable $e) {
+        // Catch both Exception and Error (fatal errors)
         ob_end_clean();
         http_response_code(500);
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        error_log("Company backup error: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'message' => 'An error occurred while creating the backup. Please check the server logs for details.'
+        ]);
+        exit;
     }
 });
 
 // Create System Backup
 $router->post('api/admin/backup/system', function() {
+    // Clean all output buffers first
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    
+    // Set JSON header immediately
     header('Content-Type: application/json');
+    
+    // Start output buffering to catch any unexpected output
     ob_start();
     
     try {
@@ -2350,7 +3061,7 @@ $router->post('api/admin/backup/system', function() {
                         'error' => 'Unauthorized',
                         'message' => 'Authentication required. Please login as system administrator.'
                     ]);
-                    return;
+                    exit;
                 }
             }
         }
@@ -2363,7 +3074,7 @@ $router->post('api/admin/backup/system', function() {
                 'error' => 'Unauthorized',
                 'message' => 'Authentication required. Please login as system administrator.'
             ]);
-            return;
+            exit;
         }
         
         $backupService = new \App\Services\BackupService();
@@ -2375,10 +3086,18 @@ $router->post('api/admin/backup/system', function() {
             'backup_id' => $backupId,
             'message' => 'System backup created successfully'
         ]);
-    } catch (\Exception $e) {
+        exit;
+    } catch (\Throwable $e) {
+        // Catch both Exception and Error (fatal errors)
         ob_end_clean();
         http_response_code(500);
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        error_log("System backup error: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'message' => 'An error occurred while creating the backup. Please check the server logs for details.'
+        ]);
+        exit;
     }
 });
 
@@ -2460,6 +3179,12 @@ $router->get('api/sms/paystack/webhook', function() {
         'success' => true,
         'message' => 'Paystack webhook endpoint is active'
     ]);
+});
+
+// Get SMS logs for manager's company (with pagination)
+$router->get('api/sms/logs', function() {
+    $controller = new \App\Controllers\ProfileController();
+    $controller->getSMSLogs();
 });
 
 // ========================================

@@ -9,6 +9,48 @@ use App\Models\CompanyModule;
 // Get company_id from session
 $companyId = $_SESSION['user']['company_id'] ?? null;
 
+// Get additional user information from database if not already available
+$userFullName = $_SESSION['user']['full_name'] ?? null;
+$userEmail = $_SESSION['user']['email'] ?? null;
+$userCreatedAt = $_SESSION['user']['created_at'] ?? null;
+$userUpdatedAt = $_SESSION['user']['updated_at'] ?? null;
+
+// If we don't have full user data, fetch it from database
+if (!$userFullName || !$userCreatedAt) {
+    try {
+        if (!class_exists('Database')) {
+            require_once __DIR__ . '/../../config/database.php';
+        }
+        $db = \Database::getInstance()->getConnection();
+        $userId = $_SESSION['user']['id'] ?? null;
+        
+        if ($userId) {
+            $userQuery = $db->prepare("
+                SELECT u.full_name, u.email, u.created_at, u.updated_at, c.name as company_name
+                FROM users u
+                LEFT JOIN companies c ON u.company_id = c.id
+                WHERE u.id = ?
+                LIMIT 1
+            ");
+            $userQuery->execute([$userId]);
+            $userData = $userQuery->fetch(\PDO::FETCH_ASSOC);
+            
+            if ($userData) {
+                $userFullName = $userData['full_name'] ?? $userInfo;
+                $userEmail = $userData['email'] ?? null;
+                $userCreatedAt = $userData['created_at'] ?? null;
+                $userUpdatedAt = $userData['updated_at'] ?? null;
+                if (!$companyInfo && $userData['company_name']) {
+                    $companyInfo = $userData['company_name'];
+                }
+            }
+        }
+    } catch (\Exception $e) {
+        // Silently fail - use session data only
+        error_log("Sidebar: Error fetching user data: " . $e->getMessage());
+    }
+}
+
 // Module name to module key mapping (from SYSTEM_MODULE_AUDIT.json)
 $moduleKeyMap = [
     'Products & Inventory' => 'products_inventory',
@@ -18,7 +60,9 @@ $moduleKeyMap = [
     'Customers' => 'customers',
     'Staff Management' => 'staff_management',
     'Reports & Analytics' => 'reports_analytics',
-    'Notifications & SMS' => 'notifications_sms'
+    'Notifications & SMS' => 'notifications_sms',
+    'Suppliers' => 'suppliers',
+    'Purchase Orders' => 'purchase_orders'
 ];
 
 // Helper function to check if module is enabled
@@ -81,8 +125,8 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
     $textClasses = $isActive ? '' : 'sidebar-text';
     
     return sprintf(
-        '<a href="%s" class="sidebar-item flex items-center px-3 py-2 rounded-md transition text-sm %s">
-            <i class="%s mr-3 text-xs %s"></i>
+        '<a href="%s" class="sidebar-item flex items-center px-3 py-2 rounded-md text-sm %s" onclick="expandSidebarIfCollapsed(event)">
+            <i class="%s mr-3 text-xs %s flex-shrink-0" style="width: 1rem; min-width: 1rem;"></i>
             <span class="%s">%s</span>
         </a>',
         $href,
@@ -94,18 +138,21 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
     );
 }
 ?>
-<!-- Sidebar Toggle Button for Mobile -->
-<button class="md:hidden fixed top-4 left-4 z-[1001] bg-gray-800 text-white p-2.5 rounded-lg shadow-lg hover:bg-gray-700 transition-colors" onclick="toggleSidebar()" aria-label="Toggle sidebar">
-    <i class="fas fa-bars text-lg"></i>
+<!-- Sidebar Toggle Button for Mobile Only -->
+<button id="sidebarToggle" class="md:hidden fixed top-4 left-4 z-[1001] bg-gray-800 text-white p-2.5 rounded-lg shadow-lg hover:bg-gray-700 transition-colors" onclick="toggleSidebar()" aria-label="Toggle sidebar">
+    <i id="sidebarToggleIcon" class="fas fa-bars text-lg"></i>
 </button>
 
+<!-- Sidebar Overlay (for mobile) -->
+<div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+
 <!-- Sidebar -->
-<div class="sidebar h-screen p-4 overflow-y-auto" style="background: <?= $config['color'] ?>;">
+<div id="sidebar" class="sidebar loading h-screen p-4 overflow-y-auto relative" style="background: <?= $config['color'] ?>;">
     <div class="flex items-center mb-6">
-        <i class="<?= $config['icon'] ?> text-lg mr-3 sidebar-text"></i>
-        <div>
-            <h1 class="text-sm font-semibold sidebar-text"><?= $config['title'] ?></h1>
-            <p class="text-xs sidebar-text opacity-75"><?= $config['subtitle'] ?></p>
+        <i class="<?= $config['icon'] ?> text-lg mr-3 sidebar-text flex-shrink-0" style="width: 1.25rem; min-width: 1.25rem;"></i>
+        <div class="min-w-0 flex-1">
+            <h1 class="text-sm font-semibold sidebar-text truncate"><?= $config['title'] ?></h1>
+            <p class="text-xs sidebar-text opacity-75 truncate"><?= $config['subtitle'] ?></p>
         </div>
     </div>
     
@@ -117,6 +164,7 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/companies/sms-config', 'fas fa-sms', 'SMS & Company Config', $currentPage, 'sms-config') ?>
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/companies/modules', 'fas fa-puzzle-piece', 'Company Modules', $currentPage, 'company-modules') ?>
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/analytics', 'fas fa-chart-line', 'Analytics', $currentPage, 'analytics') ?>
+            <?= sidebarLink(BASE_URL_PATH . '/dashboard/backup', 'fas fa-database', 'Backups', $currentPage, 'backup') ?>
             <div class="border-t border-white border-opacity-20 my-2"></div>
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/reset/history', 'fas fa-history', 'Reset History', $currentPage, 'reset-history') ?>
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/reset', 'fas fa-skull', 'System Reset', $currentPage, 'system-reset') ?>
@@ -130,6 +178,14 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/categories', 'fas fa-tags', 'Categories', $currentPage, 'categories') ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/subcategories', 'fas fa-layer-group', 'Subcategories', $currentPage, 'subcategories') ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/brands', 'fas fa-star', 'Brands', $currentPage, 'brands') ?>
+            <?php endif; ?>
+            
+            <?php if (isModuleEnabled('suppliers', $companyId, $userRole)): ?>
+                <?= sidebarLink(BASE_URL_PATH . '/dashboard/suppliers', 'fas fa-truck', 'Suppliers', $currentPage, 'suppliers') ?>
+            <?php endif; ?>
+            
+            <?php if (isModuleEnabled('purchase_orders', $companyId, $userRole)): ?>
+                <?= sidebarLink(BASE_URL_PATH . '/dashboard/purchase-orders', 'fas fa-shopping-cart', 'Purchase Orders', $currentPage, 'purchase_orders') ?>
             <?php endif; ?>
             
             <?php if (isModuleEnabled('staff_management', $companyId, $userRole)): ?>
@@ -147,7 +203,7 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
                     <?= sidebarLink(BASE_URL_PATH . '/dashboard/audit-trail', 'fas fa-chart-bar', 'Audit Trail', $currentPage, 'audit-trail') ?>
                 <?php endif; ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos/sales-history', 'fas fa-history', 'Sales History', $currentPage, 'sales-history') ?>
-                <?php if (\App\Models\CompanyModule::isEnabled($companyId, 'partial_payments')): ?>
+                <?php if (CompanyModule::isEnabled($companyId, 'partial_payments')): ?>
                     <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos/partial-payments', 'fas fa-money-bill-wave', 'Partial Payments', $currentPage, 'partial-payments') ?>
                 <?php endif; ?>
             
@@ -171,17 +227,22 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/customers', 'fas fa-user-friends', 'Customers', $currentPage, 'customers') ?>
             <?php endif; ?>
             
-            <?php if (isModuleEnabled('notifications_sms', $companyId, $userRole)): ?>
-                <?= sidebarLink(BASE_URL_PATH . '/dashboard/sms-settings', 'fas fa-sms', 'SMS Settings', $currentPage, 'sms-settings') ?>
-            <?php endif; ?>
+            <!-- SMS Settings - Available for managers to view balance and purchase credits -->
+            <?= sidebarLink(BASE_URL_PATH . '/dashboard/sms-settings', 'fas fa-sms', 'SMS Settings', $currentPage, 'sms-settings') ?>
+            
+            <!-- Company Settings - Available for managers to configure SMS notification preferences -->
+            <?= sidebarLink(BASE_URL_PATH . '/dashboard/company-settings', 'fas fa-cog', 'Company Settings', $currentPage, 'company-settings') ?>
         <?php elseif ($userRole === 'technician'): ?>
             <!-- Technician Navigation -->
             <?= sidebarLink(BASE_URL_PATH . '/dashboard', 'fas fa-tachometer-alt', 'Dashboard', $currentPage, 'dashboard') ?>
             
             <?php if (isModuleEnabled('repairs', $companyId, $userRole)): ?>
-                <?= sidebarLink(BASE_URL_PATH . '/dashboard/technician/booking', 'fas fa-plus-circle', 'New Booking', $currentPage, 'booking') ?>
-                <?= sidebarLink(BASE_URL_PATH . '/dashboard/technician/repairs', 'fas fa-tools', 'My Repairs', $currentPage, 'repairs') ?>
+                <?= sidebarLink(BASE_URL_PATH . '/dashboard/booking', 'fas fa-plus-circle', 'New Booking', $currentPage, 'booking') ?>
+                <?= sidebarLink(BASE_URL_PATH . '/dashboard/repairs', 'fas fa-tools', 'My Repairs', $currentPage, 'repairs') ?>
             <?php endif; ?>
+            
+            <!-- Sales History - Always visible for technicians (they sell spare parts during repairs) -->
+            <?= sidebarLink(BASE_URL_PATH . '/dashboard/sales-history', 'fas fa-history', 'Sales History', $currentPage, 'sales-history') ?>
             
             <?php if (isModuleEnabled('customers', $companyId, $userRole)): ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/customers', 'fas fa-user-friends', 'Customers', $currentPage, 'customers') ?>
@@ -193,7 +254,7 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
             <?php if (isModuleEnabled('pos_sales', $companyId, $userRole)): ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos', 'fas fa-cash-register', 'Point of Sale', $currentPage, 'pos') ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos/sales-history', 'fas fa-history', 'Sales History', $currentPage, 'sales-history') ?>
-                <?php if (\App\Models\CompanyModule::isEnabled($companyId, 'partial_payments')): ?>
+                <?php if (CompanyModule::isEnabled($companyId, 'partial_payments')): ?>
                     <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos/partial-payments', 'fas fa-money-bill-wave', 'Partial Payments', $currentPage, 'partial-payments') ?>
                 <?php endif; ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/reports', 'fas fa-chart-line', 'Reports', $currentPage, 'reports') ?>
@@ -222,24 +283,11 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
         <?php endif; ?>
         <!-- Managers and Admins should NOT have access to settings - removed for security -->
         
-        <a href="#" onclick="logout()" class="sidebar-item flex items-center px-3 py-2 rounded-md transition text-sm">
-            <i class="fas fa-sign-out-alt mr-3 text-xs sidebar-text"></i>
+        <a href="#" onclick="expandSidebarIfCollapsed(event); logout(); return false;" class="sidebar-item flex items-center px-3 py-2 rounded-md text-sm">
+            <i class="fas fa-sign-out-alt mr-3 text-xs sidebar-text flex-shrink-0" style="width: 1rem; min-width: 1rem;"></i>
             <span class="sidebar-text">Logout</span>
         </a>
     </nav>
-    
-    <!-- User Info at Bottom -->
-    <div class="absolute bottom-4 left-4 right-4">
-        <div class="flex items-center p-2 bg-white bg-opacity-10 rounded-lg">
-            <i class="<?= $config['userIcon'] ?> text-sm mr-2 sidebar-text"></i>
-            <div class="flex-1 min-w-0">
-                <p class="text-xs font-medium sidebar-text truncate"><?= htmlspecialchars($userInfo) ?></p>
-                <?php if ($companyInfo): ?>
-                    <p class="text-xs sidebar-text opacity-75 truncate"><?= htmlspecialchars($companyInfo) ?></p>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
     
     <!-- Close button for mobile -->
     <button class="md:hidden absolute top-4 right-4 text-white hover:text-gray-200 transition-colors z-10" onclick="closeSidebar()" aria-label="Close sidebar">
@@ -253,7 +301,11 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
 <style>
     .sidebar-text {
         color: rgba(255, 255, 255, 0.8);
-        transition: all 0.3s ease;
+        transition: color 0.2s ease;
+    }
+    
+    .sidebar-item {
+        transition: background-color 0.2s ease, color 0.2s ease;
     }
     
     .sidebar-item:hover {
@@ -268,6 +320,15 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
     .sidebar-item.active {
         background: rgba(255, 255, 255, 0.2);
         color: white;
+    }
+    
+    /* Prevent transitions on initial page load */
+    .sidebar.loading {
+        transition: none !important;
+    }
+    
+    .sidebar.loading * {
+        transition: none !important;
     }
     
     .sidebar-toggle {
@@ -311,8 +372,11 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
             z-index: 1000;
             width: 16rem;
             max-width: 80vw;
-            transition: left 0.3s ease-in-out;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .sidebar:not(.loading) {
+            transition: left 0.3s ease-in-out;
         }
         
         .sidebar.open {
@@ -335,6 +399,17 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
 </style>
 
 <script>
+    // Remove loading class after page load to enable transitions
+    document.addEventListener('DOMContentLoaded', function() {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            // Small delay to ensure page is fully rendered
+            setTimeout(function() {
+                sidebar.classList.remove('loading');
+            }, 50);
+        }
+    });
+    
     function toggleSidebar() {
         const sidebar = document.querySelector('.sidebar');
         const overlay = document.querySelector('.sidebar-overlay');

@@ -180,6 +180,11 @@ class AuditService {
             $params['entity_id'] = $filters['entity_id'];
         }
 
+        if (!empty($filters['id'])) {
+            $where[] = "al.id = :id";
+            $params['id'] = $filters['id'];
+        }
+
         if (!empty($filters['date_from'])) {
             $where[] = "DATE(al.created_at) >= :date_from";
             $params['date_from'] = $filters['date_from'];
@@ -227,6 +232,79 @@ class AuditService {
             error_log("AuditService::getLogs error: " . $e->getMessage());
             // Return empty array on error instead of crashing
             return [];
+        }
+    }
+
+    /**
+     * Get total count of audit logs matching filters
+     * 
+     * @param int|null $companyId
+     * @param array $filters
+     * @return int
+     */
+    public function getLogsCount($companyId = null, $filters = []) {
+        $where = ['1=1'];
+        $params = [];
+
+        if ($companyId !== null) {
+            $where[] = "al.company_id = :company_id";
+            $params['company_id'] = $companyId;
+        }
+
+        if (!empty($filters['event_type'])) {
+            $where[] = "al.event_type = :event_type";
+            $params['event_type'] = $filters['event_type'];
+        }
+
+        if (!empty($filters['user_id'])) {
+            $where[] = "al.user_id = :user_id";
+            $params['user_id'] = $filters['user_id'];
+        }
+
+        if (!empty($filters['entity_type'])) {
+            $where[] = "al.entity_type = :entity_type";
+            $params['entity_type'] = $filters['entity_type'];
+        }
+
+        if (!empty($filters['entity_id'])) {
+            $where[] = "al.entity_id = :entity_id";
+            $params['entity_id'] = $filters['entity_id'];
+        }
+
+        if (!empty($filters['id'])) {
+            $where[] = "al.id = :id";
+            $params['id'] = $filters['id'];
+        }
+
+        if (!empty($filters['date_from'])) {
+            $where[] = "DATE(al.created_at) >= :date_from";
+            $params['date_from'] = $filters['date_from'];
+        }
+
+        if (!empty($filters['date_to'])) {
+            $where[] = "DATE(al.created_at) <= :date_to";
+            $params['date_to'] = $filters['date_to'];
+        }
+
+        try {
+            $stmt = $this->db->prepare("
+                SELECT COUNT(*) as total
+                FROM audit_logs al
+                WHERE " . implode(' AND ', $where) . "
+            ");
+            
+            // Bind parameters
+            foreach ($params as $key => $value) {
+                $stmt->bindValue(':' . $key, $value);
+            }
+            
+            $stmt->execute();
+            $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+            
+            return (int)($result['total'] ?? 0);
+        } catch (\Exception $e) {
+            error_log("AuditService::getLogsCount error: " . $e->getMessage());
+            return 0;
         }
     }
 

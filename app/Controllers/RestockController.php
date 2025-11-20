@@ -238,6 +238,9 @@ class RestockController
             // Log restock activity
             $this->logRestockActivity($id, $quantityToAdd, $newCost, $newPrice, $notes, $companyId);
             
+            // Update supplier tracking if product has a supplier
+            $this->updateSupplierTrackingOnRestock($companyId, $id, $quantityToAdd, $newCost);
+            
             $_SESSION['flash_success'] = "Product restocked successfully! Added $quantityToAdd units.";
             header('Location: ' . BASE_URL_PATH . '/dashboard/restock');
             exit;
@@ -857,5 +860,85 @@ class RestockController
         }
         
         include __DIR__ . '/../Views/simple_layout.php';
+    }
+    
+    /**
+     * Update supplier tracking when restocking
+     * Maintains supplier tracking even when products go out of stock and are restocked
+     */
+    private function updateSupplierTrackingOnRestock($companyId, $productId, $quantityAdded, $unitCost) {
+        try {
+            $db = \Database::getInstance()->getConnection();
+            
+            // Check if tracking table exists
+            $tableExists = $db->query("SHOW TABLES LIKE 'supplier_product_tracking'")->rowCount() > 0;
+            if (!$tableExists) {
+                return; // Silently skip if table doesn't exist
+            }
+            
+            // Get product's supplier_id
+            $productStmt = $db->prepare("SELECT supplier_id FROM products WHERE id = ? AND company_id = ?");
+            $productStmt->execute([$productId, $companyId]);
+            $product = $productStmt->fetch(\PDO::FETCH_ASSOC);
+            
+            if (!$product || !$product['supplier_id']) {
+                return; // No supplier linked, skip tracking
+            }
+            
+            $supplierId = $product['supplier_id'];
+            $amount = $quantityAdded * $unitCost;
+            
+            // Check if record exists
+            $checkStmt = $db->prepare("
+                SELECT id, total_quantity_received, total_amount_spent 
+                FROM supplier_product_tracking 
+                WHERE supplier_id = ? AND product_id = ? AND company_id = ?
+            ");
+            $checkStmt->execute([$supplierId, $productId, $companyId]);
+            $existing = $checkStmt->fetch(\PDO::FETCH_ASSOC);
+            
+            if ($existing) {
+                // Update existing record
+                $newTotalQuantity = $existing['total_quantity_received'] + $quantityAdded;
+                $newTotalAmount = $existing['total_amount_spent'] + $amount;
+                
+                $updateStmt = $db->prepare("
+                    UPDATE supplier_product_tracking 
+                    SET total_quantity_received = ?,
+                        total_amount_spent = ?,
+                        last_restock_quantity = ?,
+                        last_restock_amount = ?,
+                        last_restock_date = NOW(),
+                        updated_at = NOW()
+                    WHERE id = ?
+                ");
+                $updateStmt->execute([
+                    $newTotalQuantity,
+                    $newTotalAmount,
+                    $quantityAdded,
+                    $amount,
+                    $existing['id']
+                ]);
+            } else {
+                // Create new record (product was created without supplier, but now has one)
+                $insertStmt = $db->prepare("
+                    INSERT INTO supplier_product_tracking 
+                    (company_id, supplier_id, product_id, total_quantity_received, total_amount_spent,
+                     last_restock_quantity, last_restock_amount, last_restock_date, first_received_date, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW())
+                ");
+                $insertStmt->execute([
+                    $companyId,
+                    $supplierId,
+                    $productId,
+                    $quantityAdded,
+                    $amount,
+                    $quantityAdded,
+                    $amount
+                ]);
+            }
+        } catch (\Exception $e) {
+            error_log("Error updating supplier tracking on restock: " . $e->getMessage());
+        }
     }
 }

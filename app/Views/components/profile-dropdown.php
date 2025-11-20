@@ -53,11 +53,6 @@
             Your Profile
         </a>
         
-        <a href="<?= BASE_URL_PATH ?>/dashboard/settings" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-            <i class="fas fa-cog mr-3 text-gray-400"></i>
-            Settings
-        </a>
-        
         <?php if ($userRole === 'system_admin'): ?>
         <a href="<?= BASE_URL_PATH ?>/dashboard/system-settings" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
             <i class="fas fa-shield-alt mr-3 text-gray-400"></i>

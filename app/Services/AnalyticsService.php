@@ -10,6 +10,7 @@ require_once __DIR__ . '/../../config/database.php';
 
 class AnalyticsService {
     private $db;
+    private $quantityColumn;
 
     public function __construct() {
         $this->db = \Database::getInstance()->getConnection();
@@ -25,11 +26,23 @@ class AnalyticsService {
      * @return array
      */
     public function getSalesStats($company_id, $date_from = null, $date_to = null, $staff_id = null) {
+        // Check if is_swap_mode column exists
+        $hasIsSwapMode = false;
+        try {
+            $checkIsSwapMode = $this->db->query("SHOW COLUMNS FROM pos_sales LIKE 'is_swap_mode'");
+            $hasIsSwapMode = $checkIsSwapMode->rowCount() > 0;
+        } catch (\Exception $e) {
+            error_log("AnalyticsService::getSalesStats: Error checking is_swap_mode column: " . $e->getMessage());
+        }
+        
+        // Exclude swap sales from sales history (swaps should only appear on swap page)
+        $excludeSwapSales = $hasIsSwapMode ? " AND (is_swap_mode = 0 OR is_swap_mode IS NULL)" : "";
+        
         // Exclude repair-related sales from salesperson stats (when staff_id is provided)
         // Repair sales have notes like "Repair #X - Products sold by repairer"
         $excludeRepairSales = $staff_id ? " AND (notes IS NULL OR (notes NOT LIKE '%Repair #%' AND notes NOT LIKE '%Products sold by repairer%'))" : "";
         
-        $todayWhere = "company_id = :company_id AND DATE(created_at) = CURDATE(){$excludeRepairSales}";
+        $todayWhere = "company_id = :company_id AND DATE(created_at) = CURDATE(){$excludeSwapSales}{$excludeRepairSales}";
         $todayParams = ['company_id' => $company_id];
         if ($staff_id) {
             $todayWhere .= " AND created_by_user_id = :staff_id";
@@ -49,7 +62,7 @@ class AnalyticsService {
         $today = $todayQuery->fetch(PDO::FETCH_ASSOC);
 
         // Always calculate monthly stats (for reference)
-        $monthlyWhere = "company_id = :company_id AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE()){$excludeRepairSales}";
+        $monthlyWhere = "company_id = :company_id AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE()){$excludeSwapSales}{$excludeRepairSales}";
         $monthlyParams = ['company_id' => $company_id];
         if ($staff_id) {
             $monthlyWhere .= " AND created_by_user_id = :staff_id";
@@ -70,7 +83,7 @@ class AnalyticsService {
         // Filtered stats (for selected date range) - ALWAYS calculate if dates provided
         $filtered = null;
         if ($date_from || $date_to) {
-            $where = "company_id = :company_id{$excludeRepairSales}";
+            $where = "company_id = :company_id{$excludeSwapSales}{$excludeRepairSales}";
             $params = ['company_id' => $company_id];
 
             if ($date_from) {
@@ -128,15 +141,24 @@ class AnalyticsService {
      * @param int $company_id
      * @param string|null $date_from
      * @param string|null $date_to
+     * @param int|null $staff_id Optional staff member filter (technician)
      * @return array
      */
-    public function getRepairStats($company_id, $date_from = null, $date_to = null) {
+    public function getRepairStats($company_id, $date_from = null, $date_to = null, $staff_id = null) {
         // Check which repairs table exists
         $checkRepairsNew = $this->db->query("SHOW TABLES LIKE 'repairs_new'");
         $hasRepairsNew = $checkRepairsNew && $checkRepairsNew->rowCount() > 0;
         $repairsTable = $hasRepairsNew ? 'repairs_new' : 'repairs';
         $statusColumn = $hasRepairsNew ? 'status' : 'repair_status';
         $costColumn = $hasRepairsNew ? 'total_cost' : 'total_cost';
+        
+        // Determine technician column name
+        $technicianColumn = null;
+        if ($hasRepairsNew) {
+            $technicianColumn = 'assigned_technician_id';
+        } else {
+            $technicianColumn = 'technician_id';
+        }
         
         $where = "company_id = :company_id";
         $params = ['company_id' => $company_id];
@@ -149,37 +171,57 @@ class AnalyticsService {
             $where .= " AND DATE(created_at) <= :date_to";
             $params['date_to'] = $date_to;
         }
+        
+        // Add staff filter if provided
+        if ($staff_id) {
+            $where .= " AND {$technicianColumn} = :staff_id";
+            $params['staff_id'] = $staff_id;
+        }
 
         // Active repairs - check status column name
+        $activeWhere = "company_id = :company_id";
+        $activeParams = ['company_id' => $company_id];
+        if ($staff_id) {
+            $activeWhere .= " AND {$technicianColumn} = :staff_id";
+            $activeParams['staff_id'] = $staff_id;
+        }
+        
         if ($hasRepairsNew) {
             $activeQuery = $this->db->prepare("
                 SELECT COUNT(*) as count
                 FROM {$repairsTable} 
-                WHERE company_id = :company_id 
+                WHERE {$activeWhere}
                 AND status IN ('pending', 'in_progress', 'PENDING', 'IN_PROGRESS')
             ");
         } else {
             $activeQuery = $this->db->prepare("
                 SELECT COUNT(*) as count
                 FROM {$repairsTable} 
-                WHERE company_id = :company_id 
+                WHERE {$activeWhere}
                 AND UPPER(repair_status) IN ('PENDING', 'IN_PROGRESS')
             ");
         }
-        $activeQuery->execute(['company_id' => $company_id]);
+        $activeQuery->execute($activeParams);
         $active = (int)$activeQuery->fetchColumn();
 
         // Monthly repairs
+        $monthlyWhere = "company_id = :company_id 
+            AND MONTH(created_at) = MONTH(CURDATE()) 
+            AND YEAR(created_at) = YEAR(CURDATE())";
+        $monthlyParams = ['company_id' => $company_id];
+        if ($staff_id) {
+            $monthlyWhere .= " AND {$technicianColumn} = :staff_id";
+            $monthlyParams['staff_id'] = $staff_id;
+        }
+        
         $monthlyQuery = $this->db->prepare("
             SELECT 
                 COUNT(*) as count,
                 COALESCE(SUM({$costColumn}), 0) as revenue
             FROM {$repairsTable} 
-            WHERE company_id = :company_id 
-            AND MONTH(created_at) = MONTH(CURDATE()) 
-            AND YEAR(created_at) = YEAR(CURDATE())
+            WHERE {$monthlyWhere}
         ");
-        $monthlyQuery->execute(['company_id' => $company_id]);
+        $monthlyQuery->execute($monthlyParams);
         $monthly = $monthlyQuery->fetch(PDO::FETCH_ASSOC);
 
         // Filtered stats
@@ -219,115 +261,826 @@ class AnalyticsService {
      * @param int $company_id
      * @param string|null $date_from
      * @param string|null $date_to
+     * @param int|null $staff_id Optional staff member filter
      * @return array
      */
-    public function getSwapStats($company_id, $date_from = null, $date_to = null) {
-        $where = "company_id = :company_id";
+    public function getSwapStats($company_id, $date_from = null, $date_to = null, $staff_id = null) {
+        // Log input parameters
+        error_log("getSwapStats called: company_id={$company_id}, date_from={$date_from}, date_to={$date_to}, staff_id=" . ($staff_id ?? 'null'));
+        
+        // Check which staff column exists in swaps table
+        $staffColumn = null;
+        try {
+            $checkSalespersonId = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'salesperson_id'");
+            $checkHandledBy = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'handled_by'");
+            $checkCreatedByUserId = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'created_by_user_id'");
+            $checkCreatedBy = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'created_by'");
+            
+            if ($checkSalespersonId->rowCount() > 0) {
+                $staffColumn = 'salesperson_id';
+            } elseif ($checkHandledBy->rowCount() > 0) {
+                $staffColumn = 'handled_by';
+            } elseif ($checkCreatedByUserId->rowCount() > 0) {
+                $staffColumn = 'created_by_user_id';
+            } elseif ($checkCreatedBy->rowCount() > 0) {
+                $staffColumn = 'created_by';
+            }
+        } catch (\Exception $e) {
+            error_log("getSwapStats: Error checking staff columns: " . $e->getMessage());
+        }
+        
+        $where = "s.company_id = :company_id";
         $params = ['company_id' => $company_id];
 
         if ($date_from) {
-            $where .= " AND DATE(created_at) >= :date_from";
+            $where .= " AND DATE(s.created_at) >= :date_from";
             $params['date_from'] = $date_from;
         }
         if ($date_to) {
-            $where .= " AND DATE(created_at) <= :date_to";
+            $where .= " AND DATE(s.created_at) <= :date_to";
             $params['date_to'] = $date_to;
         }
-
-        // Pending swaps
-        $pendingQuery = $this->db->prepare("
-            SELECT COUNT(*) as count
-            FROM swaps 
-            WHERE company_id = :company_id 
-            AND UPPER(swap_status) = 'PENDING'
-        ");
-        $pendingQuery->execute(['company_id' => $company_id]);
-        $pending = (int)$pendingQuery->fetchColumn();
-
-        // Monthly swaps
-        $monthlyQuery = $this->db->prepare("
-            SELECT 
-                COUNT(*) as count,
-                COALESCE(SUM(total_value), 0) as revenue
-            FROM swaps 
-            WHERE company_id = :company_id 
-            AND MONTH(created_at) = MONTH(CURDATE()) 
-            AND YEAR(created_at) = YEAR(CURDATE())
-        ");
-        $monthlyQuery->execute(['company_id' => $company_id]);
-        $monthly = $monthlyQuery->fetch(PDO::FETCH_ASSOC);
-
-        // Swap profit (from swap_profit_links if exists)
-        $profit = 0;
+        
+        // Add staff filter if provided and column exists
+        if ($staff_id && $staffColumn) {
+            $where .= " AND s.{$staffColumn} = :staff_id";
+            $params['staff_id'] = $staff_id;
+        }
+        
+        // Create where clause without alias for simple queries
+        $whereNoAlias = str_replace('s.', '', $where);
+        
+        // Debug: Check if any swaps exist at all for this company
         try {
-            $profitQuery = $this->db->prepare("
-                SELECT COALESCE(SUM(final_profit), 0) as profit
-                FROM swap_profit_links spl
-                INNER JOIN swaps s ON spl.swap_id = s.id
-                WHERE s.company_id = :company_id 
-                AND spl.status = 'finalized'
-            ");
-            $profitQuery->execute(['company_id' => $company_id]);
-            $profitResult = $profitQuery->fetch(PDO::FETCH_ASSOC);
-            $profit = (float)($profitResult['profit'] ?? 0);
+            $totalCheck = $this->db->prepare("SELECT COUNT(*) as total FROM swaps WHERE company_id = :company_id");
+            $totalCheck->execute(['company_id' => $company_id]);
+            $totalSwaps = (int)$totalCheck->fetchColumn();
+            error_log("getSwapStats: Total swaps for company {$company_id}: {$totalSwaps}");
+            
+            if ($date_from || $date_to) {
+                $rangeCheck = $this->db->prepare("SELECT COUNT(*) as total FROM swaps WHERE {$whereNoAlias}");
+                $rangeCheck->execute($params);
+                $rangeSwaps = (int)$rangeCheck->fetchColumn();
+                error_log("getSwapStats: Swaps in date range: {$rangeSwaps}");
+            }
         } catch (\Exception $e) {
-            // Table might not exist, ignore
+            error_log("getSwapStats: Error checking swap count: " . $e->getMessage());
         }
 
-        // Filtered stats
-        $filtered = null;
-        if ($date_from || $date_to) {
-            $filteredQuery = $this->db->prepare("
+        // Check which status column exists
+        $hasStatus = false;
+        $hasSwapStatus = false;
+        try {
+            $checkStatus = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'status'");
+            $hasStatus = $checkStatus->rowCount() > 0;
+            $checkSwapStatus = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'swap_status'");
+            $hasSwapStatus = $checkSwapStatus->rowCount() > 0;
+        } catch (\Exception $e) {
+            // Ignore
+        }
+        
+        // Pending swaps - add staff filter if provided
+        $pendingParams = ['company_id' => $company_id];
+        $pendingWhere = "company_id = :company_id";
+        if ($staff_id && $staffColumn) {
+            $pendingWhere .= " AND {$staffColumn} = :staff_id";
+            $pendingParams['staff_id'] = $staff_id;
+        }
+        
+        $pending = 0;
+        if ($hasStatus) {
+            $pendingQuery = $this->db->prepare("
+                SELECT COUNT(*) as count
+                FROM swaps 
+                WHERE {$pendingWhere}
+                AND (UPPER(status) = 'PENDING' OR status IS NULL)
+            ");
+            $pendingQuery->execute($pendingParams);
+            $pending = (int)$pendingQuery->fetchColumn();
+        } elseif ($hasSwapStatus) {
+            $pendingQuery = $this->db->prepare("
+                SELECT COUNT(*) as count
+                FROM swaps 
+                WHERE {$pendingWhere}
+                AND UPPER(swap_status) = 'PENDING'
+            ");
+            $pendingQuery->execute($pendingParams);
+            $pending = (int)$pendingQuery->fetchColumn();
+        }
+
+        // Check which revenue column exists (total_value, final_price, or company_product_id)
+        $hasTotalValue = false;
+        $hasFinalPrice = false;
+        $hasCompanyProductId = false;
+        try {
+            $checkTotalValue = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'total_value'");
+            $hasTotalValue = $checkTotalValue->rowCount() > 0;
+            $checkFinalPrice = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'final_price'");
+            $hasFinalPrice = $checkFinalPrice->rowCount() > 0;
+            $checkCompanyProductId = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'company_product_id'");
+            $hasCompanyProductId = $checkCompanyProductId->rowCount() > 0;
+        } catch (\Exception $e) {
+            // Ignore
+        }
+        
+        // Monthly swaps - calculate revenue
+        // For swaps: revenue = total_value (which is Cash Top-up + Resold Price)
+        $monthly = ['count' => 0, 'revenue' => 0];
+        
+        // Build monthly where clause with staff filter
+        $monthlyWhere = "s.company_id = :company_id 
+                AND MONTH(s.created_at) = MONTH(CURDATE()) 
+                AND YEAR(s.created_at) = YEAR(CURDATE())";
+        $monthlyParams = ['company_id' => $company_id];
+        if ($staff_id && $staffColumn) {
+            $monthlyWhere .= " AND s.{$staffColumn} = :staff_id";
+            $monthlyParams['staff_id'] = $staff_id;
+        }
+        
+        if ($hasTotalValue) {
+            // Use total_value which should contain Cash Top-up + Resold Price
+            // total_value is calculated as: Cash Top-up (final_price - given_phone_value or added_cash) + Resold Price
+            $monthlyQuery = $this->db->prepare("
                 SELECT 
                     COUNT(*) as count,
                     COALESCE(SUM(total_value), 0) as revenue
-                FROM swaps 
-                WHERE {$where}
+                FROM swaps s
+                WHERE {$monthlyWhere}
             ");
-            $filteredQuery->execute($params);
-            $filtered = $filteredQuery->fetch(PDO::FETCH_ASSOC);
-        }
-
-        // Swap profit for period (if date range provided)
-        $periodProfit = $profit;
-        if ($date_from || $date_to) {
+            $monthlyQuery->execute($monthlyParams);
+            $monthly = $monthlyQuery->fetch(PDO::FETCH_ASSOC);
+        } elseif ($hasFinalPrice) {
+            // final_price exists - calculate cash top-up from final_price - customer_product_value
+            // Check if swapped_items table exists to get customer product value
+            $hasSwappedItems = false;
             try {
-                $periodProfitQuery = $this->db->prepare("
-                    SELECT COALESCE(SUM(final_profit), 0) as profit
+                $check = $this->db->query("SHOW TABLES LIKE 'swapped_items'");
+                $hasSwappedItems = $check->rowCount() > 0;
+            } catch (Exception $e) {
+                $hasSwappedItems = false;
+            }
+            
+            if ($hasSwappedItems) {
+                // Calculate cash top-up: final_price - estimated_value (customer product value)
+                // Use subquery to get first swapped_item per swap
+                try {
+                    $monthlyQuery = $this->db->prepare("
+                        SELECT 
+                            COUNT(*) as count,
+                            COALESCE(SUM(cash_topup), 0) as revenue
+                        FROM (
+                            SELECT s.id,
+                                CASE 
+                                    WHEN s.final_price > 0 AND si.estimated_value > 0 AND (s.final_price - si.estimated_value) > 0 
+                                        THEN (s.final_price - si.estimated_value)
+                                    ELSE 0
+                                END as cash_topup
+                            FROM swaps s
+                            LEFT JOIN (
+                                SELECT swap_id, estimated_value, 
+                                       ROW_NUMBER() OVER (PARTITION BY swap_id ORDER BY id) as rn
+                                FROM swapped_items
+                            ) si ON s.id = si.swap_id AND si.rn = 1
+                            WHERE {$monthlyWhere}
+                        ) as swap_calc
+                    ");
+                    $monthlyQuery->execute($monthlyParams);
+                    $monthly = $monthlyQuery->fetch(PDO::FETCH_ASSOC);
+                    if (!$monthly) {
+                        $monthly = ['count' => 0, 'revenue' => 0];
+                    }
+                } catch (\Exception $e) {
+                    // Fallback for older MySQL versions (no ROW_NUMBER)
+                    error_log("AnalyticsService getSwapStats: ROW_NUMBER() not supported, using fallback: " . $e->getMessage());
+                    $monthlyQuery = $this->db->prepare("
+                        SELECT 
+                            COUNT(*) as count,
+                            COALESCE(SUM(cash_topup), 0) as revenue
+                        FROM (
+                            SELECT s.id,
+                                CASE 
+                                    WHEN s.final_price > 0 AND si.estimated_value > 0 AND (s.final_price - si.estimated_value) > 0 
+                                        THEN (s.final_price - si.estimated_value)
+                                    ELSE 0
+                                END as cash_topup
+                            FROM swaps s
+                            LEFT JOIN swapped_items si ON s.id = si.swap_id
+                            WHERE {$monthlyWhere}
+                            GROUP BY s.id
+                        ) as swap_calc
+                    ");
+                    $monthlyQuery->execute($monthlyParams);
+                    $monthly = $monthlyQuery->fetch(PDO::FETCH_ASSOC);
+                    if (!$monthly) {
+                        $monthly = ['count' => 0, 'revenue' => 0];
+                    }
+                }
+            } else {
+                // No swapped_items table - can't calculate cash top-up, use 0
+                $monthlyWhereNoAlias = str_replace('s.', '', $monthlyWhere);
+                $monthlyQuery = $this->db->prepare("
+                    SELECT 
+                        COUNT(*) as count,
+                        0 as revenue
+                    FROM swaps 
+                    WHERE {$monthlyWhereNoAlias}
+                ");
+                $monthlyQuery->execute($monthlyParams);
+                $monthly = $monthlyQuery->fetch(PDO::FETCH_ASSOC);
+            }
+        } elseif ($hasCompanyProductId) {
+            // Calculate from company_product price if company_product_id exists
+            $monthlyQuery = $this->db->prepare("
+                SELECT 
+                    COUNT(*) as count,
+                    COALESCE(SUM(sp.price), 0) as revenue
+                FROM swaps s
+                LEFT JOIN products sp ON s.company_product_id = sp.id
+                WHERE {$monthlyWhere}
+            ");
+            $monthlyQuery->execute($monthlyParams);
+            $monthly = $monthlyQuery->fetch(PDO::FETCH_ASSOC);
+        } else {
+            // No revenue column found - count only
+            $monthlyWhereNoAlias = str_replace('s.', '', $monthlyWhere);
+            $monthlyQuery = $this->db->prepare("
+                SELECT 
+                    COUNT(*) as count,
+                    0 as revenue
+                FROM swaps 
+                WHERE {$monthlyWhereNoAlias}
+            ");
+            $monthlyQuery->execute($monthlyParams);
+            $monthly = $monthlyQuery->fetch(PDO::FETCH_ASSOC);
+        }
+        
+        // Get monthly profit (for current month)
+        $monthlyProfit = 0;
+        try {
+            // Check if swap_profit_links table exists
+            $checkProfitTable = $this->db->query("SHOW TABLES LIKE 'swap_profit_links'");
+            if ($checkProfitTable->rowCount() > 0) {
+                // Only count finalized profits when customer item has been resold
+                // Never count estimated profits as realized gains
+                $monthlyProfitWhere = "s.company_id = :company_id 
+                    AND spl.customer_item_sale_id IS NOT NULL
+                    AND MONTH(s.created_at) = MONTH(CURDATE()) 
+                    AND YEAR(s.created_at) = YEAR(CURDATE())";
+                $monthlyProfitParams = ['company_id' => $company_id];
+                if ($staff_id && $staffColumn) {
+                    $monthlyProfitWhere .= " AND s.{$staffColumn} = :staff_id";
+                    $monthlyProfitParams['staff_id'] = $staff_id;
+                }
+                
+                $monthlyProfitQuery = $this->db->prepare("
+                    SELECT COALESCE(
+                        SUM(CASE 
+                            WHEN spl.customer_item_sale_id IS NOT NULL
+                            AND spl.status = 'finalized' 
+                            AND spl.final_profit IS NOT NULL 
+                            THEN spl.final_profit 
+                            ELSE 0 
+                        END), 0
+                    ) as profit
                     FROM swap_profit_links spl
                     INNER JOIN swaps s ON spl.swap_id = s.id
-                    WHERE s.company_id = :company_id 
-                    AND spl.status = 'finalized'
-                    AND DATE(spl.finalized_at) >= :date_from
-                    AND DATE(spl.finalized_at) <= :date_to
+                    WHERE {$monthlyProfitWhere}
                 ");
-                $periodProfitParams = ['company_id' => $company_id];
-                if ($date_from) $periodProfitParams['date_from'] = $date_from;
-                if ($date_to) $periodProfitParams['date_to'] = $date_to;
-                $periodProfitQuery->execute($periodProfitParams);
-                $periodProfitResult = $periodProfitQuery->fetch(PDO::FETCH_ASSOC);
-                $periodProfit = (float)($periodProfitResult['profit'] ?? 0);
-            } catch (\Exception $e) {
-                // Table might not exist, ignore
+                $monthlyProfitQuery->execute($monthlyProfitParams);
+                $monthlyProfitResult = $monthlyProfitQuery->fetch(PDO::FETCH_ASSOC);
+                $monthlyProfit = (float)($monthlyProfitResult['profit'] ?? 0);
+            }
+        } catch (\Exception $e) {
+            error_log("getSwapStats: Error fetching monthly profit from swap_profit_links: " . $e->getMessage());
+            // Table might not exist, try alternative
+            try {
+                $checkFinalProfit = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'final_profit'");
+                if ($checkFinalProfit->rowCount() > 0) {
+                    $monthlyProfitWhereNoAlias = "company_id = :company_id 
+                        AND final_profit IS NOT NULL
+                        AND MONTH(created_at) = MONTH(CURDATE()) 
+                        AND YEAR(created_at) = YEAR(CURDATE())";
+                    $monthlyProfitParamsNoAlias = ['company_id' => $company_id];
+                    if ($staff_id && $staffColumn) {
+                        $monthlyProfitWhereNoAlias .= " AND {$staffColumn} = :staff_id";
+                        $monthlyProfitParamsNoAlias['staff_id'] = $staff_id;
+                    }
+                    
+                    $monthlyProfitQuery = $this->db->prepare("
+                        SELECT COALESCE(SUM(final_profit), 0) as profit
+                        FROM swaps 
+                        WHERE {$monthlyProfitWhereNoAlias}
+                    ");
+                    $monthlyProfitQuery->execute($monthlyProfitParamsNoAlias);
+                    $monthlyProfitResult = $monthlyProfitQuery->fetch(PDO::FETCH_ASSOC);
+                    $monthlyProfit = (float)($monthlyProfitResult['profit'] ?? 0);
+                }
+            } catch (\Exception $e2) {
+                error_log("getSwapStats: Error fetching monthly profit from swaps.final_profit: " . $e2->getMessage());
+            }
+        }
+        
+        // If monthly profit is still 0, try to calculate from swap data
+        if ($monthlyProfit == 0) {
+            try {
+                $checkCustomerValue = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'given_phone_value'");
+                $checkCompanyProductId = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'company_product_id'");
+                $hasCustomerValue = $checkCustomerValue->rowCount() > 0;
+                $hasCompanyProductId = $checkCompanyProductId->rowCount() > 0;
+                
+                if ($hasCustomerValue && $hasCompanyProductId) {
+                    // Check what cost column exists in products table
+                    $checkProductCost = $this->db->query("SHOW COLUMNS FROM products LIKE 'cost'");
+                    $checkPurchasePrice = $this->db->query("SHOW COLUMNS FROM products LIKE 'purchase_price'");
+                    $hasProductCost = $checkProductCost->rowCount() > 0;
+                    $hasPurchasePrice = $checkPurchasePrice->rowCount() > 0;
+                    
+                    $costColumn = '0';
+                    if ($hasProductCost) {
+                        $costColumn = 'COALESCE(p.cost, 0)';
+                    } elseif ($hasPurchasePrice) {
+                        $costColumn = 'COALESCE(p.purchase_price, 0)';
+                    }
+                    
+                    $monthlyProfitCalcQuery = $this->db->prepare("
+                        SELECT COALESCE(
+                            SUM(
+                                COALESCE(s.given_phone_value, 0) + 
+                                COALESCE(s.added_cash, 0) + 
+                                COALESCE(s.cash_added, 0) - 
+                                {$costColumn}
+                            ), 0
+                        ) as estimated_profit
+                        FROM swaps s
+                        LEFT JOIN products p ON s.company_product_id = p.id
+                        WHERE {$monthlyWhere}
+                    ");
+                    $monthlyProfitCalcQuery->execute($monthlyParams);
+                    $monthlyProfitCalcResult = $monthlyProfitCalcQuery->fetch(PDO::FETCH_ASSOC);
+                    $estimatedMonthlyProfit = (float)($monthlyProfitCalcResult['estimated_profit'] ?? 0);
+                    if ($estimatedMonthlyProfit != 0) {
+                        $monthlyProfit = $estimatedMonthlyProfit;
+                    }
+                }
+            } catch (\Exception $e3) {
+                // Ignore
             }
         }
 
+        // Swap profit (from swap_profit_links if exists)
+        // Include both finalized profits and estimated profits for swaps not yet finalized
+        $profit = 0;
+        try {
+            // Check if swap_profit_links table exists
+            $checkProfitTable = $this->db->query("SHOW TABLES LIKE 'swap_profit_links'");
+            if ($checkProfitTable->rowCount() > 0) {
+                // Check if swapped_items table exists to check resale status
+                $checkSwappedItems = $this->db->query("SHOW TABLES LIKE 'swapped_items'");
+                $hasSwappedItems = $checkSwappedItems->rowCount() > 0;
+                
+                if ($hasSwappedItems) {
+                    // Use same logic as SwapController: count profit for resold items
+                    // If item is resold (swapped_items.status = 'sold'), profit is realized
+                    // Use profit_estimate if final_profit is NULL (matches view logic)
+                    $profitQuery = $this->db->prepare("
+                        SELECT COALESCE(
+                            SUM(
+                                CASE 
+                                    -- If final_profit exists, use it
+                                    WHEN spl.final_profit IS NOT NULL THEN spl.final_profit
+                                    -- If no final_profit but item is resold and profit_estimate exists, use estimate (matches view logic)
+                                    WHEN si.status = 'sold' AND spl.profit_estimate IS NOT NULL THEN spl.profit_estimate
+                                    -- If customer_item_sale_id exists and final_profit exists, use it
+                                    WHEN spl.customer_item_sale_id IS NOT NULL AND spl.final_profit IS NOT NULL THEN spl.final_profit
+                                    -- If company_item_sale_id exists, calculate profit from sale
+                                    WHEN spl.company_item_sale_id IS NOT NULL AND spl.company_product_cost IS NOT NULL THEN
+                                        COALESCE(
+                                            (SELECT ps.final_amount FROM pos_sales ps WHERE ps.id = spl.company_item_sale_id LIMIT 1),
+                                            0
+                                        ) - COALESCE(spl.company_product_cost, 0)
+                                    ELSE 0
+                                END
+                            ), 0
+                        ) as profit
+                        FROM swap_profit_links spl
+                        INNER JOIN swaps s ON spl.swap_id = s.id
+                        LEFT JOIN swapped_items si ON si.swap_id = s.id
+                        WHERE s.company_id = :company_id
+                        AND (si.status = 'sold' OR spl.customer_item_sale_id IS NOT NULL OR spl.company_item_sale_id IS NOT NULL)
+                    ");
+                    $profitQuery->execute(['company_id' => $company_id]);
+                    $profitResult = $profitQuery->fetch(\PDO::FETCH_ASSOC);
+                    $profit = (float)($profitResult['profit'] ?? 0);
+                    error_log("getSwapStats: Profit from swap_profit_links (with resold check): {$profit}");
+                } else {
+                    // Fallback: use old logic if swapped_items table doesn't exist
+                    $profitQuery = $this->db->prepare("
+                        SELECT COALESCE(
+                            SUM(CASE 
+                                WHEN spl.customer_item_sale_id IS NOT NULL 
+                                AND spl.status = 'finalized' 
+                                AND spl.final_profit IS NOT NULL 
+                                THEN spl.final_profit 
+                                WHEN spl.customer_item_sale_id IS NOT NULL 
+                                AND spl.final_profit IS NOT NULL 
+                                THEN spl.final_profit
+                                ELSE 0 
+                            END), 0
+                        ) as profit
+                        FROM swap_profit_links spl
+                        INNER JOIN swaps s ON spl.swap_id = s.id
+                        WHERE s.company_id = :company_id
+                        AND spl.customer_item_sale_id IS NOT NULL
+                    ");
+                    $profitQuery->execute(['company_id' => $company_id]);
+                    $profitResult = $profitQuery->fetch(\PDO::FETCH_ASSOC);
+                    $profit = (float)($profitResult['profit'] ?? 0);
+                    error_log("getSwapStats: Profit from swap_profit_links (fallback): {$profit}");
+                }
+            } else {
+                error_log("getSwapStats: swap_profit_links table does not exist");
+            }
+        } catch (\Exception $e) {
+            error_log("getSwapStats: Error fetching profit from swap_profit_links: " . $e->getMessage());
+            // Table might not exist, try alternative calculation from swaps table
+            try {
+                // For fallback, only count profit from swaps that have customer_item_sale_id in swap_profit_links
+                $checkFinalProfit = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'final_profit'");
+                $checkProfitLinks = $this->db->query("SHOW TABLES LIKE 'swap_profit_links'");
+                if ($checkFinalProfit->rowCount() > 0 && $checkProfitLinks->rowCount() > 0) {
+                    $profitQuery = $this->db->prepare("
+                        SELECT COALESCE(SUM(s.final_profit), 0) as profit
+                        FROM swaps s
+                        INNER JOIN swap_profit_links spl ON s.id = spl.swap_id
+                        WHERE s.company_id = :company_id 
+                        AND s.final_profit IS NOT NULL
+                        AND spl.customer_item_sale_id IS NOT NULL
+                    ");
+                    $profitQuery->execute(['company_id' => $company_id]);
+                    $profitResult = $profitQuery->fetch(\PDO::FETCH_ASSOC);
+                    $profit = (float)($profitResult['profit'] ?? 0);
+                    error_log("getSwapStats: Profit from swaps.final_profit (with resold check): {$profit}");
+                }
+            } catch (\Exception $e2) {
+                error_log("getSwapStats: Error fetching profit from swaps.final_profit: " . $e2->getMessage());
+            }
+        }
+
+        // Filtered stats (for date range) - ALWAYS calculate when date range is provided
+        $filtered = null;
+        if ($date_from || $date_to) {
+            try {
+                // Use the same column detection logic as monthly
+                if ($hasTotalValue) {
+                    // Use total_value which should contain Cash Top-up + Resold Price
+                    // total_value is calculated as: Cash Top-up (final_price - given_phone_value or added_cash) + Resold Price
+                    $filteredQuery = $this->db->prepare("
+                        SELECT 
+                            COUNT(*) as count,
+                            COALESCE(SUM(total_value), 0) as revenue
+                        FROM swaps s
+                        WHERE {$where}
+                    ");
+                    $filteredQuery->execute($params);
+                    $filtered = $filteredQuery->fetch(PDO::FETCH_ASSOC);
+                } elseif ($hasFinalPrice) {
+                    // final_price exists - calculate cash top-up from final_price - customer_product_value
+                    // Check if swapped_items table exists
+                    $hasSwappedItems = false;
+                    try {
+                        $check = $this->db->query("SHOW TABLES LIKE 'swapped_items'");
+                        $hasSwappedItems = $check->rowCount() > 0;
+                    } catch (Exception $e) {
+                        $hasSwappedItems = false;
+                    }
+                    
+                    if ($hasSwappedItems) {
+                        // Calculate cash top-up: final_price - estimated_value
+                        try {
+                            $filteredQuery = $this->db->prepare("
+                                SELECT 
+                                    COUNT(*) as count,
+                                    COALESCE(SUM(cash_topup), 0) as revenue
+                                FROM (
+                                    SELECT s.id,
+                                        CASE 
+                                            WHEN s.final_price > 0 AND si.estimated_value > 0 AND (s.final_price - si.estimated_value) > 0 
+                                                THEN (s.final_price - si.estimated_value)
+                                            ELSE 0
+                                        END as cash_topup
+                                    FROM swaps s
+                                    LEFT JOIN (
+                                        SELECT swap_id, estimated_value, 
+                                               ROW_NUMBER() OVER (PARTITION BY swap_id ORDER BY id) as rn
+                                        FROM swapped_items
+                                    ) si ON s.id = si.swap_id AND si.rn = 1
+                                    WHERE {$where}
+                                ) as swap_calc
+                            ");
+                            $filteredQuery->execute($params);
+                            $filtered = $filteredQuery->fetch(PDO::FETCH_ASSOC);
+                            if (!$filtered) {
+                                $filtered = ['count' => 0, 'revenue' => 0];
+                            }
+                        } catch (\Exception $e) {
+                            // Fallback for older MySQL versions
+                            error_log("AnalyticsService getSwapStats: ROW_NUMBER() not supported in filtered query, using fallback: " . $e->getMessage());
+                            $filteredQuery = $this->db->prepare("
+                                SELECT 
+                                    COUNT(*) as count,
+                                    COALESCE(SUM(cash_topup), 0) as revenue
+                                FROM (
+                                    SELECT s.id,
+                                        CASE 
+                                            WHEN s.final_price > 0 AND si.estimated_value > 0 AND (s.final_price - si.estimated_value) > 0 
+                                                THEN (s.final_price - si.estimated_value)
+                                            ELSE 0
+                                        END as cash_topup
+                                    FROM swaps s
+                                    LEFT JOIN swapped_items si ON s.id = si.swap_id
+                                    WHERE {$where}
+                                    GROUP BY s.id
+                                ) as swap_calc
+                            ");
+                            $filteredQuery->execute($params);
+                            $filtered = $filteredQuery->fetch(PDO::FETCH_ASSOC);
+                            if (!$filtered) {
+                                $filtered = ['count' => 0, 'revenue' => 0];
+                            }
+                        }
+                    } else {
+                        // No swapped_items table - can't calculate cash top-up, use 0
+                        $filteredQuery = $this->db->prepare("
+                            SELECT 
+                                COUNT(*) as count,
+                                0 as revenue
+                            FROM swaps 
+                            WHERE {$where}
+                        ");
+                        $filteredQuery->execute($params);
+                        $filtered = $filteredQuery->fetch(PDO::FETCH_ASSOC);
+                    }
+                } elseif ($hasCompanyProductId) {
+                    // Calculate from company_product price
+                    $filteredQuery = $this->db->prepare("
+                        SELECT 
+                            COUNT(*) as count,
+                            COALESCE(SUM(sp.price), 0) as revenue
+                        FROM swaps s
+                        LEFT JOIN products sp ON s.company_product_id = sp.id
+                        WHERE {$where}
+                    ");
+                    $filteredQuery->execute($params);
+                    $filtered = $filteredQuery->fetch(PDO::FETCH_ASSOC);
+                } else {
+                    // No revenue column found - count only
+                    $filteredQuery = $this->db->prepare("
+                        SELECT 
+                            COUNT(*) as count,
+                            0 as revenue
+                        FROM swaps 
+                        WHERE {$where}
+                    ");
+                    $filteredQuery->execute($params);
+                    $filtered = $filteredQuery->fetch(PDO::FETCH_ASSOC);
+                }
+                
+                // Ensure filtered has count and revenue even if query returns empty
+                if (!$filtered) {
+                    $filtered = ['count' => 0, 'revenue' => 0];
+                }
+                
+                // Log for debugging
+                error_log("getSwapStats: Filtered stats for company {$company_id}, date range {$date_from} to {$date_to}: " . json_encode($filtered));
+            } catch (\Exception $e) {
+                error_log("getSwapStats: Error fetching filtered stats: " . $e->getMessage());
+                error_log("getSwapStats: Stack trace: " . $e->getTraceAsString());
+                $filtered = ['count' => 0, 'revenue' => 0];
+            }
+        }
+
+        // Swap profit for period (if date range provided, otherwise use monthly profit)
+        $periodProfit = $monthlyProfit; // Default to monthly profit when no date filter
+        if ($date_from || $date_to) {
+            try {
+                // Check if swap_profit_links table exists
+                $checkProfitTable = $this->db->query("SHOW TABLES LIKE 'swap_profit_links'");
+                if ($checkProfitTable->rowCount() > 0) {
+                    // Check if swapped_items table exists to check resale status
+                    $checkSwappedItems = $this->db->query("SHOW TABLES LIKE 'swapped_items'");
+                    $hasSwappedItems = $checkSwappedItems->rowCount() > 0;
+                    
+                    if ($hasSwappedItems) {
+                        // Use same logic as SwapController: count profit for resold items
+                        // If item is resold (swapped_items.status = 'sold'), profit is realized
+                        // Use profit_estimate if final_profit is NULL (matches view logic)
+                        $periodProfitWhere = "s.company_id = :company_id
+                            AND (si.status = 'sold' OR spl.customer_item_sale_id IS NOT NULL OR spl.company_item_sale_id IS NOT NULL)
+                            AND (
+                                (customer_sale.id IS NOT NULL AND DATE(customer_sale.created_at) >= :date_from AND DATE(customer_sale.created_at) <= :date_to)
+                                OR (customer_sale.id IS NULL AND DATE(s.created_at) >= :date_from AND DATE(s.created_at) <= :date_to)
+                            )";
+                        $periodProfitParams = ['company_id' => $company_id];
+                        if ($date_from) $periodProfitParams['date_from'] = $date_from;
+                        if ($date_to) $periodProfitParams['date_to'] = $date_to;
+                        if ($staff_id && $staffColumn) {
+                            $periodProfitWhere .= " AND s.{$staffColumn} = :staff_id";
+                            $periodProfitParams['staff_id'] = $staff_id;
+                        }
+                        
+                        $periodProfitQuery = $this->db->prepare("
+                            SELECT COALESCE(
+                                SUM(
+                                    CASE 
+                                        -- If final_profit exists, use it
+                                        WHEN spl.final_profit IS NOT NULL THEN spl.final_profit
+                                        -- If no final_profit but item is resold and profit_estimate exists, use estimate (matches view logic)
+                                        WHEN si.status = 'sold' AND spl.profit_estimate IS NOT NULL THEN spl.profit_estimate
+                                        -- If customer_item_sale_id exists and final_profit exists, use it
+                                        WHEN spl.customer_item_sale_id IS NOT NULL AND spl.final_profit IS NOT NULL THEN spl.final_profit
+                                        -- If company_item_sale_id exists, calculate profit from sale
+                                        WHEN spl.company_item_sale_id IS NOT NULL AND spl.company_product_cost IS NOT NULL THEN
+                                            COALESCE(
+                                                (SELECT ps.final_amount FROM pos_sales ps WHERE ps.id = spl.company_item_sale_id LIMIT 1),
+                                                0
+                                            ) - COALESCE(spl.company_product_cost, 0)
+                                        ELSE 0
+                                    END
+                                ), 0
+                            ) as profit
+                            FROM swap_profit_links spl
+                            INNER JOIN swaps s ON spl.swap_id = s.id
+                            LEFT JOIN swapped_items si ON si.swap_id = s.id
+                            LEFT JOIN pos_sales customer_sale ON spl.customer_item_sale_id = customer_sale.id
+                            WHERE {$periodProfitWhere}
+                        ");
+                        $periodProfitQuery->execute($periodProfitParams);
+                        $periodProfitResult = $periodProfitQuery->fetch(\PDO::FETCH_ASSOC);
+                        $periodProfit = (float)($periodProfitResult['profit'] ?? 0);
+                        error_log("getSwapStats: Period profit from swap_profit_links (with resold check): {$periodProfit}");
+                    } else {
+                        // Fallback: use old logic if swapped_items table doesn't exist
+                        $periodProfitWhereFallback = "s.company_id = :company_id 
+                            AND spl.customer_item_sale_id IS NOT NULL
+                            AND (
+                                (customer_sale.id IS NOT NULL AND DATE(customer_sale.created_at) >= :date_from AND DATE(customer_sale.created_at) <= :date_to)
+                                OR (customer_sale.id IS NULL AND DATE(s.created_at) >= :date_from AND DATE(s.created_at) <= :date_to)
+                            )";
+                        $periodProfitParamsFallback = ['company_id' => $company_id];
+                        if ($date_from) $periodProfitParamsFallback['date_from'] = $date_from;
+                        if ($date_to) $periodProfitParamsFallback['date_to'] = $date_to;
+                        if ($staff_id && $staffColumn) {
+                            $periodProfitWhereFallback .= " AND s.{$staffColumn} = :staff_id";
+                            $periodProfitParamsFallback['staff_id'] = $staff_id;
+                        }
+                        
+                        $periodProfitQuery = $this->db->prepare("
+                            SELECT COALESCE(
+                                SUM(CASE 
+                                    WHEN spl.customer_item_sale_id IS NOT NULL 
+                                    AND spl.status = 'finalized' 
+                                    AND spl.final_profit IS NOT NULL 
+                                    THEN spl.final_profit 
+                                    WHEN spl.customer_item_sale_id IS NOT NULL 
+                                    AND spl.final_profit IS NOT NULL 
+                                    THEN spl.final_profit
+                                    ELSE 0 
+                                END), 0
+                            ) as profit
+                            FROM swap_profit_links spl
+                            INNER JOIN swaps s ON spl.swap_id = s.id
+                            LEFT JOIN pos_sales customer_sale ON spl.customer_item_sale_id = customer_sale.id
+                            WHERE {$periodProfitWhereFallback}
+                        ");
+                        $periodProfitQuery->execute($periodProfitParamsFallback);
+                        $periodProfitResult = $periodProfitQuery->fetch(\PDO::FETCH_ASSOC);
+                        $periodProfit = (float)($periodProfitResult['profit'] ?? 0);
+                        error_log("getSwapStats: Period profit from swap_profit_links (fallback): {$periodProfit}");
+                    }
+                }
+            } catch (\Exception $e) {
+                error_log("getSwapStats: Error fetching period profit from swap_profit_links: " . $e->getMessage());
+                // Table might not exist, try alternative calculation
+                try {
+                    // For fallback, only count profit from swaps that have customer_item_sale_id in swap_profit_links
+                    $checkFinalProfit = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'final_profit'");
+                    $checkProfitLinks = $this->db->query("SHOW TABLES LIKE 'swap_profit_links'");
+                    if ($checkFinalProfit->rowCount() > 0 && $checkProfitLinks->rowCount() > 0) {
+                        // CRITICAL FIX: Filter by customer sale date (when item was resold), not swap creation date
+                        $periodProfitQuery = $this->db->prepare("
+                            SELECT COALESCE(SUM(s.final_profit), 0) as profit
+                            FROM swaps s
+                            INNER JOIN swap_profit_links spl ON s.id = spl.swap_id
+                            LEFT JOIN pos_sales customer_sale ON spl.customer_item_sale_id = customer_sale.id
+                            WHERE s.company_id = :company_id 
+                            AND s.final_profit IS NOT NULL
+                            AND spl.customer_item_sale_id IS NOT NULL
+                            AND (
+                                (customer_sale.id IS NOT NULL AND DATE(customer_sale.created_at) >= :date_from AND DATE(customer_sale.created_at) <= :date_to)
+                                OR (customer_sale.id IS NULL AND DATE(s.created_at) >= :date_from AND DATE(s.created_at) <= :date_to)
+                            )
+                        ");
+                        $periodProfitParams = ['company_id' => $company_id];
+                        if ($date_from) $periodProfitParams['date_from'] = $date_from;
+                        if ($date_to) $periodProfitParams['date_to'] = $date_to;
+                        $periodProfitQuery->execute($periodProfitParams);
+                        $periodProfitResult = $periodProfitQuery->fetch(\PDO::FETCH_ASSOC);
+                        $periodProfit = (float)($periodProfitResult['profit'] ?? 0);
+                    }
+                } catch (\Exception $e2) {
+                    error_log("getSwapStats: Error fetching period profit from swaps.final_profit: " . $e2->getMessage());
+                }
+            }
+            
+            // If period profit is still 0, try to calculate from swap data
+            if ($periodProfit == 0) {
+                try {
+                    $checkCustomerValue = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'given_phone_value'");
+                    $checkCompanyProductId = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'company_product_id'");
+                    $hasCustomerValue = $checkCustomerValue->rowCount() > 0;
+                    $hasCompanyProductId = $checkCompanyProductId->rowCount() > 0;
+                    
+                    if ($hasCustomerValue && $hasCompanyProductId) {
+                        // Check what cost column exists in products table
+                        $checkProductCost = $this->db->query("SHOW COLUMNS FROM products LIKE 'cost'");
+                        $checkPurchasePrice = $this->db->query("SHOW COLUMNS FROM products LIKE 'purchase_price'");
+                        $hasProductCost = $checkProductCost->rowCount() > 0;
+                        $hasPurchasePrice = $checkPurchasePrice->rowCount() > 0;
+                        
+                        $costColumn = '0';
+                        if ($hasProductCost) {
+                            $costColumn = 'COALESCE(p.cost, 0)';
+                        } elseif ($hasPurchasePrice) {
+                            $costColumn = 'COALESCE(p.purchase_price, 0)';
+                        }
+                        
+                        $periodProfitCalcQuery = $this->db->prepare("
+                            SELECT COALESCE(
+                                SUM(
+                                    COALESCE(s.given_phone_value, 0) + 
+                                    COALESCE(s.added_cash, 0) + 
+                                    COALESCE(s.cash_added, 0) - 
+                                    {$costColumn}
+                                ), 0
+                            ) as estimated_profit
+                            FROM swaps s
+                            LEFT JOIN products p ON s.company_product_id = p.id
+                            WHERE s.company_id = :company_id 
+                            AND DATE(s.created_at) >= :date_from
+                            AND DATE(s.created_at) <= :date_to
+                        ");
+                        $periodProfitParams = ['company_id' => $company_id];
+                        if ($date_from) $periodProfitParams['date_from'] = $date_from;
+                        if ($date_to) $periodProfitParams['date_to'] = $date_to;
+                        $periodProfitCalcQuery->execute($periodProfitParams);
+                        $periodProfitCalcResult = $periodProfitCalcQuery->fetch(PDO::FETCH_ASSOC);
+                        $estimatedPeriodProfit = (float)($periodProfitCalcResult['estimated_profit'] ?? 0);
+                        if ($estimatedPeriodProfit != 0) {
+                            $periodProfit = $estimatedPeriodProfit;
+                            error_log("getSwapStats: Using estimated period profit from swap data: {$periodProfit}");
+                        }
+                    }
+                } catch (\Exception $e3) {
+                    error_log("getSwapStats: Error calculating estimated period profit: " . $e3->getMessage());
+                }
+            }
+        }
+
+        // When date range is provided, use filtered data for period
+        // When no date range, use monthly data for period
+        $periodCount = 0;
+        $periodRevenue = 0;
+        $periodProfitValue = $monthlyProfit;
+        
+        if ($date_from || $date_to) {
+            // Use filtered data when date range is provided
+            $periodCount = (int)($filtered['count'] ?? 0);
+            $periodRevenue = (float)($filtered['revenue'] ?? 0);
+            $periodProfitValue = $periodProfit;
+        } else {
+            // Use monthly data when no date range
+            $periodCount = (int)($monthly['count'] ?? 0);
+            $periodRevenue = (float)($monthly['revenue'] ?? 0);
+            $periodProfitValue = $monthlyProfit;
+        }
+        
         return [
             'pending' => $pending,
             'monthly' => [
                 'count' => (int)($monthly['count'] ?? 0),
-                'revenue' => (float)($monthly['revenue'] ?? 0)
+                'revenue' => (float)($monthly['revenue'] ?? 0),
+                'profit' => $monthlyProfit
             ],
             'profit' => $profit,
             'filtered' => $filtered ? [
                 'count' => (int)($filtered['count'] ?? 0),
                 'revenue' => (float)($filtered['revenue'] ?? 0)
             ] : null,
-            'period' => $filtered ? [
-                'count' => (int)($filtered['count'] ?? 0),
-                'revenue' => (float)($filtered['revenue'] ?? 0),
-                'profit' => $periodProfit
-            ] : null
+            'period' => [
+                'count' => $periodCount,
+                'revenue' => $periodRevenue,
+                'profit' => $periodProfitValue
+            ]
         ];
     }
 
@@ -464,17 +1217,39 @@ class AnalyticsService {
         // Don't use stored total_cost as it may be incorrect or outdated
         // Always use actual product cost from products table
         // Calculate cost from pos_sale_items joined with products
+        
+        // Check which cost column exists (prioritize cost_price, then cost)
+        $checkCostPrice = $this->db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost_price'");
+        $checkCost = $this->db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost'");
+        $hasCostPrice = $checkCostPrice->rowCount() > 0;
+        $hasCost = $checkCost->rowCount() > 0;
+        
+        // Determine cost column to use (prioritize cost_price if both exist)
+        if ($hasCostPrice) {
+            $costColumn = 'COALESCE(p.cost_price, p.cost, 0)';
+        } elseif ($hasCost) {
+            $costColumn = 'COALESCE(p.cost, 0)';
+        } else {
+            $costColumn = '0'; // No cost column found
+        }
+        
+        // EXCLUDE swap transactions - swaps should only be tracked on swap page
+        // Use swap_id IS NULL to exclude all swap-related sales
         $profitQuery = $this->db->prepare("
             SELECT 
                 COALESCE(SUM(ps.final_amount), 0) as revenue,
                 COALESCE(SUM(
-                    (SELECT COALESCE(SUM(psi.quantity * COALESCE(p.cost, 0)), 0)
+                    (SELECT COALESCE(SUM(psi.quantity * {$costColumn}), 0)
                      FROM pos_sale_items psi 
-                     LEFT JOIN {$productsTable} p ON psi.item_id = p.id AND p.company_id = ps.company_id
-                     WHERE psi.pos_sale_id = ps.id)
+                     LEFT JOIN {$productsTable} p ON (
+                         (psi.item_id = p.id AND p.company_id = ps.company_id)
+                         OR ((psi.item_id IS NULL OR psi.item_id = 0) AND LOWER(TRIM(psi.item_description)) = LOWER(TRIM(p.name)) AND p.company_id = ps.company_id)
+                     )
+                     WHERE psi.pos_sale_id = ps.id AND p.id IS NOT NULL)
                 ), 0) as cost
             FROM pos_sales ps
             WHERE {$where}
+            AND ps.swap_id IS NULL
         ");
         
         try {
@@ -560,185 +1335,424 @@ class AnalyticsService {
      * @return array
      */
     public function traceItem($company_id, $query) {
-        $results = [];
-        $searchTerm = '%' . $query . '%';
-
-        // Search in sales
         try {
-            // First, try exact match on unique_id (sale ID)
-            $exactMatch = false;
-            if (preg_match('/^POS[A-Z0-9]+$/', $query)) {
-                // This looks like a sale unique_id, try exact match first
-                $exactQuery = $this->db->prepare("
-                    SELECT 
+            $results = [];
+            $searchTerm = '%' . $query . '%';
+            
+            error_log("TraceItem: Starting search - company_id: {$company_id}, query: {$query}");
+            
+            // First, let's check if the query matches SWAP-{id} pattern
+            if (preg_match('/^SWAP-(\d+)$/i', $query, $matches)) {
+                error_log("TraceItem: Query matches SWAP-{id} pattern, extracted ID: " . $matches[1]);
+            }
+
+            // Search in sales
+            try {
+                // First, try exact match on unique_id (sale ID)
+                $exactMatch = false;
+                if (preg_match('/^POS[A-Z0-9]+$/', $query)) {
+                    // This looks like a sale unique_id, try exact match first
+                    $exactQuery = $this->db->prepare("
+                        SELECT 
+                            'sale' as type,
+                            ps.id,
+                            ps.created_at as date,
+                            ps.final_amount as amount,
+                            c.full_name as customer,
+                            (SELECT GROUP_CONCAT(item_description SEPARATOR ', ') FROM pos_sale_items WHERE pos_sale_id = ps.id LIMIT 3) as item,
+                            ps.unique_id as reference
+                        FROM pos_sales ps
+                        LEFT JOIN customers c ON ps.customer_id = c.id
+                        WHERE ps.company_id = :company_id 
+                        AND ps.unique_id = :exact_query
+                        ORDER BY ps.created_at DESC
+                        LIMIT 50
+                    ");
+                    $exactQuery->execute(['company_id' => $company_id, 'exact_query' => $query]);
+                    $exactSales = $exactQuery->fetchAll(PDO::FETCH_ASSOC);
+                    if (count($exactSales) > 0) {
+                        $results = array_merge($results, $exactSales);
+                        $exactMatch = true;
+                    }
+                }
+                
+                // Also do the broader search with LIKE for partial matches
+                $salesQuery = $this->db->prepare("
+                    SELECT DISTINCT
                         'sale' as type,
                         ps.id,
                         ps.created_at as date,
                         ps.final_amount as amount,
                         c.full_name as customer,
-                        (SELECT GROUP_CONCAT(item_description SEPARATOR ', ') FROM pos_sale_items WHERE pos_sale_id = ps.id LIMIT 3) as item,
+                        COALESCE(
+                            (SELECT GROUP_CONCAT(item_description SEPARATOR ', ') FROM pos_sale_items WHERE pos_sale_id = ps.id LIMIT 3),
+                            'Multiple items'
+                        ) as item,
                         ps.unique_id as reference
                     FROM pos_sales ps
                     LEFT JOIN customers c ON ps.customer_id = c.id
+                    LEFT JOIN pos_sale_items psi ON ps.id = psi.pos_sale_id
+                    LEFT JOIN products p ON psi.item_id = p.id
                     WHERE ps.company_id = :company_id 
-                    AND ps.unique_id = :exact_query
+                    AND (
+                        ps.unique_id LIKE :query
+                        OR ps.id = :query_id
+                        OR c.phone_number LIKE :query
+                        OR c.full_name LIKE :query
+                        OR psi.item_description LIKE :query
+                        OR p.imei LIKE :query 
+                        OR p.product_id LIKE :query
+                    )
                     ORDER BY ps.created_at DESC
                     LIMIT 50
                 ");
-                $exactQuery->execute(['company_id' => $company_id, 'exact_query' => $query]);
-                $exactSales = $exactQuery->fetchAll(PDO::FETCH_ASSOC);
-                if (count($exactSales) > 0) {
-                    $results = array_merge($results, $exactSales);
-                    $exactMatch = true;
+                // Try to parse query as integer for ID search
+                $queryId = is_numeric($query) ? intval($query) : 0;
+                $salesQuery->execute([
+                    'company_id' => $company_id, 
+                    'query' => $searchTerm,
+                    'query_id' => $queryId
+                ]);
+                $sales = $salesQuery->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Merge results, avoiding duplicates
+                $existingIds = array_column($results, 'id');
+                foreach ($sales as $sale) {
+                    if (!in_array($sale['id'], $existingIds)) {
+                        $results[] = $sale;
+                        $existingIds[] = $sale['id'];
+                    }
                 }
+            } catch (\Exception $e) {
+                error_log("TraceItem sales search error: " . $e->getMessage());
             }
-            
-            // Also do the broader search with LIKE for partial matches
-            $salesQuery = $this->db->prepare("
-                SELECT DISTINCT
-                    'sale' as type,
-                    ps.id,
-                    ps.created_at as date,
-                    ps.final_amount as amount,
-                    c.full_name as customer,
-                    COALESCE(
-                        (SELECT GROUP_CONCAT(item_description SEPARATOR ', ') FROM pos_sale_items WHERE pos_sale_id = ps.id LIMIT 3),
-                        'Multiple items'
-                    ) as item,
-                    ps.unique_id as reference
-                FROM pos_sales ps
-                LEFT JOIN customers c ON ps.customer_id = c.id
-                LEFT JOIN pos_sale_items psi ON ps.id = psi.pos_sale_id
-                LEFT JOIN products p ON psi.item_id = p.id
-                WHERE ps.company_id = :company_id 
-                AND (
-                    ps.unique_id LIKE :query
-                    OR ps.id = :query_id
-                    OR c.phone_number LIKE :query
-                    OR c.full_name LIKE :query
-                    OR psi.item_description LIKE :query
-                    OR p.imei LIKE :query 
-                    OR p.product_id LIKE :query
-                )
-                ORDER BY ps.created_at DESC
-                LIMIT 50
-            ");
-            // Try to parse query as integer for ID search
-            $queryId = is_numeric($query) ? intval($query) : 0;
-            $salesQuery->execute([
-                'company_id' => $company_id, 
-                'query' => $searchTerm,
-                'query_id' => $queryId
-            ]);
-            $sales = $salesQuery->fetchAll(PDO::FETCH_ASSOC);
-            
-            // Merge results, avoiding duplicates
-            $existingIds = array_column($results, 'id');
-            foreach ($sales as $sale) {
-                if (!in_array($sale['id'], $existingIds)) {
-                    $results[] = $sale;
-                    $existingIds[] = $sale['id'];
+
+            // Search in swaps
+            try {
+                // Check which columns exist in swaps table
+                $checkSwapsTable = $this->db->query("SHOW TABLES LIKE 'swaps'");
+                if ($checkSwapsTable->rowCount() > 0) {
+                    $swapsColumns = $this->db->query("SHOW COLUMNS FROM swaps")->fetchAll(PDO::FETCH_COLUMN);
+                    $hasSwapCode = in_array('swap_code', $swapsColumns);
+                    $hasTransactionCode = in_array('transaction_code', $swapsColumns);
+                    $hasUniqueId = in_array('unique_id', $swapsColumns);
+                    $hasTotalValue = in_array('total_value', $swapsColumns);
+                    $hasFinalPrice = in_array('final_price', $swapsColumns);
+                    
+                    error_log("TraceItem: Swap columns - swap_code: " . ($hasSwapCode ? 'yes' : 'no') . ", transaction_code: " . ($hasTransactionCode ? 'yes' : 'no') . ", unique_id: " . ($hasUniqueId ? 'yes' : 'no'));
+                    
+                    // Build reference column selection
+                    $referenceSelect = "CONCAT('SWAP-', s.id)";
+                    if ($hasSwapCode) {
+                        $referenceSelect = "COALESCE(s.swap_code, CONCAT('SWAP-', s.id))";
+                    } elseif ($hasTransactionCode) {
+                        $referenceSelect = "COALESCE(s.transaction_code, CONCAT('SWAP-', s.id))";
+                    } elseif ($hasUniqueId) {
+                        $referenceSelect = "COALESCE(s.unique_id, CONCAT('SWAP-', s.id))";
+                    }
+                    
+                    error_log("TraceItem: Reference select: {$referenceSelect}");
+                    
+                    // Build amount column selection
+                    $amountSelect = '0';
+                    if ($hasTotalValue) {
+                        $amountSelect = 'COALESCE(s.total_value, 0)';
+                    } elseif ($hasFinalPrice) {
+                        $amountSelect = 'COALESCE(s.final_price, 0)';
+                    }
+                    
+                    error_log("TraceItem: Amount select: {$amountSelect}");
+                    
+                    // First, try exact match on SWAP-{id} format
+                    $exactSwapMatch = false;
+                    if (preg_match('/^SWAP-(\d+)$/i', $query, $matches)) {
+                        $swapId = (int)$matches[1];
+                        error_log("TraceItem: Searching for swap with ID: {$swapId} (from query: {$query})");
+                        
+                        // First, try a simple query without JOINs to see if swap exists
+                        $simpleCheck = $this->db->prepare("SELECT id, company_id FROM swaps WHERE id = :swap_id");
+                        $simpleCheck->execute(['swap_id' => $swapId]);
+                        $simpleResult = $simpleCheck->fetch(PDO::FETCH_ASSOC);
+                        if ($simpleResult) {
+                            $swapCompanyId = $simpleResult['company_id'] ?? null;
+                            error_log("TraceItem: Swap ID {$swapId} exists in database - company_id: " . ($swapCompanyId ?? 'NULL') . ", searching for company: {$company_id}");
+                            
+                            // If company_id matches or is NULL, proceed with normal query
+                            // If it doesn't match, we'll try without company filter as fallback
+                            $companyMatches = ($swapCompanyId == $company_id || $swapCompanyId === null);
+                        } else {
+                            error_log("TraceItem: Swap ID {$swapId} does NOT exist in database");
+                            $companyMatches = false;
+                        }
+                        
+                        // Try with company_id filter first
+                        $exactSwapQuery = $this->db->prepare("
+                            SELECT 
+                                'swap' as type,
+                                s.id,
+                                s.created_at as date,
+                                {$amountSelect} as amount,
+                                c.full_name as customer,
+                                COALESCE(CONCAT(cp.brand, ' ', cp.model), 'Swap Transaction') as item,
+                                {$referenceSelect} as reference
+                            FROM swaps s
+                            LEFT JOIN customers c ON s.customer_id = c.id
+                            LEFT JOIN customer_products cp ON s.customer_product_id = cp.id
+                            WHERE s.company_id = :company_id 
+                            AND s.id = :swap_id
+                            ORDER BY s.created_at DESC
+                            LIMIT 50
+                        ");
+                        try {
+                            $exactSwapQuery->execute(['company_id' => $company_id, 'swap_id' => $swapId]);
+                            $exactSwaps = $exactSwapQuery->fetchAll(PDO::FETCH_ASSOC);
+                            error_log("TraceItem: Exact swap query (with company filter) returned " . count($exactSwaps) . " results for swap ID {$swapId}");
+                        } catch (\Exception $e) {
+                            error_log("TraceItem: Error executing exact swap query: " . $e->getMessage());
+                            error_log("TraceItem: Query SQL: SELECT ... WHERE s.company_id = {$company_id} AND s.id = {$swapId}");
+                            $exactSwaps = [];
+                        }
+                        
+                        // If no results, try without company filter (in case of company_id mismatch or NULL)
+                        if (count($exactSwaps) === 0) {
+                            error_log("TraceItem: No results with company filter. Trying query without company filter...");
+                            $exactSwapQueryNoCompany = $this->db->prepare("
+                                SELECT 
+                                    'swap' as type,
+                                    s.id,
+                                    s.created_at as date,
+                                    {$amountSelect} as amount,
+                                    c.full_name as customer,
+                                    COALESCE(CONCAT(cp.brand, ' ', cp.model), 'Swap Transaction') as item,
+                                    {$referenceSelect} as reference
+                                FROM swaps s
+                                LEFT JOIN customers c ON s.customer_id = c.id
+                                LEFT JOIN customer_products cp ON s.customer_product_id = cp.id
+                                WHERE s.id = :swap_id
+                                ORDER BY s.created_at DESC
+                                LIMIT 50
+                            ");
+                            try {
+                                $exactSwapQueryNoCompany->execute(['swap_id' => $swapId]);
+                                $exactSwaps = $exactSwapQueryNoCompany->fetchAll(PDO::FETCH_ASSOC);
+                                error_log("TraceItem: Exact swap query (without company filter) returned " . count($exactSwaps) . " results");
+                            } catch (\Exception $e) {
+                                error_log("TraceItem: Error executing swap query without company filter: " . $e->getMessage());
+                                error_log("TraceItem: Error trace: " . $e->getTraceAsString());
+                                
+                                // Last resort: try simplest possible query
+                                try {
+                                    error_log("TraceItem: Trying simplest query as last resort...");
+                                    $simpleSwapQuery = $this->db->prepare("
+                                        SELECT 
+                                            'swap' as type,
+                                            id,
+                                            created_at as date,
+                                            0 as amount,
+                                            'Walk-in Customer' as customer,
+                                            'Swap Transaction' as item,
+                                            CONCAT('SWAP-', id) as reference
+                                        FROM swaps
+                                        WHERE id = :swap_id
+                                        LIMIT 1
+                                    ");
+                                    $simpleSwapQuery->execute(['swap_id' => $swapId]);
+                                    $simpleSwaps = $simpleSwapQuery->fetchAll(PDO::FETCH_ASSOC);
+                                    if (count($simpleSwaps) > 0) {
+                                        error_log("TraceItem: Simple query found swap: " . json_encode($simpleSwaps[0]));
+                                        $exactSwaps = $simpleSwaps;
+                                    }
+                                } catch (\Exception $e2) {
+                                    error_log("TraceItem: Even simple query failed: " . $e2->getMessage());
+                                    $exactSwaps = [];
+                                }
+                            }
+                        }
+                        
+                        if (count($exactSwaps) > 0) {
+                            error_log("TraceItem: Found swap: " . json_encode($exactSwaps[0]));
+                            $results = array_merge($results, $exactSwaps);
+                            $exactSwapMatch = true;
+                        } else {
+                            // Log why swap wasn't found
+                            if (isset($swapCompanyId)) {
+                                error_log("TraceItem: Swap ID {$swapId} exists but query returned no results. Swap company_id: {$swapCompanyId}, searched company_id: {$company_id}");
+                            } else {
+                                error_log("TraceItem: Swap ID {$swapId} query returned no results and swap existence check failed");
+                            }
+                        }
+                    }
+                    
+                    // Also try exact match on numeric ID
+                    if (!$exactSwapMatch && is_numeric($query)) {
+                        $swapId = (int)$query;
+                        error_log("TraceItem: Trying numeric ID search for swap ID: {$swapId}");
+                        $exactSwapQuery = $this->db->prepare("
+                            SELECT 
+                                'swap' as type,
+                                s.id,
+                                s.created_at as date,
+                                {$amountSelect} as amount,
+                                c.full_name as customer,
+                                COALESCE(CONCAT(cp.brand, ' ', cp.model), 'Swap Transaction') as item,
+                                {$referenceSelect} as reference
+                            FROM swaps s
+                            LEFT JOIN customers c ON s.customer_id = c.id
+                            LEFT JOIN customer_products cp ON s.customer_product_id = cp.id
+                            WHERE s.company_id = :company_id 
+                            AND s.id = :swap_id
+                            ORDER BY s.created_at DESC
+                            LIMIT 50
+                        ");
+                        $exactSwapQuery->execute(['company_id' => $company_id, 'swap_id' => $swapId]);
+                        $exactSwaps = $exactSwapQuery->fetchAll(PDO::FETCH_ASSOC);
+                        error_log("TraceItem: Numeric ID swap query returned " . count($exactSwaps) . " results");
+                        if (count($exactSwaps) > 0) {
+                            $results = array_merge($results, $exactSwaps);
+                            $exactSwapMatch = true;
+                        }
+                    }
+                    
+                    // Build WHERE clause for reference search
+                    $referenceWhere = '';
+                    if ($hasSwapCode) {
+                        $referenceWhere = "s.swap_code LIKE :query";
+                    } elseif ($hasTransactionCode) {
+                        $referenceWhere = "s.transaction_code LIKE :query";
+                    } elseif ($hasUniqueId) {
+                        $referenceWhere = "s.unique_id LIKE :query";
+                    } else {
+                        // Fallback: search in generated reference
+                        $referenceWhere = "CONCAT('SWAP-', s.id) LIKE :query";
+                    }
+                    
+                    // Also do the broader search with LIKE for partial matches (only if exact match didn't work)
+                    if (!$exactSwapMatch) {
+                        error_log("TraceItem: Performing broader swap search with query: {$query}, searchTerm: {$searchTerm}");
+                        $swapsQuery = $this->db->prepare("
+                            SELECT 
+                                'swap' as type,
+                                s.id,
+                                s.created_at as date,
+                                {$amountSelect} as amount,
+                                c.full_name as customer,
+                                COALESCE(CONCAT(cp.brand, ' ', cp.model), 'Swap Transaction') as item,
+                                {$referenceSelect} as reference
+                            FROM swaps s
+                            LEFT JOIN customers c ON s.customer_id = c.id
+                            LEFT JOIN customer_products cp ON s.customer_product_id = cp.id
+                            WHERE s.company_id = :company_id 
+                            AND (
+                                {$referenceWhere}
+                                OR cp.imei LIKE :query
+                                OR c.phone_number LIKE :query
+                                OR c.full_name LIKE :query
+                                OR CONCAT('SWAP-', s.id) LIKE :query
+                            )
+                            ORDER BY s.created_at DESC
+                            LIMIT 50
+                        ");
+                        $swapsQuery->execute(['company_id' => $company_id, 'query' => $searchTerm]);
+                        $swaps = $swapsQuery->fetchAll(PDO::FETCH_ASSOC);
+                        error_log("TraceItem: Broader swap search returned " . count($swaps) . " results");
+                        
+                        // Merge results, avoiding duplicates
+                        $existingSwapIds = array_column(array_filter($results, function($r) { return $r['type'] === 'swap'; }), 'id');
+                        foreach ($swaps as $swap) {
+                            if (!in_array($swap['id'], $existingSwapIds)) {
+                                $results[] = $swap;
+                                $existingSwapIds[] = $swap['id'];
+                            }
+                        }
+                    }
+                } else {
+                    error_log("TraceItem: Swaps table does not exist");
                 }
+            } catch (\Exception $e) {
+                error_log("TraceItem swaps search error: " . $e->getMessage());
+                error_log("TraceItem swaps search trace: " . $e->getTraceAsString());
             }
+
+            // Search in repairs
+            try {
+                $repairsQuery = $this->db->prepare("
+                    SELECT 
+                        'repair' as type,
+                        r.id,
+                        r.created_at as date,
+                        r.total_cost as amount,
+                        c.full_name as customer,
+                        r.phone_description as item,
+                        r.unique_id as reference
+                    FROM repairs r
+                    LEFT JOIN customers c ON r.customer_id = c.id
+                    WHERE r.company_id = :company_id 
+                    AND (
+                        r.imei LIKE :query
+                        OR c.phone_number LIKE :query
+                        OR c.full_name LIKE :query
+                        OR r.unique_id LIKE :query
+                    )
+                    ORDER BY r.created_at DESC
+                    LIMIT 50
+                ");
+                $repairsQuery->execute(['company_id' => $company_id, 'query' => $searchTerm]);
+                $repairs = $repairsQuery->fetchAll(PDO::FETCH_ASSOC);
+                $results = array_merge($results, $repairs);
+            } catch (\Exception $e) {
+                error_log("TraceItem repairs search error: " . $e->getMessage());
+            }
+
+            // Search in inventory
+            try {
+                $inventoryQuery = $this->db->prepare("
+                    SELECT 
+                        'inventory' as type,
+                        p.id,
+                        p.created_at as date,
+                        p.price as amount,
+                        NULL as customer,
+                        p.name as item,
+                        p.product_id as reference
+                    FROM products p
+                    WHERE p.company_id = :company_id 
+                    AND (
+                        p.imei LIKE :query
+                        OR p.product_id LIKE :query
+                        OR p.name LIKE :query
+                    )
+                    ORDER BY p.created_at DESC
+                    LIMIT 50
+                ");
+                $inventoryQuery->execute(['company_id' => $company_id, 'query' => $searchTerm]);
+                $inventory = $inventoryQuery->fetchAll(PDO::FETCH_ASSOC);
+                $results = array_merge($results, $inventory);
+            } catch (\Exception $e) {
+                error_log("TraceItem inventory search error: " . $e->getMessage());
+            }
+
+            // Sort by date descending
+            usort($results, function($a, $b) {
+                return strtotime($b['date']) - strtotime($a['date']);
+            });
+
+            error_log("TraceItem: Final results count: " . count($results));
+            if (count($results) > 0) {
+                error_log("TraceItem: Sample result: " . json_encode($results[0]));
+            } else {
+                error_log("TraceItem: No results found for query: {$query}, company_id: {$company_id}");
+            }
+
+            return array_slice($results, 0, 100); // Limit total results
         } catch (\Exception $e) {
-            error_log("TraceItem sales search error: " . $e->getMessage());
+            error_log("TraceItem: Exception: " . $e->getMessage());
+            error_log("TraceItem: Exception trace: " . $e->getTraceAsString());
+            return [];
+        } catch (\Error $e) {
+            error_log("TraceItem: Fatal error: " . $e->getMessage());
+            error_log("TraceItem: Fatal error trace: " . $e->getTraceAsString());
+            return [];
         }
-
-        // Search in swaps
-        try {
-            $swapsQuery = $this->db->prepare("
-                SELECT 
-                    'swap' as type,
-                    s.id,
-                    s.created_at as date,
-                    s.total_value as amount,
-                    c.full_name as customer,
-                    CONCAT(cp.brand, ' ', cp.model) as item,
-                    s.unique_id as reference
-                FROM swaps s
-                LEFT JOIN customers c ON s.customer_id = c.id
-                LEFT JOIN customer_products cp ON s.customer_product_id = cp.id
-                WHERE s.company_id = :company_id 
-                AND (
-                    cp.imei LIKE :query
-                    OR c.phone_number LIKE :query
-                    OR c.full_name LIKE :query
-                    OR s.unique_id LIKE :query
-                )
-                ORDER BY s.created_at DESC
-                LIMIT 50
-            ");
-            $swapsQuery->execute(['company_id' => $company_id, 'query' => $searchTerm]);
-            $swaps = $swapsQuery->fetchAll(PDO::FETCH_ASSOC);
-            $results = array_merge($results, $swaps);
-        } catch (\Exception $e) {
-            // Ignore errors
-        }
-
-        // Search in repairs
-        try {
-            $repairsQuery = $this->db->prepare("
-                SELECT 
-                    'repair' as type,
-                    r.id,
-                    r.created_at as date,
-                    r.total_cost as amount,
-                    c.full_name as customer,
-                    r.phone_description as item,
-                    r.unique_id as reference
-                FROM repairs r
-                LEFT JOIN customers c ON r.customer_id = c.id
-                WHERE r.company_id = :company_id 
-                AND (
-                    r.imei LIKE :query
-                    OR c.phone_number LIKE :query
-                    OR c.full_name LIKE :query
-                    OR r.unique_id LIKE :query
-                )
-                ORDER BY r.created_at DESC
-                LIMIT 50
-            ");
-            $repairsQuery->execute(['company_id' => $company_id, 'query' => $searchTerm]);
-            $repairs = $repairsQuery->fetchAll(PDO::FETCH_ASSOC);
-            $results = array_merge($results, $repairs);
-        } catch (\Exception $e) {
-            // Ignore errors
-        }
-
-        // Search in inventory
-        try {
-            $inventoryQuery = $this->db->prepare("
-                SELECT 
-                    'inventory' as type,
-                    p.id,
-                    p.created_at as date,
-                    p.price as amount,
-                    NULL as customer,
-                    p.name as item,
-                    p.product_id as reference
-                FROM products p
-                WHERE p.company_id = :company_id 
-                AND (
-                    p.imei LIKE :query
-                    OR p.product_id LIKE :query
-                    OR p.name LIKE :query
-                )
-                ORDER BY p.created_at DESC
-                LIMIT 50
-            ");
-            $inventoryQuery->execute(['company_id' => $company_id, 'query' => $searchTerm]);
-            $inventory = $inventoryQuery->fetchAll(PDO::FETCH_ASSOC);
-            $results = array_merge($results, $inventory);
-        } catch (\Exception $e) {
-            // Ignore errors
-        }
-
-        // Sort by date descending
-        usort($results, function($a, $b) {
-            return strtotime($b['date']) - strtotime($a['date']);
-        });
-
-        return array_slice($results, 0, 100); // Limit total results
     }
 
     /**
@@ -754,9 +1768,31 @@ class AnalyticsService {
      * @param int|null $staff_id Optional staff member filter
      */
     public function getSalesByDateRange($company_id, $from, $to, $staff_id = null) {
+        // Check if is_swap_mode and swap_id columns exist
+        $hasIsSwapMode = false;
+        $hasSwapId = false;
+        try {
+            $checkIsSwapMode = $this->db->query("SHOW COLUMNS FROM pos_sales LIKE 'is_swap_mode'");
+            $hasIsSwapMode = $checkIsSwapMode->rowCount() > 0;
+            $checkSwapId = $this->db->query("SHOW COLUMNS FROM pos_sales LIKE 'swap_id'");
+            $hasSwapId = $checkSwapId->rowCount() > 0;
+        } catch (\Exception $e) {
+            error_log("AnalyticsService::getSalesByDateRange: Error checking swap columns: " . $e->getMessage());
+        }
+        
+        // Exclude swap sales from sales history (swaps should only appear on swap page)
+        // Exclude sales where is_swap_mode = 1 or swap_id IS NOT NULL
+        $excludeSwapSales = "";
+        if ($hasIsSwapMode) {
+            $excludeSwapSales = " AND (ps.is_swap_mode = 0 OR ps.is_swap_mode IS NULL)";
+        }
+        if ($hasSwapId) {
+            $excludeSwapSales .= " AND ps.swap_id IS NULL";
+        }
+        
         $where = "ps.company_id = :company_id
             AND DATE(ps.created_at) >= :date_from
-            AND DATE(ps.created_at) <= :date_to";
+            AND DATE(ps.created_at) <= :date_to{$excludeSwapSales}";
         $params = [
             'company_id' => $company_id,
             'date_from' => $from,
@@ -820,21 +1856,97 @@ class AnalyticsService {
             $params['staff_id'] = $staff_id;
         }
         
+        // Check which columns exist in swaps table
+        $checkTotalValue = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'total_value'");
+        $hasTotalValue = $checkTotalValue->rowCount() > 0;
+        $checkFinalPrice = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'final_price'");
+        $hasFinalPrice = $checkFinalPrice->rowCount() > 0;
+        $checkCompanyProductId = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'company_product_id'");
+        $hasCompanyProductId = $checkCompanyProductId->rowCount() > 0;
+        $checkCustomerProductId = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'customer_product_id'");
+        $hasCustomerProductId = $checkCustomerProductId->rowCount() > 0;
+        $checkSwapStatus = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'swap_status'");
+        $hasSwapStatus = $checkSwapStatus->rowCount() > 0;
+        $checkStatus = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'status'");
+        $hasStatus = $checkStatus->rowCount() > 0;
+        
+        // Determine which products table exists
+        $checkProductsNew = $this->db->query("SHOW TABLES LIKE 'products_new'");
+        $productsTable = ($checkProductsNew && $checkProductsNew->rowCount() > 0) ? 'products_new' : 'products';
+        
+        // Build total_value select based on available columns
+        $needsProductJoin = false;
+        if ($hasTotalValue) {
+            $totalValueSelect = "COALESCE(s.total_value, 0) as total_value";
+        } elseif ($hasFinalPrice) {
+            $totalValueSelect = "COALESCE(s.final_price, 0) as total_value";
+        } elseif ($hasCompanyProductId) {
+            $totalValueSelect = "COALESCE(p.price, 0) as total_value";
+            $needsProductJoin = true;
+        } else {
+            $totalValueSelect = "0 as total_value";
+        }
+        
+        // Build status select based on available columns
+        if ($hasSwapStatus && $hasStatus) {
+            $statusSelect = "COALESCE(s.swap_status, s.status, 'pending') as swap_status";
+        } elseif ($hasSwapStatus) {
+            $statusSelect = "COALESCE(s.swap_status, 'pending') as swap_status";
+        } elseif ($hasStatus) {
+            $statusSelect = "COALESCE(s.status, 'pending') as swap_status";
+        } else {
+            $statusSelect = "'pending' as swap_status";
+        }
+        
+        // Build JOIN for company product if needed
+        $productJoin = "";
+        if ($needsProductJoin) {
+            $productJoin = "LEFT JOIN {$productsTable} p ON s.company_product_id = p.id AND p.company_id = s.company_id";
+        }
+        
+        // Build customer products JOIN only if column exists
+        $customerProductJoin = "";
+        $swappedItemsJoin = "";
+        
+        // Check if swapped_items table exists
+        $checkSwappedItems = $this->db->query("SHOW TABLES LIKE 'swapped_items'");
+        $hasSwappedItems = $checkSwappedItems->rowCount() > 0;
+        
+        if ($hasSwappedItems) {
+            // Join with swapped_items table to get brand, model from customer's swapped item
+            $swappedItemsJoin = "LEFT JOIN swapped_items si ON s.id = si.swap_id";
+            $brandSelect = "COALESCE(si.brand, '') as brand";
+            $modelSelect = "COALESCE(si.model, '') as model";
+            $itemDescriptionSelect = "CONCAT(COALESCE(si.brand, ''), ' ', COALESCE(si.model, '')) as item_description";
+        } elseif ($hasCustomerProductId) {
+            // Fallback to customer_products if swapped_items doesn't exist
+            $customerProductJoin = "LEFT JOIN customer_products cp ON s.customer_product_id = cp.id";
+            $brandSelect = "COALESCE(cp.brand, '') as brand";
+            $modelSelect = "COALESCE(cp.model, '') as model";
+            $itemDescriptionSelect = "CONCAT(COALESCE(cp.brand, ''), ' ', COALESCE(cp.model, '')) as item_description";
+        } else {
+            $brandSelect = "'' as brand";
+            $modelSelect = "'' as model";
+            $itemDescriptionSelect = "'' as item_description";
+        }
+        
         $query = $this->db->prepare("
             SELECT 
                 s.id,
                 s.unique_id,
                 s.created_at,
-                s.total_value,
-                s.swap_status,
+                {$totalValueSelect},
+                {$statusSelect},
                 c.full_name as customer_name,
                 c.phone_number as customer_phone,
-                cp.brand,
-                cp.model,
-                CONCAT(cp.brand, ' ', cp.model) as item_description
+                {$brandSelect},
+                {$modelSelect},
+                {$itemDescriptionSelect}
             FROM swaps s
             LEFT JOIN customers c ON s.customer_id = c.id
-            LEFT JOIN customer_products cp ON s.customer_product_id = cp.id
+            {$customerProductJoin}
+            {$swappedItemsJoin}
+            {$productJoin}
             WHERE {$where}
             ORDER BY s.created_at DESC
         ");

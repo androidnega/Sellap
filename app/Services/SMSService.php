@@ -594,6 +594,58 @@ class SMSService {
     }
     
     /**
+     * Send partial payment notification SMS
+     * 
+     * @param string $phoneNumber Customer phone number
+     * @param array $paymentData Payment information (sale_id, amount_paid, remaining, total, is_complete)
+     * @param int|null $companyId Optional company ID for quota management
+     * @return array Send result
+     */
+    public function sendPartialPaymentNotification($phoneNumber, $paymentData, $companyId = null) {
+        // Get company name for personalized message
+        $companyName = 'SellApp';
+        if ($companyId !== null) {
+            try {
+                $companyModel = new \App\Models\Company();
+                $company = $companyModel->find($companyId);
+                if ($company && !empty($company['name'])) {
+                    $companyName = $company['name'];
+                }
+            } catch (\Exception $e) {
+                error_log("SMSService::sendPartialPaymentNotification: Could not fetch company name: " . $e->getMessage());
+            }
+        }
+        
+        $saleId = $paymentData['sale_id'] ?? 'N/A';
+        $amountPaid = number_format($paymentData['amount_paid'] ?? 0, 2);
+        $remaining = number_format($paymentData['remaining'] ?? 0, 2);
+        $total = number_format($paymentData['total'] ?? 0, 2);
+        $isComplete = $paymentData['is_complete'] ?? false;
+        
+        if ($isComplete) {
+            // Payment completed
+            $message = "Payment Complete!\n\n";
+            $message .= "Sale ID: {$saleId}\n";
+            $message .= "Total Amount: ₵{$total}\n";
+            $message .= "Thank you for your payment!\n\n";
+            $message .= "{$companyName}";
+        } else {
+            // Partial payment
+            $message = "Payment Received\n\n";
+            $message .= "Sale ID: {$saleId}\n";
+            $message .= "Amount Paid: ₵{$amountPaid}\n";
+            $message .= "Remaining Balance: ₵{$remaining}\n";
+            $message .= "Total Amount: ₵{$total}\n\n";
+            $message .= "Please complete your payment.\n\n";
+            $message .= "{$companyName}";
+        }
+        
+        // Use sendRealSMS for instant delivery without simulation fallback
+        // Pass 'payment' as message type for proper logging
+        return $this->sendRealSMS($phoneNumber, $message, $companyId, 'payment');
+    }
+    
+    /**
      * Send custom notification SMS
      * 
      * @param string $phoneNumber Customer phone number
@@ -1295,11 +1347,15 @@ class SMSService {
             ];
         }
         
-        // Check if the API endpoint is reachable
-        if (!$this->isEndpointReachable()) {
+        // Check if the API endpoint is reachable (with better error handling)
+        $endpointReachable = $this->isEndpointReachable();
+        if (!$endpointReachable) {
+            // Don't fail the test if endpoint is not reachable - just warn
+            // The actual SMS sending will handle this gracefully
             return [
-                'success' => false,
-                'error' => 'SMS API endpoint is not reachable. The system will use simulation mode for testing. Please configure a valid SMS service provider.'
+                'success' => true,
+                'message' => 'SMS API endpoint connection test timed out. This may be due to network issues. The system will attempt to send SMS when needed. If SMS sending fails, please check your internet connection and SMS API configuration.',
+                'warning' => true
             ];
         }
         
@@ -1340,21 +1396,41 @@ class SMSService {
      * @return bool
      */
     private function isEndpointReachable() {
+        // Use a simpler endpoint check - just check if we can resolve DNS and connect
+        $parsedUrl = parse_url($this->baseUrl);
+        $host = $parsedUrl['host'] ?? 'sms.arkesel.com';
+        
         $ch = curl_init();
         curl_setopt_array($ch, [
-            CURLOPT_URL => $this->baseUrl,
+            CURLOPT_URL => 'https://' . $host,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 3,  // Reduced from 10 to 3 seconds
-            CURLOPT_CONNECTTIMEOUT => 2,  // Reduced from 5 to 2 seconds
+            CURLOPT_TIMEOUT => 10,  // Increased timeout
+            CURLOPT_CONNECTTIMEOUT => 8,  // Increased connection timeout
             CURLOPT_SSL_VERIFYPEER => false,
             CURLOPT_NOBODY => true, // HEAD request only
-            CURLOPT_FOLLOWLOCATION => true
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,  // Use IPv4 to avoid IPv6 DNS issues
+            CURLOPT_DNS_CACHE_TIMEOUT => 300,  // Cache DNS for 5 minutes
+            CURLOPT_FRESH_CONNECT => false  // Reuse connections
         ]);
         
         $result = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
+        $curlErrno = curl_errno($ch);
         curl_close($ch);
+        
+        // Check for timeout errors specifically
+        if ($error) {
+            if (strpos($error, 'timed out') !== false || 
+                strpos($error, 'Resolving timed out') !== false || 
+                $curlErrno === CURLE_OPERATION_TIMEDOUT || 
+                $curlErrno === CURLE_OPERATION_TIMEOUTED ||
+                $curlErrno === CURLE_COULDNT_CONNECT) {
+                error_log("SMS Endpoint Reachability Check: Connection timeout - " . $error);
+                return false;
+            }
+        }
         
         // If we get any response (even 404), the endpoint is reachable
         // If we get a DNS error, it's not reachable

@@ -12,7 +12,7 @@ class Database {
 
     private function __construct() {
         // Use hardcoded values since we know they work
-        $host = '127.0.0.1:3307';
+        $host = '127.0.0.1:3306';
         $dbname = 'sellapp_db';
         $username = 'root';
         $password = 'newpassword';

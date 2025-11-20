@@ -16,7 +16,7 @@ class AuthService {
         try {
             $this->userModel = new User();
             $this->secret = getenv('JWT_SECRET') ?: JWT_SECRET;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             throw new \Exception('Failed to initialize authentication service: ' . $e->getMessage());
         }
     }

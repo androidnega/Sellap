@@ -88,8 +88,31 @@ class SwappedItem {
     public function find($id) {
         $hasCompanyProductId = $this->swapsHasColumn('company_product_id');
         
+        // Check for transaction_code column
+        $hasTransactionCode = false;
+        $hasUniqueId = false;
+        try {
+            $checkTransactionCode = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'transaction_code'");
+            $hasTransactionCode = $checkTransactionCode->rowCount() > 0;
+            $checkUniqueId = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'unique_id'");
+            $hasUniqueId = $checkUniqueId->rowCount() > 0;
+        } catch (\Exception $e) {
+            $hasTransactionCode = false;
+            $hasUniqueId = false;
+        }
+        
+        // Build transaction code select
+        $transactionCodeSelect = '';
+        if ($hasTransactionCode) {
+            $transactionCodeSelect = "COALESCE(s.transaction_code, CONCAT('SWAP-', LPAD(s.id, 6, '0'))) as transaction_code,";
+        } elseif ($hasUniqueId) {
+            $transactionCodeSelect = "COALESCE(s.unique_id, CONCAT('SWAP-', LPAD(s.id, 6, '0'))) as transaction_code,";
+        } else {
+            $transactionCodeSelect = "CONCAT('SWAP-', LPAD(s.id, 6, '0')) as transaction_code,";
+        }
+        
         $sql = "
-            SELECT si.*, s.transaction_code, s.customer_name, s.customer_phone,
+            SELECT si.*, {$transactionCodeSelect} s.customer_name, s.customer_phone,
                    " . ($hasCompanyProductId ? "sp.name as company_product_name" : "NULL as company_product_name") . "
             FROM swapped_items si
             LEFT JOIN swaps s ON si.swap_id = s.id
@@ -131,17 +154,73 @@ class SwappedItem {
             $hasCompanyId = false;
         }
         
+        // Check for transaction_code column
+        $hasTransactionCode = false;
+        $hasUniqueId = false;
+        try {
+            $checkTransactionCode = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'transaction_code'");
+            $hasTransactionCode = $checkTransactionCode->rowCount() > 0;
+            $checkUniqueId = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'unique_id'");
+            $hasUniqueId = $checkUniqueId->rowCount() > 0;
+        } catch (\Exception $e) {
+            $hasTransactionCode = false;
+            $hasUniqueId = false;
+        }
+        
+        // Build transaction code select
+        $transactionCodeSelect = '';
+        if ($hasTransactionCode) {
+            $transactionCodeSelect = "COALESCE(s.transaction_code, CONCAT('SWAP-', LPAD(s.id, 6, '0'))) as transaction_code,";
+        } elseif ($hasUniqueId) {
+            $transactionCodeSelect = "COALESCE(s.unique_id, CONCAT('SWAP-', LPAD(s.id, 6, '0'))) as transaction_code,";
+        } else {
+            $transactionCodeSelect = "CONCAT('SWAP-', LPAD(s.id, 6, '0')) as transaction_code,";
+        }
+        
+        // Check if swaps table has customer_name and customer_phone columns
+        $hasCustomerName = false;
+        $hasCustomerPhone = false;
+        try {
+            $checkCustomerName = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'customer_name'");
+            $hasCustomerName = $checkCustomerName && $checkCustomerName->rowCount() > 0;
+            $checkCustomerPhone = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'customer_phone'");
+            $hasCustomerPhone = $checkCustomerPhone && $checkCustomerPhone->rowCount() > 0;
+        } catch (\Exception $e) {
+            $hasCustomerName = false;
+            $hasCustomerPhone = false;
+        }
+        
+        // Check if swaps table has customer_id column (needed for JOIN)
+        $hasCustomerId = false;
+        try {
+            $checkCustomerId = $this->db->query("SHOW COLUMNS FROM swaps LIKE 'customer_id'");
+            $hasCustomerId = $checkCustomerId && $checkCustomerId->rowCount() > 0;
+        } catch (\Exception $e) {
+            $hasCustomerId = false;
+        }
+        
+        // Build customer name/phone select
+        $customerSelect = '';
+        if ($hasCustomerName && $hasCustomerPhone) {
+            $customerSelect = "COALESCE(s.customer_name, " . ($hasCustomerId ? "c.full_name" : "''") . ", '') as customer_name, COALESCE(s.customer_phone, " . ($hasCustomerId ? "c.phone_number" : "''") . ", '') as customer_phone,";
+        } else {
+            if ($hasCustomerId) {
+                $customerSelect = "COALESCE(c.full_name, '') as customer_name, COALESCE(c.phone_number, '') as customer_phone,";
+            } else {
+                $customerSelect = "'' as customer_name, '' as customer_phone,";
+            }
+        }
+        
         $sql = "
             SELECT si.*, 
                    s.id as swap_table_id,
-                   s.transaction_code, 
-                   COALESCE(s.customer_name, c.full_name, '') as customer_name, 
-                   COALESCE(s.customer_phone, c.phone_number, '') as customer_phone,
+                   {$transactionCodeSelect}
+                   {$customerSelect}
                    " . ($hasSwapDate ? "s.swap_date," : "s.created_at as swap_date,") . "
                    " . ($hasCompanyProductId ? "sp.name as company_product_name" : "NULL as company_product_name") . "
             FROM swapped_items si
             LEFT JOIN swaps s ON si.swap_id = s.id
-            LEFT JOIN customers c ON s.customer_id = c.id
+            " . ($hasCustomerId ? "LEFT JOIN customers c ON s.customer_id = c.id" : "") . "
             " . ($hasCompanyProductId ? "LEFT JOIN products sp ON s.company_product_id = sp.id" : "") . "
             WHERE " . ($hasCompanyId ? "s.company_id = ?" : "1=1") . "
         ";
@@ -176,6 +255,12 @@ class SwappedItem {
      * Update status to sold
      */
     public function markAsSold($id, $actual_resell_price = null) {
+        // Get swap_id before updating
+        $getSwapStmt = $this->db->prepare("SELECT swap_id FROM swapped_items WHERE id = ?");
+        $getSwapStmt->execute([$id]);
+        $item = $getSwapStmt->fetch(PDO::FETCH_ASSOC);
+        $swap_id = $item['swap_id'] ?? null;
+        
         $stmt = $this->db->prepare("
             UPDATE swapped_items SET 
                 status = 'sold', 
@@ -191,6 +276,18 @@ class SwappedItem {
                 UPDATE swapped_items SET resell_price = ? WHERE id = ?
             ");
             $updatePriceStmt->execute([$actual_resell_price, $id]);
+            
+            // Update swap's total_value to include resale value
+            // total_value should now be: added_cash (cash top-up) + resale_value
+            if ($swap_id) {
+                try {
+                    $swapModel = new \App\Models\Swap();
+                    $swapModel->updateTotalValueOnResale($swap_id, $actual_resell_price);
+                } catch (\Exception $e) {
+                    error_log("SwappedItem markAsSold: Error updating swap total_value - " . $e->getMessage());
+                    // Don't fail the operation if this update fails
+                }
+            }
         }
         
         return $result;

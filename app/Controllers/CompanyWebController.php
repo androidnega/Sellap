@@ -8,6 +8,7 @@ use App\Models\CompanySMSAccount;
 use App\Models\CompanyModule;
 use App\Middleware\WebAuthMiddleware;
 use App\Services\NotificationService;
+use App\Services\BackupService;
 
 class CompanyWebController {
     private $companyModel;
@@ -182,6 +183,17 @@ class CompanyWebController {
         $defaultModules = ['products_inventory', 'pos_sales', 'customers'];
         $companyModuleModel = new CompanyModule();
         $companyModuleModel->initializeCompanyModules($companyId, $defaultModules);
+
+        // Create automatic backup for the newly onboarded company
+        try {
+            $backupService = new BackupService();
+            $userId = $_SESSION['user']['id'] ?? 1;
+            $backupService->createCompanyBackup($companyId, $userId, true);
+            error_log("Automatic backup created for newly onboarded company ID: {$companyId}");
+        } catch (\Exception $e) {
+            // Log error but don't fail company creation if backup fails
+            error_log("Failed to create automatic backup for company ID {$companyId}: " . $e->getMessage());
+        }
 
         header("Location: " . BASE_URL_PATH . "/dashboard/companies");
         exit;
@@ -598,6 +610,75 @@ class CompanyWebController {
         // Redirect back to companies list
         header('Location: ' . BASE_URL_PATH . '/dashboard/companies');
         exit;
+    }
+
+    /**
+     * Company Settings page for managers
+     * Allows managers to configure which services use company SMS credits
+     */
+    public function companySettings() {
+        // Start session
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
+        $userData = $_SESSION['user'] ?? null;
+        if (!$userData) {
+            header('Location: ' . BASE_URL_PATH . '/');
+            exit;
+        }
+        
+        $userRole = $userData['role'] ?? 'salesperson';
+        $companyId = $userData['company_id'] ?? null;
+        
+        // Allow manager and system_admin to access settings
+        if (!in_array($userRole, ['manager', 'system_admin'], true)) {
+            $_SESSION['flash_error'] = 'Access Denied: You do not have permission to access company settings. Only managers and system administrators can access this page.';
+            header('Location: ' . BASE_URL_PATH . '/dashboard');
+            exit;
+        }
+        
+        // System admin can view any company, manager can only view their own
+        if ($userRole === 'system_admin' && isset($_GET['company_id'])) {
+            $companyId = (int)$_GET['company_id'];
+        }
+        
+        if (!$companyId) {
+            $_SESSION['flash_error'] = 'Company ID is required.';
+            header('Location: ' . BASE_URL_PATH . '/dashboard');
+            exit;
+        }
+        
+        // Get company SMS settings
+        try {
+            $smsAccount = $this->smsAccountModel->getSMSBalance($companyId);
+            $settings = [
+                'sms_purchase_enabled' => $smsAccount['sms_purchase_enabled'] ?? 1,
+                'sms_repair_enabled' => $smsAccount['sms_repair_enabled'] ?? 1,
+                'sms_swap_enabled' => $smsAccount['sms_swap_enabled'] ?? 1
+            ];
+        } catch (\Exception $e) {
+            error_log("Error loading company SMS settings: " . $e->getMessage());
+            $settings = [
+                'sms_purchase_enabled' => 1,
+                'sms_repair_enabled' => 1,
+                'sms_swap_enabled' => 1
+            ];
+        }
+        
+        $pageTitle = 'Company SMS Settings';
+        $GLOBALS['currentPage'] = 'company-settings';
+        
+        // Start output buffering
+        ob_start();
+        
+        // Include company settings view with variables
+        include __DIR__ . '/../Views/company_settings.php';
+        
+        $content = ob_get_clean();
+        
+        // Include the dashboard layout
+        include __DIR__ . '/../Views/layouts/dashboard.php';
     }
 }
 

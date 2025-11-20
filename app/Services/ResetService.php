@@ -26,6 +26,7 @@ class ResetService {
     private $rowCounts = [];
     private $errors = [];
     private $monitoringService;
+    private $savedModules = []; // Store modules to preserve during reset
 
     public function __construct($adminUserId = null, $dryRun = false) {
         $this->db = \Database::getInstance()->getConnection();
@@ -53,7 +54,7 @@ class ResetService {
                 $stmt = $this->db->prepare("SELECT COUNT(*) FROM swaps WHERE company_id = ?");
                 $stmt->execute([$companyId]);
                 $counts['swaps'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['swaps'] = 0;
             }
             
@@ -64,7 +65,7 @@ class ResetService {
                 ");
                 $stmt->execute([$companyId]);
                 $counts['swapped_items'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['swapped_items'] = 0;
             }
             
@@ -76,7 +77,7 @@ class ResetService {
                 ");
                 $stmt->execute([$companyId]);
                 $counts['swap_profit_links'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['swap_profit_links'] = 0;
             }
             
@@ -85,7 +86,7 @@ class ResetService {
                 $stmt = $this->db->prepare("SELECT COUNT(*) FROM pos_sales WHERE company_id = ?");
                 $stmt->execute([$companyId]);
                 $counts['pos_sales'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['pos_sales'] = 0;
             }
             
@@ -96,7 +97,7 @@ class ResetService {
                 ");
                 $stmt->execute([$companyId]);
                 $counts['pos_sale_items'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['pos_sale_items'] = 0;
             }
             
@@ -105,7 +106,7 @@ class ResetService {
                 $stmt = $this->db->prepare("SELECT COUNT(*) FROM repairs WHERE company_id = ?");
                 $stmt->execute([$companyId]);
                 $counts['repairs'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['repairs'] = 0;
             }
             
@@ -120,7 +121,7 @@ class ResetService {
                 ");
                 $stmt->execute([$companyId]);
                 $counts['repair_accessories'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['repairs_new'] = 0;
                 $counts['repair_accessories'] = 0;
             }
@@ -130,7 +131,7 @@ class ResetService {
                 $stmt = $this->db->prepare("SELECT COUNT(*) FROM customers WHERE company_id = ?");
                 $stmt->execute([$companyId]);
                 $counts['customers'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['customers'] = 0;
             }
             
@@ -138,7 +139,7 @@ class ResetService {
                 $stmt = $this->db->prepare("SELECT COUNT(*) FROM customer_products WHERE company_id = ?");
                 $stmt->execute([$companyId]);
                 $counts['customer_products'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['customer_products'] = 0;
             }
             
@@ -147,7 +148,7 @@ class ResetService {
                 $stmt = $this->db->prepare("SELECT COUNT(*) FROM products WHERE company_id = ?");
                 $stmt->execute([$companyId]);
                 $counts['products'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['products'] = 0;
             }
             
@@ -158,7 +159,7 @@ class ResetService {
                 ");
                 $stmt->execute([$companyId]);
                 $counts['product_images'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['product_images'] = 0;
             }
             
@@ -169,7 +170,7 @@ class ResetService {
                 ");
                 $stmt->execute([$companyId]);
                 $counts['product_specs'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['product_specs'] = 0;
             }
             
@@ -177,7 +178,7 @@ class ResetService {
                 $stmt = $this->db->prepare("SELECT COUNT(*) FROM products_new WHERE company_id = ?");
                 $stmt->execute([$companyId]);
                 $counts['products_new'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['products_new'] = 0;
             }
             
@@ -186,7 +187,7 @@ class ResetService {
                 $stmt = $this->db->prepare("SELECT COUNT(*) FROM restock_logs WHERE company_id = ?");
                 $stmt->execute([$companyId]);
                 $counts['restock_logs'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['restock_logs'] = 0;
             }
             
@@ -194,7 +195,7 @@ class ResetService {
                 $stmt = $this->db->prepare("SELECT COUNT(*) FROM sms_logs WHERE company_id = ?");
                 $stmt->execute([$companyId]);
                 $counts['sms_logs'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['sms_logs'] = 0;
             }
             
@@ -202,7 +203,7 @@ class ResetService {
                 $stmt = $this->db->prepare("SELECT COUNT(*) FROM notification_logs WHERE company_id = ?");
                 $stmt->execute([$companyId]);
                 $counts['notification_logs'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['notification_logs'] = 0;
             }
             
@@ -210,7 +211,7 @@ class ResetService {
                 $stmt = $this->db->prepare("SELECT COUNT(*) FROM sms_payments WHERE company_id = ?");
                 $stmt->execute([$companyId]);
                 $counts['sms_payments'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['sms_payments'] = 0;
             }
             
@@ -219,7 +220,7 @@ class ResetService {
                 $stmt = $this->db->prepare("SELECT COUNT(*) FROM company_sms_accounts WHERE company_id = ?");
                 $stmt->execute([$companyId]);
                 $counts['company_sms_accounts'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['company_sms_accounts'] = 0;
             }
             
@@ -227,7 +228,7 @@ class ResetService {
                 $stmt = $this->db->prepare("SELECT COUNT(*) FROM company_modules WHERE company_id = ?");
                 $stmt->execute([$companyId]);
                 $counts['company_modules'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['company_modules'] = 0;
             }
             
@@ -236,11 +237,11 @@ class ResetService {
                 $stmt = $this->db->prepare("SELECT COUNT(*) FROM users WHERE company_id = ? AND role != 'system_admin'");
                 $stmt->execute([$companyId]);
                 $counts['users'] = (int)$stmt->fetchColumn();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $counts['users'] = 0;
             }
             
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             error_log("Error getting affected counts: " . $e->getMessage());
             throw $e;
         }
@@ -333,6 +334,11 @@ class ResetService {
             $this->db->beginTransaction();
             
             try {
+                // Save company modules before reset (to preserve their state)
+                if (!$dryRun) {
+                    $this->saveCompanyModules($companyId);
+                }
+                
                 // Disable FK checks temporarily
                 $this->db->exec("SET FOREIGN_KEY_CHECKS = 0");
 
@@ -348,7 +354,7 @@ class ResetService {
                     $stmt = $this->db->prepare("DELETE FROM swap_profit_links WHERE swap_id IN (SELECT id FROM swaps WHERE company_id = ?)");
                     $stmt->execute([$companyId]);
                     $this->rowCounts['swap_profit_links'] = $stmt->rowCount();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Table might not exist, skip
                     $this->rowCounts['swap_profit_links'] = 0;
                 }
@@ -358,7 +364,7 @@ class ResetService {
                     $stmt = $this->db->prepare("DELETE si FROM swapped_items si INNER JOIN swaps s ON si.swap_id = s.id WHERE s.company_id = ?");
                     $stmt->execute([$companyId]);
                     $this->rowCounts['swapped_items'] = $stmt->rowCount();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Fallback to subquery if JOIN not supported
                     $stmt = $this->db->prepare("DELETE FROM swapped_items WHERE swap_id IN (SELECT id FROM swaps WHERE company_id = ?)");
                     $stmt->execute([$companyId]);
@@ -370,7 +376,7 @@ class ResetService {
                     $stmt = $this->db->prepare("DELETE psi FROM pos_sale_items psi INNER JOIN pos_sales ps ON psi.pos_sale_id = ps.id WHERE ps.company_id = ?");
                     $stmt->execute([$companyId]);
                     $this->rowCounts['pos_sale_items'] = $stmt->rowCount();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Fallback
                     $stmt = $this->db->prepare("DELETE FROM pos_sale_items WHERE pos_sale_id IN (SELECT id FROM pos_sales WHERE company_id = ?)");
                     $stmt->execute([$companyId]);
@@ -397,7 +403,7 @@ class ResetService {
                     $stmt = $this->db->prepare("DELETE ra FROM repair_accessories ra INNER JOIN repairs_new r ON ra.repair_id = r.id WHERE r.company_id = ?");
                     $stmt->execute([$companyId]);
                     $this->rowCounts['repair_accessories'] = $stmt->rowCount();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Fallback
                     $stmt = $this->db->prepare("DELETE FROM repair_accessories WHERE repair_id IN (SELECT id FROM repairs_new WHERE company_id = ?)");
                     $stmt->execute([$companyId]);
@@ -409,7 +415,7 @@ class ResetService {
                     $stmt = $this->db->prepare("DELETE FROM repairs_new WHERE company_id = ?");
                     $stmt->execute([$companyId]);
                     $this->rowCounts['repairs_new'] = $stmt->rowCount();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     $this->rowCounts['repairs_new'] = 0;
                 }
 
@@ -430,7 +436,7 @@ class ResetService {
                 try {
                     $stmt = $this->db->prepare("UPDATE repairs_new SET customer_id = NULL WHERE company_id = ?");
                     $stmt->execute([$companyId]);
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // repairs_new might not exist, skip
                 }
 
@@ -470,7 +476,7 @@ class ResetService {
                     $stmt = $this->db->prepare("DELETE FROM products_new WHERE company_id = ?");
                     $stmt->execute([$companyId]);
                     $this->rowCounts['products_new'] = $stmt->rowCount();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     $this->rowCounts['products_new'] = 0;
                 }
 
@@ -479,7 +485,7 @@ class ResetService {
                     $stmt = $this->db->prepare("DELETE FROM sms_logs WHERE company_id = ?");
                     $stmt->execute([$companyId]);
                     $this->rowCounts['sms_logs'] = $stmt->rowCount();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     $this->rowCounts['sms_logs'] = 0;
                 }
 
@@ -487,7 +493,7 @@ class ResetService {
                     $stmt = $this->db->prepare("DELETE FROM notification_logs WHERE company_id = ?");
                     $stmt->execute([$companyId]);
                     $this->rowCounts['notification_logs'] = $stmt->rowCount();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     $this->rowCounts['notification_logs'] = 0;
                 }
 
@@ -495,7 +501,7 @@ class ResetService {
                     $stmt = $this->db->prepare("DELETE FROM sms_payments WHERE company_id = ?");
                     $stmt->execute([$companyId]);
                     $this->rowCounts['sms_payments'] = $stmt->rowCount();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     $this->rowCounts['sms_payments'] = 0;
                 }
 
@@ -504,11 +510,11 @@ class ResetService {
                     $stmt = $this->db->prepare("UPDATE company_sms_accounts SET total_sms = 0, sms_used = 0 WHERE company_id = ?");
                     $stmt->execute([$companyId]);
                     $this->rowCounts['company_sms_accounts'] = $stmt->rowCount();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     $this->rowCounts['company_sms_accounts'] = 0;
                 }
 
-                // Delete company_modules
+                // Delete company_modules (already saved above, will be restored after)
                 $stmt = $this->db->prepare("DELETE FROM company_modules WHERE company_id = ?");
                 $stmt->execute([$companyId]);
                 $this->rowCounts['company_modules'] = $stmt->rowCount();
@@ -520,6 +526,11 @@ class ResetService {
 
                 // Re-enable FK checks
                 $this->db->exec("SET FOREIGN_KEY_CHECKS = 1");
+                
+                // Restore company modules (preserve their enabled state)
+                if (!$dryRun) {
+                    $this->restoreCompanyModules($companyId);
+                }
 
                 // Commit transaction
                 $this->db->commit();
@@ -580,6 +591,47 @@ class ResetService {
     }
 
     /**
+     * Save company modules before reset
+     */
+    private function saveCompanyModules($companyId) {
+        try {
+            $stmt = $this->db->prepare("SELECT module_key, enabled FROM company_modules WHERE company_id = ?");
+            $stmt->execute([$companyId]);
+            $this->savedModules[$companyId] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            error_log("Failed to save company modules: " . $e->getMessage());
+            $this->savedModules[$companyId] = [];
+        }
+    }
+    
+    /**
+     * Restore company modules after reset
+     */
+    private function restoreCompanyModules($companyId) {
+        if (!isset($this->savedModules[$companyId]) || empty($this->savedModules[$companyId])) {
+            return; // No modules to restore
+        }
+        
+        try {
+            foreach ($this->savedModules[$companyId] as $module) {
+                $stmt = $this->db->prepare("
+                    INSERT INTO company_modules (company_id, module_key, enabled, created_at, updated_at)
+                    VALUES (?, ?, ?, NOW(), NOW())
+                    ON DUPLICATE KEY UPDATE enabled = VALUES(enabled), updated_at = NOW()
+                ");
+                $stmt->execute([
+                    $companyId,
+                    $module['module_key'],
+                    $module['enabled'] ? 1 : 0
+                ]);
+            }
+        } catch (Exception $e) {
+            error_log("Failed to restore company modules: " . $e->getMessage());
+            // Don't throw - module restoration failure shouldn't break the reset
+        }
+    }
+    
+    /**
      * Check if backup exists recently (within last 24 hours)
      */
     private function backupExistsRecently($companyId = null) {
@@ -619,9 +671,11 @@ class ResetService {
                     $isOptional = $step['optional'] ?? false;
                     if ($isOptional) {
                         // For optional steps, just log the error but continue
-                        error_log("Optional step {$step['order']} ({$step['table']}) skipped: " . $e->getMessage());
-                        if (isset($step['table'])) {
-                            $this->rowCounts[$step['table']] = 0;
+                        $tableName = $step['table'] ?? 'unknown';
+                        error_log("Optional step {$step['order']} ({$tableName}) skipped: " . $e->getMessage());
+                        $table = $step['table'] ?? null;
+                        if ($table !== null && is_string($table)) {
+                            $this->rowCounts[$table] = 0;
                         }
                     } else {
                         // For required steps, add to errors
@@ -706,7 +760,8 @@ class ResetService {
             ['order' => 24, 'type' => 'update', 'sql' => 'UPDATE company_sms_accounts SET total_sms = 0, sms_used = 0 WHERE company_id = ?', 'table' => 'company_sms_accounts', 'params' => [$companyId], 'optional' => true],
             
             // Steps 25-26: Delete company-specific settings and users (preserve system_admin)
-            ['order' => 25, 'type' => 'delete', 'sql' => 'DELETE FROM company_modules WHERE company_id = ?', 'table' => 'company_modules', 'params' => [$companyId]],
+            // Note: company_modules will be preserved (saved before deletion and restored after)
+            ['order' => 25, 'type' => 'preserve_modules', 'table' => 'company_modules', 'params' => [$companyId]],
             ['order' => 26, 'type' => 'delete', 'sql' => "DELETE FROM users WHERE company_id = ? AND role != 'system_admin'", 'table' => 'users', 'params' => [$companyId]],
             
             // Step 27: Re-enable FK checks
@@ -781,6 +836,37 @@ class ResetService {
                 // Execute raw SQL (like SET FOREIGN_KEY_CHECKS)
                 if (!$this->dryRun) {
                     $this->db->exec($step['sql']);
+                }
+                return;
+            }
+            
+            // Handle module preservation
+            if ($step['type'] === 'preserve_modules') {
+                $params = $step['params'] ?? [];
+                $companyId = $params[0] ?? $companyId;
+                
+                if ($this->dryRun) {
+                    // In dry-run, just count modules
+                    $stmt = $this->db->prepare("SELECT COUNT(*) FROM company_modules WHERE company_id = ?");
+                    $stmt->execute([$companyId]);
+                    $count = $stmt->fetchColumn();
+                    if ($step['table']) {
+                        $this->rowCounts[$step['table']] = (int)$count;
+                    }
+                } else {
+                    // Save modules before deletion
+                    $stmt = $this->db->prepare("SELECT module_key, enabled FROM company_modules WHERE company_id = ?");
+                    $stmt->execute([$companyId]);
+                    $this->savedModules[$companyId] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    
+                    // Delete modules (they will be restored after reset)
+                    $deleteStmt = $this->db->prepare("DELETE FROM company_modules WHERE company_id = ?");
+                    $deleteStmt->execute([$companyId]);
+                    $affectedRows = $deleteStmt->rowCount();
+                    
+                    if ($step['table']) {
+                        $this->rowCounts[$step['table']] = $affectedRows;
+                    }
                 }
                 return;
             }

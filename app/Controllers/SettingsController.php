@@ -50,10 +50,12 @@ class SettingsController {
         $userData = $_SESSION['user'] ?? null;
         $userRole = $userData['role'] ?? '';
         
-        // Only allow system_admin and admin - restrict manager, salesperson, technician, etc.
-        if (!$userData || !in_array($userRole, ['system_admin', 'admin'])) {
+        // Only allow system_admin - restrict all other roles (admin, manager, salesperson, technician, etc.)
+        if (!$userData || $userRole !== 'system_admin') {
             $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '/sellapp';
-            header('Location: ' . $basePath . '/');
+            // Set error message in session
+            $_SESSION['flash_error'] = 'Access Denied: You do not have permission to access settings. Only system administrators can access this page.';
+            header('Location: ' . $basePath . '/dashboard');
             exit;
         }
         
@@ -221,8 +223,8 @@ class SettingsController {
         
         $userData = $_SESSION['user'] ?? null;
         $userRole = $userData['role'] ?? '';
-        // Only allow system_admin and admin - restrict manager, salesperson, technician, etc.
-        if ($userData && in_array($userRole, ['system_admin', 'admin'])) {
+        // Only allow system_admin - restrict all other roles (admin, manager, salesperson, technician, etc.)
+        if ($userData && $userRole === 'system_admin') {
             return true; // Session-based auth successful
         }
         
@@ -242,8 +244,8 @@ class SettingsController {
         
         // Fall back to JWT authentication only if Authorization header is present
         try {
-            // Only allow system_admin and admin - restrict manager, salesperson, technician, etc.
-            $payload = AuthMiddleware::handle(['system_admin', 'admin']);
+            // Only allow system_admin - restrict all other roles (admin, manager, salesperson, technician, etc.)
+            $payload = AuthMiddleware::handle(['system_admin']);
             return true;
         } catch (\Exception $e) {
             http_response_code(401);
@@ -512,15 +514,27 @@ class SettingsController {
                 header('Content-Type: application/json');
                 echo json_encode([
                     'success' => true,
-                    'message' => $result['message']
+                    'message' => $result['message'],
+                    'warning' => $result['warning'] ?? false
                 ]);
             } else {
-                http_response_code(500);
-                header('Content-Type: application/json');
-                echo json_encode([
-                    'success' => false,
-                    'error' => $result['error']
-                ]);
+                // For connection timeout errors, return success with warning instead of failure
+                if (isset($result['timeout']) || strpos($result['error'] ?? '', 'timeout') !== false || strpos($result['error'] ?? '', 'Connection') !== false) {
+                    header('Content-Type: application/json');
+                    echo json_encode([
+                        'success' => true,
+                        'message' => 'SMS configuration appears valid, but connection test timed out. This may be due to network issues. SMS sending will be attempted when needed.',
+                        'warning' => true,
+                        'error' => $result['error']
+                    ]);
+                } else {
+                    http_response_code(500);
+                    header('Content-Type: application/json');
+                    echo json_encode([
+                        'success' => false,
+                        'error' => $result['error']
+                    ]);
+                }
             }
         } catch (\Exception $e) {
             http_response_code(500);

@@ -29,6 +29,13 @@ class WebAuthMiddleware {
             // Update last activity time
             self::updateLastActivity();
             
+            // Clear any auth attempt flags since we're authenticated
+            unset($_SESSION['_auth_attempt']);
+            unset($_SESSION['_auth_retry_count']);
+            
+            // If _auth parameter exists, just ignore it - session is valid, no need to redirect
+            // The JavaScript in the page will clean it up client-side if needed
+            
             if (!empty($allowedRoles) && !in_array($userData['role'], $allowedRoles)) {
                 self::redirectToLogin('You do not have permission to access this page');
             }
@@ -51,6 +58,10 @@ class WebAuthMiddleware {
                 if ($retryCount >= 2) {
                     // Tried too many times, give up and redirect to login
                     unset($_SESSION['_auth_retry_count']);
+                    unset($_SESSION['_auth_attempt']);
+                    // Clear any partial session data
+                    session_destroy();
+                    session_start();
                     header('Location: ' . (defined('BASE_URL_PATH') ? BASE_URL_PATH : '') . '/?error=' . urlencode('Session setup failed. Please login again.'));
                     exit;
                 }
@@ -58,22 +69,62 @@ class WebAuthMiddleware {
                 $_SESSION['_auth_retry_count'] = $retryCount + 1;
                 
                 // Wait a moment and try to get session (might have been set in parallel request)
-                usleep(100000); // 100ms delay
+                usleep(300000); // 300ms delay to allow session to be set
                 session_write_close();
                 session_start();
                 
-                // Check again after delay
+                // Check again after delay - check both user and token
+                $userData = $_SESSION['user'] ?? null;
                 $token = $_SESSION['token'] ?? null;
-                if ($token) {
+                
+                if ($userData && !empty($userData['role'])) {
+                    // User session found, continue - clear retry counters
+                    unset($_SESSION['_auth_retry_count']);
+                    unset($_SESSION['_auth_attempt']);
+                    self::updateLastActivity();
+                    
+                    // Remove _auth parameter to prevent redirect loops
+                    $cleanUrl = strtok($_SERVER['REQUEST_URI'], '?');
+                    $queryParams = $_GET;
+                    unset($queryParams['_auth']);
+                    if (!empty($queryParams)) {
+                        $cleanUrl .= '?' . http_build_query($queryParams);
+                    } else {
+                        // No other params, just remove _auth
+                        header('Location: ' . $cleanUrl);
+                        exit;
+                    }
+                    
+                    if (!empty($allowedRoles) && !in_array($userData['role'], $allowedRoles)) {
+                        self::redirectToLogin('You do not have permission to access this page');
+                    }
+                    return (object) $userData;
+                } elseif ($token) {
                     unset($_SESSION['_auth_retry_count']);
                     // Token found, continue with validation below
                 } else {
-                    // Still no token, redirect to login
+                    // Still no token or user after retry, redirect to login to break loop
                     unset($_SESSION['_auth_retry_count']);
+                    unset($_SESSION['_auth_attempt']);
+                    session_destroy();
+                    session_start();
                     header('Location: ' . (defined('BASE_URL_PATH') ? BASE_URL_PATH : '') . '/?error=' . urlencode('Unable to establish session. Please login again.'));
                     exit;
                 }
             } else {
+                // Check if we're already in an auth attempt to prevent loops
+                if (isset($_SESSION['_auth_attempt'])) {
+                    // Already attempted, clear and redirect to login
+                    unset($_SESSION['_auth_attempt']);
+                    session_destroy();
+                    session_start();
+                    header('Location: ' . (defined('BASE_URL_PATH') ? BASE_URL_PATH : '') . '/?error=' . urlencode('Authentication failed. Please login again.'));
+                    exit;
+                }
+                
+                // Mark that we're attempting auth
+                $_SESSION['_auth_attempt'] = true;
+                
                 // No session token, redirect to login with JavaScript validation
                 self::redirectToLogin();
             }
@@ -97,6 +148,10 @@ class WebAuthMiddleware {
                 'company_id' => $payload->company_id,
                 'company_name' => $payload->company_name ?? ''
             ];
+            
+            // Clear any auth attempt flags since we're now authenticated
+            unset($_SESSION['_auth_attempt']);
+            unset($_SESSION['_auth_retry_count']);
             
             // Update last activity time after successful authentication
             self::updateLastActivity();
@@ -129,7 +184,8 @@ class WebAuthMiddleware {
         $errorParam = $error ? '&error=' . urlencode($error) : '';
         $queryParams = $redirectParam . $errorParam;
         
-        echo '<!DOCTYPE html>
+        $html = <<<'HTML'
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -137,11 +193,11 @@ class WebAuthMiddleware {
     <title>Authentication Required - SellApp</title>
     <script>
         // Base path for application URLs
-        window.APP_BASE_PATH = "' . $basePath . '";
+        window.APP_BASE_PATH = "{{BASE_PATH}}";
         const BASE = window.APP_BASE_PATH || "";
         
         // Get current URL for redirect after auth
-        const currentUrl = "' . $currentPath . '";
+        const currentUrl = "{{CURRENT_PATH}}";
         
         // Check if user has token in localStorage
         (function() {
@@ -159,28 +215,42 @@ class WebAuthMiddleware {
                     if (data.success) {
                         // Token is valid, reload page to continue
                         // Use a longer delay to ensure session cookie is saved
-                        setTimeout(() => {
+                        setTimeout(function() {
+                            // Get clean URL without query params
                             const fullUrl = window.location.href.split("?")[0].split("#")[0];
-                            // Force a fresh page load by adding a cache-busting parameter
-                            window.location.replace(fullUrl + "?_auth=" + Date.now());
-                        }, 300);
+                            // Remove _auth parameter if present to prevent loops
+                            const urlParams = new URLSearchParams(window.location.search);
+                            urlParams.delete("_auth");
+                            const newParams = urlParams.toString();
+                            let cleanUrl = fullUrl + (newParams ? "?" + newParams : "");
+                            
+                            // Only add _auth if URL doesn't already contain it (prevent loops)
+                            var hasAuth = cleanUrl.indexOf("_auth=") !== -1;
+                            if (!hasAuth) {
+                                var separator = cleanUrl.indexOf("?") === -1 ? "?" : "&";
+                                window.location.replace(cleanUrl + separator + "_auth=" + Date.now());
+                            } else {
+                                // Already has _auth, just reload clean URL
+                                window.location.replace(cleanUrl);
+                            }
+                        }, 500);
                     } else {
                         // Token is invalid, redirect to login with current URL as redirect param
                         localStorage.removeItem("token");
                         localStorage.removeItem("sellapp_token");
-                        window.location.href = BASE + "/?' . $queryParams . '";
+                        window.location.href = BASE + "/?{{QUERY_PARAMS}}";
                     }
                 })
-                .catch((error) => {
+                .catch(function(error) {
                     console.error("Token validation error:", error);
                     // Error validating token, redirect to login with current URL as redirect param
                     localStorage.removeItem("token");
                     localStorage.removeItem("sellapp_token");
-                    window.location.href = BASE + "/?' . $queryParams . '";
+                    window.location.href = BASE + "/?' . addslashes($queryParams) . '";
                 });
             } else {
                 // No token found, redirect to login with current URL as redirect param
-                window.location.href = BASE + "/?' . $queryParams . '";
+                window.location.href = BASE + "/?' . addslashes($queryParams) . '";
             }
         })();
     </script>
@@ -196,7 +266,13 @@ class WebAuthMiddleware {
     </div>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </body>
-</html>';
+</html>
+HTML;
+        // Replace PHP variables in the heredoc
+        $html = str_replace('{{BASE_PATH}}', addslashes($basePath), $html);
+        $html = str_replace('{{CURRENT_PATH}}', addslashes($currentPath), $html);
+        $html = str_replace('{{QUERY_PARAMS}}', addslashes($queryParams), $html);
+        echo $html;
         exit;
     }
     

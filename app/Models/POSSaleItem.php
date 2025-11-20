@@ -21,13 +21,25 @@ class POSSaleItem {
         // Check if swap_id column exists
         $swapColumnExists = $this->checkSwapColumnExists();
         
+        // Check if is_swapped_item column exists
+        $isSwappedItemColumnExists = $this->checkIsSwappedItemColumnExists();
+        
+        // Build column list and values dynamically
+        $columns = ['pos_sale_id', 'item_type', 'item_id', 'item_description', 'quantity', 'unit_price', 'total_price'];
+        $placeholders = [':pos_sale_id', ':item_type', ':item_id', ':item_description', ':quantity', ':unit_price', ':total_price'];
+        
         if ($swapColumnExists) {
-            $sql = "INSERT INTO {$this->table} (pos_sale_id, item_type, item_id, item_description, quantity, unit_price, total_price, swap_id)
-                    VALUES (:pos_sale_id, :item_type, :item_id, :item_description, :quantity, :unit_price, :total_price, :swap_id)";
-        } else {
-            $sql = "INSERT INTO {$this->table} (pos_sale_id, item_type, item_id, item_description, quantity, unit_price, total_price)
-                    VALUES (:pos_sale_id, :item_type, :item_id, :item_description, :quantity, :unit_price, :total_price)";
+            $columns[] = 'swap_id';
+            $placeholders[] = ':swap_id';
         }
+        
+        if ($isSwappedItemColumnExists) {
+            $columns[] = 'is_swapped_item';
+            $placeholders[] = ':is_swapped_item';
+        }
+        
+        $sql = "INSERT INTO {$this->table} (" . implode(', ', $columns) . ")
+                VALUES (" . implode(', ', $placeholders) . ")";
         
         $stmt = $this->conn->prepare($sql);
         
@@ -50,6 +62,11 @@ class POSSaleItem {
             $params['swap_id'] = $data['swap_id'] ?? null;
         }
         
+        // Only add is_swapped_item if column exists
+        if ($isSwappedItemColumnExists) {
+            $params['is_swapped_item'] = isset($data['is_swapped_item']) ? (intval($data['is_swapped_item']) ? 1 : 0) : 0;
+        }
+        
         try {
             $result = $stmt->execute($params);
             if (!$result) {
@@ -63,6 +80,20 @@ class POSSaleItem {
             error_log("POSSaleItem create PDO error: " . $e->getMessage());
             error_log("POSSaleItem create params: " . json_encode($params));
             throw new \Exception('Failed to create sale item: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Check if is_swapped_item column exists in the table
+     */
+    private function checkIsSwappedItemColumnExists() {
+        try {
+            $sql = "SHOW COLUMNS FROM {$this->table} LIKE 'is_swapped_item'";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute();
+            return $stmt->rowCount() > 0;
+        } catch (\Exception $e) {
+            return false;
         }
     }
     

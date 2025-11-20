@@ -280,7 +280,18 @@ async function createBackup() {
             credentials: "same-origin"  // Include cookies (session) with the request
         });
         
-        const data = await response.json();
+        // Check if response is JSON
+        const contentType = response.headers.get("content-type");
+        let data;
+        
+        if (contentType && contentType.includes("application/json")) {
+            data = await response.json();
+        } else {
+            // Response is not JSON, likely an HTML error page
+            const text = await response.text();
+            console.error("Non-JSON response received:", text.substring(0, 500));
+            throw new Error("Server returned an invalid response. This may be a server error. Please check the server logs.");
+        }
         
         if (data.success) {
             backupReference = data.backup_id;
@@ -299,6 +310,7 @@ async function createBackup() {
             }
         }
     } catch (error) {
+        console.error("Backup error:", error);
         alert("Backup failed: " + error.message);
     } finally {
         btn.disabled = false;

@@ -295,6 +295,40 @@ class POSSale {
             }
         }
         
+        // Check if swapped item columns exist in products table
+        $hasIsSwappedItem = false;
+        $hasInventoryProductId = false;
+        $isSwappedItemSelect = "0 as has_swapped_items";
+        
+        if ($productsTable) {
+            try {
+                $checkIsSwapped = $this->conn->query("SHOW COLUMNS FROM {$productsTable} LIKE 'is_swapped_item'");
+                $hasIsSwappedItem = $checkIsSwapped->rowCount() > 0;
+                
+                $checkInventoryProductId = $this->conn->query("SHOW COLUMNS FROM swapped_items LIKE 'inventory_product_id'");
+                $hasInventoryProductId = $checkInventoryProductId->rowCount() > 0;
+                
+                if ($hasIsSwappedItem || $hasInventoryProductId) {
+                    $conditions = [];
+                    if ($hasIsSwappedItem) {
+                        $conditions[] = "p.is_swapped_item = 1";
+                    }
+                    if ($hasInventoryProductId) {
+                        $conditions[] = "si.inventory_product_id IS NOT NULL";
+                    }
+                    $isSwappedItemSelect = "(SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END 
+                        FROM pos_sale_items psi2 
+                        LEFT JOIN {$productsTable} p ON psi2.item_id = p.id 
+                        " . ($hasInventoryProductId ? "LEFT JOIN swapped_items si ON p.id = si.inventory_product_id" : "") . "
+                        WHERE psi2.pos_sale_id = s.id 
+                        AND psi2.item_id IS NOT NULL 
+                        AND (" . implode(" OR ", $conditions) . ")) as has_swapped_items";
+                }
+            } catch (\Exception $e) {
+                error_log("POSSale::findByCompany: Error checking swapped item columns: " . $e->getMessage());
+            }
+        }
+        
         $sql = "
             SELECT 
                 s.*, 
@@ -303,7 +337,8 @@ class POSSale {
                 (SELECT COUNT(*) FROM pos_sale_items WHERE pos_sale_id = s.id) as item_count,
                 (SELECT item_description FROM pos_sale_items WHERE pos_sale_id = s.id ORDER BY id LIMIT 1) as first_item_name,
                 {$firstItemProductName},
-                {$firstItemCategory}
+                {$firstItemCategory},
+                {$isSwappedItemSelect}
             FROM {$this->table} s
             LEFT JOIN users u ON s.created_by_user_id = u.id
             LEFT JOIN customers c ON s.customer_id = c.id
@@ -399,6 +434,49 @@ class POSSale {
             }
         }
         
+        // Check if swapped item columns exist in products table
+        $hasIsSwappedItem = false;
+        $hasInventoryProductId = false;
+        $isSwappedItemSelect = "0 as has_swapped_items";
+        
+        if ($productsTable) {
+            try {
+                $checkIsSwapped = $this->conn->query("SHOW COLUMNS FROM {$productsTable} LIKE 'is_swapped_item'");
+                $hasIsSwappedItem = $checkIsSwapped->rowCount() > 0;
+                
+                $checkInventoryProductId = $this->conn->query("SHOW COLUMNS FROM swapped_items LIKE 'inventory_product_id'");
+                $hasInventoryProductId = $checkInventoryProductId->rowCount() > 0;
+                
+                if ($hasIsSwappedItem || $hasInventoryProductId) {
+                    $conditions = [];
+                    if ($hasIsSwappedItem) {
+                        $conditions[] = "p.is_swapped_item = 1";
+                    }
+                    if ($hasInventoryProductId) {
+                        $conditions[] = "si.inventory_product_id IS NOT NULL";
+                    }
+                    $isSwappedItemSelect = "(SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END 
+                        FROM pos_sale_items psi2 
+                        LEFT JOIN {$productsTable} p ON psi2.item_id = p.id 
+                        " . ($hasInventoryProductId ? "LEFT JOIN swapped_items si ON p.id = si.inventory_product_id" : "") . "
+                        WHERE psi2.pos_sale_id = s.id 
+                        AND psi2.item_id IS NOT NULL 
+                        AND (" . implode(" OR ", $conditions) . ")) as has_swapped_items";
+                }
+            } catch (\Exception $e) {
+                error_log("POSSale::findByCashier: Error checking swapped item columns: " . $e->getMessage());
+            }
+        }
+        
+        // Check if is_swap_mode column exists
+        $hasIsSwapMode = false;
+        try {
+            $checkIsSwapMode = $this->conn->query("SHOW COLUMNS FROM {$this->table} LIKE 'is_swap_mode'");
+            $hasIsSwapMode = $checkIsSwapMode->rowCount() > 0;
+        } catch (\Exception $e) {
+            error_log("POSSale::findByCashier: Error checking is_swap_mode column: " . $e->getMessage());
+        }
+        
         $sql = "
             SELECT 
                 s.*, 
@@ -407,7 +485,8 @@ class POSSale {
                 (SELECT COUNT(*) FROM pos_sale_items WHERE pos_sale_id = s.id) as item_count,
                 (SELECT item_description FROM pos_sale_items WHERE pos_sale_id = s.id ORDER BY id LIMIT 1) as first_item_name,
                 {$firstItemProductName},
-                {$firstItemCategory}
+                {$firstItemCategory},
+                {$isSwappedItemSelect}
             FROM {$this->table} s
             LEFT JOIN users u ON s.created_by_user_id = u.id
             LEFT JOIN customers c ON s.customer_id = c.id
@@ -415,6 +494,11 @@ class POSSale {
         ";
         
         $params = [$cashier_id, $company_id];
+        
+        // Exclude swap sales from sales history
+        if ($hasIsSwapMode) {
+            $sql .= " AND (s.is_swap_mode = 0 OR s.is_swap_mode IS NULL)";
+        }
         
         if ($date_from) {
             $sql .= " AND DATE(s.created_at) >= ?";
@@ -434,6 +518,256 @@ class POSSale {
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (\Exception $e) {
             error_log("POSSale::findByCashier SQL Error: " . $e->getMessage());
+            error_log("SQL: " . $sql);
+            throw $e;
+        }
+    }
+
+    /**
+     * Find sales by cashier excluding specific role
+     */
+    public function findByCashierExcludingRole($cashier_id, $company_id, $excludeRole, $date_from = null, $date_to = null) {
+        // Check which table exists
+        $checkTable = $this->conn->query("SHOW TABLES LIKE 'pos_sales'");
+        $hasPosSales = $checkTable && $checkTable->rowCount() > 0;
+        $this->table = $hasPosSales ? 'pos_sales' : 'pos_sale';
+        
+        // Check for product_name column in pos_sale_items
+        $checkProductName = $this->conn->query("SHOW COLUMNS FROM pos_sale_items LIKE 'product_name'");
+        $hasProductName = $checkProductName && $checkProductName->rowCount() > 0;
+        $firstItemProductName = $hasProductName 
+            ? "(SELECT product_name FROM pos_sale_items WHERE pos_sale_id = s.id ORDER BY id LIMIT 1) as first_item_product_name"
+            : "NULL as first_item_product_name";
+        
+        // Check for category_name column
+        $checkCategory = $this->conn->query("SHOW COLUMNS FROM pos_sale_items LIKE 'category_name'");
+        $hasCategory = $checkCategory && $checkCategory->rowCount() > 0;
+        $firstItemCategory = $hasCategory 
+            ? "(SELECT category_name FROM pos_sale_items WHERE pos_sale_id = s.id ORDER BY id LIMIT 1) as first_item_category"
+            : "NULL as first_item_category";
+        
+        // Check for swapped items - check both pos_sale_items and products table
+        $checkSwapped = $this->conn->query("SHOW COLUMNS FROM pos_sale_items LIKE 'is_swapped_item'");
+        $hasSwapped = $checkSwapped && $checkSwapped->rowCount() > 0;
+        
+        // Also check if products table has is_swapped_item column
+        $hasProductsSwapped = false;
+        $productsTable = 'products';
+        try {
+            $checkProductsSwapped = $this->conn->query("SHOW COLUMNS FROM {$productsTable} LIKE 'is_swapped_item'");
+            $hasProductsSwapped = $checkProductsSwapped && $checkProductsSwapped->rowCount() > 0;
+        } catch (\Exception $e) {
+            // Table might not exist
+        }
+        
+        // Build query to check for swapped items - check both pos_sale_items and products table
+        if ($hasSwapped || $hasProductsSwapped) {
+            $conditions = [];
+            if ($hasSwapped) {
+                $conditions[] = "psi.is_swapped_item = 1";
+            }
+            if ($hasProductsSwapped) {
+                $conditions[] = "p.is_swapped_item = 1";
+            }
+            $isSwappedItemSelect = "(SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END 
+                FROM pos_sale_items psi 
+                " . ($hasProductsSwapped ? "LEFT JOIN {$productsTable} p ON psi.item_id = p.id" : "") . "
+                WHERE psi.pos_sale_id = s.id 
+                AND (" . implode(" OR ", $conditions) . ")) as has_swapped_items";
+        } else {
+            $isSwappedItemSelect = "0 as has_swapped_items";
+        }
+        
+        // Check if is_swap_mode column exists
+        $hasIsSwapMode = false;
+        try {
+            $checkIsSwapMode = $this->conn->query("SHOW COLUMNS FROM {$this->table} LIKE 'is_swap_mode'");
+            $hasIsSwapMode = $checkIsSwapMode->rowCount() > 0;
+        } catch (\Exception $e) {
+            error_log("POSSale::findByCashierExcludingRole: Error checking is_swap_mode column: " . $e->getMessage());
+        }
+        
+        $sql = "
+            SELECT 
+                s.*, 
+                u.full_name as cashier_name,
+                u.role as cashier_role,
+                c.full_name as customer_name_from_table,
+                (SELECT COUNT(*) FROM pos_sale_items WHERE pos_sale_id = s.id) as item_count,
+                (SELECT item_description FROM pos_sale_items WHERE pos_sale_id = s.id ORDER BY id LIMIT 1) as first_item_name,
+                {$firstItemProductName},
+                {$firstItemCategory},
+                {$isSwappedItemSelect}
+            FROM {$this->table} s
+            LEFT JOIN users u ON s.created_by_user_id = u.id
+            LEFT JOIN customers c ON s.customer_id = c.id
+            WHERE s.created_by_user_id = ? 
+              AND s.company_id = ?
+              AND (u.role IS NULL OR u.role != ?)
+        ";
+        
+        $params = [$cashier_id, $company_id, $excludeRole];
+        
+        // Exclude swap sales from sales history
+        if ($hasIsSwapMode) {
+            $sql .= " AND (s.is_swap_mode = 0 OR s.is_swap_mode IS NULL)";
+        }
+        
+        if ($date_from) {
+            $sql .= " AND DATE(s.created_at) >= ?";
+            $params[] = $date_from;
+        }
+        
+        if ($date_to) {
+            $sql .= " AND DATE(s.created_at) <= ?";
+            $params[] = $date_to;
+        }
+        
+        $sql .= " ORDER BY s.created_at DESC";
+        
+        try {
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\Exception $e) {
+            error_log("POSSale::findByCashierExcludingRole SQL Error: " . $e->getMessage());
+            error_log("SQL: " . $sql);
+            throw $e;
+        }
+    }
+
+    /**
+     * Find sales by company with role information
+     */
+    public function findByCompanyWithRoles($company_id, $limit = 100, $sale_type = null, $date_from = null, $date_to = null) {
+        // Check which table exists
+        $checkTable = $this->conn->query("SHOW TABLES LIKE 'pos_sales'");
+        $hasPosSales = $checkTable && $checkTable->rowCount() > 0;
+        $this->table = $hasPosSales ? 'pos_sales' : 'pos_sale';
+        
+        // Check for product_name column in pos_sale_items
+        $checkProductName = $this->conn->query("SHOW COLUMNS FROM pos_sale_items LIKE 'product_name'");
+        $hasProductName = $checkProductName && $checkProductName->rowCount() > 0;
+        $firstItemProductName = $hasProductName 
+            ? "(SELECT product_name FROM pos_sale_items WHERE pos_sale_id = s.id ORDER BY id LIMIT 1) as first_item_product_name"
+            : "NULL as first_item_product_name";
+        
+        // Check for category_name column
+        $checkCategory = $this->conn->query("SHOW COLUMNS FROM pos_sale_items LIKE 'category_name'");
+        $hasCategory = $checkCategory && $checkCategory->rowCount() > 0;
+        $firstItemCategory = $hasCategory 
+            ? "(SELECT category_name FROM pos_sale_items WHERE pos_sale_id = s.id ORDER BY id LIMIT 1) as first_item_category"
+            : "NULL as first_item_category";
+        
+        // Check for swapped items - check pos_sale_items, products table, and swapped_items table
+        $checkSwapped = $this->conn->query("SHOW COLUMNS FROM pos_sale_items LIKE 'is_swapped_item'");
+        $hasSwapped = $checkSwapped && $checkSwapped->rowCount() > 0;
+        
+        // Also check if products table has is_swapped_item column
+        $hasProductsSwapped = false;
+        $productsTable = 'products';
+        try {
+            $checkProductsSwapped = $this->conn->query("SHOW COLUMNS FROM {$productsTable} LIKE 'is_swapped_item'");
+            $hasProductsSwapped = $checkProductsSwapped && $checkProductsSwapped->rowCount() > 0;
+        } catch (\Exception $e) {
+            // Table might not exist
+        }
+        
+        // Check if swapped_items table has inventory_product_id column
+        $hasInventoryProductId = false;
+        try {
+            $checkInventoryProductId = $this->conn->query("SHOW COLUMNS FROM swapped_items LIKE 'inventory_product_id'");
+            $hasInventoryProductId = $checkInventoryProductId && $checkInventoryProductId->rowCount() > 0;
+        } catch (\Exception $e) {
+            // Table might not exist
+        }
+        
+        // Build query to check for swapped items - check pos_sale_items, products table, and swapped_items
+        if ($hasSwapped || $hasProductsSwapped || $hasInventoryProductId) {
+            $conditions = [];
+            if ($hasSwapped) {
+                $conditions[] = "psi.is_swapped_item = 1";
+            }
+            if ($hasProductsSwapped) {
+                $conditions[] = "p.is_swapped_item = 1";
+            }
+            if ($hasInventoryProductId) {
+                $conditions[] = "si.inventory_product_id IS NOT NULL";
+            }
+            
+            $joins = [];
+            if ($hasProductsSwapped) {
+                $joins[] = "LEFT JOIN {$productsTable} p ON psi.item_id = p.id";
+            }
+            if ($hasInventoryProductId) {
+                $joins[] = "LEFT JOIN swapped_items si ON psi.item_id = si.inventory_product_id";
+            }
+            
+            $isSwappedItemSelect = "(SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END 
+                FROM pos_sale_items psi 
+                " . (!empty($joins) ? implode(" ", $joins) : "") . "
+                WHERE psi.pos_sale_id = s.id 
+                AND psi.item_id IS NOT NULL
+                AND (" . implode(" OR ", $conditions) . ")) as has_swapped_items";
+        } else {
+            $isSwappedItemSelect = "0 as has_swapped_items";
+        }
+        
+        $sql = "
+            SELECT 
+                s.*, 
+                u.full_name as cashier_name,
+                u.role as cashier_role,
+                u.username as cashier_username,
+                c.full_name as customer_name_from_table,
+                (SELECT COUNT(*) FROM pos_sale_items WHERE pos_sale_id = s.id) as item_count,
+                (SELECT item_description FROM pos_sale_items WHERE pos_sale_id = s.id ORDER BY id LIMIT 1) as first_item_name,
+                {$firstItemProductName},
+                {$firstItemCategory},
+                {$isSwappedItemSelect}
+            FROM {$this->table} s
+            LEFT JOIN users u ON s.created_by_user_id = u.id
+            LEFT JOIN customers c ON s.customer_id = c.id
+            WHERE s.company_id = ?
+        ";
+        
+        $params = [$company_id];
+        
+        // Always exclude swap sales from sales history (swaps should only appear on swap page)
+        // Check if is_swap_mode column exists
+        $hasIsSwapMode = false;
+        try {
+            $checkIsSwapMode = $this->conn->query("SHOW COLUMNS FROM {$this->table} LIKE 'is_swap_mode'");
+            $hasIsSwapMode = $checkIsSwapMode->rowCount() > 0;
+        } catch (\Exception $e) {
+            error_log("POSSale::findByCompanyWithRoles: Error checking is_swap_mode column: " . $e->getMessage());
+        }
+        
+        if ($hasIsSwapMode) {
+            $sql .= " AND (s.is_swap_mode = 0 OR s.is_swap_mode IS NULL)";
+        }
+        
+        // Note: sale_type filter removed - swaps are always excluded from sales history
+        // If sale_type === 'swap' was requested, it will return empty results (as intended)
+        
+        if ($date_from) {
+            $sql .= " AND DATE(s.created_at) >= ?";
+            $params[] = $date_from;
+        }
+        
+        if ($date_to) {
+            $sql .= " AND DATE(s.created_at) <= ?";
+            $params[] = $date_to;
+        }
+        
+        $sql .= " ORDER BY s.created_at DESC LIMIT " . intval($limit);
+        
+        try {
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\Exception $e) {
+            error_log("POSSale::findByCompanyWithRoles SQL Error: " . $e->getMessage());
             error_log("SQL: " . $sql);
             throw $e;
         }
@@ -492,11 +826,25 @@ class POSSale {
     }
 
     /**
-     * Get total count of sales by company
+     * Get total count of sales by company (excluding swap sales)
      */
     public function getTotalCountByCompany($company_id, $date_from = null, $date_to = null) {
+        // Check if is_swap_mode column exists
+        $hasIsSwapMode = false;
+        try {
+            $checkIsSwapMode = $this->conn->query("SHOW COLUMNS FROM {$this->table} LIKE 'is_swap_mode'");
+            $hasIsSwapMode = $checkIsSwapMode->rowCount() > 0;
+        } catch (\Exception $e) {
+            error_log("POSSale::getTotalCountByCompany: Error checking is_swap_mode column: " . $e->getMessage());
+        }
+        
         $sql = "SELECT COUNT(*) FROM {$this->table} WHERE company_id = ?";
         $params = [$company_id];
+        
+        // Exclude swap sales from sales history count
+        if ($hasIsSwapMode) {
+            $sql .= " AND (is_swap_mode = 0 OR is_swap_mode IS NULL)";
+        }
         
         if ($date_from) {
             $sql .= " AND DATE(created_at) >= ?";

@@ -4,6 +4,11 @@ namespace App\Controllers;
 
 use App\Middleware\AuthMiddleware;
 
+// Ensure database class is loaded
+if (!class_exists('Database')) {
+    require_once __DIR__ . '/../../config/database.php';
+}
+
 /**
  * Admin Controller
  * Handles system administrator operations and platform-wide metrics
@@ -30,22 +35,41 @@ class AdminController {
             $usersQuery = $db->query("SELECT COUNT(*) as total FROM users");
             $totalUsers = $usersQuery->fetch()['total'] ?? 0;
 
-            // Get aggregated sales volume across all companies
-            $salesVolumeQuery = $db->query("SELECT COALESCE(SUM(final_amount), 0) as total FROM pos_sales");
+            // Get aggregated sales volume across all companies - EXCLUDE swap transactions
+            $salesVolumeQuery = $db->query("
+                SELECT COALESCE(SUM(final_amount), 0) as total 
+                FROM pos_sales 
+                WHERE swap_id IS NULL
+            ");
             $salesVolume = $salesVolumeQuery->fetch()['total'] ?? 0;
 
-            // Get total repairs revenue across all companies
-            $repairsVolumeQuery = $db->query("SELECT COALESCE(SUM(total_cost), 0) as total FROM repairs WHERE payment_status = 'PAID'");
-            $repairsVolume = $repairsVolumeQuery->fetch()['total'] ?? 0;
+            // Get total repairs revenue across all companies - check which repairs table exists
+            $repairsVolume = 0;
+            try {
+                $checkRepairsNew = $db->query("SHOW TABLES LIKE 'repairs_new'");
+                $hasRepairsNew = $checkRepairsNew && $checkRepairsNew->rowCount() > 0;
+                
+                if ($hasRepairsNew) {
+                    $repairsVolumeQuery = $db->query("SELECT COALESCE(SUM(total_cost), 0) as total FROM repairs_new");
+                } else {
+                    $repairsVolumeQuery = $db->query("SELECT COALESCE(SUM(total_cost), 0) as total FROM repairs WHERE payment_status = 'PAID'");
+                }
+                $repairsVolume = $repairsVolumeQuery->fetch()['total'] ?? 0;
+            } catch (\Exception $e) {
+                error_log("Error getting repairs volume: " . $e->getMessage());
+                $repairsVolume = 0;
+            }
 
-            // Get total transactions count
-            $totalTransactions = $db->query("
-                SELECT (
-                    (SELECT COUNT(*) FROM pos_sales) + 
-                    (SELECT COUNT(*) FROM repairs) + 
-                    (SELECT COUNT(*) FROM swaps)
-                ) as total
-            ")->fetch()['total'] ?? 0;
+            // Get total transactions count - Only count sales transactions (excluding swap transactions)
+            // Repairs and swaps are tracked separately, not as "transactions"
+            $totalTransactions = 0;
+            try {
+                $salesCountQuery = $db->query("SELECT COUNT(*) as total FROM pos_sales WHERE swap_id IS NULL");
+                $totalTransactions = (int)($salesCountQuery->fetch()['total'] ?? 0);
+            } catch (\Exception $e) {
+                error_log("Error calculating total transactions: " . $e->getMessage());
+                $totalTransactions = 0;
+            }
 
             $stats = [
                 'companies' => (int)$totalCompanies,
@@ -971,11 +995,70 @@ class AdminController {
      * Get detailed analytics data (System Admin only)
      */
     public function analytics() {
+        // Clean output buffers
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        ob_start();
+        
+        header('Content-Type: application/json');
+        
+        try {
+            // Check authentication
+            $authenticated = false;
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            
+            $userData = $_SESSION['user'] ?? null;
+            if ($userData && is_array($userData) && isset($userData['role']) && $userData['role'] === 'system_admin') {
+                $authenticated = true;
+            } else {
+                try {
         $payload = AuthMiddleware::handle(['system_admin']);
+                    $authenticated = true;
+                } catch (\Exception $e) {
+                    $authenticated = false;
+                }
+            }
+            
+            if (!$authenticated) {
+                ob_end_clean();
+                http_response_code(401);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Unauthorized',
+                    'message' => 'System administrator access required'
+                ]);
+                return;
+            }
+            
+            // Ensure Database class is loaded
+            if (!class_exists('Database')) {
+                require_once __DIR__ . '/../../config/database.php';
+            }
+            
         $db = \Database::getInstance()->getConnection();
+            
+            if (!$db) {
+                throw new \Exception("Database connection is null");
+            }
+
+        } catch (\Exception $e) {
+            ob_end_clean();
+            http_response_code(500);
+            error_log("Analytics Error: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'error' => 'Failed to fetch analytics data',
+                'message' => $e->getMessage()
+            ]);
+            return;
+        }
 
         try {
-            // Get sales analytics
+            // Get sales analytics - EXCLUDE swap transactions
+            try {
             $salesQuery = $db->query("
                 SELECT 
                     COUNT(*) as total,
@@ -983,60 +1066,235 @@ class AdminController {
                     COALESCE(AVG(final_amount), 0) as avg_order_value,
                     COUNT(CASE WHEN DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN 1 END) as monthly
                 FROM pos_sales
+                WHERE swap_id IS NULL
             ");
-            $salesData = $salesQuery->fetch(\PDO::FETCH_ASSOC);
+                $salesData = $salesQuery ? $salesQuery->fetch(\PDO::FETCH_ASSOC) : ['total' => 0, 'revenue' => 0, 'avg_order_value' => 0, 'monthly' => 0];
+            } catch (\Exception $e) {
+                error_log("Sales analytics query error: " . $e->getMessage());
+                $salesData = ['total' => 0, 'revenue' => 0, 'avg_order_value' => 0, 'monthly' => 0];
+            }
             
-            // Get repairs analytics
-            $repairsQuery = $db->query("
-                SELECT 
-                    COUNT(*) as total,
-                    COALESCE(SUM(CASE WHEN payment_status = 'PAID' THEN total_cost ELSE 0 END), 0) as revenue
-                FROM repairs
-            ");
-            $repairsData = $repairsQuery->fetch(\PDO::FETCH_ASSOC);
+            // Get repairs analytics - check which repairs table exists
+            try {
+                $checkRepairsNew = $db->query("SHOW TABLES LIKE 'repairs_new'");
+                $hasRepairsNew = $checkRepairsNew && $checkRepairsNew->rowCount() > 0;
+                
+                if ($hasRepairsNew) {
+                    $repairsQuery = $db->query("
+                        SELECT 
+                            COUNT(*) as total,
+                            COALESCE(SUM(total_cost), 0) as revenue
+                        FROM repairs_new
+                    ");
+                } else {
+                    $repairsQuery = $db->query("
+                        SELECT 
+                            COUNT(*) as total,
+                            COALESCE(SUM(CASE WHEN payment_status = 'PAID' THEN total_cost ELSE 0 END), 0) as revenue
+                        FROM repairs
+                    ");
+                }
+                $repairsData = $repairsQuery ? $repairsQuery->fetch(\PDO::FETCH_ASSOC) : ['total' => 0, 'revenue' => 0];
+            } catch (\Exception $e) {
+                error_log("Repairs analytics query error: " . $e->getMessage());
+                $repairsData = ['total' => 0, 'revenue' => 0];
+            }
             
-            // Get swaps analytics
-            $swapsQuery = $db->query("
-                SELECT 
-                    COUNT(*) as total,
-                    COUNT(CASE WHEN status IN ('PENDING', 'APPROVED', 'IN_PROGRESS') THEN 1 END) as active
-                FROM swaps
-            ");
-            $swapsData = $swapsQuery->fetch(\PDO::FETCH_ASSOC);
+            // Get swaps analytics - check which status column exists and calculate revenue
+            try {
+                // Check which columns exist
+                $checkStatusCol = $db->query("SHOW COLUMNS FROM swaps LIKE 'status'");
+                $checkSwapStatusCol = $db->query("SHOW COLUMNS FROM swaps LIKE 'swap_status'");
+                $checkTotalValue = $db->query("SHOW COLUMNS FROM swaps LIKE 'total_value'");
+                $checkAddedCash = $db->query("SHOW COLUMNS FROM swaps LIKE 'added_cash'");
+                $checkCashAdded = $db->query("SHOW COLUMNS FROM swaps LIKE 'cash_added'");
+                $checkFinalPrice = $db->query("SHOW COLUMNS FROM swaps LIKE 'final_price'");
+                
+                $hasStatus = $checkStatusCol && $checkStatusCol->rowCount() > 0;
+                $hasSwapStatus = $checkSwapStatusCol && $checkSwapStatusCol->rowCount() > 0;
+                $hasTotalValue = $checkTotalValue && $checkTotalValue->rowCount() > 0;
+                $hasAddedCash = $checkAddedCash && $checkAddedCash->rowCount() > 0;
+                $hasCashAdded = $checkCashAdded && $checkCashAdded->rowCount() > 0;
+                $hasFinalPrice = $checkFinalPrice && $checkFinalPrice->rowCount() > 0;
+                
+                // Determine revenue column
+                $revenueColumn = '0';
+                if ($hasTotalValue) {
+                    $revenueColumn = 'COALESCE(SUM(total_value), 0)';
+                } elseif ($hasAddedCash) {
+                    $revenueColumn = 'COALESCE(SUM(added_cash), 0)';
+                } elseif ($hasCashAdded) {
+                    $revenueColumn = 'COALESCE(SUM(cash_added), 0)';
+                } elseif ($hasFinalPrice) {
+                    $revenueColumn = 'COALESCE(SUM(final_price), 0)';
+                }
+                
+                // Build status condition
+                $statusCondition = '';
+                if ($hasStatus) {
+                    $statusCondition = "COUNT(CASE WHEN status IN ('pending', 'completed') THEN 1 END)";
+                } elseif ($hasSwapStatus) {
+                    $statusCondition = "COUNT(CASE WHEN swap_status IN ('PENDING', 'COMPLETED') THEN 1 END)";
+                } else {
+                    $statusCondition = "COUNT(*)";
+                }
+                
+                // Build query
+                if ($hasStatus) {
+                    $swapsQuery = $db->query("
+                        SELECT 
+                            COUNT(*) as total,
+                            {$statusCondition} as active,
+                            {$revenueColumn} as revenue
+                        FROM swaps
+                    ");
+                } elseif ($hasSwapStatus) {
+                    $swapsQuery = $db->query("
+                        SELECT 
+                            COUNT(*) as total,
+                            {$statusCondition} as active,
+                            {$revenueColumn} as revenue
+                        FROM swaps
+                    ");
+                } else {
+                    $swapsQuery = $db->query("
+                        SELECT 
+                            COUNT(*) as total,
+                            COUNT(*) as active,
+                            {$revenueColumn} as revenue
+                        FROM swaps
+                    ");
+                }
+                $swapsData = $swapsQuery ? $swapsQuery->fetch(\PDO::FETCH_ASSOC) : ['total' => 0, 'active' => 0, 'revenue' => 0];
+            } catch (\Exception $e) {
+                error_log("Swaps analytics query error: " . $e->getMessage());
+                $swapsData = ['total' => 0, 'active' => 0, 'revenue' => 0];
+            }
             
-            // Get revenue timeline (last 30 days)
-            $revenueTimelineQuery = $db->query("
-                SELECT 
-                    DATE(created_at) as date,
-                    COALESCE(SUM(final_amount), 0) as revenue
-                FROM pos_sales
-                WHERE DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-                GROUP BY DATE(created_at)
-                ORDER BY date ASC
-            ");
-            $revenueTimeline = $revenueTimelineQuery->fetchAll(\PDO::FETCH_ASSOC);
+            // Get revenue timeline (last 30 days) - Include sales (excluding swap transactions) and repairs revenue
+            try {
+                // Check which repairs table exists
+                $checkRepairsNew = $db->query("SHOW TABLES LIKE 'repairs_new'");
+                $hasRepairsNew = $checkRepairsNew && $checkRepairsNew->rowCount() > 0;
+                
+                // Get sales revenue by date (excluding swap transactions)
+                $salesTimelineQuery = $db->query("
+                    SELECT 
+                        DATE(created_at) as date,
+                        COALESCE(SUM(final_amount), 0) as revenue
+                    FROM pos_sales
+                    WHERE DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                    AND swap_id IS NULL
+                    GROUP BY DATE(created_at)
+                ");
+                $salesTimeline = $salesTimelineQuery ? $salesTimelineQuery->fetchAll(\PDO::FETCH_ASSOC) : [];
+                
+                // Get repairs revenue by date
+                if ($hasRepairsNew) {
+                    $repairsTimelineQuery = $db->query("
+                        SELECT 
+                            DATE(created_at) as date,
+                            COALESCE(SUM(total_cost), 0) as revenue
+                        FROM repairs_new
+                        WHERE DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                        GROUP BY DATE(created_at)
+                    ");
+                } else {
+                    $repairsTimelineQuery = $db->query("
+                        SELECT 
+                            DATE(created_at) as date,
+                            COALESCE(SUM(CASE WHEN payment_status = 'PAID' THEN total_cost ELSE 0 END), 0) as revenue
+                        FROM repairs
+                        WHERE DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                        GROUP BY DATE(created_at)
+                    ");
+                }
+                $repairsTimeline = $repairsTimelineQuery ? $repairsTimelineQuery->fetchAll(\PDO::FETCH_ASSOC) : [];
+                
+                // Combine sales and repairs revenue by date
+                $revenueByDate = [];
+                
+                // Add sales revenue
+                foreach ($salesTimeline as $item) {
+                    $date = $item['date'];
+                    if (!isset($revenueByDate[$date])) {
+                        $revenueByDate[$date] = 0;
+                    }
+                    $revenueByDate[$date] += (float)($item['revenue'] ?? 0);
+                }
+                
+                // Add repairs revenue
+                foreach ($repairsTimeline as $item) {
+                    $date = $item['date'];
+                    if (!isset($revenueByDate[$date])) {
+                        $revenueByDate[$date] = 0;
+                    }
+                    $revenueByDate[$date] += (float)($item['revenue'] ?? 0);
+                }
+                
+                // Convert to array format and sort by date
+                $revenueTimeline = [];
+                foreach ($revenueByDate as $date => $revenue) {
+                    $revenueTimeline[] = [
+                        'date' => $date,
+                        'revenue' => $revenue
+                    ];
+                }
+                
+                // Sort by date
+                usort($revenueTimeline, function($a, $b) {
+                    return strcmp($a['date'], $b['date']);
+                });
+                
+            } catch (\Exception $e) {
+                error_log("Revenue timeline query error: " . $e->getMessage());
+                $revenueTimeline = [];
+            }
             
-            // Get transaction types count
-            $transactionTypesQuery = $db->query("
-                SELECT 
-                    (SELECT COUNT(*) FROM pos_sales) as sales,
-                    (SELECT COUNT(*) FROM repairs) as repairs,
-                    (SELECT COUNT(*) FROM swaps) as swaps
-            ");
-            $transactionTypesData = $transactionTypesQuery->fetch(\PDO::FETCH_ASSOC);
+            // Get transaction types count - EXCLUDE swap transactions from sales, check both repairs tables
+            try {
+                // Check which repairs table exists
+                $checkRepairsNew = $db->query("SHOW TABLES LIKE 'repairs_new'");
+                $hasRepairsNew = $checkRepairsNew && $checkRepairsNew->rowCount() > 0;
+                
+                if ($hasRepairsNew) {
+                    $transactionTypesQuery = $db->query("
+                        SELECT 
+                            (SELECT COUNT(*) FROM pos_sales WHERE swap_id IS NULL) as sales,
+                            (SELECT COUNT(*) FROM repairs_new) as repairs,
+                            (SELECT COUNT(*) FROM swaps) as swaps
+                    ");
+                } else {
+                    $transactionTypesQuery = $db->query("
+                        SELECT 
+                            (SELECT COUNT(*) FROM pos_sales WHERE swap_id IS NULL) as sales,
+                            (SELECT COUNT(*) FROM repairs) as repairs,
+                            (SELECT COUNT(*) FROM swaps) as swaps
+                    ");
+                }
+                $transactionTypesData = $transactionTypesQuery ? $transactionTypesQuery->fetch(\PDO::FETCH_ASSOC) : ['sales' => 0, 'repairs' => 0, 'swaps' => 0];
+            } catch (\Exception $e) {
+                error_log("Transaction types query error: " . $e->getMessage());
+                $transactionTypesData = ['sales' => 0, 'repairs' => 0, 'swaps' => 0];
+            }
             
             // Get user growth (last 90 days, grouped by week)
+            try {
             $userGrowthQuery = $db->query("
                 SELECT 
                     YEAR(created_at) as year,
-                    WEEK(created_at) as week,
+                        WEEK(created_at, 1) as week,
                     COUNT(*) as count
                 FROM users
                 WHERE DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)
-                GROUP BY YEAR(created_at), WEEK(created_at)
+                    GROUP BY YEAR(created_at), WEEK(created_at, 1)
                 ORDER BY year ASC, week ASC
             ");
-            $userGrowthData = $userGrowthQuery->fetchAll(\PDO::FETCH_ASSOC);
+                $userGrowthData = $userGrowthQuery ? $userGrowthQuery->fetchAll(\PDO::FETCH_ASSOC) : [];
+            } catch (\Exception $e) {
+                error_log("User growth query error: " . $e->getMessage());
+                $userGrowthData = [];
+            }
             
             // Prepare response
             $analytics = [
@@ -1053,14 +1311,19 @@ class AdminController {
                 ],
                 'swaps' => [
                     'total' => (int)($swapsData['total'] ?? 0),
-                    'active' => (int)($swapsData['active'] ?? 0)
+                    'active' => (int)($swapsData['active'] ?? 0),
+                    'revenue' => (float)($swapsData['revenue'] ?? 0)
                 ],
                 'revenue_timeline' => [
                     'labels' => array_map(function($item) {
-                        return date('M d', strtotime($item['date']));
+                        if (!isset($item['date']) || empty($item['date'])) {
+                            return '';
+                        }
+                        $timestamp = strtotime($item['date']);
+                        return $timestamp !== false ? date('M d', $timestamp) : '';
                     }, $revenueTimeline),
                     'values' => array_map(function($item) {
-                        return (float)$item['revenue'];
+                        return (float)($item['revenue'] ?? 0);
                     }, $revenueTimeline)
                 ],
                 'transaction_types' => [
@@ -1070,26 +1333,901 @@ class AdminController {
                 ],
                 'user_growth' => [
                     'labels' => array_map(function($item) {
+                        try {
+                            if (!isset($item['year']) || !isset($item['week'])) {
+                                return '';
+                            }
                         $date = new \DateTime();
-                        $date->setISODate($item['year'], $item['week']);
+                            $date->setISODate((int)$item['year'], (int)$item['week']);
                         return $date->format('M d');
+                        } catch (\Exception $e) {
+                            // Fallback to simple date format
+                            return date('M d', strtotime($item['year'] . '-W' . str_pad($item['week'], 2, '0', STR_PAD_LEFT)));
+                        }
                     }, $userGrowthData),
                     'values' => array_map(function($item) {
-                        return (int)$item['count'];
+                        return (int)($item['count'] ?? 0);
                     }, $userGrowthData)
                 ]
             ];
 
-            header('Content-Type: application/json');
+            ob_end_clean();
             echo json_encode($analytics);
         } catch (\Exception $e) {
+            ob_end_clean();
             http_response_code(500);
-            header('Content-Type: application/json');
+            error_log("Analytics Query Error: " . $e->getMessage());
+            error_log("Analytics Stack: " . $e->getTraceAsString());
             echo json_encode([
                 'success' => false,
                 'error' => 'Failed to fetch analytics data',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
+                'file' => basename($e->getFile()),
+                'line' => $e->getLine()
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        } catch (\Error $e) {
+            ob_end_clean();
+            http_response_code(500);
+            error_log("Analytics Fatal Error: " . $e->getMessage());
+            error_log("Analytics Fatal Stack: " . $e->getTraceAsString());
+            echo json_encode([
+                'success' => false,
+                'error' => 'Internal server error',
+                'message' => $e->getMessage(),
+                'file' => basename($e->getFile()),
+                'line' => $e->getLine()
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+    }
+    
+    /**
+     * Get company performance metrics (revenue and profit per company)
+     * GET /api/admin/company-performance
+     */
+    public function companyPerformance() {
+        // Clean output buffers
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        ob_start();
+        
+        header('Content-Type: application/json');
+        
+        try {
+            // Check authentication
+            $authenticated = false;
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            
+            $userData = $_SESSION['user'] ?? null;
+            if ($userData && is_array($userData) && isset($userData['role']) && $userData['role'] === 'system_admin') {
+                $authenticated = true;
+            } else {
+                try {
+                    $payload = AuthMiddleware::handle(['system_admin']);
+                    $authenticated = true;
+                } catch (\Exception $e) {
+                    $authenticated = false;
+                }
+            }
+            
+            if (!$authenticated) {
+                ob_end_clean();
+                http_response_code(401);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Unauthorized',
+                    'message' => 'System administrator access required'
+                ]);
+                return;
+            }
+            
+            // Ensure Database class is loaded
+            if (!class_exists('Database')) {
+                require_once __DIR__ . '/../../config/database.php';
+            }
+            
+            $db = \Database::getInstance()->getConnection();
+            
+            if (!$db) {
+                throw new \Exception("Database connection is null");
+            }
+            
+            // Get date range filters (optional)
+            $dateFrom = $_GET['date_from'] ?? null;
+            $dateTo = $_GET['date_to'] ?? null;
+            
+            // Determine which products table to use
+            try {
+                $checkTable = $db->query("SHOW TABLES LIKE 'products_new'");
+                $productsTable = ($checkTable && $checkTable->rowCount() > 0) ? 'products_new' : 'products';
+            } catch (\Exception $e) {
+                error_log("Error checking products table: " . $e->getMessage());
+                $productsTable = 'products'; // Default fallback
+            }
+            
+            // Get all companies first
+            try {
+                $companiesQuery = $db->query("SELECT id, name, email, phone_number, created_at FROM companies ORDER BY id");
+                $allCompanies = $companiesQuery ? $companiesQuery->fetchAll(\PDO::FETCH_ASSOC) : [];
+            } catch (\Exception $e) {
+                error_log("Error fetching companies: " . $e->getMessage());
+                $allCompanies = [];
+            }
+            
+            // Calculate metrics for each company
+            $companies = [];
+            foreach ($allCompanies as $company) {
+                try {
+                    $companyId = $company['id'];
+                    
+                    // Build WHERE clauses with proper parameter binding
+                    $salesWhereClause = "ps.company_id = :company_id";
+                    $repairsWhereClause = "r.company_id = :company_id";
+                    $swapsWhereClause = "s.company_id = :company_id";
+                    
+                    $salesParams = ['company_id' => $companyId];
+                    $repairsParams = ['company_id' => $companyId];
+                    $swapsParams = ['company_id' => $companyId];
+                    
+                    // Use datetime comparison to match getFinancialSummary (includes full day)
+                    if ($dateFrom && $dateTo) {
+                        $salesWhereClause .= " AND ps.created_at >= :date_from_start AND ps.created_at <= :date_to_end";
+                        $repairsWhereClause .= " AND r.created_at >= :date_from_start AND r.created_at <= :date_to_end";
+                        $swapsWhereClause .= " AND s.created_at >= :date_from_start AND s.created_at <= :date_to_end";
+                        $salesParams['date_from_start'] = $dateFrom . ' 00:00:00';
+                        $salesParams['date_to_end'] = $dateTo . ' 23:59:59';
+                        $repairsParams['date_from_start'] = $dateFrom . ' 00:00:00';
+                        $repairsParams['date_to_end'] = $dateTo . ' 23:59:59';
+                        $swapsParams['date_from_start'] = $dateFrom . ' 00:00:00';
+                        $swapsParams['date_to_end'] = $dateTo . ' 23:59:59';
+                    } elseif ($dateFrom) {
+                        $salesWhereClause .= " AND ps.created_at >= :date_from_start";
+                        $repairsWhereClause .= " AND r.created_at >= :date_from_start";
+                        $swapsWhereClause .= " AND s.created_at >= :date_from_start";
+                        $salesParams['date_from_start'] = $dateFrom . ' 00:00:00';
+                        $repairsParams['date_from_start'] = $dateFrom . ' 00:00:00';
+                        $swapsParams['date_from_start'] = $dateFrom . ' 00:00:00';
+                    } elseif ($dateTo) {
+                        $salesWhereClause .= " AND ps.created_at <= :date_to_end";
+                        $repairsWhereClause .= " AND r.created_at <= :date_to_end";
+                        $swapsWhereClause .= " AND s.created_at <= :date_to_end";
+                        $salesParams['date_to_end'] = $dateTo . ' 23:59:59';
+                        $repairsParams['date_to_end'] = $dateTo . ' 23:59:59';
+                        $swapsParams['date_to_end'] = $dateTo . ' 23:59:59';
+                    }
+                    
+                    // Get sales metrics - EXCLUDE swap transactions
+                    try {
+                        $salesQuery = $db->prepare("
+                            SELECT 
+                                COUNT(DISTINCT ps.id) as total_sales,
+                                COALESCE(SUM(ps.final_amount), 0) as sales_revenue
+                            FROM pos_sales ps
+                            WHERE {$salesWhereClause}
+                            AND ps.swap_id IS NULL
+                        ");
+                        $salesQuery->execute($salesParams);
+                        $salesData = $salesQuery->fetch(\PDO::FETCH_ASSOC);
+                    } catch (\Exception $e) {
+                        error_log("Company {$companyId} sales query error: " . $e->getMessage());
+                        $salesData = ['total_sales' => 0, 'sales_revenue' => 0];
+                    }
+                    
+                    // Get sales cost - EXCLUDE swap transactions
+                    // Use datetime comparison to match getFinancialSummary (includes full day)
+                    try {
+                        // Build datetime parameters
+                        $costParams = ['company_id' => $companyId];
+                        $costWhereClause = "ps.company_id = :company_id AND ps.swap_id IS NULL";
+                        
+                        if ($dateFrom && $dateTo) {
+                            $costWhereClause .= " AND ps.created_at >= :date_from_start AND ps.created_at <= :date_to_end";
+                            $costParams['date_from_start'] = $dateFrom . ' 00:00:00';
+                            $costParams['date_to_end'] = $dateTo . ' 23:59:59';
+                        } elseif ($dateFrom) {
+                            $costWhereClause .= " AND ps.created_at >= :date_from_start";
+                            $costParams['date_from_start'] = $dateFrom . ' 00:00:00';
+                        } elseif ($dateTo) {
+                            $costWhereClause .= " AND ps.created_at <= :date_to_end";
+                            $costParams['date_to_end'] = $dateTo . ' 23:59:59';
+                        }
+                        
+                        // Check which cost column exists (prioritize cost_price, then cost)
+                        $checkCostPrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost_price'");
+                        $checkCost = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost'");
+                        $hasCostPrice = $checkCostPrice->rowCount() > 0;
+                        $hasCost = $checkCost->rowCount() > 0;
+                        
+                        if ($hasCostPrice) {
+                            $costColumn = 'COALESCE(p.cost_price, 0)';
+                        } elseif ($hasCost) {
+                            $costColumn = 'COALESCE(p.cost, 0)';
+                        } else {
+                            $costColumn = '0';
+                        }
+                        
+                        // Calculate sales cost with improved matching (by item_id OR by description) - matches getFinancialSummary
+                        $costQuery = $db->prepare("
+                            SELECT COALESCE(SUM(psi.quantity * {$costColumn}), 0) as sales_cost
+                            FROM pos_sale_items psi
+                            INNER JOIN pos_sales ps ON psi.pos_sale_id = ps.id
+                            LEFT JOIN {$productsTable} p ON (
+                                (psi.item_id = p.id AND p.company_id = ps.company_id)
+                                OR ((psi.item_id IS NULL OR psi.item_id = 0) AND LOWER(TRIM(psi.item_description)) = LOWER(TRIM(p.name)) AND p.company_id = ps.company_id)
+                            )
+                            WHERE {$costWhereClause}
+                            AND p.id IS NOT NULL
+                        ");
+                        $costQuery->execute($costParams);
+                        $costData = $costQuery->fetch(\PDO::FETCH_ASSOC);
+                    } catch (\Exception $e) {
+                        error_log("Company {$companyId} cost query error: " . $e->getMessage());
+                        $costData = ['sales_cost' => 0];
+                    }
+                    
+                    // Get repairs metrics - check which repairs table exists
+                    try {
+                        $checkRepairsNew = $db->query("SHOW TABLES LIKE 'repairs_new'");
+                        $hasRepairsNew = $checkRepairsNew && $checkRepairsNew->rowCount() > 0;
+                        
+                        if ($hasRepairsNew) {
+                            $repairsQuery = $db->prepare("
+                                SELECT 
+                                    COUNT(DISTINCT r.id) as total_repairs,
+                                    COALESCE(SUM(r.total_cost), 0) as repairs_revenue
+                                FROM repairs_new r
+                                WHERE {$repairsWhereClause}
+                            ");
+                        } else {
+                            $repairsQuery = $db->prepare("
+                                SELECT 
+                                    COUNT(DISTINCT r.id) as total_repairs,
+                                    COALESCE(SUM(r.total_cost), 0) as repairs_revenue
+                                FROM repairs r
+                                WHERE {$repairsWhereClause}
+                            ");
+                        }
+                        $repairsQuery->execute($repairsParams);
+                        $repairsData = $repairsQuery->fetch(\PDO::FETCH_ASSOC);
+                    } catch (\Exception $e) {
+                        error_log("Company {$companyId} repairs query error: " . $e->getMessage());
+                        $repairsData = ['total_repairs' => 0, 'repairs_revenue' => 0];
+                    }
+                    
+                    // Get swaps count
+                    try {
+                        $swapsQuery = $db->prepare("
+                            SELECT COUNT(DISTINCT s.id) as total_swaps
+                            FROM swaps s
+                            WHERE {$swapsWhereClause}
+                        ");
+                        $swapsQuery->execute($swapsParams);
+                        $swapsData = $swapsQuery->fetch(\PDO::FETCH_ASSOC);
+                    } catch (\Exception $e) {
+                        error_log("Company {$companyId} swaps query error: " . $e->getMessage());
+                        $swapsData = ['total_swaps' => 0];
+                    }
+                    
+                    // Get swap profit (realized gains only - when customer item is resold and profit is finalized)
+                    // NOTE: This is calculated separately but getFinancialSummary will recalculate it with proper date filtering
+                    // We keep this for the fallback calculation only
+                    $swapProfit = 0;
+                    // Don't calculate swap profit here - let getFinancialSummary handle it with proper date filtering
+                    
+                    // Get users count (no date filter)
+                    try {
+                        $usersQuery = $db->prepare("
+                            SELECT COUNT(DISTINCT u.id) as total_users
+                            FROM users u
+                            WHERE u.company_id = :company_id
+                        ");
+                        $usersQuery->execute(['company_id' => $companyId]);
+                        $usersData = $usersQuery->fetch(\PDO::FETCH_ASSOC);
+                    } catch (\Exception $e) {
+                        error_log("Company {$companyId} users query error: " . $e->getMessage());
+                        $usersData = ['total_users' => 0];
+                    }
+                    
+                    $companies[] = [
+                        'id' => $company['id'],
+                        'name' => $company['name'],
+                        'email' => $company['email'],
+                        'phone_number' => $company['phone_number'],
+                        'company_created_at' => $company['created_at'],
+                        'total_sales' => (int)($salesData['total_sales'] ?? 0),
+                        'sales_revenue' => (float)($salesData['sales_revenue'] ?? 0),
+                        'sales_cost' => (float)($costData['sales_cost'] ?? 0),
+                        'repairs_revenue' => (float)($repairsData['repairs_revenue'] ?? 0),
+                        'total_repairs' => (int)($repairsData['total_repairs'] ?? 0),
+                        'total_swaps' => (int)($swapsData['total_swaps'] ?? 0),
+                        'total_users' => (int)($usersData['total_users'] ?? 0),
+                        'swap_profit' => (float)$swapProfit
+                    ];
+                } catch (\Exception $e) {
+                    error_log("Error processing company {$company['id']}: " . $e->getMessage());
+                    // Continue with next company even if one fails
+                    continue;
+                }
+            }
+            
+            // Sort by total revenue
+            usort($companies, function($a, $b) {
+                $revenueA = ($a['sales_revenue'] ?? 0) + ($a['repairs_revenue'] ?? 0);
+                $revenueB = ($b['sales_revenue'] ?? 0) + ($b['repairs_revenue'] ?? 0);
+                return $revenueB <=> $revenueA;
+            });
+            
+            // Use DashboardController's getFinancialSummary to get EXACT same values as company dashboard
+            // This ensures admin analytics shows exactly what the company sees
+            $companyPerformance = [];
+            $dashboardController = new \App\Controllers\DashboardController();
+            
+            foreach ($companies as $company) {
+                $companyId = $company['id'];
+                
+                // Use the provided date range, or all-time if no dates provided
+                // If no dates, use a very early date to present date to get all-time data
+                $financialDateFrom = $dateFrom ?? '1970-01-01';
+                $financialDateTo = $dateTo ?? date('Y-m-d');
+                
+                try {
+                    // Use reflection to call the private getFinancialSummary method
+                    $reflection = new \ReflectionClass($dashboardController);
+                    $method = $reflection->getMethod('getFinancialSummary');
+                    $method->setAccessible(true);
+                    
+                    // Get swap stats first (needed for getFinancialSummary)
+                    $swapStats = null;
+                    try {
+                        $swapStatsMethod = $reflection->getMethod('getSwapStatistics');
+                        $swapStatsMethod->setAccessible(true);
+                        $swapStats = $swapStatsMethod->invoke($dashboardController, $companyId, $financialDateFrom, $financialDateTo);
+                    } catch (\Exception $e) {
+                        error_log("Error getting swap stats for company {$companyId}: " . $e->getMessage());
+                    }
+                    
+                    // Get financial summary - this is what the company dashboard uses
+                    // This will calculate everything with proper date filtering
+                    $financialSummary = $method->invoke($dashboardController, $companyId, $financialDateFrom, $financialDateTo, $swapStats);
+                    
+                    // Use the exact values from getFinancialSummary
+                    $salesRevenue = (float)($financialSummary['sales_revenue'] ?? 0);
+                    $repairsRevenue = (float)($financialSummary['repair_revenue'] ?? 0);
+                    $totalRevenue = (float)($financialSummary['total_revenue'] ?? 0);
+                    $salesCost = (float)($financialSummary['sales_cost'] ?? 0);
+                    $totalCost = (float)($financialSummary['total_cost'] ?? 0);
+                    
+                    // Profit should match manager dashboard: Sales Profit + Swap Profit (NOT including repairer profit)
+                    // This matches what the manager dashboard shows: sales_profit + swap_profit
+                    $salesProfit = (float)($financialSummary['sales_profit'] ?? 0);
+                    $swapProfit = (float)($financialSummary['swap_profit'] ?? 0);
+                    $profit = $salesProfit + $swapProfit;
+                    
+                    // Ensure profit is 0 if there's no revenue in the date range
+                    // This prevents showing profit when there are no sales/transactions in the selected date range
+                    if ($totalRevenue == 0) {
+                        $profit = 0;
+                        $salesProfit = 0;
+                        $swapProfit = 0;
+                        $salesRevenue = 0;
+                        $repairsRevenue = 0;
+                        $salesCost = 0;
+                        $totalCost = 0;
+                    }
+                    
+                    // Calculate profit margin based on the profit (without repairer profit)
+                    $profitMargin = $totalRevenue > 0 ? ($profit / $totalRevenue) * 100 : 0;
+                    
+                } catch (\Exception $e) {
+                    error_log("Error getting financial summary for company {$companyId}: " . $e->getMessage());
+                    // Fallback to simple calculation if reflection fails
+                    $salesRevenue = (float)($company['sales_revenue'] ?? 0);
+                    $salesCost = (float)($company['sales_cost'] ?? 0);
+                    $repairsRevenue = (float)($company['repairs_revenue'] ?? 0);
+                    $swapProfit = 0; // Don't use swap profit from separate calculation - it may not respect date range
+                    
+                    $totalRevenue = $salesRevenue + $repairsRevenue;
+                    $totalCost = $salesCost;
+                    $salesProfit = $salesRevenue - $salesCost;
+                    if ($salesProfit < 0) $salesProfit = 0;
+                    $profit = $salesProfit + $swapProfit;
+                    
+                    // Ensure profit is 0 if there's no revenue in the date range
+                    if ($totalRevenue == 0) {
+                        $profit = 0;
+                        $salesProfit = 0;
+                    }
+                    
+                    if ($profit < 0) $profit = 0;
+                    $profitMargin = $totalRevenue > 0 ? ($profit / $totalRevenue) * 100 : 0;
+                }
+                
+                $companyPerformance[] = [
+                    'id' => (int)$company['id'],
+                    'name' => $company['name'] ?? 'Unknown',
+                    'email' => $company['email'] ?? '',
+                    'phone_number' => $company['phone_number'] ?? '',
+                    'created_at' => $company['company_created_at'] ?? '',
+                    'metrics' => [
+                        'total_sales' => (int)($company['total_sales'] ?? 0),
+                        'total_repairs' => (int)($company['total_repairs'] ?? 0),
+                        'total_swaps' => (int)($company['total_swaps'] ?? 0),
+                        'total_users' => (int)($company['total_users'] ?? 0),
+                        'sales_revenue' => round($salesRevenue, 2),
+                        'repairs_revenue' => round($repairsRevenue, 2),
+                        'total_revenue' => round($totalRevenue, 2),
+                        'sales_cost' => round($salesCost, 2),
+                        'total_cost' => round($totalCost, 2),
+                        'profit' => round($profit, 2),
+                        'profit_margin' => round($profitMargin, 2)
+                    ]
+                ];
+            }
+            
+            // Calculate summary totals
+            $totalRevenue = 0;
+            $totalProfit = 0;
+            foreach ($companyPerformance as $company) {
+                $totalRevenue += (float)($company['metrics']['total_revenue'] ?? 0);
+                $totalProfit += (float)($company['metrics']['profit'] ?? 0);
+            }
+            
+            ob_end_clean();
+            echo json_encode([
+                'success' => true,
+                'companies' => $companyPerformance,
+                'summary' => [
+                    'total_companies' => count($companyPerformance),
+                    'total_revenue' => round($totalRevenue, 2),
+                    'total_profit' => round($totalProfit, 2)
+                ],
+                'date_range' => [
+                    'from' => $dateFrom,
+                    'to' => $dateTo
+                ]
             ]);
+            
+        } catch (\Exception $e) {
+            ob_end_clean();
+            http_response_code(500);
+            error_log("Company Performance Error: " . $e->getMessage());
+            error_log("Company Performance Stack: " . $e->getTraceAsString());
+            echo json_encode([
+                'success' => false,
+                'error' => 'Failed to fetch company performance data',
+                'message' => $e->getMessage(),
+                'file' => basename($e->getFile()),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        } catch (\Error $e) {
+            ob_end_clean();
+            http_response_code(500);
+            error_log("Company Performance Fatal Error: " . $e->getMessage());
+            error_log("Company Performance Fatal Stack: " . $e->getTraceAsString());
+            echo json_encode([
+                'success' => false,
+                'error' => 'Internal server error',
+                'message' => $e->getMessage(),
+                'file' => basename($e->getFile()),
+                'line' => $e->getLine()
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+    }
+    
+    /**
+     * Get company audit records with date range filters
+     * GET /api/admin/company-audit
+     */
+    public function companyAudit() {
+        // Clean output buffers
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        ob_start();
+        
+        header('Content-Type: application/json');
+        
+        try {
+            // Check authentication
+            $authenticated = false;
+            
+            // Start session if not already started
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            
+            // Try session-based auth first (for web dashboard)
+            $userData = $_SESSION['user'] ?? null;
+            
+            if ($userData && is_array($userData) && isset($userData['role']) && $userData['role'] === 'system_admin') {
+                $authenticated = true;
+            } else {
+                // Try JWT auth if session not available (for API calls)
+                // Check if Authorization header exists
+                $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? null;
+                
+                if ($authHeader) {
+                    try {
+                        if (class_exists('\App\Middleware\AuthMiddleware') && method_exists('\App\Middleware\AuthMiddleware', 'handle')) {
+                            $payload = AuthMiddleware::handle(['system_admin']);
+                            $authenticated = true;
+                        } else {
+                            $authenticated = false;
+                        }
+                    } catch (\Exception $e) {
+                        // JWT auth failed
+                        error_log("Company Audit Auth Error: " . $e->getMessage());
+                        $authenticated = false;
+                    } catch (\Error $e) {
+                        // Fatal error in auth
+                        error_log("Company Audit Auth Fatal Error: " . $e->getMessage());
+                        $authenticated = false;
+                    }
+                } else {
+                    // No auth header - check if we have a valid session token
+                    if (isset($_SESSION['token'])) {
+                        try {
+                            $auth = new \App\Services\AuthService();
+                            $payload = $auth->validateToken($_SESSION['token']);
+                            if ($payload && $payload->role === 'system_admin') {
+                                // Update session user data from validated token
+                                $_SESSION['user'] = [
+                                    'id' => $payload->sub,
+                                    'username' => $payload->username,
+                                    'role' => $payload->role,
+                                    'company_id' => $payload->company_id ?? null
+                                ];
+                                $authenticated = true;
+                            }
+                        } catch (\Exception $e) {
+                            // Token validation failed
+                            error_log("Company Audit Session Token Error: " . $e->getMessage());
+                            $authenticated = false;
+                        }
+                    }
+                }
+            }
+            
+            if (!$authenticated) {
+                ob_end_clean();
+                http_response_code(401);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Unauthorized',
+                    'message' => 'System administrator access required. Please log in as system administrator.'
+                ]);
+                return;
+            }
+            
+            // Ensure Database class is loaded
+            if (!class_exists('Database')) {
+                require_once __DIR__ . '/../../config/database.php';
+            }
+            
+            $db = \Database::getInstance()->getConnection();
+            
+            if (!$db) {
+                throw new \Exception("Database connection is null");
+            }
+            
+            // Get filters
+            $companyId = $_GET['company_id'] ?? null;
+            $dateFrom = $_GET['date_from'] ?? null;
+            $dateTo = $_GET['date_to'] ?? null;
+            $period = $_GET['period'] ?? 'all'; // daily, weekly, monthly, yearly, all, custom
+            $recordType = $_GET['record_type'] ?? 'all'; // sales, repairs, swaps, all
+            
+            // Calculate date range based on period
+            if ($period === 'daily') {
+                $dateFrom = date('Y-m-d');
+                $dateTo = date('Y-m-d');
+            } elseif ($period === 'weekly') {
+                $dateFrom = date('Y-m-d', strtotime('monday this week'));
+                $dateTo = date('Y-m-d', strtotime('sunday this week'));
+            } elseif ($period === 'monthly') {
+                $dateFrom = date('Y-m-01');
+                $dateTo = date('Y-m-t');
+            } elseif ($period === 'yearly') {
+                $dateFrom = date('Y-01-01');
+                $dateTo = date('Y-12-31');
+            } elseif ($period === 'custom' && $dateFrom && $dateTo) {
+                // Use provided custom dates
+            } else {
+                // 'all' - no date filter
+                $dateFrom = null;
+                $dateTo = null;
+            }
+            
+            // Build filters for each query type
+            $salesParams = [];
+            $repairsParams = [];
+            $swapsParams = [];
+            
+            // Build WHERE clauses for each query
+            $salesWhere = [];
+            $repairsWhere = [];
+            $swapsWhere = [];
+            
+            if ($companyId) {
+                $salesWhere[] = "ps.company_id = :company_id";
+                $repairsWhere[] = "r.company_id = :company_id";
+                $swapsWhere[] = "s.company_id = :company_id";
+                $salesParams['company_id'] = (int)$companyId;
+                $repairsParams['company_id'] = (int)$companyId;
+                $swapsParams['company_id'] = (int)$companyId;
+            }
+            
+            // Build date filters
+            if ($dateFrom && $dateTo) {
+                $salesWhere[] = "DATE(ps.created_at) BETWEEN :date_from AND :date_to";
+                $repairsWhere[] = "DATE(r.created_at) BETWEEN :date_from AND :date_to";
+                $swapsWhere[] = "DATE(s.created_at) BETWEEN :date_from AND :date_to";
+                $salesParams['date_from'] = $dateFrom;
+                $salesParams['date_to'] = $dateTo;
+                $repairsParams['date_from'] = $dateFrom;
+                $repairsParams['date_to'] = $dateTo;
+                $swapsParams['date_from'] = $dateFrom;
+                $swapsParams['date_to'] = $dateTo;
+            } elseif ($dateFrom) {
+                $salesWhere[] = "DATE(ps.created_at) >= :date_from";
+                $repairsWhere[] = "DATE(r.created_at) >= :date_from";
+                $swapsWhere[] = "DATE(s.created_at) >= :date_from";
+                $salesParams['date_from'] = $dateFrom;
+                $repairsParams['date_from'] = $dateFrom;
+                $swapsParams['date_from'] = $dateFrom;
+            } elseif ($dateTo) {
+                $salesWhere[] = "DATE(ps.created_at) <= :date_to";
+                $repairsWhere[] = "DATE(r.created_at) <= :date_to";
+                $swapsWhere[] = "DATE(s.created_at) <= :date_to";
+                $salesParams['date_to'] = $dateTo;
+                $repairsParams['date_to'] = $dateTo;
+                $swapsParams['date_to'] = $dateTo;
+            }
+            
+            $salesWhereClause = !empty($salesWhere) ? 'WHERE ' . implode(' AND ', $salesWhere) : '';
+            $repairsWhereClause = !empty($repairsWhere) ? 'WHERE ' . implode(' AND ', $repairsWhere) : '';
+            $swapsWhereClause = !empty($swapsWhere) ? 'WHERE ' . implode(' AND ', $swapsWhere) : '';
+            
+            // Get sales records - EXCLUDE swap transactions
+            $salesRecords = [];
+            if ($recordType === 'all' || $recordType === 'sales') {
+                try {
+                    // Add swap_id IS NULL to exclude swap transactions
+                    $swapFilter = " AND ps.swap_id IS NULL";
+                    $salesWhereClauseWithSwap = $salesWhereClause ? $salesWhereClause . $swapFilter : 'WHERE ps.swap_id IS NULL';
+                    
+                    $salesQuery = $db->prepare("
+                        SELECT 
+                            ps.id,
+                            ps.company_id,
+                            c.name as company_name,
+                            'sale' as record_type,
+                            ps.final_amount as amount,
+                            ps.created_at as record_date,
+                            ps.payment_status,
+                            ps.customer_id,
+                            cust.full_name as customer_name,
+                            cust.phone_number as customer_phone,
+                            u.full_name as created_by,
+                            COUNT(psi.id) as item_count
+                        FROM pos_sales ps
+                        INNER JOIN companies c ON ps.company_id = c.id
+                        LEFT JOIN customers cust ON ps.customer_id = cust.id
+                        LEFT JOIN users u ON ps.created_by_user_id = u.id
+                        LEFT JOIN pos_sale_items psi ON ps.id = psi.pos_sale_id
+                        {$salesWhereClauseWithSwap}
+                        GROUP BY ps.id, ps.company_id, c.name, ps.final_amount, ps.created_at, ps.payment_status, ps.customer_id, cust.full_name, cust.phone_number, u.full_name
+                        ORDER BY ps.created_at DESC
+                        LIMIT 1000
+                    ");
+                    $salesQuery->execute($salesParams);
+                    $salesRecords = $salesQuery->fetchAll(\PDO::FETCH_ASSOC);
+                } catch (\Exception $e) {
+                    error_log("Sales audit query error: " . $e->getMessage());
+                    $salesRecords = [];
+                }
+            }
+            
+            // Get repairs records - check which repairs table exists
+            $repairsRecords = [];
+            if ($recordType === 'all' || $recordType === 'repairs') {
+                try {
+                    $checkRepairsNew = $db->query("SHOW TABLES LIKE 'repairs_new'");
+                    $hasRepairsNew = $checkRepairsNew && $checkRepairsNew->rowCount() > 0;
+                    
+                    if ($hasRepairsNew) {
+                        $repairsQuery = $db->prepare("
+                            SELECT 
+                                r.id,
+                                r.company_id,
+                                c.name as company_name,
+                                'repair' as record_type,
+                                r.total_cost as amount,
+                                r.created_at as record_date,
+                                r.payment_status,
+                                r.customer_name,
+                                r.customer_contact,
+                                r.issue_description,
+                                u.full_name as created_by,
+                                r.status as repair_status
+                            FROM repairs_new r
+                            INNER JOIN companies c ON r.company_id = c.id
+                            LEFT JOIN users u ON r.technician_id = u.id
+                            {$repairsWhereClause}
+                            ORDER BY r.created_at DESC
+                            LIMIT 1000
+                        ");
+                    } else {
+                        $repairsQuery = $db->prepare("
+                            SELECT 
+                                r.id,
+                                r.company_id,
+                                c.name as company_name,
+                                'repair' as record_type,
+                                r.total_cost as amount,
+                                r.created_at as record_date,
+                                r.payment_status,
+                                r.customer_name,
+                                r.customer_contact,
+                                r.issue_description,
+                                u.full_name as created_by,
+                                r.status as repair_status
+                            FROM repairs r
+                            INNER JOIN companies c ON r.company_id = c.id
+                            LEFT JOIN users u ON r.created_by_user_id = u.id
+                            {$repairsWhereClause}
+                            ORDER BY r.created_at DESC
+                            LIMIT 1000
+                        ");
+                    }
+                    $repairsQuery->execute($repairsParams);
+                    $repairsRecords = $repairsQuery->fetchAll(\PDO::FETCH_ASSOC);
+                } catch (\Exception $e) {
+                    error_log("Repairs audit query error: " . $e->getMessage());
+                    $repairsRecords = [];
+                }
+            }
+            
+            // Get swaps records
+            $swapsRecords = [];
+            if ($recordType === 'all' || $recordType === 'swaps') {
+                try {
+                    $swapsQuery = $db->prepare("
+                        SELECT 
+                            s.id,
+                            s.company_id,
+                            c.name as company_name,
+                            'swap' as record_type,
+                            COALESCE(s.total_amount, 0) as amount,
+                            s.created_at as record_date,
+                            s.status as swap_status,
+                            u.full_name as created_by
+                        FROM swaps s
+                        INNER JOIN companies c ON s.company_id = c.id
+                        LEFT JOIN users u ON s.created_by_user_id = u.id
+                        {$swapsWhereClause}
+                        ORDER BY s.created_at DESC
+                        LIMIT 1000
+                    ");
+                    $swapsQuery->execute($swapsParams);
+                    $swapsRecords = $swapsQuery->fetchAll(\PDO::FETCH_ASSOC);
+                } catch (\Exception $e) {
+                    error_log("Swaps audit query error: " . $e->getMessage());
+                    $swapsRecords = [];
+                }
+            }
+            
+            // Combine and format all records
+            $allRecords = [];
+            
+            foreach ($salesRecords as $record) {
+                $allRecords[] = [
+                    'id' => (int)$record['id'],
+                    'company_id' => (int)$record['company_id'],
+                    'company_name' => $record['company_name'] ?? 'Unknown',
+                    'record_type' => 'sale',
+                    'amount' => round((float)($record['amount'] ?? 0), 2),
+                    'record_date' => $record['record_date'] ?? '',
+                    'status' => $record['payment_status'] ?? 'unknown',
+                    'payment_status' => $record['payment_status'] ?? 'unknown',
+                    'customer_id' => $record['customer_id'] ?? null,
+                    'customer_name' => $record['customer_name'] ?? 'Walk-in Customer',
+                    'customer_phone' => $record['customer_phone'] ?? null,
+                    'created_by' => $record['created_by'] ?? 'System',
+                    'item_count' => (int)($record['item_count'] ?? 0)
+                ];
+            }
+            
+            foreach ($repairsRecords as $record) {
+                $allRecords[] = [
+                    'id' => (int)$record['id'],
+                    'company_id' => (int)$record['company_id'],
+                    'company_name' => $record['company_name'] ?? 'Unknown',
+                    'record_type' => 'repair',
+                    'amount' => round((float)($record['amount'] ?? 0), 2),
+                    'record_date' => $record['record_date'] ?? '',
+                    'status' => $record['repair_status'] ?? 'unknown',
+                    'payment_status' => $record['payment_status'] ?? 'unknown',
+                    'customer_name' => $record['customer_name'] ?? 'N/A',
+                    'customer_contact' => $record['customer_contact'] ?? null,
+                    'issue_description' => $record['issue_description'] ?? '',
+                    'created_by' => $record['created_by'] ?? 'System',
+                    'item_count' => 0
+                ];
+            }
+            
+            foreach ($swapsRecords as $record) {
+                $allRecords[] = [
+                    'id' => (int)$record['id'],
+                    'company_id' => (int)$record['company_id'],
+                    'company_name' => $record['company_name'] ?? 'Unknown',
+                    'record_type' => 'swap',
+                    'amount' => round((float)($record['amount'] ?? 0), 2),
+                    'record_date' => $record['record_date'] ?? '',
+                    'status' => $record['swap_status'] ?? 'unknown',
+                    'created_by' => $record['created_by'] ?? 'System',
+                    'item_count' => 0
+                ];
+            }
+            
+            // Sort by date (newest first)
+            usort($allRecords, function($a, $b) {
+                return strtotime($b['record_date']) - strtotime($a['record_date']);
+            });
+            
+            // Calculate summary
+            $summary = [
+                'total_records' => count($allRecords),
+                'total_sales' => count($salesRecords),
+                'total_repairs' => count($repairsRecords),
+                'total_swaps' => count($swapsRecords),
+                'total_revenue' => round(array_sum(array_column($allRecords, 'amount')), 2),
+                'sales_revenue' => round(array_sum(array_map(function($r) { return $r['record_type'] === 'sale' ? $r['amount'] : 0; }, $allRecords)), 2),
+                'repairs_revenue' => round(array_sum(array_map(function($r) { return $r['record_type'] === 'repair' ? $r['amount'] : 0; }, $allRecords)), 2),
+                'swaps_revenue' => round(array_sum(array_map(function($r) { return $r['record_type'] === 'swap' ? $r['amount'] : 0; }, $allRecords)), 2)
+            ];
+            
+            ob_end_clean();
+            echo json_encode([
+                'success' => true,
+                'records' => $allRecords,
+                'summary' => $summary,
+                'filters' => [
+                    'company_id' => $companyId,
+                    'period' => $period,
+                    'date_from' => $dateFrom,
+                    'date_to' => $dateTo,
+                    'record_type' => $recordType
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            ob_end_clean();
+            http_response_code(500);
+            error_log("Company Audit Error: " . $e->getMessage());
+            error_log("Company Audit Stack: " . $e->getTraceAsString());
+            echo json_encode([
+                'success' => false,
+                'error' => 'Failed to fetch audit records',
+                'message' => $e->getMessage(),
+                'file' => basename($e->getFile()),
+                'line' => $e->getLine()
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        } catch (\Error $e) {
+            ob_end_clean();
+            http_response_code(500);
+            error_log("Company Audit Fatal Error: " . $e->getMessage());
+            error_log("Company Audit Fatal Stack: " . $e->getTraceAsString());
+            echo json_encode([
+                'success' => false,
+                'error' => 'Internal server error',
+                'message' => $e->getMessage(),
+                'file' => basename($e->getFile()),
+                'line' => $e->getLine()
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         }
     }
 }

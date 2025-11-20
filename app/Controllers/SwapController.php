@@ -8,9 +8,11 @@ use App\Models\SwapProfitLink;
 use App\Models\CustomerProduct;
 use App\Models\Product;
 use App\Models\Customer;
+use App\Models\Company;
 use App\Models\CompanyModule;
 use App\Services\NotificationService;
 use App\Services\AuditService;
+use PDO;
 
 class SwapController {
     private $swap;
@@ -19,6 +21,7 @@ class SwapController {
     private $customerProduct;
     private $product;
     private $customer;
+    private $company;
     private $notificationService;
 
     public function __construct() {
@@ -28,6 +31,7 @@ class SwapController {
         $this->customerProduct = new CustomerProduct();
         $this->product = new Product();
         $this->customer = new Customer();
+        $this->company = new Company();
         $this->notificationService = new NotificationService();
     }
 
@@ -149,7 +153,8 @@ class SwapController {
             'completed' => 0,
             'resold' => 0,
             'total_value' => 0,
-            'total_cash_received' => floatval($swapModelStats['total_cash_received'] ?? 0),
+            'total_cash_received' => 0, // Will be calculated manually from swaps in the loop
+            'cash_received_count' => 0, // Count of swaps where cash was received
             'in_stock' => 0, // Count items in stock (will be calculated in loop to match in_stock_value)
             'swapped_items_total' => $swappedItemsStats['total_items'] ?? 0,
             'swapped_items_sold' => $swappedItemsStats['sold_items'] ?? 0,
@@ -198,25 +203,67 @@ class SwapController {
                 $swapStats['pending']++;
             }
             
-            $swapStats['total_value'] += floatval($s['total_value'] ?? 0);
-            
-            // Get added_cash - check multiple possible column names and log for debugging
+            // Get added_cash - check multiple possible column names
+            // This is the cash that customers added to their phone value when swapping
             $addedCash = 0;
-            if (isset($s['added_cash']) && $s['added_cash'] !== null && $s['added_cash'] !== 'NULL') {
+            if (isset($s['added_cash']) && $s['added_cash'] !== null && $s['added_cash'] !== 'NULL' && floatval($s['added_cash']) > 0) {
                 $addedCash = floatval($s['added_cash']);
-            } elseif (isset($s['cash_added']) && $s['cash_added'] !== null && $s['cash_added'] !== 'NULL') {
+            } elseif (isset($s['cash_added']) && $s['cash_added'] !== null && $s['cash_added'] !== 'NULL' && floatval($s['cash_added']) > 0) {
                 $addedCash = floatval($s['cash_added']);
             } elseif (isset($s['difference_paid_by_company']) && $s['difference_paid_by_company'] !== null) {
-                // If company paid difference, that's negative cash received
+                // If company paid difference, that's negative cash received (customer didn't add cash)
                 $addedCash = -floatval($s['difference_paid_by_company']);
             }
             
-            // Accumulate cash received manually as fallback if model stats is 0
-            if ($addedCash > 0) {
-                if (!isset($swapStats['_manual_cash_total'])) {
-                    $swapStats['_manual_cash_total'] = 0;
+            // If added_cash is still 0, calculate it from the difference
+            // Formula: added_cash = total_value (or company_product_price) - customer_product_value
+            // This represents the cash the customer needs to add to make up the difference
+            if ($addedCash == 0 || $addedCash <= 0) {
+                $totalValue = floatval($s['total_value'] ?? 0);
+                $companyProductPrice = floatval($s['company_product_price'] ?? 0);
+                $customerProductValue = floatval($s['customer_product_value'] ?? 0);
+                
+                // Use total_value if available, otherwise use company_product_price
+                $baseValue = $totalValue > 0 ? $totalValue : $companyProductPrice;
+                
+                // If we have both base value and customer product value, calculate the difference
+                if ($baseValue > 0 && $customerProductValue > 0 && $baseValue > $customerProductValue) {
+                    $calculatedAddedCash = $baseValue - $customerProductValue;
+                    // Only use calculated value if it's positive (customer adds cash)
+                    if ($calculatedAddedCash > 0) {
+                        $addedCash = $calculatedAddedCash;
+                    }
                 }
-                $swapStats['_manual_cash_total'] += $addedCash;
+            }
+            
+            // For total_value calculation: use total_value from database (which should be added_cash for new swaps)
+            // But if total_value seems wrong (much larger than added_cash), use added_cash instead
+            $dbTotalValue = floatval($s['total_value'] ?? 0);
+            $resaleStatus = $s['resale_status'] ?? null;
+            $isResold = ($resaleStatus === 'sold' || $swapStatus === 'resold');
+            
+            // If swap is resold, total_value should include both added_cash and resale value
+            // If swap is not resold, total_value should only be added_cash
+            if ($isResold) {
+                // For resold swaps, use total_value as-is (it should already include resale value)
+                $swapStats['total_value'] += $dbTotalValue;
+            } else {
+                // For non-resold swaps, use added_cash (cash top-up only)
+                // If total_value is much larger than added_cash, it's probably an old swap with wrong value
+                if ($dbTotalValue > 0 && $addedCash > 0 && $dbTotalValue > ($addedCash * 1.5)) {
+                    // Old swap format - use added_cash instead
+                    $swapStats['total_value'] += $addedCash;
+                } else {
+                    // Use total_value if it seems correct, otherwise use added_cash
+                    $swapStats['total_value'] += ($dbTotalValue > 0 ? $dbTotalValue : $addedCash);
+                }
+            }
+            
+            // Accumulate cash received - sum all positive added_cash values
+            // This represents money customers paid in addition to their phone value
+            if ($addedCash > 0) {
+                $swapStats['total_cash_received'] += $addedCash;
+                $swapStats['cash_received_count']++; // Count swaps where cash was received
             }
             
             // Calculate profit - always check for profit data in swaps even if profitStats exists
@@ -259,29 +306,146 @@ class SwapController {
                         }
                     } catch (\Exception $e) {
                         error_log("SwapController: Error calculating profit for swap #{$s['id']}: " . $e->getMessage());
-                        // Even if calculation fails, if both are sold, use estimate as realized
-                        if ($profitEstimate !== null) {
-                            $profitFinal = $profitEstimate;
+                        // Do not use estimate as fallback - only count finalized profits
+                    }
+                }
+                
+                // Only count finalized profits - never use estimates as realized gains
+                // If both items are sold, profit is realized (even if status not finalized)
+                if ($profitFinal !== null) {
+                    $profitToUse = $profitFinal;
+                    $swapStats['_calculated_final_profit'] += $profitToUse;
+                    $swapStats['_calculated_final_count']++;
+                    
+                    // Track losses separately (negative profits)
+                    if ($profitToUse < 0) {
+                        if (!isset($swapStats['_calculated_loss'])) {
+                            $swapStats['_calculated_loss'] = 0;
                         }
+                        $swapStats['_calculated_loss'] += abs($profitToUse);
+                    }
+                } elseif ($profitEstimate !== null) {
+                    // If no final profit but both items sold, try to calculate it
+                    try {
+                        $swapProfitLinkModel = new \App\Models\SwapProfitLink();
+                        $calculatedProfit = $swapProfitLinkModel->calculateSwapProfit($s['id']);
+                        if ($calculatedProfit !== null) {
+                            $profitToUse = $calculatedProfit;
+                            $swapStats['_calculated_final_profit'] += $profitToUse;
+                            $swapStats['_calculated_final_count']++;
+                            
+                            if ($profitToUse < 0) {
+                                if (!isset($swapStats['_calculated_loss'])) {
+                                    $swapStats['_calculated_loss'] = 0;
+                                }
+                                $swapStats['_calculated_loss'] += abs($profitToUse);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        error_log("SwapController: Error calculating profit for swap #{$s['id']}: " . $e->getMessage());
+                    }
+                }
+            } elseif ($isResold) {
+                // Item is resold - profit is realized (matches view logic)
+                // Check swap_profit_links table if final_profit column doesn't exist in swaps
+                if ($profitFinal === null) {
+                    // Try to get profit from swap_profit_links table
+                    try {
+                        $db = \Database::getInstance()->getConnection();
+                        $profitLinkQuery = $db->prepare("
+                            SELECT final_profit, profit_estimate, status as profit_status, 
+                                   company_item_sale_id, customer_item_sale_id,
+                                   company_product_cost, customer_phone_value, amount_added_by_customer
+                            FROM swap_profit_links
+                            WHERE swap_id = ?
+                            LIMIT 1
+                        ");
+                        $profitLinkQuery->execute([$s['id']]);
+                        $profitLink = $profitLinkQuery->fetch(PDO::FETCH_ASSOC);
+                        if ($profitLink) {
+                            $profitFinal = isset($profitLink['final_profit']) && $profitLink['final_profit'] !== null ? floatval($profitLink['final_profit']) : null;
+                            // If no final_profit but have profit_estimate, use it (matches view logic)
+                            if ($profitFinal === null && isset($profitLink['profit_estimate']) && $profitLink['profit_estimate'] !== null) {
+                                $profitFinal = floatval($profitLink['profit_estimate']);
+                            }
+                            if ($profitStatus === null && isset($profitLink['profit_status'])) {
+                                $profitStatus = $profitLink['profit_status'];
+                            }
+                            if (!$hasCustomerSaleId && isset($profitLink['customer_item_sale_id'])) {
+                                $hasCustomerSaleId = !empty($profitLink['customer_item_sale_id']);
+                            }
+                            // If we have company_item_sale_id, try to calculate profit from the sale
+                            if ($profitFinal === null && !empty($profitLink['company_item_sale_id'])) {
+                                try {
+                                    // Get sale details to calculate profit
+                                    $saleQuery = $db->prepare("
+                                        SELECT ps.final_amount, ps.total_cost
+                                        FROM pos_sales ps
+                                        WHERE ps.id = ?
+                                        LIMIT 1
+                                    ");
+                                    $saleQuery->execute([$profitLink['company_item_sale_id']]);
+                                    $sale = $saleQuery->fetch(PDO::FETCH_ASSOC);
+                                    if ($sale) {
+                                        $sellingPrice = floatval($sale['final_amount'] ?? 0);
+                                        $costPrice = floatval($profitLink['company_product_cost'] ?? 0);
+                                        // Profit = Selling Price - Cost Price
+                                        $profitFinal = $sellingPrice - $costPrice;
+                                        error_log("SwapController: Calculated profit for swap #{$s['id']} from sale: Selling Price ₵{$sellingPrice} - Cost ₵{$costPrice} = ₵{$profitFinal}");
+                                    }
+                                } catch (\Exception $e) {
+                                    error_log("SwapController: Error calculating profit from sale for swap #{$s['id']}: " . $e->getMessage());
+                                }
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        error_log("SwapController: Error fetching profit from swap_profit_links for swap #{$s['id']}: " . $e->getMessage());
                     }
                 }
                 
-                // Both items sold = realized profit (always, even if calculation failed)
-                $profitToUse = $profitFinal !== null ? $profitFinal : ($profitEstimate !== null ? $profitEstimate : 0);
-                $swapStats['_calculated_final_profit'] += $profitToUse;
-                $swapStats['_calculated_final_count']++;
-                
-                // Track losses separately (negative profits)
-                if ($profitToUse < 0) {
-                    if (!isset($swapStats['_calculated_loss'])) {
-                        $swapStats['_calculated_loss'] = 0;
+                // If still no final profit but item is resold, try to calculate it using SwapProfitLink model
+                if ($profitFinal === null) {
+                    try {
+                        $swapProfitLinkModel = new \App\Models\SwapProfitLink();
+                        $calculatedProfit = $swapProfitLinkModel->calculateSwapProfit($s['id']);
+                        if ($calculatedProfit !== null) {
+                            $profitFinal = $calculatedProfit;
+                            $profitStatus = 'finalized';
+                        }
+                    } catch (\Exception $e) {
+                        error_log("SwapController: Error calculating profit for swap #{$s['id']}: " . $e->getMessage());
                     }
-                    $swapStats['_calculated_loss'] += abs($profitToUse);
                 }
-            } elseif ($isResold || $profitStatus === 'finalized') {
-                // Legacy: status shows resold or profit is finalized (fallback for old swaps)
-                $profitToUse = $profitFinal !== null ? $profitFinal : ($profitEstimate !== null ? $profitEstimate : 0);
-                if ($profitToUse != 0 || $profitFinal !== null) {
+                
+                // If we have final profit (from swaps table, swap_profit_links, calculated, or estimate), count it
+                // Matches view logic: if resold and (profitFinal OR profitEstimate), show as realized
+                if ($profitFinal !== null) {
+                    $profitToUse = $profitFinal;
+                    $swapStats['_calculated_final_profit'] += $profitToUse;
+                    $swapStats['_calculated_final_count']++;
+                    if ($profitToUse < 0) {
+                        if (!isset($swapStats['_calculated_loss'])) {
+                            $swapStats['_calculated_loss'] = 0;
+                        }
+                        $swapStats['_calculated_loss'] += abs($profitToUse);
+                    }
+                } elseif ($profitEstimate !== null) {
+                    // If no final profit but have estimate and item is resold, use estimate (matches view logic)
+                    $profitToUse = $profitEstimate;
+                    $swapStats['_calculated_final_profit'] += $profitToUse;
+                    $swapStats['_calculated_final_count']++;
+                    if ($profitToUse < 0) {
+                        if (!isset($swapStats['_calculated_loss'])) {
+                            $swapStats['_calculated_loss'] = 0;
+                        }
+                        $swapStats['_calculated_loss'] += abs($profitToUse);
+                    }
+                    error_log("SwapController: Using profit_estimate ₵{$profitEstimate} for resold swap #{$s['id']} (matches view logic)");
+                }
+            } elseif ($profitStatus === 'finalized' && $hasCustomerSaleId) {
+                // Profit is finalized and customer item has been resold
+                if ($profitFinal !== null) {
+                    $profitToUse = $profitFinal;
                     $swapStats['_calculated_final_profit'] += $profitToUse;
                     $swapStats['_calculated_final_count']++;
                     if ($profitToUse < 0) {
@@ -322,10 +486,11 @@ class SwapController {
         $swapStats['total_profit'] = max(0, $swapStats['total_final_profit'] ?? 0); // Only positive profits
         $swapStats['total_loss'] = isset($swapStats['_calculated_loss']) ? $swapStats['_calculated_loss'] : max(0, -($swapStats['total_final_profit'] ?? 0)); // Losses as positive value
         
-        // Use manual cash calculation if model stats is 0 but we have manual values
-        if ($swapStats['total_cash_received'] == 0 && isset($swapStats['_manual_cash_total']) && $swapStats['_manual_cash_total'] > 0) {
-            $swapStats['total_cash_received'] = $swapStats['_manual_cash_total'];
-        }
+        // total_cash_received is now always calculated from the loop above
+        // It represents the sum of all added_cash values from swaps where customers added cash
+        
+        // Assign swapStats to stats for the view
+        $stats = $swapStats;
         
         // Capture the view content
         ob_start();
@@ -616,13 +781,13 @@ class SwapController {
                 // Send SMS notification to customer about swap completion
                 if (!empty($customer_phone)) {
                     try {
-                        $notificationService = new \App\Services\NotificationService();
+                        $notificationService = new NotificationService();
                         
                         // Get company product name
                         $companyProductName = 'Item';
                         try {
                             $productModel = new \App\Models\Product();
-                            $product = $productModel->find($company_product_id);
+                            $product = $productModel->find($company_product_id, $companyId);
                             if ($product && !empty($product['name'])) {
                                 $companyProductName = $product['name'];
                             }
@@ -1016,26 +1181,301 @@ class SwapController {
             exit;
         }
         
-        $title = 'Swap Receipt - ' . ($swap['transaction_code'] ?? 'SWAP-' . $swap['id']);
+        // Get company information
+        $company = $this->company->find($companyId);
+        $companyName = $company['name'] ?? "SellApp Store";
+        $companyAddress = $company['address'] ?? "123 Business Street, City, Country";
+        $companyPhone = $company['phone'] ?? $company['phone_number'] ?? "+233 XX XXX XXXX";
         
-        // Capture the view content
-        ob_start();
-        include __DIR__ . '/../Views/swaps_receipt.php';
-        $content = ob_get_clean();
+        // Set headers for printing
+        header('Content-Type: text/html; charset=utf-8');
         
-        // Set content variable for layout
-        $GLOBALS['content'] = $content;
-        $GLOBALS['title'] = $title;
+        // Generate receipt HTML in POS standard format
+        $receipt = $this->generateReceiptHTML($swap, $companyName, $companyAddress, $companyPhone, $user);
         
-        // Pass user data to layout for sidebar role detection
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+        echo $receipt;
+        exit;
+    }
+    
+    /**
+     * Generate receipt HTML in POS standard format
+     */
+    private function generateReceiptHTML($swap, $companyName, $companyAddress, $companyPhone, $user) {
+        $receiptDate = date('Y-m-d H:i:s', strtotime($swap['swap_date'] ?? $swap['created_at'] ?? 'now'));
+        $transactionCode = $swap['transaction_code'] ?? 'SWAP-' . str_pad($swap['id'], 6, '0', STR_PAD_LEFT);
+        $customerName = $swap['customer_name'] ?? $swap['customer_name_from_table'] ?? 'Walk-in Customer';
+        $customerPhone = $swap['customer_phone'] ?? $swap['customer_phone_from_table'] ?? 'N/A';
+        $handledBy = $swap['handled_by_name'] ?? $user['username'] ?? 'Unknown';
+        
+        // Company product details - try multiple sources
+        $companyProductName = $swap['company_product_name'] ?? null;
+        $companyProductPrice = floatval($swap['company_product_price'] ?? 0);
+        
+        // If product name is missing or 'N/A', try to get it from other sources
+        if (empty($companyProductName) || $companyProductName === 'N/A' || $companyProductName === null) {
+            // Try to construct from company_brand if available
+            $companyBrand = $swap['company_brand'] ?? '';
+            if (!empty($companyBrand)) {
+                $companyProductName = $companyBrand . ' Product';
+            } else {
+                // Try to query product directly if we have company_product_id
+                if (!empty($swap['company_product_id'])) {
+                    try {
+                        $product = $this->product->find($swap['company_product_id'], $swap['company_id']);
+                        if ($product) {
+                            $companyProductName = $product['name'] ?? '';
+                            if (empty($companyProductName)) {
+                                // Try to construct from brand and name
+                                $brand = $product['brand'] ?? '';
+                                $name = $product['name'] ?? '';
+                                if (!empty($brand) || !empty($name)) {
+                                    $companyProductName = trim($brand . ' ' . $name);
+                                }
+                            }
+                            // Update price if not already set
+                            if ($companyProductPrice == 0 && !empty($product['price'])) {
+                                $companyProductPrice = floatval($product['price']);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        error_log("Swap receipt: Error fetching product: " . $e->getMessage());
+                    }
+                }
+                
+                // If still empty, try new_phone_id (old schema)
+                if (empty($companyProductName) && !empty($swap['new_phone_id'])) {
+                    try {
+                        $db = \Database::getInstance()->getConnection();
+                        $stmt = $db->prepare("SELECT brand, model, selling_price FROM phones WHERE id = ? AND company_id = ?");
+                        $stmt->execute([$swap['new_phone_id'], $swap['company_id']]);
+                        $phone = $stmt->fetch(PDO::FETCH_ASSOC);
+                        if ($phone) {
+                            $brand = trim($phone['brand'] ?? '');
+                            $model = trim($phone['model'] ?? '');
+                            if (!empty($brand) || !empty($model)) {
+                                $companyProductName = trim($brand . ' ' . $model);
+                            }
+                            if ($companyProductPrice == 0 && !empty($phone['selling_price'])) {
+                                $companyProductPrice = floatval($phone['selling_price']);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        error_log("Swap receipt: Error fetching phone: " . $e->getMessage());
+                    }
+                }
+                
+                // Final fallback
+                if (empty($companyProductName)) {
+                    if (!empty($swap['company_product_id'])) {
+                        $companyProductName = 'Product #' . $swap['company_product_id'];
+                    } elseif (!empty($swap['new_phone_id'])) {
+                        $companyProductName = 'Phone #' . $swap['new_phone_id'];
+                    } else {
+                        $companyProductName = 'Product';
+                    }
+                }
+            }
         }
-        if (isset($_SESSION['user'])) {
-            $GLOBALS['user_data'] = $_SESSION['user'];
+        
+        // Customer product details
+        $customerProductBrand = $swap['customer_product_brand'] ?? '';
+        $customerProductModel = $swap['customer_product_model'] ?? '';
+        $customerProduct = trim($customerProductBrand . ' ' . $customerProductModel);
+        if (empty($customerProduct)) {
+            $customerProduct = 'N/A';
+        }
+        $customerProductValue = floatval($swap['customer_product_value'] ?? 0);
+        
+        // Get added_cash - check multiple possible column names
+        $addedCash = 0;
+        if (isset($swap['added_cash']) && $swap['added_cash'] !== null && $swap['added_cash'] !== 'NULL') {
+            $addedCash = floatval($swap['added_cash']);
+        } elseif (isset($swap['cash_added']) && $swap['cash_added'] !== null && $swap['cash_added'] !== 'NULL') {
+            $addedCash = floatval($swap['cash_added']);
+        } elseif (isset($swap['difference_paid_by_company']) && $swap['difference_paid_by_company'] !== null) {
+            // If company paid difference, that's negative cash received
+            $addedCash = -floatval($swap['difference_paid_by_company']);
         }
         
-        require __DIR__ . '/../Views/simple_layout.php';
+        $totalValue = floatval($swap['total_value'] ?? $companyProductPrice);
+        
+        // If added_cash is still 0 or null, calculate it from the difference
+        // Formula: added_cash = total_value (or company_product_price) - customer_product_value
+        // This represents the cash the customer needs to add to make up the difference
+        if ($addedCash == 0) {
+            // Use total_value if available, otherwise use company_product_price
+            $baseValue = $totalValue > 0 ? $totalValue : $companyProductPrice;
+            if ($baseValue > 0 && $customerProductValue > 0) {
+                $calculatedAddedCash = $baseValue - $customerProductValue;
+                // Only use calculated value if it's positive (customer adds cash)
+                // If negative, it means customer product is worth more, so no cash added
+                if ($calculatedAddedCash > 0) {
+                    $addedCash = $calculatedAddedCash;
+                }
+            }
+        }
+        
+        $faviconPath = (defined('BASE_URL_PATH') ? BASE_URL_PATH : '/sellapp') . '/assets/images/favicon.svg';
+        
+        return "
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='utf-8'>
+            <title>Swap Receipt #{$transactionCode}</title>
+            <link rel=\"icon\" type=\"image/svg+xml\" href=\"{$faviconPath}\">
+            <link rel=\"shortcut icon\" type=\"image/svg+xml\" href=\"{$faviconPath}\">
+            <style>
+                body {
+                    font-family: 'Courier New', monospace;
+                    font-size: 12px;
+                    line-height: 1.4;
+                    margin: 0;
+                    padding: 20px;
+                    background: white;
+                }
+                .receipt {
+                    max-width: 300px;
+                    margin: 0 auto;
+                    border: 1px solid #ccc;
+                    padding: 15px;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 1px dashed #333;
+                    padding-bottom: 10px;
+                    margin-bottom: 15px;
+                }
+                .company-name {
+                    font-size: 16px;
+                    font-weight: bold;
+                    margin-bottom: 5px;
+                }
+                .company-details {
+                    font-size: 10px;
+                    color: #666;
+                }
+                .sale-info {
+                    margin-bottom: 15px;
+                }
+                .sale-info div {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 3px;
+                }
+                .items {
+                    border-bottom: 1px dashed #333;
+                    padding-bottom: 10px;
+                    margin-bottom: 15px;
+                }
+                .item {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 5px;
+                }
+                .item-name {
+                    flex: 1;
+                }
+                .item-details {
+                    font-size: 10px;
+                    color: #666;
+                    margin-left: 10px;
+                }
+                .swap-section {
+                    border-top: 1px dashed #333;
+                    padding-top: 10px;
+                    margin-bottom: 15px;
+                }
+                .swap-section-title {
+                    font-weight: bold;
+                    margin-bottom: 8px;
+                }
+                .totals {
+                    margin-bottom: 15px;
+                }
+                .totals div {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 3px;
+                }
+                .total {
+                    font-weight: bold;
+                    border-top: 1px solid #333;
+                    padding-top: 5px;
+                    margin-top: 5px;
+                }
+                .footer {
+                    text-align: center;
+                    font-size: 10px;
+                    color: #666;
+                    border-top: 1px dashed #333;
+                    padding-top: 10px;
+                }
+                @media print {
+                    body { margin: 0; padding: 10px; }
+                    .receipt { border: none; max-width: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class='receipt'>
+                <div class='header'>
+                    <div class='company-name'>{$companyName}</div>
+                    <div class='company-details'>
+                        {$companyAddress}<br>
+                        Tel: {$companyPhone}
+                    </div>
+                </div>
+                
+                <div class='sale-info'>
+                    <div><span>Receipt #:</span><span>{$transactionCode}</span></div>
+                    <div><span>Date:</span><span>{$receiptDate}</span></div>
+                    <div><span>Cashier:</span><span>{$handledBy}</span></div>
+                    <div><span>Customer:</span><span>{$customerName}</span></div>
+                    <div><span>Transaction Type:</span><span>SWAP</span></div>
+                </div>
+                
+                <div class='items'>
+                    <div style='font-weight: bold; margin-bottom: 8px;'>ITEMS:</div>
+                    <div class='item'>
+                        <div>
+                            <div class='item-name'>{$companyProductName}</div>
+                            <div class='item-details'>Given to Customer</div>
+                        </div>
+                        <div>₵" . number_format($companyProductPrice, 2) . "</div>
+                    </div>
+                </div>
+                
+                <div class='swap-section'>
+                    <div class='swap-section-title'>SWAP DETAILS:</div>
+                    <div style='margin-bottom: 5px;'>
+                        <div><span>Customer Device:</span><span>{$customerProduct}</span></div>
+                        <div><span>Device Value:</span><span>₵" . number_format($customerProductValue, 2) . "</span></div>
+                    </div>
+                </div>
+                
+                <div class='totals'>
+                    <div><span>Subtotal:</span><span>₵" . number_format($companyProductPrice, 2) . "</span></div>
+                    <div><span>Cash Added:</span><span>₵" . number_format($addedCash, 2) . "</span></div>
+                    <div class='total'><span>TOTAL:</span><span>₵" . number_format($totalValue, 2) . "</span></div>
+                </div>
+                
+                <div class='footer'>
+                    <div>Payment Method: CASH</div>
+                    <div>Payment Status: PAID</div>
+                    <div>Thank you for your business!</div>
+                    <div>Visit us again soon</div>
+                </div>
+            </div>
+            
+            <script>
+                // Auto print when page loads
+                window.onload = function() {
+                    window.print();
+                };
+            </script>
+        </body>
+        </html>";
     }
 
     /**
@@ -1146,11 +1586,15 @@ class SwapController {
      * Delete swap (for managers)
      */
     public function delete($id) {
-        header('Content-Type: application/json');
+        // Clean output buffer first
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        ob_start();
         
-        // Clean output buffer
-        if (ob_get_level()) {
-            ob_clean();
+        // Set JSON header
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
         }
         
         // Start session if not started
@@ -1162,6 +1606,7 @@ class SwapController {
         try {
             \App\Middleware\WebAuthMiddleware::handle(['manager', 'admin', 'system_admin']);
         } catch (\Exception $e) {
+            ob_end_clean();
             http_response_code(401);
             echo json_encode(['success' => false, 'message' => 'Unauthorized']);
             exit;
@@ -1169,6 +1614,7 @@ class SwapController {
         
         $companyId = $_SESSION['user']['company_id'] ?? null;
         if (!$companyId) {
+            ob_end_clean();
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'Company ID not found']);
             exit;
@@ -1178,6 +1624,7 @@ class SwapController {
             // Verify swap belongs to company
             $swap = $this->swap->find($id, $companyId);
             if (!$swap) {
+                ob_end_clean();
                 http_response_code(404);
                 echo json_encode(['success' => false, 'message' => 'Swap not found']);
                 exit;
@@ -1186,6 +1633,7 @@ class SwapController {
             // Delete swap (cascade should handle related records)
             $deleted = $this->swap->delete($id, $companyId);
             
+            ob_end_clean();
             if ($deleted) {
                 echo json_encode(['success' => true, 'message' => 'Swap deleted successfully']);
             } else {
@@ -1193,7 +1641,9 @@ class SwapController {
                 echo json_encode(['success' => false, 'message' => 'Failed to delete swap']);
             }
         } catch (\Exception $e) {
+            ob_end_clean();
             http_response_code(500);
+            error_log("Swap delete error: " . $e->getMessage());
             echo json_encode([
                 'success' => false,
                 'message' => 'Error deleting swap: ' . $e->getMessage()

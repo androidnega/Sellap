@@ -4,11 +4,82 @@
  */
 ?>
 
-<div class="p-6">
+<style>
+    /* Ensure table is fluid and responsive */
+    #salesTableBody td {
+        word-break: break-word;
+        overflow-wrap: break-word;
+    }
+    
+    /* Prevent horizontal scroll but allow content to be visible */
+    .sales-history-container {
+        max-width: 100%;
+        overflow-x: visible;
+    }
+    
+    /* Ensure Actions column is always visible */
+    #salesTableBody td:last-child {
+        position: relative;
+        z-index: 10;
+        background-color: white;
+        min-width: 140px;
+        white-space: nowrap;
+        overflow: visible !important;
+    }
+    
+    /* Make action buttons always visible */
+    #salesTableBody td:last-child button {
+        display: inline-flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        min-height: 36px;
+        flex-shrink: 0;
+    }
+    
+    /* Ensure action buttons container doesn't wrap */
+    #salesTableBody td:last-child > div {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow: visible !important;
+        white-space: nowrap !important;
+    }
+    
+    /* Responsive table adjustments */
+    @media (max-width: 640px) {
+        #salesTableBody td {
+            font-size: 0.875rem;
+        }
+        
+        #salesTableBody td:last-child {
+            min-width: 100px;
+        }
+        
+        #salesTableBody td:last-child button {
+            min-width: 28px;
+            min-height: 28px;
+        }
+    }
+    
+    /* Ensure table doesn't overflow */
+    table {
+        table-layout: auto;
+        width: 100%;
+    }
+    
+    /* Make sure Actions column header is visible */
+    table thead th:last-child {
+        min-width: 120px;
+    }
+</style>
+
+<div class="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 sales-history-container">
     <!-- Header -->
     <div class="mb-6">
-        <h2 class="text-3xl font-bold text-gray-800">Sales History</h2>
-        <p class="text-gray-600">Transaction records and sales reports</p>
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">Sales History</h2>
+        <p class="text-sm sm:text-base text-gray-600">Transaction records and sales reports</p>
     </div>
     
     <!-- Success/Error Messages -->
@@ -27,11 +98,11 @@
     <?php endif; ?>
         
     <!-- Filters -->
-    <div class="bg-white rounded shadow mb-6">
-        <div class="p-6 border-b border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-800">Filter Sales</h3>
+    <div class="bg-white rounded-lg shadow-sm border mb-6">
+        <div class="p-4 sm:p-6 border-b border-gray-200">
+            <h3 class="text-base sm:text-lg font-semibold text-gray-800">Filter Sales</h3>
         </div>
-        <div class="p-6">
+        <div class="p-4 sm:p-6">
             <div class="flex flex-col md:flex-row gap-4">
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Search Sales</label>
@@ -69,59 +140,72 @@
     </div>
 
     <!-- Sales Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <div class="bg-white rounded shadow p-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6" id="summaryCardsContainer">
+        <div class="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
             <div class="flex items-center">
-                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-shopping-cart text-blue-600 text-xl"></i>
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-shopping-cart text-blue-600 text-lg sm:text-xl"></i>
                 </div>
-                <div class="ml-4">
-                    <p class="text-sm text-gray-600">Total Sales</p>
-                    <p id="totalSales" class="text-2xl font-bold text-gray-800">0</p>
+                <div class="ml-3 sm:ml-4 min-w-0 flex-1">
+                    <p class="text-xs sm:text-sm text-gray-600 truncate">Total Sales</p>
+                    <p id="totalSales" class="text-xl sm:text-2xl font-bold text-gray-800 truncate">0</p>
                 </div>
             </div>
         </div>
         
-        <div class="bg-white rounded shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
             <div class="flex items-center">
-                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-dollar-sign text-green-600 text-xl"></i>
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-dollar-sign text-green-600 text-lg sm:text-xl"></i>
                 </div>
-                <div class="ml-4">
-                    <p class="text-sm text-gray-600">Total Revenue</p>
-                    <p id="totalRevenue" class="text-2xl font-bold text-gray-800">₵0.00</p>
+                <div class="ml-3 sm:ml-4 min-w-0 flex-1">
+                    <p class="text-xs sm:text-sm text-gray-600 truncate">Total Revenue</p>
+                    <p id="totalRevenue" class="text-xl sm:text-2xl font-bold text-gray-800 truncate">₵0.00</p>
                 </div>
             </div>
         </div>
         
-        <div class="bg-white rounded shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
             <div class="flex items-center">
-                <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-percentage text-yellow-600 text-xl"></i>
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-percentage text-yellow-600 text-lg sm:text-xl"></i>
                 </div>
-                <div class="ml-4">
-                    <p class="text-sm text-gray-600">Avg. Sale</p>
-                    <p id="avgSale" class="text-2xl font-bold text-gray-800">₵0.00</p>
+                <div class="ml-3 sm:ml-4 min-w-0 flex-1">
+                    <p class="text-xs sm:text-sm text-gray-600 truncate">Avg. Sale</p>
+                    <p id="avgSale" class="text-xl sm:text-2xl font-bold text-gray-800 truncate">₵0.00</p>
                 </div>
             </div>
         </div>
         
-        <div class="bg-white rounded shadow p-6">
+        <div class="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
             <div class="flex items-center">
-                <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-calendar-day text-purple-600 text-xl"></i>
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-calendar-day text-purple-600 text-lg sm:text-xl"></i>
                 </div>
-                <div class="ml-4">
-                    <p class="text-sm text-gray-600">Today's Sales</p>
-                    <p id="todaySales" class="text-2xl font-bold text-gray-800">0</p>
+                <div class="ml-3 sm:ml-4 min-w-0 flex-1">
+                    <p class="text-xs sm:text-sm text-gray-600 truncate">Today's Sales</p>
+                    <p id="todaySales" class="text-xl sm:text-2xl font-bold text-gray-800 truncate">0</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Profit Card (Managers Only) -->
+        <div id="profitCard" class="bg-white rounded-lg shadow-sm border p-4 sm:p-6 hidden">
+            <div class="flex items-center">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-chart-line text-emerald-600 text-lg sm:text-xl"></i>
+                </div>
+                <div class="ml-3 sm:ml-4 min-w-0 flex-1">
+                    <p class="text-xs sm:text-sm text-gray-600 truncate">Total Profit</p>
+                    <p id="totalProfit" class="text-xl sm:text-2xl font-bold text-gray-800 truncate">₵0.00</p>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Sales Table -->
-    <div class="bg-white rounded shadow">
-        <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+    <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+        <div class="p-4 sm:p-6 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h3 class="text-lg font-semibold text-gray-800">Recent Sales</h3>
             <div id="bulkActionsContainer" class="hidden">
                 <button id="bulkDeleteBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors text-sm">
@@ -130,49 +214,68 @@
             </div>
         </div>
         
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
-                    <tr>
-                        <th id="checkboxHeader" class="px-6 py-3 text-left hidden">
-                            <input type="checkbox" id="selectAllCheckbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                        </th>
-                        <th class="px-6 py-3 text-left">Sale ID</th>
-                        <th class="px-6 py-3 text-left">Customer</th>
-                        <th class="px-6 py-3 text-left">Item</th>
-                        <th class="px-6 py-3 text-left">Category</th>
-                        <th class="px-6 py-3 text-left">Total</th>
-                        <th class="px-6 py-3 text-left">Payment Status</th>
-                        <th class="px-6 py-3 text-left">Date</th>
-                        <th class="px-6 py-3 text-left">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="salesTableBody" class="bg-white divide-y divide-gray-200">
-                    <tr>
-                        <td colspan="8" class="px-6 py-12 text-center text-gray-500">
-                            <i class="fas fa-spinner fa-spin text-2xl mb-4"></i>
-                            <p>Loading sales data...</p>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+        <!-- Responsive table container - fluid and auto-adjusting -->
+        <div class="w-full overflow-visible">
+            <div class="inline-block w-full align-middle">
+                <table class="w-full divide-y divide-gray-200" style="table-layout: auto;">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th id="checkboxHeader" class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden">
+                                <input type="checkbox" id="selectAllCheckbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            </th>
+                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Sale ID
+                            </th>
+                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Customer
+                            </th>
+                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Item
+                            </th>
+                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                                Category
+                            </th>
+                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Total
+                            </th>
+                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                                Payment
+                            </th>
+                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                                Date
+                            </th>
+                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="min-width: 120px; width: auto;">
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="salesTableBody" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="9" class="px-4 sm:px-6 py-12 text-center text-gray-500">
+                                <i class="fas fa-spinner fa-spin text-2xl mb-4"></i>
+                                <p>Loading sales data...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
         
         <!-- Pagination -->
-        <div class="px-6 py-4 border-t border-gray-200">
-            <div class="flex items-center justify-between">
-                <div class="text-sm text-gray-700">
+        <div class="px-4 sm:px-6 py-4 border-t border-gray-200">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="text-xs sm:text-sm text-gray-700 text-center sm:text-left">
                     Showing <span id="showingStart">0</span> to <span id="showingEnd">0</span> of <span id="totalItems">0</span> results
                 </div>
                 <div class="flex items-center space-x-2">
-                    <button id="prevPageBtn" class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                        <i class="fas fa-chevron-left mr-1"></i>Previous
+                    <button id="prevPageBtn" class="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <i class="fas fa-chevron-left mr-1"></i><span class="hidden sm:inline">Previous</span>
                     </button>
                     <div id="pageNumbers" class="flex items-center space-x-1">
                         <!-- Page numbers will be generated here -->
                     </div>
-                    <button id="nextPageBtn" class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                        Next<i class="fas fa-chevron-right ml-1"></i>
+                    <button id="nextPageBtn" class="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <span class="hidden sm:inline">Next</span><i class="fas fa-chevron-right ml-1"></i>
                     </button>
                 </div>
             </div>
@@ -272,6 +375,7 @@ let canBulkDeleteSales = false;
 let selectedSales = new Set();
 
 let partialPaymentsEnabled = false;
+let isManager = false;
 
 async function loadPermissions() {
     try {
@@ -279,6 +383,24 @@ async function loadPermissions() {
         // We'll check permissions based on user role
         const userRole = '<?= isset($_SESSION["user"]["role"]) ? $_SESSION["user"]["role"] : "" ?>';
         const companyId = <?= isset($_SESSION["user"]["company_id"]) ? (int)$_SESSION["user"]["company_id"] : "null" ?>;
+        
+        // Check if user is a manager (manager, admin, or system_admin)
+        isManager = ['manager', 'admin', 'system_admin'].includes(userRole);
+        
+        // Show/hide profit card based on role
+        const profitCard = document.getElementById('profitCard');
+        if (profitCard) {
+            if (isManager) {
+                profitCard.classList.remove('hidden');
+                // Update grid to accommodate 5 cards for managers
+                const summaryCardsContainer = document.getElementById('summaryCardsContainer');
+                if (summaryCardsContainer) {
+                    summaryCardsContainer.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-6';
+                }
+            } else {
+                profitCard.classList.add('hidden');
+            }
+        }
         
         if (companyId) {
             // Check permissions via API
@@ -419,7 +541,7 @@ async function loadSalesHistory() {
             totalItems = data.pagination?.total_items || 0;
             
             renderSalesTable();
-            updateSummaryCards();
+            updateSummaryCards(data.total_profit);
             updatePagination();
         } else {
             console.error('Failed to load sales:', data.error);
@@ -435,7 +557,7 @@ function renderSalesTable() {
     if (salesData.length === 0) {
         tbody.innerHTML = `
                     <tr>
-                        <td colspan="${canBulkDeleteSales ? '8' : '7'}" class="px-6 py-12 text-center text-gray-500">
+                        <td colspan="9" class="px-4 sm:px-6 py-12 text-center text-gray-500">
                             <i class="fas fa-receipt text-2xl mb-4"></i>
                             <p>No sales found</p>
                         </td>
@@ -452,57 +574,94 @@ function renderSalesTable() {
         const showItemCount = itemCount > 1 ? ` +${itemCount - 1} more` : '';
         const isChecked = selectedSales.has(sale.id);
         
+        // Check if this sale contains swapped items (resold items)
+        // Check both field names for compatibility (has_swapped_items or is_swapped_item)
+        const hasSwappedItems = (sale.has_swapped_items == 1 || sale.has_swapped_items === '1' || sale.has_swapped_items === true) ||
+                                (sale.is_swapped_item == 1 || sale.is_swapped_item === '1' || sale.is_swapped_item === true);
+        // Use purple/lavender theme to match POS content page for swapped items
+        const rowStyle = hasSwappedItems ? 'style="background-color: #f3e8ff; border-left: 4px solid #a78bfa;" onmouseover="this.style.backgroundColor=\'#e9d5ff\'" onmouseout="this.style.backgroundColor=\'#f3e8ff\'"' : 'class="hover:bg-gray-50"';
+        const textColorStyle = hasSwappedItems ? 'style="color: #6b21a8;"' : '';
+        const badgeStyle = hasSwappedItems ? 'style="background-color: #c4b5fd; color: #6b21a8; border-color: #8b5cf6;"' : '';
+        
+        // Format date for display
+        const saleDate = new Date(sale.created_at);
+        const formattedDate = saleDate.toLocaleDateString('en-GB', { 
+            day: '2-digit', 
+            month: 'short', 
+            year: 'numeric' 
+        });
+        const formattedDateShort = saleDate.toLocaleDateString('en-GB', { 
+            day: '2-digit', 
+            month: 'short'
+        });
+        
         return `
-        <tr class="hover:bg-gray-50">
+        <tr ${rowStyle}>
             ${canBulkDeleteSales ? `
-            <td class="px-6 py-4 whitespace-nowrap">
+            <td class="px-3 sm:px-4 py-4 whitespace-nowrap hidden">
                 <input type="checkbox" class="sale-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
                        data-sale-id="${sale.id}" ${isChecked ? 'checked' : ''}>
             </td>
             ` : ''}
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+            <td class="px-3 sm:px-4 py-4 whitespace-nowrap text-sm font-medium" ${textColorStyle}>
                 #${sale.id}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                ${sale.customer_name || sale.customer_name_from_table || 'Walk-in'}
+            <td class="px-3 sm:px-4 py-4 text-sm" ${textColorStyle}>
+                <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0">
+                    <span class="truncate">${sale.customer_name || sale.customer_name_from_table || 'Walk-in'}</span>
+                    ${sale.cashier_role ? `
+                        <span class="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${
+                            sale.cashier_role === 'technician' ? 'bg-purple-100 text-purple-800' : 
+                            sale.cashier_role === 'salesperson' ? 'bg-blue-100 text-blue-800' : 
+                            'bg-gray-100 text-gray-800'
+                        }" title="Sold by ${sale.cashier_role}">
+                            ${sale.cashier_role === 'technician' ? '<i class="fas fa-tools mr-1"></i><span class="hidden sm:inline">Tech</span>' : 
+                              sale.cashier_role === 'salesperson' ? '<i class="fas fa-user-tie mr-1"></i><span class="hidden sm:inline">Sales</span>' : 
+                              sale.cashier_role}
+                        </span>
+                    ` : ''}
+                </div>
             </td>
-            <td class="px-6 py-4 text-sm text-gray-900">
-                <div class="font-medium">${itemName}${showItemCount}</div>
-                ${itemCount > 1 ? `<div class="text-xs text-gray-500">${itemCount} items</div>` : ''}
+            <td class="px-3 sm:px-4 py-4 text-sm" ${textColorStyle}>
+                <div class="font-medium truncate max-w-xs">
+                    ${hasSwappedItems ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium mr-1" ${badgeStyle} title="Swap Resold">
+                        <i class="fas fa-exchange-alt mr-1"></i>Swap Resold
+                    </span>` : ''}
+                    ${itemName}${showItemCount}
+                </div>
+                ${itemCount > 1 ? `<div class="text-xs ${hasSwappedItems ? 'text-purple-600' : 'text-gray-500'} mt-1">${itemCount} items</div>` : ''}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                ${itemCategory || '-'}
+            <td class="px-3 sm:px-4 py-4 text-sm hidden md:table-cell" ${textColorStyle}>
+                <span class="truncate block max-w-xs">${itemCategory || '-'}</span>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+            <td class="px-3 sm:px-4 py-4 whitespace-nowrap text-sm font-medium" ${textColorStyle}>
                 ₵${parseFloat(sale.final_amount || sale.total || 0).toFixed(2)}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm">
+            <td class="px-3 sm:px-4 py-4 whitespace-nowrap text-sm hidden lg:table-cell">
                 ${getPaymentStatusBadge(sale.payment_status || 'PAID', sale.final_amount || sale.total || 0)}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                ${new Date(sale.created_at).toLocaleDateString('en-GB', { 
-                    day: '2-digit', 
-                    month: 'short', 
-                    year: 'numeric' 
-                })}
+            <td class="px-3 sm:px-4 py-4 whitespace-nowrap text-sm hidden sm:table-cell" ${textColorStyle}>
+                ${formattedDate}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                <button onclick="viewSaleDetails(${sale.id})" class="text-blue-600 hover:text-blue-800 mr-3" title="View Details">
-                    <i class="fas fa-eye"></i>
-                </button>
-                ${partialPaymentsEnabled && (sale.payment_status === 'PARTIAL' || sale.payment_status === 'UNPAID') ? `
-                <button onclick="openPaymentModal(${sale.id})" class="text-orange-600 hover:text-orange-800 mr-3" title="Add Payment">
-                    <i class="fas fa-money-bill-wave"></i>
-                </button>
-                ` : ''}
-                <button onclick="printReceipt(${sale.id})" class="text-green-600 hover:text-green-800 mr-3" title="Print Receipt">
-                    <i class="fas fa-print"></i>
-                </button>
-                ${canDeleteSales ? `
-                <button onclick="deleteSale(${sale.id})" class="text-red-600 hover:text-red-800" title="Delete Sale">
-                    <i class="fas fa-trash"></i>
-                </button>
-                ` : ''}
+            <td class="px-2 sm:px-4 py-4 text-sm">
+                <div class="flex items-center justify-start gap-1.5 sm:gap-2 flex-wrap">
+                    <button onclick="viewSaleDetails(${sale.id})" class="inline-flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded p-2 transition-colors min-w-[36px] min-h-[36px]" title="View Details">
+                        <i class="fas fa-eye text-sm sm:text-base"></i>
+                    </button>
+                    ${partialPaymentsEnabled && (sale.payment_status === 'PARTIAL' || sale.payment_status === 'UNPAID') ? `
+                    <button onclick="openPaymentModal(${sale.id})" class="inline-flex items-center justify-center text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded p-2 transition-colors min-w-[36px] min-h-[36px]" title="Add Payment">
+                        <i class="fas fa-money-bill-wave text-sm sm:text-base"></i>
+                    </button>
+                    ` : ''}
+                    <button onclick="printReceipt(${sale.id})" class="inline-flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-50 rounded p-2 transition-colors min-w-[36px] min-h-[36px]" title="Print Receipt">
+                        <i class="fas fa-print text-sm sm:text-base"></i>
+                    </button>
+                    ${canDeleteSales ? `
+                    <button onclick="deleteSale(${sale.id})" class="inline-flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-50 rounded p-2 transition-colors min-w-[36px] min-h-[36px]" title="Delete Sale">
+                        <i class="fas fa-trash text-sm sm:text-base"></i>
+                    </button>
+                    ` : ''}
+                </div>
             </td>
         </tr>
         `;
@@ -661,9 +820,17 @@ function getPaymentMethodClass(method) {
     }
 }
 
-function updateSummaryCards() {
+function updateSummaryCards(totalProfit = null) {
     const totalSales = salesData.length;
     const totalRevenue = salesData.reduce((sum, sale) => sum + parseFloat(sale.final_amount || sale.total || 0), 0);
+    const avgSale = totalSales > 0 ? totalRevenue / totalSales : 0;
+    
+    // Calculate today's sales count
+    const today = new Date().toISOString().split('T')[0];
+    const todaySales = salesData.filter(sale => {
+        const saleDate = new Date(sale.created_at).toISOString().split('T')[0];
+        return saleDate === today;
+    }).length;
     
     // Calculate payment statistics
     let fullyPaidCount = 0;
@@ -690,13 +857,41 @@ function updateSummaryCards() {
         }
     });
     
-    document.getElementById('totalSales').textContent = totalSales;
-    document.getElementById('totalRevenue').textContent = `₵${totalRevenue.toFixed(2)}`;
-    document.getElementById('fullyPaidCount').textContent = fullyPaidCount;
-    document.getElementById('partialPaymentsCount').textContent = partialPaymentsCount;
-    document.getElementById('unpaidCount').textContent = unpaidCount;
-    document.getElementById('totalPaid').textContent = `₵${totalPaid.toFixed(2)}`;
-    document.getElementById('remainingAmount').textContent = `₵${remainingAmount.toFixed(2)}`;
+    // Safely update elements only if they exist
+    const totalSalesEl = document.getElementById('totalSales');
+    if (totalSalesEl) totalSalesEl.textContent = totalSales;
+    
+    const totalRevenueEl = document.getElementById('totalRevenue');
+    if (totalRevenueEl) totalRevenueEl.textContent = `₵${totalRevenue.toFixed(2)}`;
+    
+    const avgSaleEl = document.getElementById('avgSale');
+    if (avgSaleEl) avgSaleEl.textContent = `₵${avgSale.toFixed(2)}`;
+    
+    const todaySalesEl = document.getElementById('todaySales');
+    if (todaySalesEl) todaySalesEl.textContent = todaySales;
+    
+    // Update profit card for managers
+    if (isManager && totalProfit !== null && totalProfit !== undefined) {
+        const totalProfitEl = document.getElementById('totalProfit');
+        if (totalProfitEl) {
+            totalProfitEl.textContent = `₵${parseFloat(totalProfit).toFixed(2)}`;
+        }
+    }
+    
+    const fullyPaidCountEl = document.getElementById('fullyPaidCount');
+    if (fullyPaidCountEl) fullyPaidCountEl.textContent = fullyPaidCount;
+    
+    const partialPaymentsCountEl = document.getElementById('partialPaymentsCount');
+    if (partialPaymentsCountEl) partialPaymentsCountEl.textContent = partialPaymentsCount;
+    
+    const unpaidCountEl = document.getElementById('unpaidCount');
+    if (unpaidCountEl) unpaidCountEl.textContent = unpaidCount;
+    
+    const totalPaidEl = document.getElementById('totalPaid');
+    if (totalPaidEl) totalPaidEl.textContent = `₵${totalPaid.toFixed(2)}`;
+    
+    const remainingAmountEl = document.getElementById('remainingAmount');
+    if (remainingAmountEl) remainingAmountEl.textContent = `₵${remainingAmount.toFixed(2)}`;
 }
 
 function updatePagination() {
@@ -704,9 +899,14 @@ function updatePagination() {
     const start = (currentPage - 1) * itemsPerPage + 1;
     const end = Math.min(currentPage * itemsPerPage, totalItems);
     
-    document.getElementById('showingStart').textContent = totalItems > 0 ? start : 0;
-    document.getElementById('showingEnd').textContent = end;
-    document.getElementById('totalItems').textContent = totalItems;
+    const showingStartEl = document.getElementById('showingStart');
+    if (showingStartEl) showingStartEl.textContent = totalItems > 0 ? start : 0;
+    
+    const showingEndEl = document.getElementById('showingEnd');
+    if (showingEndEl) showingEndEl.textContent = end;
+    
+    const totalItemsEl = document.getElementById('totalItems');
+    if (totalItemsEl) totalItemsEl.textContent = totalItems;
     
     // Update pagination buttons
     document.getElementById('prevPageBtn').disabled = currentPage <= 1;

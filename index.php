@@ -40,6 +40,9 @@ if (file_exists(__DIR__ . '/.env')) {
 // Load application configuration
 require_once __DIR__ . '/config/app.php';
 
+// Load database configuration
+require_once __DIR__ . '/config/database.php';
+
 // Initialize Router
 use App\Core\Router;
 

@@ -112,15 +112,21 @@ class Product {
             $data['product_id'] = $this->generateProductId($data['name'], $data['company_id'] ?? null);
         }
         
-        $stmt = $this->db->prepare("
-            INSERT INTO products (
-                company_id, name, category_id, brand_id, subcategory_id, specs, price, cost, 
-                quantity, item_location, available_for_swap, status, created_by, sku, model_name,
-                description, image_url, weight, dimensions, supplier, product_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
+        // Check which cost column exists and get cost value
+        $hasCostPrice = $this->productsHasColumn('cost_price');
+        $hasCost = $this->productsHasColumn('cost');
+        $costValue = floatval($data['cost_price'] ?? $data['cost'] ?? 0);
         
-        $stmt->execute([
+        // Check if supplier_id column exists
+        $hasSupplierId = $this->productsHasColumn('supplier_id');
+        
+        // Build columns and values dynamically
+        $columns = [
+            'company_id', 'name', 'category_id', 'brand_id', 'subcategory_id', 'specs', 'price',
+            'quantity', 'item_location', 'available_for_swap', 'status', 'created_by', 'sku', 'model_name',
+            'description', 'image_url', 'weight', 'dimensions', 'supplier', 'product_id'
+        ];
+        $values = [
             $data['company_id'] ?? null,
             $data['name'],
             $data['category_id'],
@@ -128,7 +134,6 @@ class Product {
             $data['subcategory_id'] ?? null,
             $data['specs'] ? json_encode($data['specs']) : null,
             $data['price'] ?? 0,
-            $data['cost'] ?? 0,
             $data['quantity'] ?? 0,
             $data['item_location'] ?? null,
             $data['available_for_swap'] ? 1 : 0,
@@ -142,7 +147,31 @@ class Product {
             $data['dimensions'] ?? null,
             $data['supplier'] ?? null,
             $data['product_id']
-        ]);
+        ];
+        
+        // Add supplier_id if column exists
+        if ($hasSupplierId && isset($data['supplier_id'])) {
+            $columns[] = 'supplier_id';
+            $values[] = $data['supplier_id'];
+        }
+        
+        // Add cost column (prioritize cost_price if both exist)
+        if ($hasCostPrice) {
+            array_splice($columns, 7, 0, 'cost_price'); // Insert after 'price'
+            array_splice($values, 7, 0, $costValue);
+        } elseif ($hasCost) {
+            array_splice($columns, 7, 0, 'cost'); // Insert after 'price'
+            array_splice($values, 7, 0, $costValue);
+        }
+        
+        $placeholders = str_repeat('?,', count($values) - 1) . '?';
+        $columnsStr = implode(', ', $columns);
+        
+        $stmt = $this->db->prepare("
+            INSERT INTO products ({$columnsStr}) VALUES ({$placeholders})
+        ");
+        
+        $stmt->execute($values);
         
         return $this->db->lastInsertId();
     }
@@ -151,22 +180,34 @@ class Product {
      * Update an existing product
      */
     public function update($id, array $data, $company_id) {
-        $stmt = $this->db->prepare("
-            UPDATE products SET 
-                name=?, category_id=?, brand_id=?, subcategory_id=?, specs=?, price=?, cost=?, 
-                quantity=?, available_for_swap=?, status=?, sku=?, model_name=?,
-                description=?, image_url=?, weight=?, dimensions=?, supplier=?
-            WHERE id=? AND company_id=?
-        ");
+        // Check which cost column exists and get cost value
+        $hasCostPrice = $this->productsHasColumn('cost_price');
+        $hasCost = $this->productsHasColumn('cost');
+        $costValue = floatval($data['cost_price'] ?? $data['cost'] ?? 0);
         
-        return $stmt->execute([
+        // Build SET clause dynamically
+        $setClause = "name=?, category_id=?, brand_id=?, subcategory_id=?, specs=?, price=?";
+        $values = [
             $data['name'],
             $data['category_id'],
             $data['brand_id'] ?? null,
             $data['subcategory_id'] ?? null,
             $data['specs'] ? json_encode($data['specs']) : null,
-            $data['price'] ?? 0,
-            $data['cost'] ?? 0,
+            $data['price'] ?? 0
+        ];
+        
+        // Add cost column (prioritize cost_price if both exist)
+        if ($hasCostPrice) {
+            $setClause .= ", cost_price=?";
+            $values[] = $costValue;
+        } elseif ($hasCost) {
+            $setClause .= ", cost=?";
+            $values[] = $costValue;
+        }
+        
+        $setClause .= ", quantity=?, available_for_swap=?, status=?, sku=?, model_name=?,
+                description=?, image_url=?, weight=?, dimensions=?, supplier=?";
+        $values = array_merge($values, [
             $data['quantity'] ?? 0,
             $data['available_for_swap'] ? 1 : 0,
             $data['status'] ?? 'available',
@@ -180,6 +221,13 @@ class Product {
             $id,
             $company_id
         ]);
+        
+        $stmt = $this->db->prepare("
+            UPDATE products SET {$setClause}
+            WHERE id=? AND company_id=?
+        ");
+        
+        return $stmt->execute($values);
     }
 
     /**
@@ -234,7 +282,7 @@ class Product {
                 " . ($hasSwapRefId ? "COALESCE(si.resell_price, COALESCE(si2.resell_price, p.price, 0), 0) as resell_price, COALESCE(si.resell_price, COALESCE(si2.resell_price, p.price, 0), 0) as display_price," : ($hasInventoryProductId ? "COALESCE(si2.resell_price, p.price, 0) as resell_price, COALESCE(si2.resell_price, p.price, 0) as display_price," : "p.price as resell_price, p.price as display_price,")) . "
                 " . ($hasInventoryProductId ? "CASE WHEN si2.id IS NOT NULL THEN 1 ELSE 0 END as has_inventory_link," : "") . "
                 p.item_location,
-                p.model_name,
+                COALESCE(NULLIF(TRIM(p.model_name), ''), 'N/A') as model_name,
                 COALESCE(c.name, 'N/A') as category_name,
                 COALESCE(b.name, 'N/A') as brand_name
             FROM products p
@@ -268,10 +316,16 @@ class Product {
         } elseif (!$swappedItemsOnly && $hasIsSwappedItem) {
             // For regular product/inventory views: exclude swapped items with quantity = 0 (sold/resold items)
             // Swapped items should only appear if they have quantity > 0 (available for resale)
+            // Also exclude regular products with quantity = 0 (sold out items)
             $sql .= " AND NOT (COALESCE(p.is_swapped_item, 0) = 1 AND COALESCE(p.quantity, 0) = 0)";
             if ($hasInventoryProductId) {
                 $sql .= " AND NOT (si2.id IS NOT NULL AND COALESCE(p.quantity, 0) = 0)";
             }
+            // Also exclude regular products (non-swapped) with quantity = 0
+            $sql .= " AND NOT (COALESCE(p.is_swapped_item, 0) = 0 AND COALESCE(p.quantity, 0) = 0)";
+        } elseif (!$swappedItemsOnly) {
+            // If swapped item columns don't exist, still filter out products with quantity = 0
+            $sql .= " AND COALESCE(p.quantity, 0) > 0";
         }
         
         $sql .= " ORDER BY p.id DESC LIMIT " . intval($limit);
@@ -360,7 +414,7 @@ class Product {
                 {$hasInventoryLinkSelect}
                 {$resellPriceSelect}
                 p.item_location,
-                p.model_name,
+                COALESCE(NULLIF(TRIM(p.model_name), ''), 'N/A') as model_name,
                 COALESCE(c.name, 'N/A') as category_name,
                 COALESCE(b.name, 'N/A') as brand_name
             FROM products p
@@ -379,20 +433,23 @@ class Product {
         
         if ($swappedItemsOnly && $hasIsSwappedItem) {
             $sql .= " AND (p.is_swapped_item = 1" . ($hasInventoryProductId ? " OR si2.id IS NOT NULL" : "") . ")";
-        } elseif ($hasIsSwappedItem || $hasInventoryProductId) {
-            // For regular product/inventory views: exclude swapped items with quantity = 0 (sold/resold items)
+        } elseif (!$swappedItemsOnly) {
+            // For regular inventory view: show all regular products (including quantity 0)
+            // BUT hide swapped items that have been sold (quantity = 0)
             // Swapped items should only appear if they have quantity > 0 (available for resale)
-            // Check both is_swapped_item flag and inventory_product_id link
             $conditions = [];
             if ($hasIsSwappedItem) {
+                // Hide swapped items with quantity = 0 (they've been sold/resold)
                 $conditions[] = "(COALESCE(p.is_swapped_item, 0) = 1 AND COALESCE(p.quantity, 0) = 0)";
             }
             if ($hasInventoryProductId) {
+                // Hide swapped items linked via inventory_product_id with quantity = 0
                 $conditions[] = "(si2.id IS NOT NULL AND COALESCE(p.quantity, 0) = 0)";
             }
             if (!empty($conditions)) {
                 $sql .= " AND NOT (" . implode(" OR ", $conditions) . ")";
             }
+            // Regular products with quantity 0 will still show (not filtered out)
         }
         
         // Use direct integer values for LIMIT/OFFSET to avoid prepared statement issues
@@ -401,7 +458,7 @@ class Product {
         try {
             $stmt = $this->db->prepare($sql);
             $stmt->execute($params);
-            $results = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             // Update is_swapped_item flag if product is linked via inventory_product_id
             if ($hasInventoryProductId && is_array($results)) {
@@ -466,20 +523,23 @@ class Product {
             if (!empty($conditions)) {
                 $sql .= " AND (" . implode(" OR ", $conditions) . ")";
             }
-        } elseif ($hasIsSwappedItem || $hasInventoryProductId) {
-            // For regular product/inventory views: exclude swapped items with quantity = 0 (sold/resold items)
+        } elseif (!$swappedItemsOnly) {
+            // For regular inventory view: show all regular products (including quantity 0)
+            // BUT hide swapped items that have been sold (quantity = 0)
             // Swapped items should only appear if they have quantity > 0 (available for resale)
-            // Check both is_swapped_item flag and inventory_product_id link
             $conditions = [];
             if ($hasIsSwappedItem) {
+                // Hide swapped items with quantity = 0 (they've been sold/resold)
                 $conditions[] = "(COALESCE(p.is_swapped_item, 0) = 1 AND COALESCE(p.quantity, 0) = 0)";
             }
             if ($hasInventoryProductId) {
+                // Hide swapped items linked via inventory_product_id with quantity = 0
                 $conditions[] = "(si2.id IS NOT NULL AND COALESCE(p.quantity, 0) = 0)";
             }
             if (!empty($conditions)) {
                 $sql .= " AND NOT (" . implode(" OR ", $conditions) . ")";
             }
+            // Regular products with quantity 0 will still show (not filtered out)
         }
 
         $stmt = $this->db->prepare($sql);
@@ -604,7 +664,7 @@ class Product {
                 COALESCE(p.quantity, 0) as quantity,
                 COALESCE(p.status, 'available') as status,
                 p.item_location,
-                p.model_name,
+                COALESCE(NULLIF(TRIM(p.model_name), ''), 'N/A') as model_name,
                 COALESCE(c.name, 'N/A') as category_name,
                 COALESCE(b.name, 'N/A') as brand_name
             FROM products p

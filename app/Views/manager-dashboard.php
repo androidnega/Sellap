@@ -3,9 +3,12 @@
 $title = 'Manager Dashboard';
 $userRole = 'manager';
 $currentPage = 'dashboard';
-$userInfo = 'Loading...';
-$companyInfo = 'Loading...';
 
+// Ensure metrics are set (defaults if not calculated)
+$today_revenue = $today_revenue ?? 0;
+$today_sales = $today_sales ?? 0;
+$active_repairs = $active_repairs ?? 0;
+$pending_swaps = $pending_swaps ?? 0;
 
 ob_start();
 ?>
@@ -15,7 +18,7 @@ ob_start();
             </div>
             
             <!-- Key Performance Indicators -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-4">
                 <div class="bg-white rounded-lg shadow p-4 sm:p-6 overflow-hidden">
                     <div class="flex items-center">
                         <div class="p-2 sm:p-3 rounded-full bg-green-100 text-green-600 flex-shrink-0">
@@ -23,7 +26,7 @@ ob_start();
                         </div>
                         <div class="ml-3 sm:ml-4 min-w-0 flex-1">
                             <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Today's Revenue</p>
-                            <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="today-revenue">₵0.00</p>
+                            <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate">₵<?= number_format($today_revenue, 2) ?></p>
                         </div>
                     </div>
                 </div>
@@ -35,7 +38,20 @@ ob_start();
                         </div>
                         <div class="ml-3 sm:ml-4 min-w-0 flex-1">
                             <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Today's Sales</p>
-                            <p class="text-xl sm:text-2xl font-bold text-gray-900" id="today-sales">0</p>
+                            <p class="text-xl sm:text-2xl font-bold text-gray-900"><?= number_format($today_sales) ?></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow p-4 sm:p-6 overflow-hidden">
+                    <div class="flex items-center">
+                        <div class="p-2 sm:p-3 rounded-full bg-emerald-100 text-emerald-600 flex-shrink-0">
+                            <i class="fas fa-dollar-sign text-lg sm:text-xl"></i>
+                        </div>
+                        <div class="ml-3 sm:ml-4 min-w-0 flex-1">
+                            <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Profit</p>
+                            <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="total-profit">₵0.00</p>
+                            <p class="text-xs text-gray-500 truncate">Realized gains</p>
                         </div>
                     </div>
                 </div>
@@ -47,7 +63,7 @@ ob_start();
                         </div>
                         <div class="ml-3 sm:ml-4 min-w-0 flex-1">
                             <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Active Repairs</p>
-                            <p class="text-xl sm:text-2xl font-bold text-gray-900" id="active-repairs">0</p>
+                            <p class="text-xl sm:text-2xl font-bold text-gray-900"><?= number_format($active_repairs) ?></p>
                         </div>
                     </div>
                 </div>
@@ -59,7 +75,7 @@ ob_start();
                         </div>
                         <div class="ml-3 sm:ml-4 min-w-0 flex-1">
                             <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Pending Swaps</p>
-                            <p class="text-xl sm:text-2xl font-bold text-gray-900" id="pending-swaps">0</p>
+                            <p class="text-xl sm:text-2xl font-bold text-gray-900"><?= number_format($pending_swaps) ?></p>
                         </div>
                     </div>
                 </div>
@@ -207,6 +223,65 @@ ob_start();
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     
     <script>
+        // Ensure Tailwind processes the content when it loads
+        function ensureTailwindStyles() {
+            // Wait for Tailwind to be available
+            if (window.tailwind) {
+                // Force Tailwind to process the DOM
+                if (typeof window.tailwind.refresh === 'function') {
+                    window.tailwind.refresh();
+                }
+                return true;
+            }
+            return false;
+        }
+        
+        // Function to check and apply Tailwind styles with retries
+        function applyTailwindStylesWithRetry(retries = 10) {
+            if (ensureTailwindStyles()) {
+                return;
+            }
+            if (retries > 0) {
+                setTimeout(function() {
+                    applyTailwindStylesWithRetry(retries - 1);
+                }, 200);
+            }
+        }
+        
+        // Try to ensure Tailwind styles are applied
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                // Wait a bit for Tailwind to load, then retry if needed
+                setTimeout(function() {
+                    applyTailwindStylesWithRetry();
+                }, 100);
+            });
+        } else {
+            // DOM already loaded
+            setTimeout(function() {
+                applyTailwindStylesWithRetry();
+            }, 100);
+        }
+        
+        // Listen for Tailwind loaded event
+        window.addEventListener('tailwindLoaded', function() {
+            ensureTailwindStyles();
+        });
+        
+        // Also check periodically if Tailwind becomes available
+        let tailwindCheckInterval = setInterval(function() {
+            if (window.tailwind && !window.tailwindStylesApplied) {
+                ensureTailwindStyles();
+                window.tailwindStylesApplied = true;
+                clearInterval(tailwindCheckInterval);
+            }
+        }, 500);
+        
+        // Clear interval after 10 seconds
+        setTimeout(function() {
+            clearInterval(tailwindCheckInterval);
+        }, 10000);
+        
         // Utilities
         function getToken() {
             return localStorage.getItem('token') || localStorage.getItem('sellapp_token');
@@ -237,19 +312,31 @@ ob_start();
             }
         }
 
+        // Ensure page is visible immediately
+        function initializeManagerDashboard() {
+            if (document.body) {
+                document.body.style.display = '';
+            }
+        }
+        
+        // Initialize page visibility immediately
+        initializeManagerDashboard();
+        
         // Load manager dashboard data
         document.addEventListener('DOMContentLoaded', async function() {
-            const token = getToken();
-            if (!token) {
-                window.location.href = BASE + '/';
-                return;
-            }
-            // First, make sure session is aligned with token
-            await ensureSessionFromLocalToken();
+            try {
+                const token = getToken();
+                if (!token) {
+                    window.location.href = BASE + '/';
+                    return;
+                }
+                // First, make sure session is aligned with token
+                await ensureSessionFromLocalToken();
 
-            await loadUserInfo();
-            loadCompanyMetrics();
-            loadRecentActivity();
+                await loadUserInfo();
+                loadCompanyMetrics();
+                loadProfitStats(); // Load profit immediately
+                loadRecentActivity();
             
             // Set up toggle event listener
             const toggle = document.getElementById('charts-module-toggle');
@@ -427,7 +514,23 @@ ob_start();
                 console.log('Charts data response status:', res.status);
                 
                 if (!res.ok) {
+                    // Get the error response body
+                    const errorText = await res.text();
                     console.error('Failed to load charts data:', res.status);
+                    console.error('Error response body:', errorText);
+                    
+                    // Try to parse as JSON to see debug info
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        console.error('Error details:', errorData);
+                        if (errorData.debug) {
+                            console.error('Debug info:', errorData.debug);
+                            alert(`Charts Error: ${errorData.debug.message}\nFile: ${errorData.debug.file}\nLine: ${errorData.debug.line}`);
+                        }
+                    } catch (e) {
+                        console.error('Could not parse error response');
+                    }
+                    
                     // Show sample data on error
                     renderSalesTrendsChart({ labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], revenue: [0, 0, 0, 0, 0, 0, 0] });
                     renderActivityDistributionChart({ labels: ['Sales', 'Repairs', 'Swaps', 'Customers', 'Products', 'Technicians'], values: [0, 0, 0, 0, 0, 0] });
@@ -639,6 +742,8 @@ ob_start();
         }
         
         function loadCompanyMetrics() {
+            // Main KPI metrics are now rendered server-side in PHP
+            // This function is kept for payment stats and other dynamic content
             const token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
             if (!token) return;
             
@@ -667,12 +772,7 @@ ob_start();
             })
             .then(data => {
                 if (data.success) {
-                    document.getElementById('today-revenue').textContent = '₵' + (data.metrics.today_revenue || 0).toFixed(2);
-                    document.getElementById('today-sales').textContent = data.metrics.today_sales || 0;
-                    document.getElementById('active-repairs').textContent = data.metrics.active_repairs || 0;
-                    document.getElementById('pending-swaps').textContent = data.metrics.pending_swaps || 0;
-                    
-                    // Update payment stats if available
+                    // Update payment stats if available (still dynamic)
                     if (data.metrics.payment_stats) {
                         const stats = data.metrics.payment_stats;
                         const paymentCard = document.getElementById('payment-status-card');
@@ -688,6 +788,60 @@ ob_start();
             .catch(error => {
                 console.error('Error loading company metrics:', error.message || error);
                 // Don't display raw JSON or error details in UI
+            });
+            
+            // Load profit from stats API
+            loadProfitStats();
+        }
+        
+        function loadProfitStats() {
+            const token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
+            if (!token) return;
+            
+            fetch(BASE + '/api/dashboard/stats?t=' + Date.now(), {
+                headers: getAuthHeaders()
+            })
+            .then(async response => {
+                const responseText = await response.text();
+                
+                if (!response.ok) {
+                    try {
+                        const errorData = JSON.parse(responseText);
+                        throw new Error(errorData.error || errorData.message || 'Failed to load stats');
+                    } catch (parseError) {
+                        throw new Error('Failed to load stats');
+                    }
+                }
+                
+                try {
+                    return JSON.parse(responseText);
+                } catch (parseError) {
+                    throw new Error('Invalid response from server');
+                }
+            })
+            .then(data => {
+                if (data.success && data.data) {
+                    // Debug logging
+                    console.log('Profit Stats API Response:', {
+                        total_profit: data.data.total_profit,
+                        sales_profit: data.data.sales_profit,
+                        swap_profit: data.data.swap_profit,
+                        swaps: data.data.swaps
+                    });
+                    
+                    // Update total profit
+                    const totalProfit = data.data.total_profit || 0;
+                    const profitElement = document.getElementById('total-profit');
+                    if (profitElement) {
+                        profitElement.textContent = '₵' + parseFloat(totalProfit).toFixed(2);
+                        console.log('Updated profit element with: ₵' + parseFloat(totalProfit).toFixed(2));
+                    }
+                } else {
+                    console.error('Profit Stats API Error:', data);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading profit stats:', error.message || error);
             });
         }
         
@@ -886,6 +1040,7 @@ ob_start();
         
         // Auto-refresh every 5 minutes (metrics only)
         setInterval(loadCompanyMetrics, 300000);
+        setInterval(loadProfitStats, 300000); // Refresh profit every 5 minutes
         setInterval(loadInventoryAlerts, 300000);
     </script>
 <?php

@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\User;
 use App\Models\CompanyModule;
 use App\Middleware\AuthMiddleware;
+use App\Services\BackupService;
 
 class CompanyController {
     private $companyModel;
@@ -114,6 +115,16 @@ class CompanyController {
             $defaultModules = ['products_inventory', 'pos_sales', 'customers'];
             $companyModuleModel = new CompanyModule();
             $companyModuleModel->initializeCompanyModules($company_id, $defaultModules);
+            
+            // Create automatic backup for the newly onboarded company
+            try {
+                $backupService = new BackupService();
+                $backupService->createCompanyBackup($company_id, $payload->sub, true);
+                error_log("Automatic backup created for newly onboarded company ID: {$company_id}");
+            } catch (\Exception $e) {
+                // Log error but don't fail company creation if backup fails
+                error_log("Failed to create automatic backup for company ID {$company_id}: " . $e->getMessage());
+            }
             
             http_response_code(201);
             echo json_encode([
@@ -474,6 +485,207 @@ class CompanyController {
         } catch (\Exception $e) {
             error_log("CompanyController::stats error: " . $e->getMessage());
             http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get company SMS settings (Manager and System Admin)
+     */
+    public function getSMSSettings() {
+        try {
+            $payload = AuthMiddleware::handle(['system_admin', 'manager']);
+            
+            // Get company ID from user or request
+            $companyId = $payload->company_id ?? null;
+            if (!$companyId && isset($_GET['company_id'])) {
+                $companyId = (int)$_GET['company_id'];
+            }
+            
+            // Managers can only view their own company
+            if ($payload->role === 'manager' && $payload->company_id != $companyId) {
+                throw new \Exception('Unauthorized access to this company');
+            }
+            
+            if (!$companyId) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Company ID is required'
+                ]);
+                return;
+            }
+            
+            $smsAccountModel = new \App\Models\CompanySMSAccount();
+            $smsAccount = $smsAccountModel->getSMSBalance($companyId);
+            
+            if (!$smsAccount || !$smsAccount['success']) {
+                http_response_code(404);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'SMS account not found'
+                ]);
+                return;
+            }
+            
+            $settings = [
+                'sms_purchase_enabled' => $smsAccount['sms_purchase_enabled'] ?? 1,
+                'sms_repair_enabled' => $smsAccount['sms_repair_enabled'] ?? 1,
+                'sms_swap_enabled' => $smsAccount['sms_swap_enabled'] ?? 1
+            ];
+            
+            http_response_code(200);
+            echo json_encode([
+                'success' => true,
+                'settings' => $settings
+            ]);
+        } catch (\Exception $e) {
+            http_response_code(403);
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Update company SMS settings (Manager and System Admin)
+     */
+    public function updateSMSSettings() {
+        try {
+            $payload = AuthMiddleware::handle(['system_admin', 'manager']);
+            
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            if (!$input) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Invalid JSON data'
+                ]);
+                return;
+            }
+            
+            // Get company ID from user or request
+            $companyId = $payload->company_id ?? null;
+            if (!$companyId && isset($input['company_id'])) {
+                $companyId = (int)$input['company_id'];
+            }
+            
+            // Managers can only update their own company
+            if ($payload->role === 'manager' && $payload->company_id != $companyId) {
+                throw new \Exception('Unauthorized access to this company');
+            }
+            
+            if (!$companyId) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Company ID is required'
+                ]);
+                return;
+            }
+            
+            $smsAccountModel = new \App\Models\CompanySMSAccount();
+            
+            // Update settings
+            $updateData = [];
+            if (isset($input['sms_purchase_enabled'])) {
+                $updateData['sms_purchase_enabled'] = (int)$input['sms_purchase_enabled'];
+            }
+            if (isset($input['sms_repair_enabled'])) {
+                $updateData['sms_repair_enabled'] = (int)$input['sms_repair_enabled'];
+            }
+            if (isset($input['sms_swap_enabled'])) {
+                $updateData['sms_swap_enabled'] = (int)$input['sms_swap_enabled'];
+            }
+            
+            if (empty($updateData)) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'No settings to update'
+                ]);
+                return;
+            }
+            
+            $result = $smsAccountModel->updateSMSSettings($companyId, $updateData);
+            
+            if ($result) {
+                http_response_code(200);
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Settings updated successfully'
+                ]);
+            } else {
+                http_response_code(500);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Failed to update settings'
+                ]);
+            }
+        } catch (\Exception $e) {
+            http_response_code(403);
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get company SMS balance (Manager and System Admin)
+     */
+    public function getSMSBalance() {
+        try {
+            $payload = AuthMiddleware::handle(['system_admin', 'manager']);
+            
+            // Get company ID from user or request
+            $companyId = $payload->company_id ?? null;
+            if (!$companyId && isset($_GET['company_id'])) {
+                $companyId = (int)$_GET['company_id'];
+            }
+            
+            // Managers can only view their own company
+            if ($payload->role === 'manager' && $payload->company_id != $companyId) {
+                throw new \Exception('Unauthorized access to this company');
+            }
+            
+            if (!$companyId) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Company ID is required'
+                ]);
+                return;
+            }
+            
+            $smsAccountModel = new \App\Models\CompanySMSAccount();
+            $balance = $smsAccountModel->getSMSBalance($companyId);
+            
+            if (!$balance || !$balance['success']) {
+                http_response_code(404);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'SMS account not found'
+                ]);
+                return;
+            }
+            
+            http_response_code(200);
+            echo json_encode([
+                'success' => true,
+                'balance' => [
+                    'total_sms' => $balance['total_sms'] ?? 0,
+                    'sms_used' => $balance['sms_used'] ?? 0,
+                    'sms_remaining' => $balance['sms_remaining'] ?? 0
+                ]
+            ]);
+        } catch (\Exception $e) {
+            http_response_code(403);
             echo json_encode([
                 'success' => false,
                 'error' => $e->getMessage()

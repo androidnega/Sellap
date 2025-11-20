@@ -204,17 +204,46 @@ class ManagerAnalyticsController {
      * GET /api/analytics/trace
      */
     public function trace() {
+        // Register shutdown function to catch fatal errors
+        register_shutdown_function(function() {
+            $error = error_get_last();
+            if ($error !== NULL && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+                while (ob_get_level() > 0) {
+                    ob_end_clean();
+                }
+                if (!headers_sent()) {
+                    header('Content-Type: application/json');
+                    http_response_code(500);
+                }
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Fatal error: ' . $error['message'],
+                    'file' => $error['file'],
+                    'line' => $error['line']
+                ]);
+                exit;
+            }
+        });
+        
+        // Suppress any error output
+        ini_set('display_errors', 0);
+        error_reporting(E_ALL);
+        
         // Clean output buffers
         while (ob_get_level() > 0) {
             ob_end_clean();
         }
         ob_start();
         
-        header('Content-Type: application/json');
+        // Set JSON header immediately
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
         
         try {
             $user = $this->getAuthenticatedUser();
             if (!$user) {
+                ob_end_clean();
                 http_response_code(401);
                 echo json_encode(['success' => false, 'error' => 'Authentication required']);
                 exit;
@@ -222,6 +251,7 @@ class ManagerAnalyticsController {
 
             $companyId = $user['company_id'] ?? null;
             if (!$companyId) {
+                ob_end_clean();
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'Company association required']);
                 exit;
@@ -229,27 +259,94 @@ class ManagerAnalyticsController {
 
             $query = $_GET['q'] ?? $_GET['query'] ?? '';
             if (empty($query)) {
+                ob_end_clean();
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'Search query required']);
                 exit;
             }
 
+            error_log("Trace API: Searching for query: {$query}, company_id: {$companyId}");
+            
+            // Test if swap exists directly
+            $debugInfo = [];
+            if (preg_match('/^SWAP-(\d+)$/i', $query, $matches)) {
+                $swapId = (int)$matches[1];
+                try {
+                    $db = \Database::getInstance()->getConnection();
+                    $testQuery = $db->prepare("SELECT id, company_id FROM swaps WHERE id = :swap_id");
+                    $testQuery->execute(['swap_id' => $swapId]);
+                    $swapTest = $testQuery->fetch(\PDO::FETCH_ASSOC);
+                    if ($swapTest) {
+                        $debugInfo['swap_exists'] = true;
+                        $debugInfo['swap_company_id'] = $swapTest['company_id'] ?? 'NULL';
+                        $debugInfo['searched_company_id'] = $companyId;
+                        $debugInfo['company_match'] = ($swapTest['company_id'] == $companyId);
+                    } else {
+                        $debugInfo['swap_exists'] = false;
+                    }
+                } catch (\Exception $e) {
+                    $debugInfo['test_error'] = $e->getMessage();
+                    error_log("Trace API: Test query error: " . $e->getMessage());
+                }
+            }
+            
             $results = $this->analyticsService->traceItem($companyId, $query);
+            error_log("Trace API: Found " . count($results) . " results");
 
             ob_end_clean();
-            echo json_encode([
+            
+            // Include debug info in development
+            $isDevelopment = (defined('APP_ENV') && APP_ENV === 'development') || 
+                           (isset($_SERVER['SERVER_NAME']) && $_SERVER['SERVER_NAME'] === 'localhost');
+            
+            $response = [
                 'success' => true,
                 'results' => $results,
                 'count' => count($results)
-            ]);
+            ];
+            
+            if ($isDevelopment && count($results) === 0) {
+                // Add debug info when no results found
+                $response['debug'] = array_merge([
+                    'query' => $query,
+                    'company_id' => $companyId,
+                    'message' => 'Check PHP error log for detailed TraceItem logs'
+                ], $debugInfo);
+            }
+            
+            echo json_encode($response);
+            exit;
         } catch (\Exception $e) {
             ob_end_clean();
             http_response_code(500);
             error_log("Analytics trace error: " . $e->getMessage());
+            error_log("Analytics trace error trace: " . $e->getTraceAsString());
+            if (!headers_sent()) {
+                header('Content-Type: application/json');
+            }
+            $isDevelopment = (defined('APP_ENV') && APP_ENV === 'development') || 
+                           (isset($_SERVER['SERVER_NAME']) && $_SERVER['SERVER_NAME'] === 'localhost');
             echo json_encode([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $isDevelopment ? $e->getTraceAsString() : null
             ]);
+            exit;
+        } catch (\Error $e) {
+            ob_end_clean();
+            http_response_code(500);
+            error_log("Analytics trace fatal error: " . $e->getMessage());
+            error_log("Analytics trace fatal error trace: " . $e->getTraceAsString());
+            if (!headers_sent()) {
+                header('Content-Type: application/json');
+            }
+            echo json_encode([
+                'success' => false,
+                'error' => 'Fatal error: ' . $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+            exit;
         }
     }
 
@@ -1194,15 +1291,15 @@ class ManagerAnalyticsController {
         $formattedData = [];
         foreach ($data as $row) {
             $formattedData[] = [
-                'ID' => $row['id'],
-                'Unique ID' => $row['unique_id'],
-                'Date' => $row['created_at'],
+                'ID' => $row['id'] ?? '',
+                'Unique ID' => $row['unique_id'] ?? '',
+                'Date' => $row['created_at'] ?? '',
                 'Customer' => $row['customer_name'] ?? '',
                 'Customer Phone' => $row['customer_phone'] ?? '',
                 'Item' => $row['item_description'] ?? '',
                 'Brand' => $row['brand'] ?? '',
                 'Model' => $row['model'] ?? '',
-                'Total Value' => number_format($row['total_value'], 2),
+                'Total Value' => number_format(floatval($row['total_value'] ?? 0), 2),
                 'Status' => $row['swap_status'] ?? ''
             ];
         }
@@ -1269,6 +1366,66 @@ class ManagerAnalyticsController {
     }
 
     /**
+     * Show audit trail details
+     * GET /dashboard/audit-trail/{id}
+     */
+    public function show($id) {
+        // Handle web authentication - managers and admins only
+        WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+        
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
+        $user = $this->getAuthenticatedUser();
+        if (!$user) {
+            header('Location: ' . BASE_URL_PATH . '/');
+            exit;
+        }
+
+        $companyId = $user['company_id'] ?? null;
+        $userRole = $user['role'] ?? 'manager';
+        
+        if (!$companyId) {
+            header('Location: ' . BASE_URL_PATH . '/dashboard?error=' . urlencode('Company association required'));
+            exit;
+        }
+
+        // Get the audit log
+        $filters = ['id' => $id];
+        $logs = $this->auditService->getLogs($companyId, $filters, 1, 0);
+        
+        if (empty($logs)) {
+            $_SESSION['flash_error'] = 'Audit log not found';
+            header('Location: ' . BASE_URL_PATH . '/dashboard/audit-trail');
+            exit;
+        }
+        
+        $log = $logs[0];
+        
+        $title = 'Audit Trail Details';
+        $page = 'audit-trail';
+        
+        // Set global variables BEFORE including the view so the view can access them
+        $GLOBALS['log'] = $log;
+        $GLOBALS['currentPage'] = 'audit-trail';
+        $GLOBALS['user_data'] = $user;
+        
+        // Capture the view content
+        ob_start();
+        include __DIR__ . '/../Views/audit_trail_show.php';
+        $content = ob_get_clean();
+        
+        // Set remaining global variables for layout
+        $GLOBALS['content'] = $content;
+        $GLOBALS['title'] = $title;
+        $GLOBALS['pageTitle'] = $title;
+        
+        // Render layout
+        require __DIR__ . '/../Views/simple_layout.php';
+    }
+
+    /**
      * Get audit logs (live feed)
      * GET /api/analytics/audit-logs
      */
@@ -1309,16 +1466,29 @@ class ManagerAnalyticsController {
             // Remove null filters
             $filters = array_filter($filters, function($v) { return $v !== null; });
             
-            $limit = (int)($_GET['limit'] ?? 100);
+            $limit = (int)($_GET['limit'] ?? 10);
             $offset = (int)($_GET['offset'] ?? 0);
+            $page = (int)($_GET['page'] ?? 1);
+            
+            // Calculate offset from page if provided
+            if ($page > 1 && $offset === 0) {
+                $offset = ($page - 1) * $limit;
+            }
 
+            // Get total count for pagination
+            $totalCount = $this->auditService->getLogsCount($companyId, $filters);
             $logs = $this->auditService->getLogs($companyId, $filters, $limit, $offset);
+            $totalPages = $totalCount > 0 ? ceil($totalCount / $limit) : 0;
 
             ob_end_clean();
             echo json_encode([
                 'success' => true,
                 'logs' => $logs,
-                'count' => count($logs)
+                'count' => count($logs),
+                'total' => $totalCount,
+                'page' => $page,
+                'limit' => $limit,
+                'total_pages' => $totalPages
             ]);
         } catch (\Exception $e) {
             ob_end_clean();
@@ -2024,7 +2194,7 @@ class ManagerAnalyticsController {
                         WHERE company_id = ?
                     ");
                     $stmt->execute([$companyId]);
-                    $reportStatus = $stmt->fetch(PDO::FETCH_ASSOC) ?: ['total' => 0, 'enabled' => 0];
+                    $reportStatus = $stmt->fetch(\PDO::FETCH_ASSOC) ?: ['total' => 0, 'enabled' => 0];
                 }
             } catch (\Exception $e) {
                 error_log("Integrity dashboard - scheduled_reports query error: " . $e->getMessage());
@@ -2114,8 +2284,11 @@ class ManagerAnalyticsController {
             $dateRange = $_GET['date_range'] ?? 'last_90_days';
             $module = $_GET['module'] ?? 'all';
             $staffId = !empty($_GET['staff_id']) ? (int)$_GET['staff_id'] : null; // Filter by specific staff member (cast to int)
+            $customerId = !empty($_GET['customer_id']) ? (int)$_GET['customer_id'] : null; // Filter by customer
+            $productId = !empty($_GET['product_id']) ? (int)$_GET['product_id'] : null; // Filter by product
+            $imei = !empty($_GET['imei']) ? trim($_GET['imei']) : null; // Filter by IMEI
             
-            error_log("fetchLiveData: staff_id=" . ($staffId ?? 'null') . " (type: " . gettype($staffId) . ")");
+            error_log("fetchLiveData: staff_id=" . ($staffId ?? 'null') . ", customer_id=" . ($customerId ?? 'null') . ", product_id=" . ($productId ?? 'null') . ", imei=" . ($imei ?? 'null'));
 
             // Prioritize explicit date_from and date_to over date_range
             $dateFrom = $_GET['date_from'] ?? null;
@@ -2177,9 +2350,15 @@ class ManagerAnalyticsController {
                     if (CompanyModule::isEnabled($companyId, 'partial_payments')) {
                         try {
                             $db = \Database::getInstance()->getConnection();
+                            
+                            // Check if is_swap_mode column exists
+                            $checkIsSwapMode = $db->query("SHOW COLUMNS FROM pos_sales LIKE 'is_swap_mode'");
+                            $hasIsSwapMode = $checkIsSwapMode->rowCount() > 0;
+                            $excludeSwapSales = $hasIsSwapMode ? " AND (is_swap_mode = 0 OR is_swap_mode IS NULL)" : "";
+                            
                             $paymentStatsSql = "SELECT payment_status, COUNT(*) as count 
                                                FROM pos_sales 
-                                               WHERE company_id = ? AND DATE(created_at) BETWEEN ? AND ?
+                                               WHERE company_id = ? AND DATE(created_at) BETWEEN ? AND ?{$excludeSwapSales}
                                                GROUP BY payment_status";
                             $paymentStatsQuery = $db->prepare($paymentStatsSql);
                             $paymentStatsQuery->execute([$companyId, $dateFrom, $dateTo]);
@@ -2216,16 +2395,89 @@ class ManagerAnalyticsController {
 
             // Fetch swaps data
             if ($module === 'all' || $module === 'swaps') {
-                if (in_array('swaps', $enabledModules) || $userRole === 'system_admin') {
-                    $response['swaps'] = $this->analyticsService->getSwapStats($companyId, $dateFrom, $dateTo);
+                // Check for both 'swap' (singular) and 'swaps' (plural) module keys
+                $swapModuleEnabled = in_array('swap', $enabledModules) || in_array('swaps', $enabledModules) || $userRole === 'system_admin';
+                error_log("fetchLiveData: Swap module check - enabled: " . ($swapModuleEnabled ? 'yes' : 'no') . ", enabled modules: " . implode(', ', $enabledModules) . ", user role: {$userRole}");
+                
+                if ($swapModuleEnabled) {
+                    try {
+                        $swapStats = $this->analyticsService->getSwapStats($companyId, $dateFrom, $dateTo, $staffId);
+                        error_log("fetchLiveData: Raw swap stats from service: " . json_encode($swapStats));
+                        
+                        // Ensure all required fields are present
+                        $response['swaps'] = [
+                            'pending' => $swapStats['pending'] ?? 0,
+                            'monthly' => [
+                                'count' => $swapStats['monthly']['count'] ?? 0,
+                                'revenue' => $swapStats['monthly']['revenue'] ?? 0,
+                                'profit' => $swapStats['monthly']['profit'] ?? 0
+                            ],
+                            'profit' => $swapStats['profit'] ?? 0,
+                            'period' => $swapStats['period'] ?? [
+                                'count' => $swapStats['monthly']['count'] ?? 0,
+                                'revenue' => $swapStats['monthly']['revenue'] ?? 0,
+                                'profit' => $swapStats['monthly']['profit'] ?? $swapStats['profit'] ?? 0
+                            ],
+                            'filtered' => $swapStats['filtered'] ?? null
+                        ];
+                        error_log("fetchLiveData: Swap stats formatted successfully for company {$companyId}: " . json_encode($response['swaps']));
+                    } catch (\Exception $e) {
+                        error_log("fetchLiveData: Error fetching swap stats: " . $e->getMessage());
+                        error_log("fetchLiveData: Stack trace: " . $e->getTraceAsString());
+                        // Return empty swap stats on error
+                        $response['swaps'] = [
+                            'pending' => 0,
+                            'monthly' => ['count' => 0, 'revenue' => 0, 'profit' => 0],
+                            'profit' => 0,
+                            'period' => ['count' => 0, 'revenue' => 0, 'profit' => 0],
+                            'filtered' => null
+                        ];
+                    }
+                } else {
+                    error_log("fetchLiveData: Swap module not enabled. Enabled modules: " . implode(', ', $enabledModules) . ", User role: {$userRole}");
+                    // Still return empty swap stats structure so frontend doesn't break
+                    $response['swaps'] = [
+                        'pending' => 0,
+                        'monthly' => ['count' => 0, 'revenue' => 0, 'profit' => 0],
+                        'profit' => 0,
+                        'period' => ['count' => 0, 'revenue' => 0, 'profit' => 0],
+                        'filtered' => null
+                    ];
                 }
+            } else {
+                // Module not requested, but still return empty structure
+                $response['swaps'] = [
+                    'pending' => 0,
+                    'monthly' => ['count' => 0, 'revenue' => 0, 'profit' => 0],
+                    'profit' => 0,
+                    'period' => ['count' => 0, 'revenue' => 0, 'profit' => 0],
+                    'filtered' => null
+                ];
             }
 
-            // Fetch repairs data
-            if ($module === 'all' || $module === 'repairs') {
-                if (in_array('repairs', $enabledModules) || $userRole === 'system_admin') {
-                    $response['repairs'] = $this->analyticsService->getRepairStats($companyId, $dateFrom, $dateTo);
+            // Fetch repairs data (always fetch if repairs module enabled, needed for profit calculation)
+            if (in_array('repairs', $enabledModules) || $userRole === 'system_admin') {
+                try {
+                    $repairStats = $this->analyticsService->getRepairStats($companyId, $dateFrom, $dateTo, $staffId);
+                    $response['repairs'] = $repairStats;
+                    error_log("fetchLiveData: Repair stats fetched - " . json_encode($repairStats));
+                } catch (\Exception $e) {
+                    error_log("fetchLiveData: Error fetching repair stats: " . $e->getMessage());
+                    $response['repairs'] = [
+                        'active' => 0,
+                        'monthly' => ['count' => 0, 'revenue' => 0],
+                        'period' => ['count' => 0, 'revenue' => 0],
+                        'filtered' => null
+                    ];
                 }
+            } else {
+                // Return empty structure if repairs module not enabled
+                $response['repairs'] = [
+                    'active' => 0,
+                    'monthly' => ['count' => 0, 'revenue' => 0],
+                    'period' => ['count' => 0, 'revenue' => 0],
+                    'filtered' => null
+                ];
             }
 
             // Fetch inventory data
@@ -2279,8 +2531,8 @@ class ManagerAnalyticsController {
                 $response['repairer_parts_sales'] = $this->getRepairerPartsSales($companyId, $dateFrom, $dateTo, $staffId);
             }
 
-            // Fetch comprehensive activity logs (with staff filter if provided)
-            $activityLogs = $this->getActivityLogs($companyId, $dateFrom, $dateTo, $staffId);
+            // Fetch comprehensive activity logs (with filters if provided)
+            $activityLogs = $this->getActivityLogs($companyId, $dateFrom, $dateTo, $staffId, $customerId, $productId, $imei);
             // Ensure activity_logs is always an array
             $response['activity_logs'] = is_array($activityLogs) ? $activityLogs : [];
             
@@ -2317,40 +2569,92 @@ class ManagerAnalyticsController {
             // Recalculate Net Profit from breakdown to ensure consistency
             // This ensures the Net Profit matches the sum of weekly/monthly profits
             // Also include swap profit and repair revenue to match main dashboard
-            if (isset($response['profit']) && isset($response['profit_loss_breakdown'])) {
-                $breakdown = $response['profit_loss_breakdown'];
+            if (isset($response['profit'])) {
+                $breakdown = $response['profit_loss_breakdown'] ?? null;
                 
                 // Calculate totals from monthly breakdown (preferred) or weekly if monthly is empty
                 $salesRevenue = 0;
                 $salesCost = 0;
                 $salesProfit = 0;
                 
-                if (!empty($breakdown['monthly'])) {
+                if ($breakdown && !empty($breakdown['monthly'])) {
                     // Sum from monthly breakdown
                     foreach ($breakdown['monthly'] as $month) {
                         $salesRevenue += floatval($month['revenue'] ?? 0);
                         $salesCost += floatval($month['cost'] ?? 0);
                         $salesProfit += floatval($month['profit'] ?? 0);
                     }
-                } elseif (!empty($breakdown['weekly'])) {
+                } elseif ($breakdown && !empty($breakdown['weekly'])) {
                     // Fallback to weekly breakdown if monthly is empty
                     foreach ($breakdown['weekly'] as $week) {
                         $salesRevenue += floatval($week['revenue'] ?? 0);
                         $salesCost += floatval($week['cost'] ?? 0);
                         $salesProfit += floatval($week['profit'] ?? 0);
                     }
-                } elseif (!empty($breakdown['daily'])) {
+                } elseif ($breakdown && !empty($breakdown['daily'])) {
                     // Fallback to daily breakdown if weekly is also empty
                     foreach ($breakdown['daily'] as $day) {
                         $salesRevenue += floatval($day['revenue'] ?? 0);
                         $salesCost += floatval($day['cost'] ?? 0);
                         $salesProfit += floatval($day['profit'] ?? 0);
                     }
+                } else {
+                    // If no breakdown, use the initial profit stats (sales only)
+                    // These should already have the correct values from AnalyticsService::getProfitStats()
+                    $salesRevenue = floatval($response['profit']['revenue'] ?? 0);
+                    $salesCost = floatval($response['profit']['cost'] ?? 0);
+                    $salesProfit = floatval($response['profit']['profit'] ?? 0);
+                    error_log("Audit Trail: No breakdown data, using initial profit stats - Revenue: ₵{$salesRevenue}, Cost: ₵{$salesCost}, Profit: ₵{$salesProfit}");
+                    
+                    // If we have revenue but cost is 0, there might be a matching issue
+                    if ($salesRevenue > 0 && $salesCost == 0) {
+                        error_log("Audit Trail WARNING: Revenue is ₵{$salesRevenue} but cost is 0. This might indicate product matching issues.");
+                    }
                 }
                 
-                // Get swap profit and repair revenue to match main dashboard calculation
-                // Swap profit from period (date range) or all-time profit
-                $swapProfit = floatval($response['swaps']['period']['profit'] ?? $response['swaps']['profit'] ?? 0);
+                // Get swap profit - use filtered response data when staff_id is provided
+                // Otherwise use getSwapStatistics for consistency with swap page
+                $swapProfit = 0;
+                $swapRevenue = 0;
+                
+                if ($staffId) {
+                    // When staff is selected, use the filtered data from response (already filtered by staff_id)
+                    $swapProfit = floatval($response['swaps']['period']['profit'] ?? $response['swaps']['profit'] ?? 0);
+                    $swapRevenue = floatval($response['swaps']['period']['revenue'] ?? $response['swaps']['period']['total_value'] ?? $response['swaps']['revenue'] ?? $response['swaps']['total_value'] ?? 0);
+                    error_log("Audit Trail: Using filtered swap data for staff_id={$staffId} - Revenue: ₵{$swapRevenue}, Profit: ₵{$swapProfit}");
+                } else {
+                    // When no staff filter, use getSwapStatistics for consistency with swap page
+                    try {
+                        // Suppress any potential output from DashboardController instantiation
+                        ob_start();
+                        $dashboardController = new \App\Controllers\DashboardController();
+                        $reflection = new \ReflectionClass($dashboardController);
+                        $method = $reflection->getMethod('getSwapStatistics');
+                        $method->setAccessible(true);
+                        
+                        // Get swap statistics using the same logic as swap page
+                        $swapStats = $method->invoke($dashboardController, $companyId, $dateFrom, $dateTo);
+                        $swapProfit = floatval($swapStats['total_profit'] ?? 0); // Realized gains only
+                        // Use total_value from getSwapStatistics - this matches the swap page "Total Value" card
+                        $swapRevenue = floatval($swapStats['total_value'] ?? 0); // Same as swap page
+                        
+                        // Discard any output that might have been generated
+                        ob_end_clean();
+                        
+                        error_log("Audit Trail: Swap revenue from getSwapStatistics: ₵{$swapRevenue} (same as swap page Total Value)");
+                        error_log("Audit Trail: Swap profit from getSwapStatistics: ₵{$swapProfit} (same as swap page)");
+                    } catch (\Throwable $e) {
+                        // Discard any output that might have been generated
+                        if (ob_get_level() > 0) {
+                            ob_end_clean();
+                        }
+                        error_log("Audit Trail: Error getting swap stats from getSwapStatistics: " . $e->getMessage());
+                        error_log("Audit Trail: Exception trace: " . $e->getTraceAsString());
+                        // Fallback: try to get from response
+                        $swapProfit = floatval($response['swaps']['period']['profit'] ?? $response['swaps']['profit'] ?? 0);
+                        $swapRevenue = floatval($response['swaps']['period']['revenue'] ?? $response['swaps']['period']['total_value'] ?? $response['swaps']['revenue'] ?? $response['swaps']['total_value'] ?? 0);
+                    }
+                }
                 // Repair revenue from period (date range) or filtered or monthly
                 $repairRevenue = floatval($response['repairs']['period']['revenue'] ?? $response['repairs']['filtered']['revenue'] ?? $response['repairs']['monthly']['revenue'] ?? 0);
                 
@@ -2364,33 +2668,104 @@ class ManagerAnalyticsController {
                     }
                 }
                 
-                error_log("Audit Trail: Swap profit: ₵{$swapProfit}, Repair revenue: ₵{$repairRevenue}, Repairer profit: ₵{$repairerProfit}");
+                error_log("Audit Trail: Swap revenue: ₵{$swapRevenue}, Swap profit: ₵{$swapProfit}, Repair revenue: ₵{$repairRevenue}, Repairer profit: ₵{$repairerProfit}");
                 error_log("Audit Trail: Swaps data structure: " . json_encode($response['swaps'] ?? []));
                 error_log("Audit Trail: Repairs data structure: " . json_encode($response['repairs'] ?? []));
                 
-                // Total revenue = Sales Revenue + Repair Revenue (matches main dashboard)
-                $totalRevenue = $salesRevenue + $repairRevenue;
-                
-                // Total profit = Sales Profit + Swap Profit + Repairer Profit (matches main dashboard)
-                $totalProfit = $salesProfit + $swapProfit + $repairerProfit;
-                
-                // Only update if we have breakdown data with actual values
-                // This ensures Net Profit matches the sum of weekly/monthly profits + swap profit
-                if ((!empty($breakdown['monthly']) || !empty($breakdown['weekly']) || !empty($breakdown['daily']))) {
-                    $totalMargin = $totalRevenue > 0 ? ($totalProfit / $totalRevenue) * 100 : 0;
-                    
-                    // Calculate total cost (sales cost + repairer cost)
+                // Always recalculate to include swap profit and repair revenue
+                // This ensures Net Profit matches the sum of sales + repairs + swap profit
+                // Recalculate even if breakdown is empty (will use initial profit stats for sales)
+                {
+                    // Calculate total cost (sales cost + repairer cost + swap cost)
+                    // Only include parts cost, NOT labour cost (workmanship) for Net Profit
                     $repairerCost = 0;
+                    $totalPartsRevenue = 0; // Sum of parts revenue from all technicians
                     if (isset($response['staff_activity']) && isset($response['staff_activity']['technicians'])) {
                         foreach ($response['staff_activity']['technicians'] as $tech) {
                             $labourCost = floatval($tech['labour_cost'] ?? 0);
                             $partsRevenue = floatval($tech['parts_revenue'] ?? 0);
                             $partsProfit = floatval($tech['parts_profit'] ?? 0);
                             $partsCost = $partsRevenue - $partsProfit;
-                            $repairerCost += $labourCost + $partsCost;
+                            // Only include parts cost, exclude labour cost (workmanship)
+                            $repairerCost += $partsCost;
+                            $totalPartsRevenue += $partsRevenue;
                         }
                     }
-                    $totalCost = $salesCost + $repairerCost;
+                    
+                    // Calculate swap cost from actual cost price of swapped items (Selling Price - Cost Price = Profit)
+                    // Swap cost = Sum of cost prices of all company products given in swaps
+                    $swapCost = 0;
+                    if ($swapRevenue > 0) {
+                        try {
+                            $db = \Database::getInstance()->getConnection();
+                            
+                            // Check which products table exists
+                            $checkProductsNew = $db->query("SHOW TABLES LIKE 'products_new'");
+                            $productsTable = ($checkProductsNew && $checkProductsNew->rowCount() > 0) ? 'products_new' : 'products';
+                            
+                            // Check which cost columns exist
+                            $checkCostPrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost_price'");
+                            $checkCost = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost'");
+                            $checkPurchasePrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'purchase_price'");
+                            $hasCostPrice = $checkCostPrice->rowCount() > 0;
+                            $hasCost = $checkCost->rowCount() > 0;
+                            $hasPurchasePrice = $checkPurchasePrice->rowCount() > 0;
+                            
+                            // Determine cost column to use (prioritize cost_price, then cost, then purchase_price)
+                            $costColumn = '0';
+                            if ($hasCostPrice) {
+                                $costColumn = 'COALESCE(p.cost_price, 0)';
+                            } elseif ($hasCost) {
+                                $costColumn = 'COALESCE(p.cost, 0)';
+                            } elseif ($hasPurchasePrice) {
+                                $costColumn = 'COALESCE(p.purchase_price, 0)';
+                            }
+                            
+                            // Use the same date range as the function (already extracted from request)
+                            // $dateFrom and $dateTo are already available in the function scope
+                            
+                            // Calculate swap cost: Sum of cost prices of company products given in swaps
+                            $swapCostQuery = $db->prepare("
+                                SELECT COALESCE(SUM({$costColumn}), 0) as total_cost
+                                FROM swaps s
+                                LEFT JOIN {$productsTable} p ON s.company_product_id = p.id AND p.company_id = s.company_id
+                                WHERE s.company_id = :company_id
+                                AND DATE(s.created_at) >= :date_from
+                                AND DATE(s.created_at) <= :date_to
+                            ");
+                            $swapCostQuery->execute([
+                                'company_id' => $companyId,
+                                'date_from' => $dateFrom,
+                                'date_to' => $dateTo
+                            ]);
+                            $swapCostResult = $swapCostQuery->fetch(\PDO::FETCH_ASSOC);
+                            $swapCost = floatval($swapCostResult['total_cost'] ?? 0);
+                            
+                            error_log("Audit Trail: Swap cost calculated from products table: ₵{$swapCost} (using {$costColumn})");
+                        } catch (\Exception $e) {
+                            error_log("Audit Trail: Error calculating swap cost from products: " . $e->getMessage());
+                            // Fallback: calculate from revenue and profit if available
+                            if ($swapRevenue > 0 && $swapProfit > 0) {
+                                $swapCost = $swapRevenue - $swapProfit;
+                                error_log("Audit Trail: Using fallback swap cost calculation: ₵{$swapCost}");
+                            }
+                        }
+                    }
+                    
+                    if ($swapCost < 0) {
+                        error_log("Audit Trail WARNING: Negative swap cost detected (₵{$swapCost}), setting to 0");
+                        $swapCost = 0;
+                    }
+                    
+                    // Net Profit = Sales Profit (excluding swap transactions) + Swap Profit (realized only)
+                    // This matches the calculation on both the swap page and manager dashboard
+                    // Sales profit excludes swap transactions, swap profit is from swap page (realized only)
+                    $totalRevenue = $salesRevenue;
+                    $totalCost = $salesCost;
+                    
+                    // Total Profit = Sales Profit + Swap Profit (same as manager dashboard)
+                    // Sales profit excludes swap transactions, swap profit is realized gains only
+                    $totalProfit = $salesProfit + $swapProfit;
                     
                     // Validate and prevent anomalies
                     if ($totalCost < 0) {
@@ -2398,17 +2773,14 @@ class ManagerAnalyticsController {
                         $totalCost = 0;
                     }
                     
-                    // Calculate profit as Selling Price - Cost Price (Revenue - Cost)
-                    // Ensure profit calculation is correct: Profit = Revenue - Cost
-                    $calculatedProfit = $totalRevenue - $totalCost;
-                    
-                    // Use calculated profit if it differs significantly from sum-based profit
-                    // This ensures consistency and prevents anomalies
-                    if (abs($calculatedProfit - $totalProfit) > 0.01) {
-                        error_log("Audit Trail: Profit mismatch detected - Sum-based: ₵{$totalProfit}, Calculated (Revenue-Cost): ₵{$calculatedProfit}. Using calculated value.");
-                        $totalProfit = $calculatedProfit;
-                        $totalMargin = $totalRevenue > 0 ? ($totalProfit / $totalRevenue) * 100 : 0;
+                    // Profit cannot be negative - if cost exceeds revenue, profit is 0
+                    if ($totalProfit < 0) {
+                        error_log("Audit Trail WARNING: Calculated profit is negative (₵{$totalProfit}). Revenue: ₵{$totalRevenue}, Cost: ₵{$totalCost}. Setting profit to 0.");
+                        $totalProfit = 0;
                     }
+                    
+                    // Calculate margin
+                    $totalMargin = $totalRevenue > 0 ? ($totalProfit / $totalRevenue) * 100 : 0;
                     
                     // Round values to prevent floating point anomalies
                     $totalRevenue = round($totalRevenue, 2);
@@ -2416,17 +2788,22 @@ class ManagerAnalyticsController {
                     $totalProfit = round($totalProfit, 2);
                     $totalMargin = round($totalMargin, 2);
                     
-                    // Update profit response to match breakdown totals + swap profit + repairer profit
+                    // Update profit response - includes Sales Profit + Swap Profit (realized only)
                     $response['profit'] = [
-                        'revenue' => $totalRevenue, // Includes repair revenue
-                        'cost' => $totalCost, // Sales cost + repairer cost
-                        'profit' => $totalProfit, // Calculated as Revenue - Cost
+                        'revenue' => $totalRevenue, // Revenue: Sales only (excluding swap transactions)
+                        'cost' => $totalCost, // Sales Cost only (excluding swap transactions)
+                        'profit' => $totalProfit, // Total Profit = Sales Profit + Swap Profit (realized only)
+                        'sales_profit' => $salesProfit, // Sales Profit (excluding swap transactions)
+                        'swap_profit' => $swapProfit, // Swap Profit (realized gains only, from swap page)
                         'margin' => $totalMargin
                     ];
                     
-                    error_log("Net Profit recalculated from breakdown - Sales Revenue: ₵{$salesRevenue}, Repair Revenue: ₵{$repairRevenue}, Total Revenue: ₵{$totalRevenue}, Sales Profit: ₵{$salesProfit}, Swap Profit: ₵{$swapProfit}, Repairer Profit: ₵{$repairerProfit}, Total Profit: ₵{$totalProfit}, Margin: {$totalMargin}%");
-                } else {
-                    error_log("Net Profit not recalculated - no breakdown data available");
+                    error_log("Net Profit recalculated - Revenue: ₵{$totalRevenue} (Sales only, excluding swaps), Cost: ₵{$totalCost} (Sales only), Sales Profit: ₵{$salesProfit}, Swap Profit: ₵{$swapProfit}, Net Profit: ₵{$totalProfit}, Margin: {$totalMargin}%");
+                    
+                    // Additional debug: Log if profit is 0 but revenue exists
+                    if ($totalRevenue > 0 && $totalProfit == 0) {
+                        error_log("Audit Trail DEBUG: Profit is 0 but revenue is ₵{$totalRevenue}. Sales Cost: ₵{$salesCost}, Repairer Cost: ₵{$repairerCost}, Total Cost: ₵{$totalCost}");
+                    }
                 }
             }
 
@@ -2641,6 +3018,21 @@ class ManagerAnalyticsController {
                 $swapJoinCondition = "1=0"; // This will prevent any swaps from being joined
             }
             
+            // Check if swap exclusion columns exist
+            $checkIsSwapMode = $db->query("SHOW COLUMNS FROM pos_sales LIKE 'is_swap_mode'");
+            $hasIsSwapMode = $checkIsSwapMode && $checkIsSwapMode->rowCount() > 0;
+            $checkSwapId = $db->query("SHOW COLUMNS FROM pos_sales LIKE 'swap_id'");
+            $hasSwapId = $checkSwapId && $checkSwapId->rowCount() > 0;
+            
+            // Exclude swap sales from salesperson revenue (swaps should only appear on swap page)
+            $excludeSwapSales = "";
+            if ($hasIsSwapMode) {
+                $excludeSwapSales = " AND (ps.is_swap_mode = 0 OR ps.is_swap_mode IS NULL)";
+            }
+            if ($hasSwapId) {
+                $excludeSwapSales .= " AND ps.swap_id IS NULL";
+            }
+            
             $salespersonQuery = $db->prepare("
                 SELECT 
                     u.id,
@@ -2655,6 +3047,7 @@ class ManagerAnalyticsController {
                 LEFT JOIN pos_sales ps ON ps.created_by_user_id = u.id 
                     AND DATE(ps.created_at) BETWEEN :date_from AND :date_to
                     AND (ps.notes IS NULL OR (ps.notes NOT LIKE '%Repair #%' AND ps.notes NOT LIKE '%Products sold by repairer%'))
+                    {$excludeSwapSales}
                 LEFT JOIN swaps s ON {$swapJoinCondition}
                 WHERE {$salespersonWhere}
                 GROUP BY u.id, u.full_name, u.username, u.role
@@ -2666,10 +3059,14 @@ class ManagerAnalyticsController {
             // Repairer/Technician activity
             // Find all users who have repairs assigned to them (regardless of role)
             // This ensures we capture all repairers, even if their role isn't 'technician'
+            $dateFromStart = $dateFrom . ' 00:00:00';
+            $dateToEnd = $dateTo . ' 23:59:59';
             $technicianParams = [
                 'company_id' => $companyId,
                 'date_from' => $dateFrom,
-                'date_to' => $dateTo
+                'date_to' => $dateTo,
+                'date_from_start' => $dateFromStart,
+                'date_to_end' => $dateToEnd
             ];
             
             $technicianWhere = "u.company_id = :company_id";
@@ -2683,6 +3080,21 @@ class ManagerAnalyticsController {
                 $checkProductsNew = $db->query("SHOW TABLES LIKE 'products_new'");
                 $hasProductsNew = $checkProductsNew && $checkProductsNew->rowCount() > 0;
                 $productsTable = $hasProductsNew ? 'products_new' : 'products';
+                
+                // Check which cost column exists (prioritize cost_price, then cost)
+                $checkCostPrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost_price'");
+                $checkCost = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost'");
+                $hasCostPrice = $checkCostPrice->rowCount() > 0;
+                $hasCost = $checkCost->rowCount() > 0;
+                
+                // Determine cost column to use (prioritize cost_price if both exist)
+                if ($hasCostPrice) {
+                    $costColumn = 'COALESCE(p.cost_price, p.cost, 0)';
+                } elseif ($hasCost) {
+                    $costColumn = 'COALESCE(p.cost, 0)';
+                } else {
+                    $costColumn = '0'; // No cost column found
+                }
                 
                 $technicianQuery = $db->prepare("
                     SELECT 
@@ -2702,9 +3114,9 @@ class ManagerAnalyticsController {
                         -- Parts & Accessories Revenue (from repair_accessories table)
                         COALESCE(SUM(ra.price * ra.quantity), 0) as parts_revenue,
                         -- Parts & Accessories Cost (from products table)
-                        COALESCE(SUM(COALESCE(p.cost, 0) * ra.quantity), 0) as parts_cost,
+                        COALESCE(SUM({$costColumn} * ra.quantity), 0) as parts_cost,
                         -- Parts & Accessories Profit: (selling_price - cost) * quantity
-                        COALESCE(SUM((ra.price - COALESCE(p.cost, 0)) * ra.quantity), 0) as parts_profit,
+                        COALESCE(SUM((ra.price - {$costColumn}) * ra.quantity), 0) as parts_profit,
                         -- Parts Count: Total number of products sold as spare parts
                         COALESCE(SUM(ra.quantity), 0) as parts_count,
                         -- Total Revenue (workmanship + parts)
@@ -2717,7 +3129,8 @@ class ManagerAnalyticsController {
                     LEFT JOIN {$productsTable} p ON ra.product_id = p.id AND p.company_id = :company_id
                     WHERE r.company_id = :company_id 
                         AND r.technician_id IS NOT NULL
-                        AND DATE(r.created_at) BETWEEN :date_from AND :date_to
+                        AND r.created_at >= :date_from_start 
+                        AND r.created_at <= :date_to_end
                         " . ($staffId ? "AND u.id = :staff_id" : "") . "
                     GROUP BY u.id, u.full_name, u.username, u.role
                     HAVING repairs_count > 0
@@ -2775,12 +3188,13 @@ class ManagerAnalyticsController {
                     SELECT COUNT(*) as count
                     FROM repairs_new 
                     WHERE company_id = :company_id 
-                    AND DATE(created_at) BETWEEN :date_from AND :date_to
+                    AND created_at >= :date_from_start 
+                    AND created_at <= :date_to_end
                 ");
                 $checkDateRange->execute([
                     'company_id' => $companyId,
-                    'date_from' => $dateFrom,
-                    'date_to' => $dateTo
+                    'date_from_start' => $dateFromStart,
+                    'date_to_end' => $dateToEnd
                 ]);
                 $dateRangeCheck = $checkDateRange->fetch(\PDO::FETCH_ASSOC);
                 error_log("GetStaffActivity: Repairs in date range ({$dateFrom} to {$dateTo}): {$dateRangeCheck['count']}");
@@ -2840,6 +3254,21 @@ class ManagerAnalyticsController {
             $hasProductsNew = $checkProductsNew && $checkProductsNew->rowCount() > 0;
             $productsTable = $hasProductsNew ? 'products_new' : 'products';
             
+            // Check which cost column exists (prioritize cost_price, then cost)
+            $checkCostPrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost_price'");
+            $checkCost = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost'");
+            $hasCostPrice = $checkCostPrice->rowCount() > 0;
+            $hasCost = $checkCost->rowCount() > 0;
+            
+            // Determine cost column to use (prioritize cost_price if both exist)
+            if ($hasCostPrice) {
+                $costColumn = 'COALESCE(p.cost_price, p.cost, 0)';
+            } elseif ($hasCost) {
+                $costColumn = 'COALESCE(p.cost, 0)';
+            } else {
+                $costColumn = '0'; // No cost column found
+            }
+            
             if (!$hasRepairsNew) {
                 return [
                     'total_revenue' => 0,
@@ -2874,10 +3303,10 @@ class ManagerAnalyticsController {
                     p.sku,
                     ra.quantity,
                     ra.price as selling_price,
-                        COALESCE(p.cost, 0) as cost_price,
+                        {$costColumn} as cost_price,
                         (ra.price * ra.quantity) as revenue,
-                        (COALESCE(p.cost, 0) * ra.quantity) as cost,
-                        ((ra.price - COALESCE(p.cost, 0)) * ra.quantity) as profit,
+                        ({$costColumn} * ra.quantity) as cost,
+                        ((ra.price - {$costColumn}) * ra.quantity) as profit,
                     r.created_at as sold_date
                 FROM repair_accessories ra
                 INNER JOIN repairs_new r ON ra.repair_id = r.id
@@ -2930,9 +3359,12 @@ class ManagerAnalyticsController {
      * @param string $dateFrom
      * @param string $dateTo
      * @param int|null $staffId Optional staff member filter
+     * @param int|null $customerId Optional customer filter
+     * @param int|null $productId Optional product filter
+     * @param string|null $imei Optional IMEI filter
      * @return array
      */
-    private function getActivityLogs($companyId, $dateFrom, $dateTo, $staffId = null) {
+    private function getActivityLogs($companyId, $dateFrom, $dateTo, $staffId = null, $customerId = null, $productId = null, $imei = null) {
         try {
             $db = \Database::getInstance()->getConnection();
             $logs = [];
@@ -2994,11 +3426,31 @@ class ManagerAnalyticsController {
                 $salesParams['staff_id'] = $staffId;
             }
             
+            if ($customerId) {
+                $salesWhere .= " AND ps.customer_id = :customer_id";
+                $salesParams['customer_id'] = $customerId;
+            }
+            
+            // For product/IMEI filtering in sales, we need to join with pos_sale_items and products
+            $productJoin = "";
+            if ($productId || $imei) {
+                $productJoin = "LEFT JOIN pos_sale_items psi ON ps.id = psi.pos_sale_id LEFT JOIN products p ON psi.item_id = p.id";
+                if ($productId) {
+                    $salesWhere .= " AND p.id = :product_id";
+                    $salesParams['product_id'] = $productId;
+                }
+                if ($imei) {
+                    $salesWhere .= " AND p.imei LIKE :imei";
+                    $salesParams['imei'] = '%' . $imei . '%';
+                }
+            }
+            
             // Include repair parts sales in general sales (for manager view, not filtered by staff)
             // When viewing all sales (no staff filter), include repair parts
             // When viewing specific staff, exclude repair parts from their stats (already handled in getSalesStats)
+            // Get item descriptions from pos_sale_items using subquery
             $salesQuery = $db->prepare("
-                SELECT 
+                SELECT DISTINCT
                     ps.id,
                     'sale' as activity_type,
                     ps.created_at as timestamp,
@@ -3018,11 +3470,17 @@ class ManagerAnalyticsController {
                         WHEN ps.notes LIKE '%Repair #%' OR ps.notes LIKE '%Products sold by repairer%' 
                         THEN 'repair_part_sale'
                         ELSE 'sale'
-                    END as sale_type
+                    END as sale_type,
+                    (SELECT GROUP_CONCAT(DISTINCT COALESCE(psi.item_description, psi.item_name, 'Product') SEPARATOR ', ')
+                     FROM pos_sale_items psi 
+                     WHERE psi.pos_sale_id = ps.id 
+                     LIMIT 3) as item_description
                 FROM pos_sales ps
                 LEFT JOIN users u ON ps.created_by_user_id = u.id
                 LEFT JOIN customers c ON ps.customer_id = c.id
+                {$productJoin}
                 WHERE {$salesWhere}
+                GROUP BY ps.id, ps.created_at, u.full_name, u.role, ps.final_amount, ps.unique_id, c.full_name, c.phone_number, ps.payment_status, ps.notes
                 ORDER BY ps.created_at DESC
                 LIMIT 50
             ");
@@ -3051,6 +3509,16 @@ class ManagerAnalyticsController {
                     $repairsParams['staff_id'] = $staffId;
                 }
                 
+                if ($customerId) {
+                    $repairsWhere .= " AND r.customer_id = :customer_id";
+                    $repairsParams['customer_id'] = $customerId;
+                }
+                
+                if ($imei) {
+                    $repairsWhere .= " AND r.imei LIKE :imei";
+                    $repairsParams['imei'] = '%' . $imei . '%';
+                }
+                
                 $repairsQuery = $db->prepare("
                     SELECT 
                         r.id,
@@ -3063,6 +3531,7 @@ class ManagerAnalyticsController {
                         COALESCE(c.full_name, 'Walk-in Customer') as customer_name,
                         c.phone_number as customer_phone,
                         r.status,
+                        COALESCE(r.phone_description, r.issue, CONCAT('Repair: ', r.tracking_code)) as item_description,
                         CONCAT('Repair: ', r.tracking_code, ' - ', r.status) as description
                     FROM repairs_new r
                     LEFT JOIN users u ON r.assigned_technician_id = u.id
@@ -3073,45 +3542,262 @@ class ManagerAnalyticsController {
                 ");
                 $repairsQuery->execute($repairsParams);
                 $repairsLogs = $repairsQuery->fetchAll(\PDO::FETCH_ASSOC);
+                error_log("getActivityLogs: Repairs query returned " . count($repairsLogs) . " records");
+                if (count($repairsLogs) > 0) {
+                    error_log("getActivityLogs: Sample repair: " . json_encode($repairsLogs[0]));
+                    error_log("getActivityLogs: Repair activity_type: " . ($repairsLogs[0]['activity_type'] ?? 'missing'));
+                } else {
+                    error_log("getActivityLogs: No repairs found with params: " . json_encode($repairsParams));
+                }
             } else {
                 $repairsLogs = [];
+                error_log("getActivityLogs: repairs_new table does not exist, skipping repairs");
             }
 
-            // Swap activities
-            $swapsWhere = "s.company_id = :company_id AND s.created_at >= :date_from_start AND s.created_at <= :date_to_end";
-            $swapsParams = [
-                'company_id' => $companyId,
-                'date_from_start' => $dateFromStart,
-                'date_to_end' => $dateToEnd
-            ];
-            
-            if ($staffId) {
-                $swapsWhere .= " AND s.salesperson_id = :staff_id";
-                $swapsParams['staff_id'] = $staffId;
+            // Swap activities - check if swaps table exists first
+            $swapsLogs = [];
+            $totalSwaps = 0;
+            $checkSwapsTable = $db->query("SHOW TABLES LIKE 'swaps'");
+            if ($checkSwapsTable->rowCount() > 0) {
+                // First check total swaps count for debugging
+                $checkSwapsCount = $db->prepare("SELECT COUNT(*) as cnt FROM swaps WHERE company_id = :company_id");
+                $checkSwapsCount->execute(['company_id' => $companyId]);
+                $totalSwaps = $checkSwapsCount->fetch(\PDO::FETCH_ASSOC)['cnt'] ?? 0;
+                error_log("getActivityLogs: Total swaps in database for company {$companyId}: {$totalSwaps}");
+                
+                $swapsWhere = "s.company_id = :company_id AND s.created_at >= :date_from_start AND s.created_at <= :date_to_end";
+                $swapsParams = [
+                    'company_id' => $companyId,
+                    'date_from_start' => $dateFromStart,
+                    'date_to_end' => $dateToEnd
+                ];
+                
+                if ($staffId) {
+                    // Check if column is salesperson_id or handled_by
+                    $swapsColumns = $db->query("SHOW COLUMNS FROM swaps")->fetchAll(\PDO::FETCH_COLUMN);
+                    if (in_array('salesperson_id', $swapsColumns)) {
+                        $swapsWhere .= " AND s.salesperson_id = :staff_id";
+                    } elseif (in_array('handled_by', $swapsColumns)) {
+                        $swapsWhere .= " AND s.handled_by = :staff_id";
+                    }
+                    $swapsParams['staff_id'] = $staffId;
+                }
+                
+                if ($customerId) {
+                    $swapsWhere .= " AND s.customer_id = :customer_id";
+                    $swapsParams['customer_id'] = $customerId;
+                }
+                
+                // For swaps, IMEI filtering would be on customer_products
+                if ($imei) {
+                    $swapsWhere .= " AND EXISTS (
+                        SELECT 1 FROM customer_products cp 
+                        WHERE cp.id = s.customer_product_id 
+                        AND cp.imei LIKE :imei
+                    )";
+                    $swapsParams['imei'] = '%' . $imei . '%';
+                }
+                
+                // Check which columns exist in swaps table
+                $swapsColumns = $db->query("SHOW COLUMNS FROM swaps")->fetchAll(\PDO::FETCH_COLUMN);
+                $hasSwapCode = in_array('swap_code', $swapsColumns);
+                $hasTransactionCode = in_array('transaction_code', $swapsColumns);
+                $hasFinalProfit = in_array('final_profit', $swapsColumns);
+                $hasTotalValue = in_array('total_value', $swapsColumns);
+                $hasSalespersonId = in_array('salesperson_id', $swapsColumns);
+                $hasHandledBy = in_array('handled_by', $swapsColumns);
+                $hasCustomerName = in_array('customer_name', $swapsColumns);
+                $hasCustomerPhone = in_array('customer_phone', $swapsColumns);
+                
+                // Build the SELECT fields based on what columns exist
+                $referenceSelect = $hasSwapCode ? 's.swap_code' : ($hasTransactionCode ? 's.transaction_code' : "CONCAT('SWAP-', s.id)");
+                // CRITICAL FIX: Get profit from swap_profit_links instead of swaps.final_profit
+                // Check if swap_profit_links table exists
+                $checkProfitLinksTable = $db->query("SHOW TABLES LIKE 'swap_profit_links'");
+                $hasProfitLinksTable = $checkProfitLinksTable->rowCount() > 0;
+                
+                if ($hasProfitLinksTable) {
+                    // Check if sale ID columns exist
+                    $hasSaleIdColumns = false;
+                    try {
+                        $checkSaleIdCols = $db->query("SHOW COLUMNS FROM swap_profit_links LIKE 'company_item_sale_id'");
+                        $hasSaleIdColumns = $checkSaleIdCols->rowCount() > 0;
+                    } catch (\Exception $e) {
+                        $hasSaleIdColumns = false;
+                    }
+                    
+                    if ($hasSaleIdColumns) {
+                        // Use profit from swap_profit_links - same logic as swaps page
+                        // Profit is realized when customer item is resold (customer_item_sale_id exists)
+                        // Company sale ID may be NULL for old swaps, but profit can still be calculated
+                        $amountSelect = "CASE 
+                            WHEN spl.customer_item_sale_id IS NOT NULL 
+                            AND spl.status = 'finalized' 
+                            AND spl.final_profit IS NOT NULL 
+                            THEN spl.final_profit 
+                            WHEN spl.customer_item_sale_id IS NOT NULL 
+                            AND spl.final_profit IS NOT NULL 
+                            THEN spl.final_profit
+                            WHEN spl.customer_item_sale_id IS NOT NULL 
+                            AND spl.profit_estimate IS NOT NULL 
+                            THEN spl.profit_estimate 
+                            ELSE 0 
+                        END";
+                    } else {
+                        // Fallback: use final_profit or profit_estimate if sale ID columns don't exist
+                        $amountSelect = "COALESCE(spl.final_profit, spl.profit_estimate, 0)";
+                    }
+                } else {
+                    // Fallback to swaps.final_profit if swap_profit_links doesn't exist
+                    $amountSelect = $hasFinalProfit ? 's.final_profit' : ($hasTotalValue ? 's.total_value' : '0');
+                }
+                
+                $customerNameSelect = $hasCustomerName ? 's.customer_name' : 'NULL';
+                $customerPhoneSelect = $hasCustomerPhone ? 's.customer_phone' : 'NULL';
+                
+                $userJoinCondition = $hasSalespersonId ? 's.salesperson_id = u.id' : ($hasHandledBy ? 's.handled_by = u.id' : '1=0');
+                
+                error_log("getActivityLogs: Swaps table structure - swap_code: " . ($hasSwapCode ? 'yes' : 'no') . ", transaction_code: " . ($hasTransactionCode ? 'yes' : 'no') . ", final_profit: " . ($hasFinalProfit ? 'yes' : 'no') . ", total_value: " . ($hasTotalValue ? 'yes' : 'no') . ", swap_profit_links: " . ($hasProfitLinksTable ? 'yes' : 'no'));
+                
+                // Build JOIN clause for swap_profit_links if table exists - same as Swap model (no condition, just LEFT JOIN)
+                $profitLinksJoin = $hasProfitLinksTable ? 'LEFT JOIN swap_profit_links spl ON s.id = spl.swap_id' : '';
+                
+                $swapsQuery = $db->prepare("
+                    SELECT 
+                        s.id,
+                        'swap' as activity_type,
+                        s.created_at as timestamp,
+                        u.full_name as user_name,
+                        u.role as user_role,
+                        {$amountSelect} as amount,
+                        COALESCE({$referenceSelect}, CONCAT('SWAP-', s.id)) as reference,
+                        COALESCE(c.full_name, {$customerNameSelect}, 'Walk-in Customer') as customer_name,
+                        COALESCE(c.phone_number, {$customerPhoneSelect}, '') as customer_phone,
+                        COALESCE(s.status, 'completed') as status,
+                        COALESCE(
+                            CONCAT('Swap: ', COALESCE({$referenceSelect}, CONCAT('SWAP-', s.id)), ' - ', COALESCE(cp.brand, ''), ' ', COALESCE(cp.model, '')),
+                            CONCAT('Swap: ', COALESCE({$referenceSelect}, CONCAT('SWAP-', s.id)), ' - ', COALESCE(s.status, 'completed'))
+                        ) as item_description,
+                        CONCAT('Swap: ', COALESCE({$referenceSelect}, CONCAT('SWAP-', s.id)), ' - ', COALESCE(s.status, 'completed')) as description
+                    FROM swaps s
+                    LEFT JOIN users u ON {$userJoinCondition}
+                    LEFT JOIN customers c ON s.customer_id = c.id
+                    LEFT JOIN customer_products cp ON s.customer_product_id = cp.id
+                    {$profitLinksJoin}
+                    WHERE {$swapsWhere}
+                    ORDER BY s.created_at DESC
+                    LIMIT 50
+                ");
+                try {
+                    error_log("getActivityLogs: Executing swaps query with params: " . json_encode($swapsParams));
+                    error_log("getActivityLogs: Swaps WHERE clause: {$swapsWhere}");
+                    $swapsQuery->execute($swapsParams);
+                    $swapsLogs = $swapsQuery->fetchAll(\PDO::FETCH_ASSOC);
+                    error_log("getActivityLogs: Swaps query returned " . count($swapsLogs) . " records");
+                    if (count($swapsLogs) > 0) {
+                        error_log("getActivityLogs: Sample swap record: " . json_encode($swapsLogs[0]));
+                        // Verify activity_type is set correctly
+                        foreach ($swapsLogs as $swap) {
+                            if (($swap['activity_type'] ?? '') !== 'swap') {
+                                error_log("getActivityLogs: WARNING - Swap record has incorrect activity_type: " . ($swap['activity_type'] ?? 'missing'));
+                            }
+                        }
+                    } else {
+                        // Check swaps in date range
+                        $checkSwapsDateRange = $db->prepare("SELECT COUNT(*) as cnt FROM swaps WHERE company_id = :company_id AND created_at >= :date_from_start AND created_at <= :date_to_end");
+                        $checkSwapsDateRange->execute([
+                            'company_id' => $companyId,
+                            'date_from_start' => $dateFromStart,
+                            'date_to_end' => $dateToEnd
+                        ]);
+                        $swapsInRange = $checkSwapsDateRange->fetch(\PDO::FETCH_ASSOC)['cnt'] ?? 0;
+                        error_log("getActivityLogs: Swaps in date range {$dateFrom} to {$dateTo}: {$swapsInRange}");
+                        
+                        // If swaps exist but none in date range, fetch most recent swaps as fallback
+                        if ($totalSwaps > 0 && $swapsInRange === 0) {
+                            error_log("getActivityLogs: Swaps exist but none in date range, fetching most recent swaps...");
+                            $swapsFallbackWhere = "s.company_id = :company_id";
+                            $swapsFallbackParams = ['company_id' => $companyId];
+                            if ($staffId) {
+                                if ($hasSalespersonId) {
+                                    $swapsFallbackWhere .= " AND s.salesperson_id = :staff_id";
+                                    $swapsFallbackParams['staff_id'] = $staffId;
+                                } elseif ($hasHandledBy) {
+                                    $swapsFallbackWhere .= " AND s.handled_by = :staff_id";
+                                    $swapsFallbackParams['staff_id'] = $staffId;
+                                }
+                            }
+                            $swapsFallbackQuery = $db->prepare("
+                                SELECT 
+                                    s.id,
+                                    'swap' as activity_type,
+                                    s.created_at as timestamp,
+                                    u.full_name as user_name,
+                                    u.role as user_role,
+                                    COALESCE({$amountSelect}, 0) as amount,
+                                    COALESCE({$referenceSelect}, CONCAT('SWAP-', s.id)) as reference,
+                                    COALESCE(c.full_name, {$customerNameSelect}, 'Walk-in Customer') as customer_name,
+                                    COALESCE(c.phone_number, {$customerPhoneSelect}, '') as customer_phone,
+                                    COALESCE(s.status, 'completed') as status,
+                                    COALESCE(
+                                        CONCAT('Swap: ', COALESCE({$referenceSelect}, CONCAT('SWAP-', s.id)), ' - ', COALESCE(cp.brand, ''), ' ', COALESCE(cp.model, '')),
+                                        CONCAT('Swap: ', COALESCE({$referenceSelect}, CONCAT('SWAP-', s.id)), ' - ', COALESCE(s.status, 'completed'))
+                                    ) as item_description,
+                                    CONCAT('Swap: ', COALESCE({$referenceSelect}, CONCAT('SWAP-', s.id)), ' - ', COALESCE(s.status, 'completed')) as description
+                                FROM swaps s
+                                LEFT JOIN users u ON {$userJoinCondition}
+                                LEFT JOIN customers c ON s.customer_id = c.id
+                                LEFT JOIN customer_products cp ON s.customer_product_id = cp.id
+                                WHERE {$swapsFallbackWhere}
+                                ORDER BY s.created_at DESC
+                                LIMIT 50
+                            ");
+                            try {
+                                $swapsFallbackQuery->execute($swapsFallbackParams);
+                                $swapsLogs = $swapsFallbackQuery->fetchAll(\PDO::FETCH_ASSOC);
+                                error_log("getActivityLogs: Swaps fallback query returned " . count($swapsLogs) . " records");
+                            } catch (\Exception $e2) {
+                                error_log("getActivityLogs: Swaps fallback query failed: " . $e2->getMessage());
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    error_log("getActivityLogs: ERROR executing swaps query: " . $e->getMessage());
+                    error_log("getActivityLogs: Swaps query error trace: " . $e->getTraceAsString());
+                    // Try fallback query even on error
+                    if ($totalSwaps > 0) {
+                        error_log("getActivityLogs: Attempting swaps fallback query after error...");
+                        try {
+                            $swapsFallbackQuery = $db->prepare("
+                                SELECT 
+                                    s.id,
+                                    'swap' as activity_type,
+                                    s.created_at as timestamp,
+                                    NULL as user_name,
+                                    NULL as user_role,
+                                    0 as amount,
+                                    CONCAT('SWAP-', s.id) as reference,
+                                    'Walk-in Customer' as customer_name,
+                                    '' as customer_phone,
+                                    'completed' as status,
+                                    CONCAT('Swap: SWAP-', s.id) as item_description,
+                                    CONCAT('Swap: SWAP-', s.id) as description
+                                FROM swaps s
+                                WHERE s.company_id = :company_id
+                                ORDER BY s.created_at DESC
+                                LIMIT 50
+                            ");
+                            $swapsFallbackQuery->execute(['company_id' => $companyId]);
+                            $swapsLogs = $swapsFallbackQuery->fetchAll(\PDO::FETCH_ASSOC);
+                            error_log("getActivityLogs: Swaps emergency fallback returned " . count($swapsLogs) . " records");
+                        } catch (\Exception $e3) {
+                            error_log("getActivityLogs: Swaps emergency fallback also failed: " . $e3->getMessage());
+                        }
+                    }
+                }
+            } else {
+                error_log("getActivityLogs: Swaps table does not exist, skipping swaps");
             }
-            
-            $swapsQuery = $db->prepare("
-                SELECT 
-                    s.id,
-                    'swap' as activity_type,
-                    s.created_at as timestamp,
-                    u.full_name as user_name,
-                    u.role as user_role,
-                    s.final_profit as amount,
-                    s.swap_code as reference,
-                    COALESCE(c.full_name, 'Walk-in Customer') as customer_name,
-                    c.phone_number as customer_phone,
-                    s.status,
-                    CONCAT('Swap: ', s.swap_code, ' - ', s.status) as description
-                FROM swaps s
-                LEFT JOIN users u ON s.salesperson_id = u.id
-                LEFT JOIN customers c ON s.customer_id = c.id
-                WHERE {$swapsWhere}
-                ORDER BY s.created_at DESC
-                LIMIT 50
-            ");
-            $swapsQuery->execute($swapsParams);
-            $swapsLogs = $swapsQuery->fetchAll(\PDO::FETCH_ASSOC);
 
             // Combine and sort by timestamp
             $allLogs = array_merge($salesLogs, $repairsLogs, $swapsLogs);
@@ -3122,6 +3808,14 @@ class ManagerAnalyticsController {
             // Log for debugging
             error_log("getActivityLogs: Found " . count($allLogs) . " logs for company {$companyId} from {$dateFrom} to {$dateTo}");
             error_log("getActivityLogs: Breakdown - Sales: " . count($salesLogs) . ", Repairs: " . count($repairsLogs ?? []) . ", Swaps: " . count($swapsLogs));
+            
+            // Log swap details for debugging
+            if (count($swapsLogs) > 0) {
+                error_log("getActivityLogs: Swaps found - First swap: " . json_encode($swapsLogs[0]));
+                error_log("getActivityLogs: Swaps found - All swap activity_types: " . implode(', ', array_column($swapsLogs, 'activity_type')));
+            } else {
+                error_log("getActivityLogs: No swaps found in results");
+            }
             
             // CRITICAL: If we have sales in the database but got 0 results, ALWAYS use fallback
             // This ensures we always return transactions if they exist, regardless of date range issues
@@ -3201,8 +3895,12 @@ class ManagerAnalyticsController {
                 }
                 
                 if (count($fallbackLogs) > 0) {
-                    $allLogs = $fallbackLogs;
-                    error_log("getActivityLogs: Using fallback results - found " . count($allLogs) . " transactions");
+                    // Merge fallback logs with swaps and repairs (fallback only gets sales)
+                    $allLogs = array_merge($fallbackLogs, $repairsLogs, $swapsLogs);
+                    usort($allLogs, function($a, $b) {
+                        return strtotime($b['timestamp']) - strtotime($a['timestamp']);
+                    });
+                    error_log("getActivityLogs: Using fallback results - found " . count($fallbackLogs) . " sales, " . count($repairsLogs ?? []) . " repairs, " . count($swapsLogs) . " swaps. Total: " . count($allLogs) . " transactions");
                 } else {
                     error_log("getActivityLogs: Fallback also returned no results. Total sales in DB: {$totalSales}, Today sales: {$todaySales}");
                     // Last resort: try without joins to see if table has any data
@@ -3218,36 +3916,81 @@ class ManagerAnalyticsController {
             $result = array_slice($allLogs, 0, 100); // Return top 100 most recent
             error_log("getActivityLogs: FINAL RESULT - Returning " . count($result) . " activity logs");
             
+            // Count swaps in final result
+            $swapsInResult = array_filter($result, function($log) {
+                return ($log['activity_type'] ?? '') === 'swap';
+            });
+            error_log("getActivityLogs: Swaps in final result: " . count($swapsInResult));
+            if (count($swapsInResult) > 0) {
+                error_log("getActivityLogs: Sample swap in final result: " . json_encode(reset($swapsInResult)));
+            }
+            
             // FINAL SAFETY CHECK: If we have sales but result is empty, force a simple query
-            if (count($result) === 0 && $totalSales > 0) {
-                error_log("getActivityLogs: FINAL SAFETY - Result is empty but sales exist. Running emergency query...");
+            if (count($result) === 0 && ($totalSales > 0 || $totalSwaps > 0)) {
+                error_log("getActivityLogs: FINAL SAFETY - Result is empty but transactions exist. Running emergency query...");
+                $emergencyLogs = [];
                 try {
-                    $emergencyQuery = $db->prepare("
-                        SELECT 
-                            ps.id,
-                            'sale' as activity_type,
-                            ps.created_at as timestamp,
-                            COALESCE(u.full_name, 'System') as user_name,
-                            COALESCE(u.role, 'user') as user_role,
-                            ps.final_amount as amount,
-                            COALESCE(ps.unique_id, CONCAT('SALE-', ps.id)) as reference,
-                            COALESCE(c.full_name, 'Walk-in Customer') as customer_name,
-                            COALESCE(c.phone_number, '') as customer_phone,
-                            COALESCE(ps.payment_status, 'PAID') as status,
-                            CONCAT('Sale: ', COALESCE(ps.unique_id, CONCAT('SALE-', ps.id))) as description
-                        FROM pos_sales ps
-                        LEFT JOIN users u ON ps.created_by_user_id = u.id
-                        LEFT JOIN customers c ON ps.customer_id = c.id
-                        WHERE ps.company_id = :company_id
-                        ORDER BY ps.created_at DESC
-                        LIMIT 50
-                    ");
-                    $emergencyQuery->execute(['company_id' => $companyId]);
-                    $emergencyResult = $emergencyQuery->fetchAll(\PDO::FETCH_ASSOC);
-                    error_log("getActivityLogs: Emergency query returned " . count($emergencyResult) . " records");
-                    if (count($emergencyResult) > 0) {
-                        $result = $emergencyResult;
-                        error_log("getActivityLogs: Using emergency results - " . count($result) . " transactions");
+                    if ($totalSales > 0) {
+                        $emergencyQuery = $db->prepare("
+                            SELECT 
+                                ps.id,
+                                'sale' as activity_type,
+                                ps.created_at as timestamp,
+                                COALESCE(u.full_name, 'System') as user_name,
+                                COALESCE(u.role, 'user') as user_role,
+                                ps.final_amount as amount,
+                                COALESCE(ps.unique_id, CONCAT('SALE-', ps.id)) as reference,
+                                COALESCE(c.full_name, 'Walk-in Customer') as customer_name,
+                                COALESCE(c.phone_number, '') as customer_phone,
+                                COALESCE(ps.payment_status, 'PAID') as status,
+                                CONCAT('Sale: ', COALESCE(ps.unique_id, CONCAT('SALE-', ps.id))) as description
+                            FROM pos_sales ps
+                            LEFT JOIN users u ON ps.created_by_user_id = u.id
+                            LEFT JOIN customers c ON ps.customer_id = c.id
+                            WHERE ps.company_id = :company_id
+                            ORDER BY ps.created_at DESC
+                            LIMIT 50
+                        ");
+                        $emergencyQuery->execute(['company_id' => $companyId]);
+                        $emergencySales = $emergencyQuery->fetchAll(\PDO::FETCH_ASSOC);
+                        $emergencyLogs = array_merge($emergencyLogs, $emergencySales);
+                        error_log("getActivityLogs: Emergency sales query returned " . count($emergencySales) . " records");
+                    }
+                    
+                    // Also include swaps in emergency query
+                    $checkSwapsTableEmergency = $db->query("SHOW TABLES LIKE 'swaps'");
+                    if ($totalSwaps > 0 && $checkSwapsTableEmergency->rowCount() > 0) {
+                        $emergencySwapsQuery = $db->prepare("
+                            SELECT 
+                                s.id,
+                                'swap' as activity_type,
+                                s.created_at as timestamp,
+                                NULL as user_name,
+                                NULL as user_role,
+                                0 as amount,
+                                CONCAT('SWAP-', s.id) as reference,
+                                'Walk-in Customer' as customer_name,
+                                '' as customer_phone,
+                                'completed' as status,
+                                CONCAT('Swap: SWAP-', s.id) as item_description,
+                                CONCAT('Swap: SWAP-', s.id) as description
+                            FROM swaps s
+                            WHERE s.company_id = :company_id
+                            ORDER BY s.created_at DESC
+                            LIMIT 50
+                        ");
+                        $emergencySwapsQuery->execute(['company_id' => $companyId]);
+                        $emergencySwaps = $emergencySwapsQuery->fetchAll(\PDO::FETCH_ASSOC);
+                        $emergencyLogs = array_merge($emergencyLogs, $emergencySwaps);
+                        error_log("getActivityLogs: Emergency swaps query returned " . count($emergencySwaps) . " records");
+                    }
+                    
+                    if (count($emergencyLogs) > 0) {
+                        usort($emergencyLogs, function($a, $b) {
+                            return strtotime($b['timestamp']) - strtotime($a['timestamp']);
+                        });
+                        $result = array_slice($emergencyLogs, 0, 100);
+                        error_log("getActivityLogs: Using emergency results - " . count($result) . " transactions (sales + swaps)");
                     }
                 } catch (\Exception $e3) {
                     error_log("getActivityLogs: Emergency query failed: " . $e3->getMessage());
@@ -3263,9 +4006,12 @@ class ManagerAnalyticsController {
         } catch (\Exception $e) {
             error_log("Get activity logs error: " . $e->getMessage());
             error_log("Get activity logs trace: " . $e->getTraceAsString());
-            // Even on error, try to return recent sales as fallback
+            // Even on error, try to return recent transactions as fallback
             try {
                 $db = \Database::getInstance()->getConnection();
+                $emergencyLogs = [];
+                
+                // Get sales
                 $emergencyQuery = $db->prepare("
                     SELECT 
                         ps.id,
@@ -3287,9 +4033,41 @@ class ManagerAnalyticsController {
                     LIMIT 50
                 ");
                 $emergencyQuery->execute(['company_id' => $companyId]);
-                $emergencyLogs = $emergencyQuery->fetchAll(\PDO::FETCH_ASSOC);
-                error_log("getActivityLogs: Emergency fallback returned " . count($emergencyLogs) . " records");
-                return $emergencyLogs;
+                $emergencySales = $emergencyQuery->fetchAll(\PDO::FETCH_ASSOC);
+                $emergencyLogs = array_merge($emergencyLogs, $emergencySales);
+                
+                // Get swaps
+                $checkSwapsTable = $db->query("SHOW TABLES LIKE 'swaps'");
+                if ($checkSwapsTable->rowCount() > 0) {
+                    $emergencySwapsQuery = $db->prepare("
+                        SELECT 
+                            s.id,
+                            'swap' as activity_type,
+                            s.created_at as timestamp,
+                            NULL as user_name,
+                            NULL as user_role,
+                            0 as amount,
+                            CONCAT('SWAP-', s.id) as reference,
+                            'Walk-in Customer' as customer_name,
+                            '' as customer_phone,
+                            'completed' as status,
+                            CONCAT('Swap: SWAP-', s.id) as item_description,
+                            CONCAT('Swap: SWAP-', s.id) as description
+                        FROM swaps s
+                        WHERE s.company_id = :company_id
+                        ORDER BY s.created_at DESC
+                        LIMIT 50
+                    ");
+                    $emergencySwapsQuery->execute(['company_id' => $companyId]);
+                    $emergencySwaps = $emergencySwapsQuery->fetchAll(\PDO::FETCH_ASSOC);
+                    $emergencyLogs = array_merge($emergencyLogs, $emergencySwaps);
+                }
+                
+                usort($emergencyLogs, function($a, $b) {
+                    return strtotime($b['timestamp']) - strtotime($a['timestamp']);
+                });
+                error_log("getActivityLogs: Emergency fallback returned " . count($emergencyLogs) . " records (sales + swaps)");
+                return array_slice($emergencyLogs, 0, 100);
             } catch (\Exception $e2) {
                 error_log("getActivityLogs: Emergency fallback also failed: " . $e2->getMessage());
                 return [];
@@ -3428,7 +4206,8 @@ class ManagerAnalyticsController {
             error_log("Total sales for company {$companyId} (all time): {$allSalesCount}");
             
             // Build WHERE clause with optional staff filter - use datetime comparison
-            $whereClause = "ps.company_id = :company_id AND ps.created_at >= :date_from_start AND ps.created_at <= :date_to_end";
+            // EXCLUDE swap transactions - swaps should only be tracked on swap page
+            $whereClause = "ps.company_id = :company_id AND ps.created_at >= :date_from_start AND ps.created_at <= :date_to_end AND (ps.swap_id IS NULL OR ps.is_swap_mode = FALSE OR ps.is_swap_mode = 0)";
             $params = [
                 'company_id' => $companyId,
                 'date_from_start' => $dateFromStart,
@@ -3451,15 +4230,30 @@ class ManagerAnalyticsController {
             // Don't use stored total_cost as it may be incorrect or outdated
             // Calculate cost from pos_sale_items joined with products table
             // MUST include company_id check to get correct product cost
-            // Use p.cost directly (cost_price doesn't exist in this database)
+            
+            // Check which cost column exists (prioritize cost_price, then cost)
+            $checkCostPrice = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost_price'");
+            $checkCost = $db->query("SHOW COLUMNS FROM {$productsTable} LIKE 'cost'");
+            $hasCostPrice = $checkCostPrice->rowCount() > 0;
+            $hasCost = $checkCost->rowCount() > 0;
+            
+            // Determine cost column to use (prioritize cost_price if both exist)
+            if ($hasCostPrice) {
+                $costColumn = 'COALESCE(p.cost_price, p.cost, 0)';
+            } elseif ($hasCost) {
+                $costColumn = 'COALESCE(p.cost, 0)';
+            } else {
+                $costColumn = '0'; // No cost column found
+            }
+            
             $costCalculation = "COALESCE(SUM(
-                (SELECT COALESCE(SUM(psi.quantity * COALESCE(p.cost, 0)), 0)
+                (SELECT COALESCE(SUM(psi.quantity * {$costColumn}), 0)
                  FROM pos_sale_items psi 
                  LEFT JOIN {$productsTable} p ON psi.item_id = p.id AND p.company_id = ps.company_id
                  WHERE psi.pos_sale_id = ps.id)
             ), 0)";
             $profitCalculation = "COALESCE(SUM(ps.final_amount - (
-                SELECT COALESCE(SUM(psi.quantity * COALESCE(p.cost, 0)), 0)
+                SELECT COALESCE(SUM(psi.quantity * {$costColumn}), 0)
                 FROM pos_sale_items psi 
                 LEFT JOIN {$productsTable} p ON psi.item_id = p.id AND p.company_id = ps.company_id
                 WHERE psi.pos_sale_id = ps.id
@@ -3501,14 +4295,21 @@ class ManagerAnalyticsController {
                 // ALWAYS calculate cost from products table (don't use stored total_cost)
                 // This ensures we use the actual product cost price (22.00) not a stored value
                 // Calculate actual cost from pos_sale_items for this day - MUST include company_id check
-                // Use p.cost directly (cost_price doesn't exist in this database)
+                // Use the same cost column determined above (cost_price or cost)
+                // Use improved matching: by item_id OR by item_description = product.name
+                // EXCLUDE swap transactions - swaps should only be tracked on swap page
                 $costQuery = $db->prepare("
-                    SELECT COALESCE(SUM(psi.quantity * COALESCE(p.cost, 0)), 0) as cost
+                    SELECT COALESCE(SUM(psi.quantity * {$costColumn}), 0) as cost
                     FROM pos_sales ps
                     INNER JOIN pos_sale_items psi ON ps.id = psi.pos_sale_id
-                    LEFT JOIN {$productsTable} p ON psi.item_id = p.id AND p.company_id = ps.company_id
+                    LEFT JOIN {$productsTable} p ON (
+                        (psi.item_id = p.id AND p.company_id = ps.company_id)
+                        OR ((psi.item_id IS NULL OR psi.item_id = 0) AND LOWER(TRIM(psi.item_description)) = LOWER(TRIM(p.name)) AND p.company_id = ps.company_id)
+                    )
                     WHERE ps.company_id = :company_id 
                     AND ps.created_at >= :date_start AND ps.created_at <= :date_end
+                    AND (ps.swap_id IS NULL OR ps.is_swap_mode = FALSE OR ps.is_swap_mode = 0)
+                    AND p.id IS NOT NULL
                     " . ($staffId ? "AND ps.created_by_user_id = :staff_id" : "") . "
                 ");
                 $costParams = [
@@ -3530,12 +4331,45 @@ class ManagerAnalyticsController {
                 
                 $profit = $revenue - $cost;
                 
+                // Add swap profit for this day (when customer item was resold)
+                $swapProfit = 0;
+                try {
+                    $checkProfitTable = $db->query("SHOW TABLES LIKE 'swap_profit_links'");
+                    if ($checkProfitTable->rowCount() > 0) {
+                        $swapProfitQuery = $db->prepare("
+                            SELECT COALESCE(
+                                SUM(CASE 
+                                    WHEN spl.customer_item_sale_id IS NOT NULL 
+                                    AND spl.status = 'finalized' 
+                                    AND spl.final_profit IS NOT NULL 
+                                    THEN spl.final_profit 
+                                    WHEN spl.customer_item_sale_id IS NOT NULL 
+                                    AND spl.final_profit IS NOT NULL 
+                                    THEN spl.final_profit
+                                    ELSE 0 
+                                END), 0
+                            ) as profit
+                            FROM swap_profit_links spl
+                            INNER JOIN swaps s ON spl.swap_id = s.id
+                            LEFT JOIN pos_sales customer_sale ON spl.customer_item_sale_id = customer_sale.id
+                            WHERE s.company_id = :company_id 
+                            AND spl.customer_item_sale_id IS NOT NULL
+                            AND DATE(customer_sale.created_at) = :date
+                        ");
+                        $swapProfitQuery->execute(['company_id' => $companyId, 'date' => $dateStr]);
+                        $swapProfitResult = $swapProfitQuery->fetch(\PDO::FETCH_ASSOC);
+                        $swapProfit = floatval($swapProfitResult['profit'] ?? 0);
+                    }
+                } catch (\Exception $e) {
+                    error_log("Error getting swap profit for date {$dateStr}: " . $e->getMessage());
+                }
+                
                 $daily[] = [
                     'date' => $dateStr,
                     'sales_count' => intval($row['sales_count']),
                     'revenue' => $revenue,
                     'cost' => $cost,
-                    'profit' => $profit
+                    'profit' => $profit + $swapProfit
                 ];
             }
             
@@ -3581,14 +4415,20 @@ class ManagerAnalyticsController {
                 // ALWAYS calculate cost from products table (don't use stored total_cost)
                 // This ensures we use the actual product cost price (22.00) not a stored value
                 // Calculate actual cost from pos_sale_items for this week - MUST include company_id check
-                // Use p.cost directly (cost_price doesn't exist in this database)
+                // Use improved matching: by item_id OR by item_description = product.name
+                // EXCLUDE swap transactions - swaps should only be tracked on swap page
                 $costQuery = $db->prepare("
-                    SELECT COALESCE(SUM(psi.quantity * COALESCE(p.cost, 0)), 0) as cost
+                    SELECT COALESCE(SUM(psi.quantity * {$costColumn}), 0) as cost
                     FROM pos_sales ps
                     INNER JOIN pos_sale_items psi ON ps.id = psi.pos_sale_id
-                    LEFT JOIN {$productsTable} p ON psi.item_id = p.id AND p.company_id = ps.company_id
+                    LEFT JOIN {$productsTable} p ON (
+                        (psi.item_id = p.id AND p.company_id = ps.company_id)
+                        OR ((psi.item_id IS NULL OR psi.item_id = 0) AND LOWER(TRIM(psi.item_description)) = LOWER(TRIM(p.name)) AND p.company_id = ps.company_id)
+                    )
                     WHERE ps.company_id = :company_id 
                     AND YEARWEEK(ps.created_at, 1) = :week
+                    AND (ps.swap_id IS NULL OR ps.is_swap_mode = FALSE OR ps.is_swap_mode = 0)
+                    AND p.id IS NOT NULL
                     " . ($staffId ? "AND ps.created_by_user_id = :staff_id" : "") . "
                 ");
                 $costParams = ['company_id' => $companyId, 'week' => $weekNum];
@@ -3606,12 +4446,48 @@ class ManagerAnalyticsController {
                 
                 $profit = $revenue - $cost;
                 
+                // Add swap profit for this week (when customer item was resold)
+                $swapProfit = 0;
+                try {
+                    $checkProfitTable = $db->query("SHOW TABLES LIKE 'swap_profit_links'");
+                    if ($checkProfitTable->rowCount() > 0) {
+                        // Get year and week from week number
+                        $year = substr($weekNum, 0, 4);
+                        $week = substr($weekNum, 4);
+                        $swapProfitQuery = $db->prepare("
+                            SELECT COALESCE(
+                                SUM(CASE 
+                                    WHEN spl.customer_item_sale_id IS NOT NULL 
+                                    AND spl.status = 'finalized' 
+                                    AND spl.final_profit IS NOT NULL 
+                                    THEN spl.final_profit 
+                                    WHEN spl.customer_item_sale_id IS NOT NULL 
+                                    AND spl.final_profit IS NOT NULL 
+                                    THEN spl.final_profit
+                                    ELSE 0 
+                                END), 0
+                            ) as profit
+                            FROM swap_profit_links spl
+                            INNER JOIN swaps s ON spl.swap_id = s.id
+                            LEFT JOIN pos_sales customer_sale ON spl.customer_item_sale_id = customer_sale.id
+                            WHERE s.company_id = :company_id 
+                            AND spl.customer_item_sale_id IS NOT NULL
+                            AND YEARWEEK(customer_sale.created_at, 1) = :week
+                        ");
+                        $swapProfitQuery->execute(['company_id' => $companyId, 'week' => $weekNum]);
+                        $swapProfitResult = $swapProfitQuery->fetch(\PDO::FETCH_ASSOC);
+                        $swapProfit = floatval($swapProfitResult['profit'] ?? 0);
+                    }
+                } catch (\Exception $e) {
+                    error_log("Error getting swap profit for week {$weekNum}: " . $e->getMessage());
+                }
+                
                 $weekly[] = [
                     'week' => $weekNum,
                     'sales_count' => intval($row['sales_count']),
                     'revenue' => $revenue,
                     'cost' => $cost,
-                    'profit' => $profit
+                    'profit' => $profit + $swapProfit
                 ];
             }
             
@@ -3663,6 +4539,7 @@ class ManagerAnalyticsController {
             
             // Now get actual sales data for months that have sales
             // Query without date restriction first to see all sales, then filter by date range
+            // EXCLUDE swap transactions - swaps should only be tracked on swap page
             $monthlySql = "
                 SELECT 
                     DATE_FORMAT(ps.created_at, '%Y-%m') as month,
@@ -3672,6 +4549,7 @@ class ManagerAnalyticsController {
                 WHERE ps.company_id = :company_id
                 AND ps.created_at >= :date_from_start 
                 AND ps.created_at <= :date_to_end
+                AND (ps.swap_id IS NULL OR ps.is_swap_mode = FALSE OR ps.is_swap_mode = 0)
                 " . ($staffId ? "AND ps.created_by_user_id = :staff_id" : "") . "
                 GROUP BY DATE_FORMAT(ps.created_at, '%Y-%m')
                 ORDER BY month DESC
@@ -3724,17 +4602,23 @@ class ManagerAnalyticsController {
                 // ALWAYS calculate cost from products table (don't use stored total_cost)
                 // This ensures we use the actual product cost price (22.00) not a stored value
                 // Calculate actual cost from pos_sale_items for this month - MUST include company_id check
-                // Use p.cost directly (cost_price doesn't exist in this database)
+                // Use improved matching: by item_id OR by item_description = product.name
                 $monthStart = $monthStr . '-01 00:00:00';
                 $monthEnd = date('Y-m-t', strtotime($monthStr . '-01')) . ' 23:59:59';
                 
+                // EXCLUDE swap transactions - swaps should only be tracked on swap page
                 $costQuery = $db->prepare("
-                    SELECT COALESCE(SUM(psi.quantity * COALESCE(p.cost, 0)), 0) as cost
+                    SELECT COALESCE(SUM(psi.quantity * {$costColumn}), 0) as cost
                     FROM pos_sales ps
                     INNER JOIN pos_sale_items psi ON ps.id = psi.pos_sale_id
-                    LEFT JOIN {$productsTable} p ON psi.item_id = p.id AND p.company_id = ps.company_id
+                    LEFT JOIN {$productsTable} p ON (
+                        (psi.item_id = p.id AND p.company_id = ps.company_id)
+                        OR ((psi.item_id IS NULL OR psi.item_id = 0) AND LOWER(TRIM(psi.item_description)) = LOWER(TRIM(p.name)) AND p.company_id = ps.company_id)
+                    )
                     WHERE ps.company_id = :company_id 
                     AND ps.created_at >= :month_start AND ps.created_at <= :month_end
+                    AND (ps.swap_id IS NULL OR ps.is_swap_mode = FALSE OR ps.is_swap_mode = 0)
+                    AND p.id IS NOT NULL
                     " . ($staffId ? "AND ps.created_by_user_id = :staff_id" : "") . "
                 ");
                 $costParams = [
@@ -3756,6 +4640,39 @@ class ManagerAnalyticsController {
                 
                 $profit = $revenue - $cost;
                 
+                // Add swap profit for this month (when customer item was resold)
+                $swapProfit = 0;
+                try {
+                    $checkProfitTable = $db->query("SHOW TABLES LIKE 'swap_profit_links'");
+                    if ($checkProfitTable->rowCount() > 0) {
+                        $swapProfitQuery = $db->prepare("
+                            SELECT COALESCE(
+                                SUM(CASE 
+                                    WHEN spl.customer_item_sale_id IS NOT NULL 
+                                    AND spl.status = 'finalized' 
+                                    AND spl.final_profit IS NOT NULL 
+                                    THEN spl.final_profit 
+                                    WHEN spl.customer_item_sale_id IS NOT NULL 
+                                    AND spl.final_profit IS NOT NULL 
+                                    THEN spl.final_profit
+                                    ELSE 0 
+                                END), 0
+                            ) as profit
+                            FROM swap_profit_links spl
+                            INNER JOIN swaps s ON spl.swap_id = s.id
+                            LEFT JOIN pos_sales customer_sale ON spl.customer_item_sale_id = customer_sale.id
+                            WHERE s.company_id = :company_id 
+                            AND spl.customer_item_sale_id IS NOT NULL
+                            AND DATE_FORMAT(customer_sale.created_at, '%Y-%m') = :month
+                        ");
+                        $swapProfitQuery->execute(['company_id' => $companyId, 'month' => $monthStr]);
+                        $swapProfitResult = $swapProfitQuery->fetch(\PDO::FETCH_ASSOC);
+                        $swapProfit = floatval($swapProfitResult['profit'] ?? 0);
+                    }
+                } catch (\Exception $e) {
+                    error_log("Error getting swap profit for month {$monthStr}: " . $e->getMessage());
+                }
+                
                 // Update the month in allMonths array
                 if (isset($allMonths[$monthStr])) {
                     $allMonths[$monthStr] = [
@@ -3763,7 +4680,7 @@ class ManagerAnalyticsController {
                         'sales_count' => $salesCount,
                         'revenue' => $revenue,
                         'cost' => $cost,
-                        'profit' => $profit
+                        'profit' => $profit + $swapProfit
                     ];
                 } else {
                     // Month not in range, but add it anyway
@@ -3772,11 +4689,11 @@ class ManagerAnalyticsController {
                         'sales_count' => $salesCount,
                         'revenue' => $revenue,
                         'cost' => $cost,
-                        'profit' => $profit
+                        'profit' => $profit + $swapProfit
                     ];
                 }
                 
-                error_log("Added month {$monthStr}: {$salesCount} sales, revenue: {$revenue}, cost: {$cost}, profit: {$profit}");
+                error_log("Added month {$monthStr}: {$salesCount} sales, revenue: {$revenue}, cost: {$cost}, profit: {$profit} (sales: " . ($profit - $swapProfit) . ", swap: {$swapProfit})");
             }
             
             // Convert to array and sort by month (descending)
