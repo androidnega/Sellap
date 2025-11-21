@@ -440,7 +440,8 @@ document.addEventListener('DOMContentLoaded', function(){
     }
 
     // Load subcategories
-    const subs = await fetchJson(`<?= BASE_URL_PATH ?>/api/subcategories/by-category/${catId}`);
+    const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+    const subs = await fetchJson(`${basePath}/api/subcategories/by-category/${catId}`);
     console.log('Subcategories loaded:', subs);
     if(subs && subs.length){ 
       populateSelect(subcategorySelect, subs, 'Select subcategory'); 
@@ -451,7 +452,7 @@ document.addEventListener('DOMContentLoaded', function(){
     }
 
     // Load brands
-    const brandUrl = `<?= BASE_URL_PATH ?>/api/brands/by-category/${catId}`;
+    const brandUrl = `${basePath}/api/brands/by-category/${catId}`;
     console.log('Fetching brands from URL:', brandUrl);
     const brands = await fetchJson(brandUrl);
     console.log('Brands loaded:', brands);

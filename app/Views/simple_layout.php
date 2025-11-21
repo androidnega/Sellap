@@ -17,7 +17,7 @@ if (!defined('BASE_URL_PATH')) {
     
     <!-- Base path -->
     <script>
-        window.APP_BASE_PATH = '<?php echo defined("BASE_URL_PATH") ? BASE_URL_PATH : "/sellapp"; ?>';
+        window.APP_BASE_PATH = '<?php echo defined("BASE_URL_PATH") ? BASE_URL_PATH : ""; ?>';
         const BASE = window.APP_BASE_PATH || '';
         
         // Remove kabz_events from URL if present (completely remove this path)
@@ -25,11 +25,9 @@ if (!defined('BASE_URL_PATH')) {
             if (window.location.pathname.includes('kabz_events')) {
                 let newPath = window.location.pathname.replace(/\/kabz_events\/?/g, '/');
                 newPath = newPath.replace(/kabz_events/g, '');
-                // Ensure path starts with /sellapp if it's empty or root
+                // Clean up path - no need to add /sellapp prefix
                 if (newPath === '/' || newPath === '') {
-                    newPath = '/sellapp';
-                } else if (!newPath.startsWith('/sellapp') && !newPath.startsWith('/api') && !newPath.startsWith('/dashboard')) {
-                    newPath = '/sellapp' + (newPath.startsWith('/') ? '' : '/') + newPath;
+                    newPath = '/';
                 }
                 const newUrl = newPath + window.location.search + window.location.hash;
                 window.location.replace(newUrl);
@@ -419,7 +417,7 @@ if (!defined('BASE_URL_PATH')) {
         $userRole = $userData['role'] ?? 'salesperson';
         $currentPath = $_SERVER['REQUEST_URI'] ?? '';
         // Remove base path from current path for sidebar matching
-        $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '/sellapp';
+        $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
         $currentPath = str_replace($basePath, '', $currentPath);
         
         // Render sidebar using the new dynamic sidebar component

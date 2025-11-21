@@ -187,7 +187,8 @@ function submitMarkSold(event) {
     const itemId = formData.get('item_id');
     const actualPrice = formData.get('actual_price');
     
-    fetch('<?= BASE_URL_PATH ?>/api/swaps/mark-sold', {
+    const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+    fetch(basePath + '/api/swaps/mark-sold', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

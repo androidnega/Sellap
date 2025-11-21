@@ -191,7 +191,8 @@ function markAsReceived(orderId) {
         return;
     }
     
-    fetch('<?= BASE_URL_PATH ?>/dashboard/purchase-orders/mark-received/' + orderId, {
+    const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+    fetch(basePath + '/dashboard/purchase-orders/mark-received/' + orderId, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

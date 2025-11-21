@@ -90,17 +90,35 @@ class Router {
             $uri = str_replace($scriptName, '', $uri);
         }
         
-        // Also remove common base paths like /sellapp or sellapp
-        // Handle both with and without leading slash
-        if (preg_match('#^/?sellapp/(.+)$#', $uri, $matches)) {
-            $uri = $matches[1];
-        } elseif (preg_match('#^/?sellapp$#', $uri)) {
-            $uri = '';
+        // Only remove /sellapp if BASE_URL_PATH is not empty (i.e., we're in a subdirectory)
+        // If BASE_URL_PATH is empty (root domain), don't strip /sellapp as it might be a valid route
+        $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+        if (!empty($basePath) && $basePath !== '/') {
+            // We're in a subdirectory, so remove the base path from URI
+            $basePathClean = trim($basePath, '/');
+            if (preg_match('#^/?'.$basePathClean.'/(.+)$#', $uri, $matches)) {
+                $uri = $matches[1];
+            } elseif (preg_match('#^/?'.$basePathClean.'$#', $uri)) {
+                $uri = '';
+            }
+            
+            // Additional cleanup for any remaining base path references
+            $uri = preg_replace('#^'.$basePathClean.'/#', '/', $uri);
+            $uri = preg_replace('#^'.$basePathClean.'$#', '', $uri);
         }
         
-        // Additional cleanup for any remaining sellapp references
-        $uri = preg_replace('#^/sellapp/#', '/', $uri);
-        $uri = preg_replace('#^sellapp/#', '', $uri);
+        // Legacy: Remove /sellapp only if we're NOT on root domain
+        // This handles cases where old URLs with /sellapp are accessed
+        if (!empty($basePath)) {
+            // Only remove /sellapp if we're in a subdirectory setup
+            if (preg_match('#^/?sellapp/(.+)$#', $uri, $matches)) {
+                $uri = $matches[1];
+            } elseif (preg_match('#^/?sellapp$#', $uri)) {
+                $uri = '';
+            }
+            $uri = preg_replace('#^/sellapp/#', '/', $uri);
+            $uri = preg_replace('#^sellapp/#', '', $uri);
+        }
         
         // Final cleanup - ensure no kabz_events remains
         $uri = preg_replace('#/kabz_events(/|$)#', '/', $uri);
@@ -165,12 +183,13 @@ class Router {
         } else {
             // Show nice "Oops!" page with option to go to homepage
             header('Content-Type: text/html; charset=utf-8');
-            $homeUrl = defined('BASE_URL_PATH') ? BASE_URL_PATH : '/sellapp';
+            $homeUrl = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
             // Ensure kabz_events is not in home URL
             $homeUrl = preg_replace('#/kabz_events(/|$)#', '/', $homeUrl);
             $homeUrl = str_replace('kabz_events', '', $homeUrl);
-            if (empty($homeUrl) || $homeUrl === '/') {
-                $homeUrl = '/sellapp';
+            // Normalize: empty string means root
+            if ($homeUrl === '/') {
+                $homeUrl = '';
             }
             echo '<!DOCTYPE html>
 <html lang="en">

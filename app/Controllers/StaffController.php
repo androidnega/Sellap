@@ -402,7 +402,10 @@ class StaffController {
                 
                 if (!empty($phoneNumberToUse)) {
                     try {
-                        $loginUrl = 'www.sellapp.store';
+                        // Get login URL dynamically
+                        $appUrl = defined('APP_URL') ? APP_URL : (getenv('APP_URL') ?: 'http://localhost');
+                        $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+                        $loginUrl = rtrim($appUrl . $basePath, '/');
                         
                         // Administrative message from SellApp with security warning
                         $message = "Your account password has been reset.\n\n";

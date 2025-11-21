@@ -6,7 +6,7 @@
     <!-- Print Button -->
     <div class="mb-6 flex justify-between items-center">
         <div class="flex items-center">
-            <a href="/repairs/<?= $repair['id'] ?>" class="text-gray-500 hover:text-gray-700 mr-4">
+            <a href="<?= BASE_URL_PATH ?>/dashboard/repairs/<?= $repair['id'] ?>" class="text-gray-500 hover:text-gray-700 mr-4">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                 </svg>

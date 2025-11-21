@@ -403,7 +403,7 @@
         // Set up page detection for sidebar highlighting
         if (!isset($GLOBALS['currentPage'])) {
             $currentPath = $_SERVER['REQUEST_URI'] ?? '';
-            $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '/sellapp';
+            $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
             $currentPath = str_replace($basePath, '', $currentPath);
             
             $GLOBALS['currentPage'] = 'dashboard'; // Default page

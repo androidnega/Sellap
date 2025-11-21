@@ -184,7 +184,7 @@ ob_start();
     
     function loadDashboardMetrics() {
         try {
-        const baseUrl = typeof BASE_URL_PATH !== 'undefined' ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
+        const baseUrl = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '');
         
         // Load sales metrics
         fetch(baseUrl + '/api/dashboard/sales-metrics', {

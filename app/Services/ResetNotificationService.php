@@ -178,7 +178,7 @@ SellApp System
      */
     private function getStatusUrl($actionId) {
         $baseUrl = getenv('APP_URL') ?: 'http://localhost';
-        $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '/sellapp';
+        $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
         return "{$baseUrl}{$basePath}/dashboard/admin/reset/{$actionId}";
     }
 }

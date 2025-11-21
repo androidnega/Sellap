@@ -19,8 +19,9 @@ define('APP_ENV', getenv('APP_ENV') ?: 'local');
 define('JWT_SECRET', getenv('JWT_SECRET') ?: 'your_secret_key');
 
 // Base URL Path - Auto-detect from request URI for live server compatibility
-// This will work for both local development and live server
-$basePath = '/sellapp'; // Default fallback
+// For root domain (sellapp.store), use empty string
+// For subdirectory installations, use the subdirectory path
+$basePath = ''; // Default to root (empty string)
 
 // Auto-detect base path from request URI
 if (isset($_SERVER['REQUEST_URI']) && isset($_SERVER['SCRIPT_NAME'])) {
@@ -33,24 +34,33 @@ if (isset($_SERVER['REQUEST_URI']) && isset($_SERVER['SCRIPT_NAME'])) {
     // Get the directory of the script (e.g., /sellapp/index.php -> /sellapp)
     $scriptDir = dirname($scriptName);
     
-    // If script is in a subdirectory, use that as base path
-    if ($scriptDir !== '/' && $scriptDir !== '.') {
-        $basePath = rtrim($scriptDir, '/');
+    // If script is in root directory (index.php in root), use empty base path
+    if ($scriptDir === '/' || $scriptDir === '.') {
+        $basePath = '';
     } else {
-        // Try to detect from request URI
-        // If request URI starts with a path, extract it
-        if (preg_match('#^/([^/]+)/#', $requestUri, $matches)) {
-            $basePath = '/' . $matches[1];
-        }
+        // Script is in a subdirectory, use that as base path
+        $basePath = rtrim($scriptDir, '/');
+    }
+    
+    // Check if we're on a root domain by checking HTTP_HOST
+    // If domain is sellapp.store (or similar root domain), force empty base path
+    $httpHost = $_SERVER['HTTP_HOST'] ?? '';
+    if (preg_match('#^sellapp\.store$#', $httpHost) || 
+        preg_match('#^www\.sellapp\.store$#', $httpHost)) {
+        // Root domain - use empty base path
+        $basePath = '';
     }
 }
 
 // Final safety check - ensure kabz_events is never in base path
 $basePath = preg_replace('#/kabz_events(/|$)#', '/', $basePath);
 $basePath = str_replace('kabz_events', '', $basePath);
-if (empty($basePath) || $basePath === '/') {
-    $basePath = '/sellapp';
+
+// Normalize: empty string or '/' both mean root
+if ($basePath === '/') {
+    $basePath = '';
 }
+
 define('BASE_URL_PATH', $basePath);
 
 // Network IP Configuration - for local network access

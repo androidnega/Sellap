@@ -561,7 +561,8 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = true;
         
         try {
-            const response = await fetch('<?= BASE_URL_PATH ?>/api/customers', {
+            const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+            const response = await fetch(basePath + '/api/customers', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -876,7 +877,8 @@ function filterHistory() {
 
 async function editCustomer(customerId) {
     try {
-        const response = await fetch(`<?= BASE_URL_PATH ?>/api/customers/${customerId}`, {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        const response = await fetch(`${basePath}/api/customers/${customerId}`, {
             headers: {
                 'Authorization': 'Bearer ' + (localStorage.getItem('sellapp_token') || localStorage.getItem('token'))
             }
@@ -916,7 +918,8 @@ async function deleteCustomer(customerId, customerName) {
     }
     
     try {
-        const response = await fetch(`<?= BASE_URL_PATH ?>/api/customers/${customerId}`, {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        const response = await fetch(`${basePath}/api/customers/${customerId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': 'Bearer ' + (localStorage.getItem('sellapp_token') || localStorage.getItem('token'))
@@ -1168,7 +1171,8 @@ document.addEventListener('DOMContentLoaded', function() {
         submitEditBtn.disabled = true;
         
         try {
-            const response = await fetch(`<?= BASE_URL_PATH ?>/api/customers/${customerId}`, {
+            const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+            const response = await fetch(`${basePath}/api/customers/${customerId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',

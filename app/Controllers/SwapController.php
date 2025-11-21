@@ -1315,7 +1315,7 @@ class SwapController {
             }
         }
         
-        $faviconPath = (defined('BASE_URL_PATH') ? BASE_URL_PATH : '/sellapp') . '/assets/images/favicon.svg';
+        $faviconPath = (defined('BASE_URL_PATH') ? BASE_URL_PATH : '') . '/assets/images/favicon.svg';
         
         return "
         <!DOCTYPE html>

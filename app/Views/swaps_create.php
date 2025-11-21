@@ -200,7 +200,7 @@
 
         <!-- Form Actions -->
         <div class="flex justify-end space-x-4">
-            <a href="/swaps" class="btn btn-outline">Cancel</a>
+            <a href="<?= BASE_URL_PATH ?>/dashboard/swaps" class="btn btn-outline">Cancel</a>
             <button type="submit" class="btn btn-primary">Complete Swap</button>
         </div>
     </form>
@@ -312,14 +312,15 @@
         }
         
         // Phone category ID is typically 1
-        fetch('<?= BASE_URL_PATH ?>/api/brands/by-category/1')
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        fetch(basePath + '/api/brands/by-category/1')
             .then(response => response.json())
             .then(result => {
                 // Handle both formats: direct array or {success: true, data: [...]}
                 let brands = Array.isArray(result) ? result : (result.data || []);
                 if (!populateBrandSelect(brands)) {
                     // Fallback: try alternative API endpoint
-                    fetch('<?= BASE_URL_PATH ?>/api/products/brands/1')
+                    fetch(basePath + '/api/products/brands/1')
                         .then(response => response.json())
                         .then(data => {
                             let brands = data.success && data.data ? data.data : (Array.isArray(data) ? data : []);
@@ -331,7 +332,7 @@
             .catch(error => {
                 console.error('Error loading brands:', error);
                 // Fallback: try alternative API endpoint
-                fetch('<?= BASE_URL_PATH ?>/api/products/brands/1')
+                fetch(basePath + '/api/products/brands/1')
                     .then(response => response.json())
                     .then(data => {
                         let brands = data.success && data.data ? data.data : (Array.isArray(data) ? data : []);
@@ -371,7 +372,8 @@
         }
         
         // Fetch brand specs from API
-        fetch('<?= BASE_URL_PATH ?>/api/brands/specs/' + encodeURIComponent(brandId))
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        fetch(basePath + '/api/brands/specs/' + encodeURIComponent(brandId))
             .then(response => response.json())
             .then(data => {
                 if (data && data.length > 0) {

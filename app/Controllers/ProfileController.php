@@ -581,6 +581,7 @@ class ProfileController {
         </div>
         
         <script>
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '');
         // Profile form submission
         document.getElementById('profile-form').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -589,7 +590,7 @@ class ProfileController {
             const data = Object.fromEntries(formData.entries());
             
             try {
-                const response = await fetch('/sellapp/api/profile/update', {
+                const response = await fetch(basePath + '/api/profile/update', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -617,7 +618,8 @@ class ProfileController {
             const data = Object.fromEntries(formData.entries());
             
             try {
-                const response = await fetch('/sellapp/api/profile/change-password', {
+                const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '');
+                const response = await fetch(basePath + '/api/profile/change-password', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -808,7 +810,8 @@ class ProfileController {
             const data = Object.fromEntries(formData.entries());
             
             try {
-                const response = await fetch('/sellapp/api/settings/update', {
+                const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '');
+                const response = await fetch(basePath + '/api/settings/update', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

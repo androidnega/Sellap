@@ -6,9 +6,13 @@
     
     # Redirect any requests containing kabz_events to remove it (301 permanent redirect)
     RewriteCond %{REQUEST_URI} kabz_events
-    RewriteRule ^(.*)kabz_events(.*)$ /sellapp$1$2 [R=301,L]
+    RewriteRule ^(.*)kabz_events(.*)$ $1$2 [R=301,L]
     RewriteCond %{REQUEST_URI} ^/kabz_events
-    RewriteRule ^kabz_events(.*)$ /sellapp$1 [R=301,L]
+    RewriteRule ^kabz_events(.*)$ $1 [R=301,L]
+    
+    # Redirect /sellapp/* to /* (remove /sellapp prefix for root domain)
+    RewriteCond %{REQUEST_URI} ^/sellapp/(.*)$
+    RewriteRule ^sellapp/(.*)$ /$1 [R=301,L]
     
     # Serve static files directly if they exist
     RewriteCond %{REQUEST_FILENAME} -f
@@ -17,7 +21,6 @@
     # For static assets that don't exist as files, route to index.php
     # This handles cases where files are in subdirectories
     RewriteCond %{REQUEST_URI} \.(css|js|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot|pdf|zip|mp4|mp3)$ [NC,OR]
-    RewriteCond %{REQUEST_URI} ^/sellapp/assets/ [NC,OR]
     RewriteCond %{REQUEST_URI} ^/assets/ [NC]
     RewriteRule ^(.*)$ index.php [QSA,L]
     

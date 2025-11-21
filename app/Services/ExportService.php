@@ -236,7 +236,7 @@ class ExportService {
 <body>
     <div class="header">
         <h1>' . htmlspecialchars($title) . '</h1>
-        <div class="meta">Generated: ' . date('Y-m-d H:i:s') . ' | Total Records: ' . count($dataset) . ' | www.sellapp.store' . ($hasPartialPayments ? ' | ⚠️ Contains Partial Payments' : '') . '</div>
+        <div class="meta">Generated: ' . date('Y-m-d H:i:s') . ' | Total Records: ' . count($dataset) . ' | ' . (getenv('APP_URL') ?: 'sellapp.store') . ($hasPartialPayments ? ' | ⚠️ Contains Partial Payments' : '') . '</div>
     </div>
     <div class="container">
         <table>
@@ -280,7 +280,7 @@ class ExportService {
         </table>
     </div>
     <div class="footer">
-        <p>This report was generated automatically by <a href="https://www.sellapp.store">SellApp Analytics System</a></p>
+        <p>This report was generated automatically by <a href="' . (defined('APP_URL') ? APP_URL : (getenv('APP_URL') ?: 'http://localhost')) . '">SellApp Analytics System</a></p>
     </div>
 </body>
 </html>';

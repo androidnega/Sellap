@@ -539,8 +539,9 @@ document.addEventListener('DOMContentLoaded', function() {
             let deleted = 0;
             let errors = [];
             
+            const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
             Promise.all(selected.map(swapId => 
-                fetch('<?= BASE_URL_PATH ?>/api/swaps/' + swapId, {
+                fetch(basePath + '/api/swaps/' + swapId, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
@@ -673,7 +674,8 @@ function confirmSwapPrice() {
         syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Syncing...';
     }
     
-    fetch('<?= BASE_URL_PATH ?>/api/swaps/sync-to-inventory', {
+    const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+    fetch(basePath + '/api/swaps/sync-to-inventory', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -728,7 +730,8 @@ function deleteSwap(swapId) {
         return;
     }
     
-    fetch('<?= BASE_URL_PATH ?>/api/swaps/' + swapId, {
+    const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+    fetch(basePath + '/api/swaps/' + swapId, {
         method: 'DELETE',
         headers: {
             'Content-Type': 'application/json',

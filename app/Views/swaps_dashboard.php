@@ -6,8 +6,8 @@
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Swap Dashboard</h1>
         <div class="flex space-x-4">
-            <a href="/swaps" class="btn btn-outline">View All Swaps</a>
-            <a href="/swaps/create" class="btn btn-primary">New Swap</a>
+            <a href="<?= BASE_URL_PATH ?>/dashboard/swaps" class="btn btn-outline">View All Swaps</a>
+            <a href="<?= BASE_URL_PATH ?>/dashboard/swaps/create" class="btn btn-primary">New Swap</a>
         </div>
     </div>
 
@@ -114,14 +114,14 @@
                             
                             <div class="mt-3 flex justify-between items-center">
                                 <span class="text-xs text-gray-500">Handled by: <?= htmlspecialchars($swap['handled_by_name']) ?></span>
-                                <a href="/swaps/<?= $swap['id'] ?>" class="text-blue-600 hover:text-blue-800 text-sm">View Details</a>
+                                <a href="<?= BASE_URL_PATH ?>/dashboard/swaps/<?= $swap['id'] ?>" class="text-blue-600 hover:text-blue-800 text-sm">View Details</a>
                             </div>
                         </div>
                     <?php endforeach; ?>
                     
                     <?php if (count($activeSwaps) > 5): ?>
                         <div class="text-center">
-                            <a href="/swaps?status=completed" class="text-blue-600 hover:text-blue-800 text-sm">View all active swaps</a>
+                            <a href="<?= BASE_URL_PATH ?>/dashboard/swaps?status=completed" class="text-blue-600 hover:text-blue-800 text-sm">View all active swaps</a>
                         </div>
                     <?php endif; ?>
                 <?php endif; ?>
@@ -173,14 +173,14 @@
                                 <span class="text-xs px-2 py-1 rounded <?= $profit['overall_status'] === 'Finalized' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' ?>">
                                     <?= htmlspecialchars($profit['overall_status']) ?>
                                 </span>
-                                <a href="/swaps/<?= $profit['id'] ?>" class="text-blue-600 hover:text-blue-800 text-sm">View Details</a>
+                                <a href="<?= BASE_URL_PATH ?>/dashboard/swaps/<?= $profit['id'] ?>" class="text-blue-600 hover:text-blue-800 text-sm">View Details</a>
                             </div>
                         </div>
                     <?php endforeach; ?>
                     
                     <?php if (count($profitTracking) > 5): ?>
                         <div class="text-center">
-                            <a href="/swaps/profit-tracking" class="text-blue-600 hover:text-blue-800 text-sm">View all profit data</a>
+                            <a href="<?= BASE_URL_PATH ?>/dashboard/swaps/profit-tracking" class="text-blue-600 hover:text-blue-800 text-sm">View all profit data</a>
                         </div>
                     <?php endif; ?>
                 <?php endif; ?>
@@ -193,7 +193,7 @@
         <h2 class="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h2>
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <a href="/swaps/create" class="flex items-center p-4 border rounded-lg hover:bg-gray-50">
+            <a href="<?= BASE_URL_PATH ?>/dashboard/swaps/create" class="flex items-center p-4 border rounded-lg hover:bg-gray-50">
                 <div class="p-2 bg-blue-100 rounded-lg mr-4">
                     <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -205,7 +205,7 @@
                 </div>
             </a>
             
-            <a href="/pos" class="flex items-center p-4 border rounded-lg hover:bg-gray-50">
+            <a href="<?= BASE_URL_PATH ?>/dashboard/pos" class="flex items-center p-4 border rounded-lg hover:bg-gray-50">
                 <div class="p-2 bg-green-100 rounded-lg mr-4">
                     <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"></path>
@@ -217,7 +217,7 @@
                 </div>
             </a>
             
-            <a href="/swaps?status=completed" class="flex items-center p-4 border rounded-lg hover:bg-gray-50">
+            <a href="<?= BASE_URL_PATH ?>/dashboard/swaps?status=completed" class="flex items-center p-4 border rounded-lg hover:bg-gray-50">
                 <div class="p-2 bg-purple-100 rounded-lg mr-4">
                     <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>

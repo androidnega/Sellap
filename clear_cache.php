@@ -4,6 +4,11 @@
  * Run this from browser: http://localhost/sellapp/clear_cache.php
  */
 
+// Load config to get BASE_URL_PATH
+if (file_exists(__DIR__ . '/config/app.php')) {
+    require_once __DIR__ . '/config/app.php';
+}
+
 // Clear opcache if enabled
 if (function_exists('opcache_reset')) {
     opcache_reset();
@@ -19,5 +24,6 @@ if (function_exists('apc_clear_cache')) {
 }
 
 echo "<hr>";
-echo "<p><a href='/sellapp/dashboard'>Go to Dashboard</a></p>";
+$basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+echo "<p><a href='{$basePath}/dashboard'>Go to Dashboard</a></p>";
 

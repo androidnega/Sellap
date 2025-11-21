@@ -365,7 +365,7 @@ class POSController {
                 }, 500);
             };
         </script>
-        </head>\n<body>\n<div class=\"container\">\n<div class=\"header\">\n  <div>\n    <div class=\"h1\">{$companyName} — Sales Report</div>\n    <div class=\"meta\">From {$dateFrom} to {$dateTo} | www.sellapp.store</div>\n  </div>\n  <button class=\"download-btn no-print\" onclick=\"window.print()\">Print / Save as PDF</button>\n</div>\n
+        </head>\n<body>\n<div class=\"container\">\n<div class=\"header\">\n  <div>\n    <div class=\"h1\">{$companyName} — Sales Report</div>\n    <div class=\"meta\">From {$dateFrom} to {$dateTo} | " . (getenv('APP_URL') ?: 'sellapp.store') . "</div>\n  </div>\n  <button class=\"download-btn no-print\" onclick=\"window.print()\">Print / Save as PDF</button>\n</div>\n
 <div class=\"summary\">\n  <div class=\"card\"><div class=\"label\">Total Sales</div><div class=\"value\">" . number_format($totalCount) . "</div></div>\n  <div class=\"card\"><div class=\"label\">Total Revenue</div><div class=\"value\">₵" . number_format($totalRevenue, 2) . "</div></div>\n  <div class=\"card\"><div class=\"label\">Total Discount</div><div class=\"value\">₵" . number_format($totalDiscount, 2) . "</div></div>\n  <div class=\"card\"><div class=\"label\">Total Tax</div><div class=\"value\">₵" . number_format($totalTax, 2) . "</div></div>\n</div>\n
 <div class=\"table-container\">
 <table>\n  <thead>\n    <tr>\n      <th>ID</th>\n      <th>Date</th>\n      <th>Cashier</th>\n      <th>Customer</th>\n      <th class=\"right\">Subtotal</th>\n      <th class=\"right\">Discount</th>\n      <th class=\"right\">Tax</th>\n      <th class=\"right\">Total</th>\n    </tr>\n  </thead>\n  <tbody>\n";
@@ -380,7 +380,8 @@ class POSController {
             $total = number_format((float)($row['final_amount'] ?? $row['total_amount'] ?? 0), 2);
             echo "    <tr>\n      <td>{$id}</td>\n      <td>{$date}</td>\n      <td>{$cashier}</td>\n      <td>{$customer}</td>\n      <td class=\"right\">₵{$subtotal}</td>\n      <td class=\"right\">₵{$discount}</td>\n      <td class=\"right\">₵{$tax}</td>\n      <td class=\"right\">₵{$total}</td>\n    </tr>\n";
         }
-        echo "  </tbody>\n</table>\n</div>\n<div class=\"footer\">\n    <p>This report was generated automatically by <a href=\"https://www.sellapp.store\">SellApp Analytics System</a></p>\n</div>\n</div>\n</body>\n</html>";
+        $appUrl = defined('APP_URL') ? APP_URL : (getenv('APP_URL') ?: 'http://localhost');
+        echo "  </tbody>\n</table>\n</div>\n<div class=\"footer\">\n    <p>This report was generated automatically by <a href=\"{$appUrl}\">SellApp Analytics System</a></p>\n</div>\n</div>\n</body>\n</html>";
         exit;
     }
 

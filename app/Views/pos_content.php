@@ -735,7 +735,8 @@ function getAuthToken() {
 
 async function clearCartAfterSale() {
     try {
-        const response = await fetch('/sellapp/pos/cart/clear', {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '');
+        const response = await fetch(basePath + '/pos/cart/clear', {
             method: 'POST',
             headers: getAuthHeaders()
         });
@@ -780,7 +781,8 @@ function showNotification(message, type = 'success') {
 // Load POS quick stats
 async function loadPOSQuickStats() {
     try {
-        const response = await fetch('<?= BASE_URL_PATH ?>/api/pos/quick-stats', {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        const response = await fetch(basePath + '/api/pos/quick-stats', {
             headers: getAuthHeaders()
         });
         
@@ -823,7 +825,8 @@ async function loadPOSQuickStats() {
 // Load products
 async function loadProducts() {
     try {
-        const response = await fetch('<?= BASE_URL_PATH ?>/api/pos/products', {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        const response = await fetch(basePath + '/api/pos/products', {
             headers: getAuthHeaders()
         });
         
@@ -1004,7 +1007,8 @@ function applyFiltersAndRender() {
 // Load customers
 async function loadCustomers() {
     try {
-        const response = await fetch('<?= BASE_URL_PATH ?>/api/customers', {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        const response = await fetch(basePath + '/api/customers', {
             headers: getAuthHeaders()
         });
         
@@ -1049,7 +1053,8 @@ async function loadCustomers() {
 // Load cart
 async function loadCart() {
     try {
-        const response = await fetch('<?= BASE_URL_PATH ?>/pos/cart', {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        const response = await fetch(basePath + '/pos/cart', {
             headers: getAuthHeaders()
         });
         const data = await response.json();
@@ -1219,7 +1224,8 @@ function renderProducts(productsToRender) {
         let imageHtml = '';
         if (product.image_url && product.image_url.trim() !== '') {
             // Construct proper image URL with base path
-            const imageUrl = product.image_url.startsWith('http') ? product.image_url : '<?= BASE_URL_PATH ?>/' + product.image_url;
+            const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+            const imageUrl = product.image_url.startsWith('http') ? product.image_url : basePath + '/' + product.image_url;
             // Use actual product image
             imageHtml = `<img src="${imageUrl}" alt="${product.name || 'Product'}" class="w-16 h-16 object-cover rounded-lg" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                          <div class="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center" style="display: none;">
@@ -1598,7 +1604,8 @@ async function addToCart(productId) {
     }
     
     try {
-        const response = await fetch('<?= BASE_URL_PATH ?>/pos/cart/add', {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        const response = await fetch(basePath + '/pos/cart/add', {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
@@ -2124,7 +2131,8 @@ function setupEventListeners() {
                     }
                 }
                 
-                const response = await fetch('<?= BASE_URL_PATH ?>/api/pos', {
+                const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+                const response = await fetch(basePath + '/api/pos', {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     credentials: 'same-origin', // Include session cookies for authentication fallback
@@ -2304,7 +2312,8 @@ function setupEventListeners() {
             }
             
             try {
-                const response = await fetch('<?= BASE_URL_PATH ?>/api/customers', {
+                const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+                const response = await fetch(basePath + '/api/customers', {
                     method: 'POST',
                     headers: {
                         ...getAuthHeaders(),
@@ -2357,7 +2366,8 @@ function setupEventListeners() {
             const contactData = Object.fromEntries(formData.entries());
             
             try {
-                const response = await fetch('/sellapp/api/customers', {
+                const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '');
+                const response = await fetch(basePath + '/api/customers', {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     body: JSON.stringify(contactData)
@@ -2407,7 +2417,8 @@ function setupEventListeners() {
 // Print receipt function
 function printReceipt(saleId) {
     // Open receipt in new window for printing
-    const receiptUrl = `/sellapp/pos/receipt/${saleId}`;
+    const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '');
+    const receiptUrl = `${basePath}/pos/receipt/${saleId}`;
     window.open(receiptUrl, '_blank', 'width=400,height=600,scrollbars=yes,resizable=yes');
 }
 
@@ -2415,7 +2426,8 @@ function printReceipt(saleId) {
 async function clearCart() {
     if (POS_READ_ONLY) { showNotification('Managers cannot clear cart (view-only).', 'error'); return; }
     try {
-        const response = await fetch('<?= BASE_URL_PATH ?>/pos/cart/clear', {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        const response = await fetch(basePath + '/pos/cart/clear', {
             method: 'POST',
             headers: getAuthHeaders()
         });
@@ -2436,7 +2448,8 @@ async function clearCart() {
 async function clearCartOnLoad() {
     try {
         if (POS_READ_ONLY) { return; }
-        const response = await fetch('<?= BASE_URL_PATH ?>/pos/cart/clear', {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        const response = await fetch(basePath + '/pos/cart/clear', {
             method: 'POST',
             headers: getAuthHeaders()
         });
@@ -2465,7 +2478,8 @@ window.updateCartQuantity = async function(productId, quantity) {
     }
     
     try {
-        const response = await fetch('<?= BASE_URL_PATH ?>/pos/cart/update', {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        const response = await fetch(basePath + '/pos/cart/update', {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
@@ -2494,7 +2508,8 @@ window.updateCartQuantity = async function(productId, quantity) {
 window.removeFromCart = async function(productId) {
     if (POS_READ_ONLY) { showNotification('Managers cannot change cart (view-only).', 'error'); return; }
     try {
-        const response = await fetch('<?= BASE_URL_PATH ?>/pos/cart/remove', {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        const response = await fetch(basePath + '/pos/cart/remove', {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
@@ -3436,14 +3451,15 @@ function loadSwapBrands() {
     }
     
     // Load brands for phone category
-    fetch('<?= BASE_URL_PATH ?>/api/brands/by-category/1')
+    const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+    fetch(basePath + '/api/brands/by-category/1')
         .then(response => response.json())
         .then(result => {
             // Handle both formats: direct array or {success: true, data: [...]}
             let brands = Array.isArray(result) ? result : (result.data || []);
             if (!populateBrandSelect(brands)) {
                 // Fallback: try alternative API endpoint
-                fetch('<?= BASE_URL_PATH ?>/api/products/brands/1')
+                fetch(basePath + '/api/products/brands/1')
                     .then(response => response.json())
                     .then(data => {
                         let brands = data.success && data.data ? data.data : (Array.isArray(data) ? data : []);
@@ -3455,7 +3471,7 @@ function loadSwapBrands() {
         .catch(error => {
             console.error('Error loading brands:', error);
             // Fallback: try alternative API endpoint
-            fetch('<?= BASE_URL_PATH ?>/api/products/brands/1')
+                        fetch(basePath + '/api/products/brands/1')
                 .then(response => response.json())
                 .then(data => {
                     let brands = data.success && data.data ? data.data : (Array.isArray(data) ? data : []);
@@ -3545,7 +3561,8 @@ function loadSwapCustomerSpecs(brandId) {
     }
     
     // Fetch brand specs from API using brand ID
-    fetch('<?= BASE_URL_PATH ?>/api/brands/specs/' + encodeURIComponent(brandId))
+    const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+    fetch(basePath + '/api/brands/specs/' + encodeURIComponent(brandId))
         .then(response => response.json())
         .then(data => {
             const specsContainer = document.getElementById('swapCustomerSpecsContainer');
@@ -3715,7 +3732,8 @@ function processSwap() {
     data.customer_topup = parseFloat(data.customer_topup) || 0;
     
     // Send swap request
-    fetch('<?= BASE_URL_PATH ?>/dashboard/pos/swap/checkout', {
+    const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+    fetch(basePath + '/dashboard/pos/swap/checkout', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -3777,7 +3795,8 @@ function processSwap() {
             // Redirect to receipt
             if (result.sale_id) {
                 setTimeout(() => {
-                    window.location.href = '<?= BASE_URL_PATH ?>/pos/receipt/' + result.sale_id;
+                    const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+                    window.location.href = basePath + '/pos/receipt/' + result.sale_id;
                 }, 1500);
             }
         } else {
@@ -3878,7 +3897,8 @@ function setupPOSCustomerDropdown() {
 async function searchPOSCustomers(query) {
     console.log('Searching POS customers with query:', query);
     try {
-        const response = await fetch(`<?= BASE_URL_PATH ?>/pos/swap/customers?q=${encodeURIComponent(query)}`, {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        const response = await fetch(`${basePath}/pos/swap/customers?q=${encodeURIComponent(query)}`, {
             method: 'GET',
             headers: getAuthHeaders()
         });

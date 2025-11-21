@@ -52,7 +52,7 @@ class SettingsController {
         
         // Only allow system_admin - restrict all other roles (admin, manager, salesperson, technician, etc.)
         if (!$userData || $userRole !== 'system_admin') {
-            $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '/sellapp';
+            $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
             // Set error message in session
             $_SESSION['flash_error'] = 'Access Denied: You do not have permission to access settings. Only system administrators can access this page.';
             header('Location: ' . $basePath . '/dashboard');

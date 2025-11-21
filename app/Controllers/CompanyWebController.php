@@ -536,7 +536,9 @@ class CompanyWebController {
                 $notificationService = new NotificationService();
                 
                 // Administrative message - should not mention company name, comes from SellApp
-                $loginUrl = 'www.sellapp.store';
+                $appUrl = defined('APP_URL') ? APP_URL : (getenv('APP_URL') ?: 'http://localhost');
+                $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+                $loginUrl = rtrim($appUrl . $basePath, '/');
                 
                 $message = "Your manager password has been reset.\n\n";
                 $message .= "Username: {$manager['username']}\n";

@@ -566,7 +566,10 @@ class SMSService {
             }
         }
         
-        $loginUrl = 'www.sellapp.store';
+        // Get login URL dynamically
+        $appUrl = defined('APP_URL') ? APP_URL : (getenv('APP_URL') ?: 'http://localhost');
+        $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+        $loginUrl = rtrim($appUrl . $basePath, '/');
         $message = "Hello! Your {$companyName} account has been created.\n\n";
         $message .= "Username: {$accountData['username']}\n";
         $message .= "Password: {$accountData['password']}\n\n";

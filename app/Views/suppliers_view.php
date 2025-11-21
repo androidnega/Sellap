@@ -327,7 +327,8 @@ document.getElementById('addProductForm')?.addEventListener('submit', async func
     submitBtn.disabled = true;
     
     try {
-        const response = await fetch('<?= BASE_URL_PATH ?>/api/suppliers/link-product', {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        const response = await fetch(basePath + '/api/suppliers/link-product', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

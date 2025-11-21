@@ -14,7 +14,7 @@
                 </svg>
                 Export CSV
             </button>
-            <a href="/repairs" class="btn btn-primary">Back to Repairs</a>
+            <a href="<?= BASE_URL_PATH ?>/dashboard/repairs" class="btn btn-primary">Back to Repairs</a>
         </div>
     </div>
 
