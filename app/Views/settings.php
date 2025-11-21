@@ -853,7 +853,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     fetch(BASE + '/api/system-settings/test-paystack', {
         method: 'POST',
-        headers: headers
+        headers: headers,
+        credentials: 'same-origin'
             })
             .then(response => response.json())
             .then(data => {
@@ -899,6 +900,7 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch(BASE + '/api/system-settings/update', {
                 method: 'POST',
         headers: headers,
+        credentials: 'same-origin',
                 body: JSON.stringify(settings)
             })
     .then(response => {
