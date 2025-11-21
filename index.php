@@ -12,9 +12,6 @@ $requestPath = parse_url($requestUri, PHP_URL_PATH);
 // Remove query string
 $requestPath = strtok($requestPath, '?');
 
-// Normalize the path
-$requestPath = trim($requestPath, '/');
-
 // Check if this is a static asset request by extension or path
 $staticExtensions = ['css', 'js', 'jpg', 'jpeg', 'png', 'gif', 'ico', 'svg', 'woff', 'woff2', 'ttf', 'eot', 'pdf', 'zip', 'mp4', 'mp3'];
 $extension = strtolower(pathinfo($requestPath, PATHINFO_EXTENSION));
@@ -22,26 +19,38 @@ $isStaticFile = in_array($extension, $staticExtensions) || strpos($requestPath, 
 
 if ($isStaticFile) {
     // Extract the actual file path from the request
-    // Request might be: "sellapp/assets/css/styles.css" or "assets/css/styles.css"
+    // Request might be: "/sellapp/assets/css/styles.css" or "/assets/css/styles.css"
     $cleanPath = $requestPath;
     
-    // Remove "sellapp/" prefix if present
-    $cleanPath = preg_replace('#^sellapp/#', '', $cleanPath);
-    $cleanPath = preg_replace('#^/sellapp/#', '', $cleanPath);
+    // Remove leading slash
+    $cleanPath = ltrim($cleanPath, '/');
     
-    // Build the file path
+    // Remove "sellapp/" prefix if present (with or without leading slash)
+    $cleanPath = preg_replace('#^sellapp/#', '', $cleanPath);
+    
+    // Build the file path - should now be "assets/css/styles.css"
     $filePath = __DIR__ . '/' . $cleanPath;
     
-    // If file doesn't exist, try extracting just the assets part
+    // Debug logging (only in development)
+    if (defined('APP_ENV') && APP_ENV === 'local') {
+        error_log("Static file request: {$requestPath} -> {$cleanPath} -> {$filePath}");
+        error_log("File exists: " . (file_exists($filePath) ? 'yes' : 'no'));
+    }
+    
+    // If file doesn't exist, try alternative paths
     if (!file_exists($filePath) || !is_file($filePath)) {
-        // Extract assets path: "sellapp/assets/css/styles.css" -> "assets/css/styles.css"
-        if (preg_match('#(assets/.*)$#', $requestPath, $matches)) {
+        // Try extracting just the assets part from original path
+        if (preg_match('#(?:/sellapp/)?(assets/.*)$#', $requestPath, $matches)) {
             $filePath = __DIR__ . '/' . $matches[1];
         }
     }
     
     // Check if file exists and is readable
     if (file_exists($filePath) && is_file($filePath) && is_readable($filePath)) {
+        // Debug logging
+        if (defined('APP_ENV') && APP_ENV === 'local') {
+            error_log("Serving static file: {$filePath}");
+        }
         // Set appropriate MIME type
         $mimeTypes = [
             'css' => 'text/css',
@@ -73,14 +82,26 @@ if ($isStaticFile) {
         readfile($filePath);
         exit;
     } else {
-        // File doesn't exist - return 404
+        // File doesn't exist - return 404 with debug info
         http_response_code(404);
         header('Content-Type: text/plain');
-        if (defined('APP_ENV') && APP_ENV === 'local') {
-            echo "File not found. Requested: {$requestPath}\n";
-            echo "Tried path: {$filePath}\n";
-        } else {
-            echo 'File not found';
+        
+        // Always show debug info to help troubleshoot
+        $debugInfo = [
+            'request_uri' => $requestUri,
+            'request_path' => $requestPath,
+            'clean_path' => $cleanPath ?? 'N/A',
+            'file_path' => $filePath,
+            'file_exists' => file_exists($filePath) ? 'yes' : 'no',
+            'is_file' => is_file($filePath) ? 'yes' : 'no',
+            'is_readable' => is_readable($filePath) ? 'yes' : 'no',
+            'base_dir' => __DIR__
+        ];
+        
+        echo "File not found\n\n";
+        echo "Debug info:\n";
+        foreach ($debugInfo as $key => $value) {
+            echo "  {$key}: {$value}\n";
         }
         exit;
     }
