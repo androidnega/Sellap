@@ -108,13 +108,29 @@ class AuthController {
                 'redirect' => '/dashboard'  // Always redirect to unified dashboard
             ]);
         } catch (\Exception $e) {
-            http_response_code(401);
+            // Log the error for debugging
+            error_log("Login error: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            
+            // Check if it's a database connection error
+            $isDbError = strpos($e->getMessage(), 'Database connection') !== false || 
+                        strpos($e->getMessage(), 'SQLSTATE') !== false;
+            
+            http_response_code($isDbError ? 500 : 401);
             echo json_encode([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'debug' => (defined('APP_ENV') && APP_ENV === 'local') ? [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString()
+                ] : null
             ]);
         } catch (\Error $e) {
             // Catch fatal errors
+            error_log("Login fatal error: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            
             http_response_code(500);
             echo json_encode([
                 'success' => false,

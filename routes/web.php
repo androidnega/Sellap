@@ -57,6 +57,28 @@ $router->get('api/auth/validate', function() {
     $controller->validate();
 });
 
+// Database connection test endpoint (for debugging)
+$router->get('api/test/db', function() {
+    header('Content-Type: application/json');
+    try {
+        $db = \Database::getInstance()->getConnection();
+        $stmt = $db->query("SELECT 1 as test");
+        $result = $stmt->fetch();
+        echo json_encode([
+            'success' => true,
+            'message' => 'Database connection successful',
+            'test' => $result
+        ]);
+    } catch (\Exception $e) {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'trace' => (defined('APP_ENV') && APP_ENV === 'local') ? $e->getTraceAsString() : null
+        ]);
+    }
+});
+
 // Logout endpoint
 $router->post('api/auth/logout', function() {
     $controller = new \App\Controllers\AuthController();

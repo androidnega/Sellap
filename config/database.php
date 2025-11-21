@@ -30,7 +30,13 @@ class Database {
             $this->connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->connection->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
+            // Log detailed error for debugging
+            error_log("PDO Exception: " . $e->getMessage());
+            error_log("Connection string: mysql:host=$host;dbname=$dbname;charset=utf8mb4");
             throw new \Exception("Database connection failed: " . $e->getMessage());
+        } catch (\Exception $e) {
+            error_log("Database connection error: " . $e->getMessage());
+            throw $e;
         }
     }
 
