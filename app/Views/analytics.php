@@ -357,8 +357,23 @@
         setInterval(loadAnalyticsData, 300000);
     });
     
+    // Helper function to get token from cookies
+    function getTokenFromCookie() {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'sellapp_token' || name === 'token') {
+                return decodeURIComponent(value);
+            }
+        }
+        return null;
+    }
+    
     function getAuthHeaders() {
-        const token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
+        // Try localStorage first, then cookies
+        const token = localStorage.getItem('token') || 
+                     localStorage.getItem('sellapp_token') || 
+                     getTokenFromCookie();
         const headers = {
             'Content-Type': 'application/json'
         };
@@ -369,15 +384,21 @@
     }
     
     function loadAnalyticsData() {
-        const token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
+        // Try to get token from localStorage or cookies
+        const token = localStorage.getItem('token') || 
+                     localStorage.getItem('sellapp_token') || 
+                     getTokenFromCookie();
+        
+        // Don't return early - session cookies will work even without token in headers
+        // Just log a warning if no token found
         if (!token) {
-            console.error('No token found');
-            return;
+            console.warn('No token found in localStorage or cookies - will try with session cookies');
         }
         
         // Load admin stats - this has the core metrics
         fetch(BASE + '/api/admin/stats', {
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies
         })
         .then(response => {
             if (!response.ok) {
@@ -414,7 +435,8 @@
             
             // Fallback: Try loading from platform metrics
             fetch(BASE + '/api/admin/platform-metrics', {
-                headers: getAuthHeaders()
+                headers: getAuthHeaders(),
+                credentials: 'same-origin'
             })
             .then(response => response.json())
             .then(data => {
@@ -432,7 +454,8 @@
     
     function loadDetailedAnalytics() {
         fetch(BASE + '/api/admin/analytics', {
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            credentials: 'same-origin'
         })
         .then(response => response.json())
         .then(data => {
@@ -737,7 +760,8 @@
         
         // Update transaction types from analytics API (real data)
         fetch(BASE + '/api/admin/analytics', {
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            credentials: 'same-origin'
         })
         .then(response => response.json())
         .then(data => {
@@ -755,7 +779,8 @@
             
             // Fallback: Try to get from admin stats
             fetch(BASE + '/api/admin/stats', {
-                headers: getAuthHeaders()
+                headers: getAuthHeaders(),
+                credentials: 'same-origin'
             })
             .then(response => response.json())
             .then(statsData => {
@@ -899,12 +924,16 @@
         const select = document.getElementById('audit-company-id');
         if (!select) return; // Element doesn't exist, skip
         
-        // Check for token first
-        const token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
+        // Try to get token from localStorage or cookies
+        const token = localStorage.getItem('token') || 
+                     localStorage.getItem('sellapp_token') || 
+                     getTokenFromCookie();
+        
+        // Don't return early - session cookies will work even without token
+        // Just show a loading message if no token
         if (!token) {
-            console.warn('No token found for companies API');
-            select.innerHTML = '<option value="">Please login to load companies</option>';
-            return;
+            console.warn('No token found in localStorage or cookies - will try with session cookies');
+            select.innerHTML = '<option value="">Loading companies...</option>';
         }
         
         fetch(BASE + '/api/admin/companies', {
@@ -1012,7 +1041,8 @@
         url += '?' + params.toString();
         
         fetch(url, {
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            credentials: 'same-origin'
         })
         .then(response => response.json())
         .then(data => {
@@ -1167,7 +1197,8 @@
             // Try to fetch additional details if URL is available
             if (url) {
                 fetch(url, {
-                    headers: getAuthHeaders()
+                    headers: getAuthHeaders(),
+                    credentials: 'same-origin'
                 })
                 .then(response => {
                     if (!response.ok) {
