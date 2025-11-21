@@ -8,7 +8,7 @@ $pageTitle = "Reset Operation History";
 $currentPage = 'admin';
 
 $content = '
-<div class="max-w-6xl mx-auto">
+<div class="w-full">
     <div class="bg-white rounded-lg shadow-lg p-6">
         <div class="flex items-center justify-between mb-6">
             <h1 class="text-3xl font-bold text-gray-900">
