@@ -5,6 +5,74 @@
  * cPanel Shared Hosting Compatible
  */
 
+// Serve static files directly before routing
+$requestUri = $_SERVER['REQUEST_URI'] ?? '';
+$requestPath = parse_url($requestUri, PHP_URL_PATH);
+
+// Remove query string
+$requestPath = strtok($requestPath, '?');
+
+// Remove base directory from path if present
+$scriptDir = dirname($_SERVER['SCRIPT_NAME']);
+if ($scriptDir !== '/' && $scriptDir !== '.' && !empty($scriptDir)) {
+    // Remove the script directory from the beginning of the path
+    if (strpos($requestPath, $scriptDir) === 0) {
+        $requestPath = substr($requestPath, strlen($scriptDir));
+    }
+}
+
+// Also try removing common base paths
+$requestPath = preg_replace('#^/sellapp/#', '', $requestPath);
+$requestPath = ltrim($requestPath, '/');
+
+// Check if this is a static asset request
+$staticExtensions = ['css', 'js', 'jpg', 'jpeg', 'png', 'gif', 'ico', 'svg', 'woff', 'woff2', 'ttf', 'eot', 'pdf', 'zip', 'mp4', 'mp3'];
+$extension = strtolower(pathinfo($requestPath, PATHINFO_EXTENSION));
+
+if (in_array($extension, $staticExtensions) || strpos($requestPath, 'assets/') === 0) {
+    // This is a static file request - serve it directly
+    $filePath = __DIR__ . '/' . $requestPath;
+    
+    if (file_exists($filePath) && is_file($filePath)) {
+        // Set appropriate MIME type
+        $mimeTypes = [
+            'css' => 'text/css',
+            'js' => 'application/javascript',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'ico' => 'image/x-icon',
+            'svg' => 'image/svg+xml',
+            'woff' => 'font/woff',
+            'woff2' => 'font/woff2',
+            'ttf' => 'font/ttf',
+            'eot' => 'application/vnd.ms-fontobject',
+            'pdf' => 'application/pdf',
+            'zip' => 'application/zip',
+            'mp4' => 'video/mp4',
+            'mp3' => 'audio/mpeg'
+        ];
+        
+        $mimeType = $mimeTypes[$extension] ?? 'application/octet-stream';
+        header('Content-Type: ' . $mimeType);
+        header('Content-Length: ' . filesize($filePath));
+        
+        // Cache control for static assets
+        header('Cache-Control: public, max-age=31536000');
+        header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT');
+        
+        readfile($filePath);
+        exit;
+    } else {
+        // File doesn't exist - return 404
+        http_response_code(404);
+        header('Content-Type: text/plain');
+        echo 'File not found';
+        exit;
+    }
+}
+
 // Load Composer autoloader (if available)
 if (file_exists(__DIR__ . '/vendor/autoload.php')) {
     require_once __DIR__ . '/vendor/autoload.php';
