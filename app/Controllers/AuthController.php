@@ -135,7 +135,7 @@ class AuthController {
         
         // Ensure we always return JSON, even on fatal errors
         if (!headers_sent()) {
-            header('Content-Type: application/json');
+        header('Content-Type: application/json');
         }
         
         // Set error handler to catch any fatal errors
@@ -170,7 +170,7 @@ class AuthController {
             ob_end_clean();
             if (!headers_sent()) {
                 header('Content-Type: application/json');
-                http_response_code(400);
+            http_response_code(400);
             }
             echo json_encode(['success' => false, 'error' => 'Username and password are required']);
             exit;
@@ -283,7 +283,7 @@ class AuthController {
             ob_end_clean();
             if (!headers_sent()) {
                 header('Content-Type: application/json');
-                http_response_code(500);
+            http_response_code(500);
             }
             echo json_encode([
                 'success' => false,

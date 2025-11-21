@@ -43,7 +43,7 @@
           </div>
           
           <div>
-            <label class="text-sm font-medium text-gray-600">Contact Person</label>
+            <label class="text-sm font-medium text-gray-600">Manager</label>
             <p class="text-gray-900"><?= htmlspecialchars($company['contact_person'] ?? 'N/A') ?></p>
           </div>
           

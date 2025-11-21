@@ -34,7 +34,7 @@ class AuthMiddleware {
         // Try JWT token from Authorization header first
         $headers = getallheaders();
         $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
-        
+
         // Also check for token in cookies (for form-based login)
         if (empty($authHeader)) {
             $authHeader = 'Bearer ' . ($_COOKIE['sellapp_token'] ?? $_COOKIE['token'] ?? '');
@@ -42,22 +42,22 @@ class AuthMiddleware {
 
         // If we have a Bearer token, try to validate it
         if (strpos($authHeader, 'Bearer ') === 0) {
-            $token = substr($authHeader, 7);
+        $token = substr($authHeader, 7);
             if (!empty($token)) {
-                $auth = new AuthService();
-                try {
-                    $payload = $auth->validateToken($token);
-                    
-                    // Check role-based access if roles are specified
-                    if (!empty($roles) && !in_array($payload->role, $roles)) {
-                        http_response_code(403);
-                        header('Content-Type: application/json');
-                        echo json_encode(['error' => 'Unauthorized role', 'required' => $roles, 'current' => $payload->role]);
-                        exit;
-                    }
-                    
-                    return $payload;
-                } catch (\Exception $e) {
+        $auth = new AuthService();
+        try {
+            $payload = $auth->validateToken($token);
+            
+            // Check role-based access if roles are specified
+            if (!empty($roles) && !in_array($payload->role, $roles)) {
+                http_response_code(403);
+                header('Content-Type: application/json');
+                echo json_encode(['error' => 'Unauthorized role', 'required' => $roles, 'current' => $payload->role]);
+                exit;
+            }
+            
+            return $payload;
+        } catch (\Exception $e) {
                     // Token validation failed, fall through to session check
                     error_log("AuthMiddleware: JWT validation failed: " . $e->getMessage() . " - trying session");
                 }
@@ -71,10 +71,10 @@ class AuthMiddleware {
             // Check role-based access if roles are specified
             if (!empty($roles) && !in_array($userData['role'], $roles)) {
                 http_response_code(403);
-                header('Content-Type: application/json');
+            header('Content-Type: application/json');
                 echo json_encode(['error' => 'Unauthorized role', 'required' => $roles, 'current' => $userData['role']]);
-                exit;
-            }
+            exit;
+        }
             
             // Return user data in same format as JWT payload
             return (object)[

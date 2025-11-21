@@ -43,7 +43,7 @@
           <th class="p-4 text-left font-semibold">Name</th>
           <th class="p-4 text-left font-semibold">Email</th>
           <th class="p-4 text-left font-semibold">Phone</th>
-          <th class="p-4 text-left font-semibold">Contact</th>
+          <th class="p-4 text-left font-semibold">Manager</th>
           <th class="p-4 text-left font-semibold">Status</th>
           <th class="p-4 text-left font-semibold">Created</th>
           <th class="p-4 text-right font-semibold">Actions</th>

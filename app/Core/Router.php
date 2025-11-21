@@ -111,13 +111,13 @@ class Router {
         // This handles cases where old URLs with /sellapp are accessed
         if (!empty($basePath)) {
             // Only remove /sellapp if we're in a subdirectory setup
-            if (preg_match('#^/?sellapp/(.+)$#', $uri, $matches)) {
-                $uri = $matches[1];
-            } elseif (preg_match('#^/?sellapp$#', $uri)) {
-                $uri = '';
-            }
-            $uri = preg_replace('#^/sellapp/#', '/', $uri);
-            $uri = preg_replace('#^sellapp/#', '', $uri);
+        if (preg_match('#^/?sellapp/(.+)$#', $uri, $matches)) {
+            $uri = $matches[1];
+        } elseif (preg_match('#^/?sellapp$#', $uri)) {
+            $uri = '';
+        }
+        $uri = preg_replace('#^/sellapp/#', '/', $uri);
+        $uri = preg_replace('#^sellapp/#', '', $uri);
         }
         
         // Final cleanup - ensure no kabz_events remains

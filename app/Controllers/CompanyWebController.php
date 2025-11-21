@@ -179,6 +179,34 @@ class CompanyWebController {
             $managerData['is_active']
         ]);
 
+        // Send SMS to manager with account credentials
+        $phoneNumberToUse = !empty($data['phone_number']) ? trim($data['phone_number']) : null;
+        if (!empty($phoneNumberToUse)) {
+            try {
+                $loginUrl = 'https://sellapp.store';
+                $plainPassword = 'manager123';
+                
+                $message = "Your company account has been created.\n\n";
+                $message .= "Username: {$managerData['username']}\n";
+                $message .= "Password: {$plainPassword}\n\n";
+                $message .= "Login at: {$loginUrl}\n\n";
+                $message .= "Please change your password after logging in.";
+                
+                // Send SMS - use administrative SMS (system balance, not company credits)
+                $smsService = new \App\Services\SMSService();
+                $smsResult = $smsService->sendAdministrativeSMS($phoneNumberToUse, $message);
+                
+                if ($smsResult['success'] && !($smsResult['simulated'] ?? false)) {
+                    error_log("CompanyWebController: Account creation SMS sent successfully to {$phoneNumberToUse} for company {$companyId}");
+                } else {
+                    error_log("CompanyWebController: Failed to send account creation SMS to {$phoneNumberToUse} for company {$companyId}: " . ($smsResult['error'] ?? 'Unknown error'));
+                }
+            } catch (\Exception $e) {
+                // Log error but don't fail company creation if SMS fails
+                error_log("CompanyWebController: Exception sending account creation SMS for company {$companyId}: " . $e->getMessage());
+            }
+        }
+
         // Initialize default modules for the new company
         $defaultModules = ['products_inventory', 'pos_sales', 'customers'];
         $companyModuleModel = new CompanyModule();
@@ -536,16 +564,13 @@ class CompanyWebController {
                 $notificationService = new NotificationService();
                 
                 // Administrative message - should not mention company name, comes from SellApp
-                $appUrl = defined('APP_URL') ? APP_URL : (getenv('APP_URL') ?: 'http://localhost');
-                $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
-                $loginUrl = rtrim($appUrl . $basePath, '/');
+                $loginUrl = 'https://sellapp.store';
                 
                 $message = "Your manager password has been reset.\n\n";
                 $message .= "Username: {$manager['username']}\n";
                 $message .= "New Password: {$newPassword}\n\n";
                 $message .= "Login at: {$loginUrl}\n\n";
-                $message .= "Please change your password after logging in.\n\n";
-                $message .= "SECURITY: If you did not request this reset, please ignore this message and contact your administrator immediately.";
+                $message .= "Please change your password after logging in.";
                 
                 // Log phone number details before sending
                 $phoneSource = !empty($manager['phone_number']) ? 'manager phone' : 'company phone';

@@ -95,7 +95,7 @@ class AdminController {
      */
     public function companies() {
         try {
-            $payload = AuthMiddleware::handle(['system_admin']);
+        $payload = AuthMiddleware::handle(['system_admin']);
         } catch (\Exception $e) {
             http_response_code(401);
             header('Content-Type: application/json');

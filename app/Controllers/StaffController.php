@@ -403,17 +403,14 @@ class StaffController {
                 if (!empty($phoneNumberToUse)) {
                     try {
                         // Get login URL dynamically
-                        $appUrl = defined('APP_URL') ? APP_URL : (getenv('APP_URL') ?: 'http://localhost');
-                        $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
-                        $loginUrl = rtrim($appUrl . $basePath, '/');
+                        $loginUrl = 'https://sellapp.store';
                         
-                        // Administrative message from SellApp with security warning
+                        // Administrative message from SellApp
                         $message = "Your account password has been reset.\n\n";
                         $message .= "Username: {$staffMember['username']}\n";
                         $message .= "New Password: {$newPassword}\n\n";
                         $message .= "Login at: {$loginUrl}\n\n";
-                        $message .= "Please change your password after logging in.\n\n";
-                        $message .= "SECURITY: If you did not request this reset, please ignore this message and contact your administrator immediately.";
+                        $message .= "Please change your password after logging in.";
                         
                         // Send SMS - use administrative SMS (system balance, not company credits)
                         // Administrative messages always use "SellApp" as sender

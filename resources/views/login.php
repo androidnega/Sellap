@@ -137,7 +137,7 @@
           <input 
             type="text" 
             name="username"
-            id="username"
+            id="username" 
             class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
             placeholder="Enter username or email"
             required
@@ -151,7 +151,7 @@
           <input 
             type="password" 
             name="password"
-            id="password"
+            id="password" 
             class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
             placeholder="Enter your password"
             required
@@ -160,7 +160,7 @@
         </div>
         
         <button 
-          type="submit"
+          type="submit" 
           id="loginSubmitBtn"
           class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white py-2 rounded-lg font-semibold text-sm transition-all duration-200 shadow-md hover:shadow-lg"
           style="display: block; width: 100%; cursor: pointer;">

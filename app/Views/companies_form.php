@@ -32,7 +32,7 @@
       <input name="phone" value="<?= htmlspecialchars($company['phone_number'] ?? '') ?>" class="w-full border p-2 rounded" />
     </div>
     <div>
-      <label class="text-sm text-gray-700">Contact Person</label>
+      <label class="text-sm text-gray-700">Manager</label>
       <input name="contact_person" value="<?= htmlspecialchars($company['contact_person'] ?? '') ?>" class="w-full border p-2 rounded" />
     </div>
   </div>
@@ -52,6 +52,6 @@
 
   <div class="flex justify-end gap-3">
     <a href="<?= BASE_URL_PATH ?>/dashboard/companies" class="text-gray-600 hover:underline">Cancel</a>
-    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"><?= isset($company) ? 'Update' : 'Save' ?></button>
+    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"><?= isset($company) ? 'Update' : 'Create' ?></button>
   </div>
 </form>
