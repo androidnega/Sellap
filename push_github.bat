@@ -1,8 +1,7 @@
 @echo off
-echo Checking git status...
-git status
-
+echo Pushing to GitHub...
 echo.
+
 echo Staging all changes...
 git add .
 
@@ -12,9 +11,10 @@ git commit -m "Update system: %date% %time%"
 
 echo.
 echo Pushing to GitHub...
-git push origin main
+git push origin master
 if errorlevel 1 (
-    git push origin master
+    echo Trying main branch...
+    git push origin main
 )
 
 echo.
