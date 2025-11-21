@@ -31,6 +31,9 @@ class AuthMiddleware {
             session_start();
         }
         
+        // Check for session inactivity timeout (for session-based auth)
+        self::checkSessionTimeout();
+        
         // Try JWT token from Authorization header first
         $headers = getallheaders();
         $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
@@ -67,6 +70,9 @@ class AuthMiddleware {
         // Fallback to session-based authentication
         if (isset($_SESSION['user']) && !empty($_SESSION['user'])) {
             $userData = $_SESSION['user'];
+            
+            // Update last activity time for session timeout tracking
+            self::updateLastActivity();
             
             // Check role-based access if roles are specified
             if (!empty($roles) && !in_array($userData['role'], $roles)) {
@@ -114,6 +120,68 @@ class AuthMiddleware {
         }
 
         return $payload;
+    }
+    
+    /**
+     * Check if session has expired due to inactivity
+     * Logs out user if inactive for more than 30 minutes
+     */
+    private static function checkSessionTimeout() {
+        // Only check if user is logged in
+        if (!isset($_SESSION['user']) || empty($_SESSION['user'])) {
+            return;
+        }
+        
+        // Get session timeout (default to 30 minutes if not defined)
+        $timeout = defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT : (30 * 60);
+        
+        // Get last activity time
+        $lastActivity = $_SESSION['last_activity'] ?? null;
+        
+        if ($lastActivity !== null) {
+            // Calculate time since last activity
+            $timeSinceActivity = time() - $lastActivity;
+            
+            // If inactive for more than timeout period, log out user
+            if ($timeSinceActivity > $timeout) {
+                // Clear session data
+                $_SESSION = array();
+                
+                // Destroy session cookie
+                if (ini_get("session.use_cookies")) {
+                    $params = session_get_cookie_params();
+                    setcookie(session_name(), '', time() - 42000,
+                        $params["path"], $params["domain"],
+                        $params["secure"], $params["httponly"]
+                    );
+                }
+                
+                // Destroy the session
+                session_destroy();
+                
+                // Clear authentication cookies
+                setcookie('sellapp_token', '', time() - 3600, '/', '', false, true);
+                setcookie('token', '', time() - 3600, '/', '', false, true);
+                
+                // Return 401 for API endpoints
+                http_response_code(401);
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'error' => 'Session expired',
+                    'message' => 'Your session has expired due to inactivity. Please login again.'
+                ]);
+                exit;
+            }
+        }
+    }
+    
+    /**
+     * Update last activity timestamp in session
+     */
+    private static function updateLastActivity() {
+        if (isset($_SESSION['user']) && !empty($_SESSION['user'])) {
+            $_SESSION['last_activity'] = time();
+        }
     }
 }
 
