@@ -60,11 +60,17 @@ async function apiCall(endpoint, options = {}) {
     return response;
 }
 
-// Login form handling
-const loginForm = document.getElementById('loginForm');
-if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+// Login form handling - wait for DOM to be ready
+function setupLoginForm() {
+    console.log('Setting up login form handler...');
+    const loginForm = document.getElementById('loginForm');
+    console.log('Login form element:', loginForm);
+
+    if (loginForm) {
+        console.log('Login form found, attaching event listener...');
+        loginForm.addEventListener('submit', async (e) => {
+            console.log('Login form submitted!');
+            e.preventDefault();
         
         const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value.trim();
@@ -141,8 +147,23 @@ if (loginForm) {
             loginBtn.textContent = 'Login';
         }
     });
+    } else {
+        console.error('Login form not found on page!');
+        console.log('Available elements:', {
+            loginForm: document.getElementById('loginForm'),
+            username: document.getElementById('username'),
+            password: document.getElementById('password'),
+            loginBtn: document.getElementById('loginBtn')
+        });
+    }
+}
+
+// Setup login form when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupLoginForm);
 } else {
-    console.warn('Login form not found on page');
+    // DOM is already ready
+    setupLoginForm();
 }
 
 // Dashboard stats loading
