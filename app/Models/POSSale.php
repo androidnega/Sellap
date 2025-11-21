@@ -15,9 +15,39 @@ class POSSale {
     }
 
     /**
+     * Generate custom sale code (e.g., SEL-SALE-001)
+     */
+    private function generateSaleCode($companyId = null) {
+        try {
+            // Get the highest existing sale code number
+            // If company_id is provided, we could scope it per company, but for simplicity, we'll use global numbering
+            $stmt = $this->conn->query("SELECT unique_id FROM {$this->table} WHERE unique_id IS NOT NULL AND unique_id LIKE 'SEL-SALE-%' ORDER BY unique_id DESC LIMIT 1");
+            $lastCode = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            $nextNumber = 1;
+            if ($lastCode && !empty($lastCode['unique_id'])) {
+                // Extract number from last code (e.g., "SEL-SALE-001" -> 1)
+                if (preg_match('/SEL-SALE-(\d+)/', $lastCode['unique_id'], $matches)) {
+                    $nextNumber = (int)$matches[1] + 1;
+                }
+            }
+            
+            // Generate new code with zero-padding (001, 002, etc.)
+            return 'SEL-SALE-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+        } catch (\Exception $e) {
+            error_log("POSSale::generateSaleCode error: " . $e->getMessage());
+            // Fallback to timestamp-based ID if generation fails
+            return 'SEL-SALE-' . date('YmdHis') . '-' . rand(100, 999);
+        }
+    }
+
+    /**
      * Create a new POS sale (Multi-tenant)
      */
     public function create($data) {
+        // Generate custom sale code
+        $saleCode = $this->generateSaleCode($data['company_id'] ?? null);
+        
         // Check if new columns exist, fallback to old schema if not
         $columnsExist = $this->checkSwapColumnsExist();
         
@@ -51,7 +81,7 @@ class POSSale {
         
         $params = [
             'company_id' => $data['company_id'],
-            'unique_id' => $data['unique_id'] ?? 'POS' . strtoupper(uniqid()),
+            'unique_id' => $data['unique_id'] ?? $saleCode,
             'customer_id' => $data['customer_id'] ?? null,
             'total_amount' => $totalAmount,
             'discount' => $discount,

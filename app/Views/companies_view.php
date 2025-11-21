@@ -4,7 +4,7 @@
     <div class="flex items-center justify-between mb-4">
       <div>
         <h2 class="text-3xl font-bold text-gray-800"><?= htmlspecialchars($company['name'] ?? 'Company') ?></h2>
-        <p class="text-gray-600">Company ID: #<?= $company['id'] ?></p>
+        <p class="text-gray-600">Company ID: <?= !empty($company['company_code']) ? htmlspecialchars($company['company_code']) : '#' . $company['id'] ?></p>
       </div>
       <div class="flex gap-2">
         <a href="<?= BASE_URL_PATH ?>/dashboard/companies/<?= $company['id'] ?>/restore-points" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-medium">
@@ -74,7 +74,7 @@
           
           <div>
             <label class="text-sm font-medium text-gray-600">Company ID</label>
-            <p class="text-gray-900 font-mono text-sm">#<?= $company['id'] ?></p>
+            <p class="text-gray-900 font-mono text-sm"><?= !empty($company['company_code']) ? htmlspecialchars($company['company_code']) : '#' . $company['id'] ?></p>
           </div>
         </div>
       </div>

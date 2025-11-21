@@ -40,13 +40,63 @@ class Company {
     }
 
     /**
+     * Generate custom company code (e.g., SEL-COMP-001)
+     */
+    private function generateCompanyCode() {
+        try {
+            // Check if company_code column exists
+            $columnCheck = $this->conn->query("SHOW COLUMNS FROM {$this->table} LIKE 'company_code'");
+            $hasCompanyCodeColumn = $columnCheck && $columnCheck->rowCount() > 0;
+            
+            if (!$hasCompanyCodeColumn) {
+                // Add company_code column if it doesn't exist
+                try {
+                    $this->conn->exec("ALTER TABLE {$this->table} ADD COLUMN company_code VARCHAR(50) UNIQUE NULL AFTER id");
+                    error_log("Company::generateCompanyCode - Added company_code column");
+                } catch (\PDOException $e) {
+                    error_log("Company::generateCompanyCode - Could not add company_code column: " . $e->getMessage());
+                    return null;
+                }
+            }
+            
+            // Get the highest existing company code number
+            $stmt = $this->conn->query("SELECT company_code FROM {$this->table} WHERE company_code IS NOT NULL AND company_code LIKE 'SEL-COMP-%' ORDER BY company_code DESC LIMIT 1");
+            $lastCode = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            $nextNumber = 1;
+            if ($lastCode && !empty($lastCode['company_code'])) {
+                // Extract number from last code (e.g., "SEL-COMP-001" -> 1)
+                if (preg_match('/SEL-COMP-(\d+)/', $lastCode['company_code'], $matches)) {
+                    $nextNumber = (int)$matches[1] + 1;
+                }
+            }
+            
+            // Generate new code with zero-padding (001, 002, etc.)
+            return 'SEL-COMP-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+        } catch (\Exception $e) {
+            error_log("Company::generateCompanyCode error: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Create a new company
      */
     public function create($data) {
+        // Generate custom company code
+        $companyCode = $this->generateCompanyCode();
+        
         // Support both old column names and new schema
         $columns = [];
         $values = [];
         $params = [];
+        
+        // Add company_code if generated
+        if ($companyCode) {
+            $columns[] = 'company_code';
+            $values[] = ':company_code';
+            $params['company_code'] = $companyCode;
+        }
         
         // Map data to correct column names based on schema
         if (isset($data['name'])) {
@@ -102,15 +152,26 @@ class Company {
         } catch (\PDOException $e) {
             // Fallback to basic columns if table structure is different
             error_log("Company::create - Error with full columns, trying basic: " . $e->getMessage());
-            $sql = "INSERT INTO {$this->table} (name, email, phone_number, address, created_at) 
-                    VALUES (:name, :email, :phone_number, :address, NOW())";
-            $stmt = $this->conn->prepare($sql);
-            $stmt->execute([
+            $basicColumns = ['name', 'email', 'phone_number', 'address'];
+            $basicValues = [':name', ':email', ':phone_number', ':address'];
+            $basicParams = [
                 'name' => $data['name'] ?? '',
                 'email' => $data['email'] ?? null,
                 'phone_number' => $data['phone'] ?? $data['phone_number'] ?? null,
                 'address' => $data['address'] ?? null
-            ]);
+            ];
+            
+            // Add company_code if available
+            if ($companyCode) {
+                array_unshift($basicColumns, 'company_code');
+                array_unshift($basicValues, ':company_code');
+                $basicParams['company_code'] = $companyCode;
+            }
+            
+            $sql = "INSERT INTO {$this->table} (" . implode(', ', $basicColumns) . ", created_at) 
+                    VALUES (" . implode(', ', $basicValues) . ", NOW())";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute($basicParams);
             
             return $this->conn->lastInsertId();
         }

@@ -604,7 +604,7 @@ function renderSalesTable() {
             </td>
             ` : ''}
             <td class="px-3 sm:px-4 py-4 whitespace-nowrap text-sm font-medium" ${textColorStyle}>
-                #${sale.id}
+                ${sale.unique_id || 'SEL-SALE-' + sale.id}
             </td>
             <td class="px-3 sm:px-4 py-4 text-sm" ${textColorStyle}>
                 <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0">
@@ -979,7 +979,7 @@ async function viewSaleDetails(saleId) {
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Sale ID</label>
-                            <p class="text-lg font-semibold">#${sale.id}</p>
+                            <p class="text-lg font-semibold">${sale.unique_id || 'SEL-SALE-' + sale.id}</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Date & Time</label>

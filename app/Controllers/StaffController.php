@@ -205,7 +205,21 @@ class StaffController {
                 error_log("StaffController store: No phone number provided, skipping SMS notification");
             }
             
-            $_SESSION['success_message'] = "Staff member '{$fullName}' has been created successfully and assigned to company {$companyId}.";
+            // Get company name for the success message
+            $companyName = 'Unknown Company';
+            try {
+                $db = \Database::getInstance()->getConnection();
+                $companyStmt = $db->prepare("SELECT name FROM companies WHERE id = ? LIMIT 1");
+                $companyStmt->execute([$companyId]);
+                $company = $companyStmt->fetch(PDO::FETCH_ASSOC);
+                if ($company && !empty($company['name'])) {
+                    $companyName = $company['name'];
+                }
+            } catch (\Exception $e) {
+                error_log("StaffController store: Error fetching company name: " . $e->getMessage());
+            }
+            
+            $_SESSION['success_message'] = "Staff member '{$fullName}' has been created successfully and assigned to {$companyName}.";
             header('Location: ' . BASE_URL_PATH . '/dashboard/staff');
             exit;
         } catch (\Exception $e) {

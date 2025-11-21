@@ -2208,7 +2208,7 @@ function setupEventListeners() {
                     
                     // Show receipt modal with sale data
                     const saleData = {
-                        sale_id: lastSaleId,
+                        sale_id: data.unique_id || data.data?.unique_id || lastSaleId,
                         total_amount: total,
                         payment_method: paymentMethod,
                         items: Object.values(cart).map(item => ({

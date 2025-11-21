@@ -2011,13 +2011,19 @@ class POSController {
                 error_log("POS Sale: No customer phone number available for SMS notification. customer_contact: " . ($customer_contact ?? 'null') . ", customer_id: " . ($customer_id ?? 'null'));
             }
             
+            // Fetch the sale to get unique_id
+            $saleRecord = $this->sale->findById($saleId);
+            $uniqueId = $saleRecord['unique_id'] ?? 'SEL-SALE-' . str_pad($saleId, 3, '0', STR_PAD_LEFT);
+            
             $responseData = [
                 'success' => true,
                 'message' => 'Sale processed successfully',
                 'sale_id' => $saleId,
+                'unique_id' => $uniqueId,
                 'total' => $total,
                 'data' => [
                     'sale_id' => $saleId,
+                    'unique_id' => $uniqueId,
                     'total' => $total,
                     'items_count' => count($input['items'])
                 ]
