@@ -19,7 +19,95 @@ class AuthController {
     }
 
     /**
-     * Login endpoint
+     * Form-based login endpoint (pure PHP)
+     * POST /login
+     */
+    public function loginForm() {
+        // Start session if not already started
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
+        // Get form data
+        $username = $_POST['username'] ?? '';
+        $password = $_POST['password'] ?? '';
+        $redirectUrl = $_GET['redirect'] ?? '/dashboard';
+        
+        // Validate inputs
+        if (empty($username) || empty($password)) {
+            $error = urlencode('Username and password are required');
+            header('Location: ' . BASE_URL_PATH . '/?error=' . $error);
+            exit;
+        }
+        
+        try {
+            // Authenticate user
+            if (!$this->auth) {
+                throw new \Exception('Authentication service not available');
+            }
+            
+            $result = $this->auth->login($username, $password);
+            
+            // Set token in session for server-side authentication
+            $_SESSION['token'] = $result['token'];
+            $_SESSION['user'] = [
+                'id' => $result['user']['id'],
+                'username' => $result['user']['username'],
+                'email' => $result['user']['email'] ?? null,
+                'full_name' => $result['user']['full_name'] ?? null,
+                'role' => $result['user']['role'],
+                'company_id' => $result['user']['company_id'] ?? null,
+                'company_name' => $result['user']['company_name'] ?? null
+            ];
+            
+            // Set initial last activity time for session timeout tracking
+            $_SESSION['last_activity'] = time();
+            
+            // Set JWT token in cookie for web page authentication
+            $cookieExpire = time() + (24 * 60 * 60);
+            setcookie('sellapp_token', $result['token'], $cookieExpire, '/', '', false, true);
+            setcookie('token', $result['token'], $cookieExpire, '/', '', false, true);
+            
+            // Log audit event for login
+            try {
+                $auditService = new \App\Services\AuditService();
+                $auditService->logEvent(
+                    $result['user']['company_id'] ?? null,
+                    $result['user']['id'],
+                    'user.login',
+                    'user',
+                    $result['user']['id'],
+                    [
+                        'username' => $result['user']['username'],
+                        'role' => $result['user']['role'],
+                        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
+                        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null
+                    ],
+                    $_SERVER['REMOTE_ADDR'] ?? null
+                );
+            } catch (\Exception $auditError) {
+                // Don't fail login if audit logging fails
+                error_log("Audit logging error (non-fatal): " . $auditError->getMessage());
+            }
+            
+            // Redirect to dashboard
+            $redirectPath = BASE_URL_PATH . $redirectUrl;
+            header('Location: ' . $redirectPath);
+            exit;
+            
+        } catch (\Exception $e) {
+            // Log the error
+            error_log("Login error: " . $e->getMessage());
+            
+            // Redirect back to login with error message
+            $error = urlencode($e->getMessage());
+            header('Location: ' . BASE_URL_PATH . '/?error=' . $error);
+            exit;
+        }
+    }
+
+    /**
+     * API Login endpoint (JSON)
      * POST /api/auth/login
      */
     public function login() {

@@ -8,68 +8,6 @@
   <link rel="icon" type="image/svg+xml" href="<?php echo defined('BASE_URL_PATH') ? BASE_URL_PATH : '/sellapp'; ?>/assets/images/favicon.svg">
   <link rel="shortcut icon" type="image/svg+xml" href="<?php echo defined('BASE_URL_PATH') ? BASE_URL_PATH : '/sellapp'; ?>/assets/images/favicon.svg">
   <link rel="apple-touch-icon" href="<?php echo defined('BASE_URL_PATH') ? BASE_URL_PATH : '/sellapp'; ?>/assets/images/favicon.svg">
-  <script>
-    // Base path for application URLs (auto-detected)
-    window.APP_BASE_PATH = '<?php echo defined("BASE_URL_PATH") ? BASE_URL_PATH : "/sellapp"; ?>';
-    const BASE = window.APP_BASE_PATH || '';
-    
-    // Debug logging for live server troubleshooting
-    console.log('SellApp Login Page Loaded');
-    console.log('Detected BASE_URL_PATH:', window.APP_BASE_PATH);
-    console.log('Current URL:', window.location.href);
-    console.log('Current Pathname:', window.location.pathname);
-    
-    // Remove kabz_events from URL if present (completely remove this path)
-    (function() {
-      if (window.location.pathname.includes('kabz_events')) {
-        let newPath = window.location.pathname.replace(/\/kabz_events\/?/g, '/');
-        newPath = newPath.replace(/kabz_events/g, '');
-        // Ensure path starts with /sellapp if it's empty or root
-        if (newPath === '/' || newPath === '') {
-          newPath = '/sellapp';
-        } else if (!newPath.startsWith('/sellapp') && !newPath.startsWith('/api') && !newPath.startsWith('/dashboard') && !newPath.startsWith('/login')) {
-          newPath = '/sellapp' + (newPath.startsWith('/') ? '' : '/') + newPath;
-        }
-        const newUrl = newPath + window.location.search + window.location.hash;
-        window.location.replace(newUrl);
-        return;
-      }
-    })();
-    
-    // Check if user is already logged in
-    (function() {
-      const token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
-      
-      if (token) {
-        // Get redirect URL from query params or default to dashboard
-        const urlParams = new URLSearchParams(window.location.search);
-        const redirectUrl = urlParams.get('redirect') || '/dashboard';
-        
-        // Validate token and redirect to original URL if valid
-        fetch(BASE + '/api/auth/validate', {
-          headers: {
-            'Authorization': 'Bearer ' + token
-          }
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success && data.user) {
-            // Valid token, redirect to original URL or dashboard
-            window.location.href = BASE + redirectUrl;
-          } else {
-            // Invalid token, clear storage and continue to login
-            localStorage.removeItem('token');
-            localStorage.removeItem('sellapp_token');
-            localStorage.removeItem('sellapp_user');
-          }
-        })
-        .catch(error => {
-          console.error('Auth check error:', error);
-          // Error occurred, continue to login
-        });
-      }
-    })();
-  </script>
   
   <!-- Preconnect to CDN for faster loading -->
   <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
@@ -161,14 +99,8 @@
   </script>
   <link rel="stylesheet" href="<?php echo defined('BASE_URL_PATH') ? BASE_URL_PATH : ''; ?>/assets/css/styles.css">
   <style>
-    /* Hide body until Tailwind is loaded to prevent FOUC */
+    /* Show body immediately - don't hide it */
     body {
-      visibility: hidden;
-      opacity: 0;
-      transition: opacity 0.2s ease-in;
-    }
-    
-    body.tailwind-loaded {
       visibility: visible;
       opacity: 1;
     }
@@ -189,50 +121,77 @@
     <div class="bg-white rounded-xl shadow-lg p-4 border border-gray-100">
       <h2 class="text-lg font-bold text-gray-900 mb-4 text-center">Welcome Back</h2>
       
-      <form id="loginForm" class="space-y-3" action="#" method="post" onsubmit="return false;">
-        <div>
+      <?php
+      // Display error message if present
+      $error = $_GET['error'] ?? '';
+      if (!empty($error)):
+      ?>
+      <div class="mb-3 p-2 bg-red-50 border-2 border-red-200 text-red-700 rounded-lg text-xs">
+        <?php echo htmlspecialchars(urldecode($error)); ?>
+      </div>
+      <?php endif; ?>
+      
+      <form method="post" action="<?php echo htmlspecialchars(BASE_URL_PATH . '/login' . (!empty($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '')); ?>" style="display: block;">
+        <div style="margin-bottom: 12px;">
           <label class="block text-gray-700 text-xs font-semibold mb-1">Username or Email</label>
           <input 
             type="text" 
-            id="username" 
             name="username"
+            id="username"
             class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
             placeholder="Enter username or email"
             required
-            autocomplete="username">
+            autocomplete="username"
+            value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>"
+            style="display: block; width: 100%;">
         </div>
         
-        <div>
+        <div style="margin-bottom: 12px;">
           <label class="block text-gray-700 text-xs font-semibold mb-1">Password</label>
           <input 
             type="password" 
-            id="password" 
             name="password"
+            id="password"
             class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
             placeholder="Enter your password"
             required
-            autocomplete="current-password">
+            autocomplete="current-password"
+            style="display: block; width: 100%;">
         </div>
         
         <button 
-          type="submit" 
-          id="loginBtn"
-          class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white py-2 rounded-lg font-semibold text-sm transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+          type="submit"
+          id="loginSubmitBtn"
+          class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white py-2 rounded-lg font-semibold text-sm transition-all duration-200 shadow-md hover:shadow-lg"
+          style="display: block; width: 100%; cursor: pointer;">
           Sign In
         </button>
       </form>
       
-      <div id="errorMessage" class="mt-3 p-2 bg-red-50 border-2 border-red-200 text-red-700 rounded-lg text-xs hidden"></div>
-      
       <script>
-        // Check for error parameter in URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const error = urlParams.get('error');
-        if (error) {
-          const errorMessage = document.getElementById('errorMessage');
-          errorMessage.textContent = decodeURIComponent(error);
-          errorMessage.classList.remove('hidden');
+      // Simple form submission test - ensure form works
+      document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form[method="post"]');
+        const submitBtn = document.getElementById('loginSubmitBtn');
+        
+        if (form && submitBtn) {
+          // Ensure button is clickable
+          submitBtn.style.pointerEvents = 'auto';
+          submitBtn.style.cursor = 'pointer';
+          
+          // Test click
+          submitBtn.addEventListener('click', function(e) {
+            console.log('Login button clicked!');
+            // Don't prevent default - let form submit naturally
+          });
+          
+          // Test form submit
+          form.addEventListener('submit', function(e) {
+            console.log('Form submitting!');
+            // Don't prevent default - let form submit naturally
+          });
         }
+      });
       </script>
       
     </div>
@@ -243,6 +202,5 @@
     </p>
   </div>
 
-  <script src="<?php echo defined('BASE_URL_PATH') ? BASE_URL_PATH : ''; ?>/assets/js/simple.js"></script>
 </body>
 </html>

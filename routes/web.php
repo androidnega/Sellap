@@ -27,12 +27,18 @@ $router->get('', function() {
     include __DIR__ . '/../resources/views/login.php';
 });
 
-// Redirect /login to root for backward compatibility
+// Login page (GET) - redirect to root
 $router->get('login', function() {
     $queryString = $_SERVER['QUERY_STRING'] ?? '';
     $redirectUrl = BASE_URL_PATH . ($queryString ? '?' . $queryString : '');
     header('Location: ' . $redirectUrl);
     exit;
+});
+
+// Login form submission (POST) - pure PHP
+$router->post('login', function() {
+    $controller = new \App\Controllers\AuthController();
+    $controller->loginForm();
 });
 
 // ========================================
