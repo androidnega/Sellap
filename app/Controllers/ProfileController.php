@@ -2403,9 +2403,20 @@ class ProfileController {
     <div class="section">
         <div class="section-title">Introduction</div>
         <div class="content">
-            <p>Welcome to the Manager User Guide! This comprehensive guide covers all system features available to managers, including staff management, inventory control, reporting, and system configuration.</p>
+            <p>Welcome to the Manager User Guide! This comprehensive guide covers every feature available to managers in the system. As a manager, you have full control over staff, inventory, products, categories, brands, reports, and system settings including SMS functionality.</p>
             <div class="info-box">
-                <strong>Your Role:</strong> As a manager, you have access to dashboard analytics, staff management, inventory management, categories, brands, subcategories, reports, and system settings.
+                <strong>Your Complete Access:</strong> As a manager, you can:
+                <ul style="margin-top: 10px; margin-left: 20px;">
+                    <li>Dashboard with comprehensive analytics and insights</li>
+                    <li>Staff Management (add, edit, manage all staff members)</li>
+                    <li>Product Management (add, edit, manage all products)</li>
+                    <li>Category, Subcategory, and Brand Management</li>
+                    <li>Inventory Control and Stock Management</li>
+                    <li>Reports and Analytics (sales, inventory, staff performance)</li>
+                    <li>System Settings and Configuration</li>
+                    <li>SMS Account Setup and Credit Purchasing</li>
+                    <li>View all sales, customers, and transactions</li>
+                </ul>
             </div>
         </div>
     </div>
@@ -2413,290 +2424,895 @@ class ProfileController {
     <div class="section">
         <div class="section-title">1. Dashboard and Analytics</div>
         <div class="subsection">
-            <div class="subsection-title">Dashboard Overview</div>
+            <div class="subsection-title">Accessing Your Dashboard</div>
             <div class="content">
-                <p>Your manager dashboard provides:</p>
-                <ul>
-                    <li>Sales analytics and trends</li>
-                    <li>Revenue summaries</li>
-                    <li>Inventory status and alerts</li>
-                    <li>Staff performance metrics</li>
-                    <li>Recent transactions</li>
-                    <li>System notifications</li>
-                </ul>
+                <p><span class="step-number">1</span>After logging in, you\'ll see your manager dashboard.</p>
+                <p><span class="step-number">2</span>Access it anytime by clicking <strong>"Dashboard"</strong> in the left sidebar.</p>
             </div>
         </div>
         <div class="subsection">
-            <div class="subsection-title">Analytics Features</div>
+            <div class="subsection-title">Dashboard Features</div>
             <div class="content">
-                <p>Use analytics to:</p>
+                <p>Your manager dashboard provides comprehensive business insights:</p>
                 <ul>
-                    <li>Track sales performance over time</li>
-                    <li>Identify top-selling products</li>
-                    <li>Monitor inventory turnover</li>
-                    <li>Analyze staff productivity</li>
-                    <li>Generate business insights</li>
+                    <li><strong>Sales Analytics:</strong> Daily, weekly, monthly sales trends and comparisons</li>
+                    <li><strong>Revenue Summaries:</strong> Total revenue, profit margins, and financial overview</li>
+                    <li><strong>Inventory Status:</strong> Current stock levels, low stock alerts, and inventory value</li>
+                    <li><strong>Staff Performance:</strong> Individual and team performance metrics</li>
+                    <li><strong>Recent Transactions:</strong> Latest sales, purchases, and activities</li>
+                    <li><strong>System Notifications:</strong> Important alerts and updates</li>
+                    <li><strong>Top Products:</strong> Best-selling items and revenue generators</li>
+                    <li><strong>Customer Insights:</strong> New customers, repeat customers, and customer trends</li>
                 </ul>
                 <div class="highlight-box">
-                    <strong>Tip:</strong> Review analytics regularly to make informed business decisions.
+                    <strong>Pro Tip:</strong> Review your dashboard daily to stay informed about business performance and identify areas that need attention.
                 </div>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Using Analytics for Decision Making</div>
+            <div class="content">
+                <p>Use dashboard analytics to:</p>
+                <ul>
+                    <li>Track sales performance over time and identify trends</li>
+                    <li>Identify top-selling products to optimize inventory</li>
+                    <li>Monitor inventory turnover rates</li>
+                    <li>Analyze staff productivity and performance</li>
+                    <li>Generate business insights for strategic planning</li>
+                    <li>Identify slow-moving products</li>
+                    <li>Track customer acquisition and retention</li>
+                </ul>
             </div>
         </div>
     </div>
     
     <div class="section">
-        <div class="section-title">2. Staff Management</div>
+        <div class="section-title">2. Staff Management - Complete Guide</div>
         <div class="subsection">
-            <div class="subsection-title">Viewing Staff</div>
+            <div class="subsection-title">Viewing Staff Members</div>
             <div class="content">
-                <p>To manage staff members:</p>
+                <p><strong>Step-by-Step:</strong></p>
                 <ol>
-                    <li>Navigate to <strong>Staff Management</strong> from the sidebar</li>
-                    <li>View all staff members and their roles</li>
-                    <li>Search and filter staff by role or status</li>
-                    <li>View individual staff profiles</li>
+                    <li>Navigate to <strong>"Staff Management"</strong> from the left sidebar</li>
+                    <li>You will see a table/list of all staff members</li>
+                    <li>Each staff member shows:
+                        <ul>
+                            <li>Name and contact information</li>
+                            <li>Role (Salesperson, Technician, etc.)</li>
+                            <li>Status (Active, Inactive)</li>
+                            <li>Last login date</li>
+                            <li>Performance metrics (if available)</li>
+                        </ul>
+                    </li>
+                    <li>Use the search bar to find specific staff members</li>
+                    <li>Filter by role or status using the filter options</li>
+                    <li>Click on any staff member\'s name to view their full profile</li>
                 </ol>
             </div>
         </div>
         <div class="subsection">
-            <div class="subsection-title">Adding Staff Members</div>
+            <div class="subsection-title">Adding a New Staff Member</div>
             <div class="content">
-                <p>To add a new staff member:</p>
+                <p><strong>Complete Process:</strong></p>
+                <ol>
+                    <li>Go to <strong>"Staff Management"</strong> from the sidebar</li>
+                    <li>Click the <strong>"Add New Staff"</strong> or <strong>"Create Staff"</strong> button (usually top right)</li>
+                    <li>Fill in the staff form with the following information:</li>
+                </ol>
+                <p><strong>Personal Information:</strong></p>
+                <ul>
+                    <li><strong>Full Name:</strong> Staff member\'s complete name (required)</li>
+                    <li><strong>Email Address:</strong> Valid email for login and notifications (required)</li>
+                    <li><strong>Phone Number:</strong> Contact number (required)</li>
+                    <li><strong>Address:</strong> Physical address (optional)</li>
+                </ul>
+                <p><strong>Account Information:</strong></p>
+                <ul>
+                    <li><strong>Username:</strong> Unique username for login (required)</li>
+                    <li><strong>Password:</strong> Initial password (staff should change on first login)</li>
+                    <li><strong>Confirm Password:</strong> Re-enter password for verification</li>
+                </ul>
+                <p><strong>Role Assignment:</strong></p>
+                <ul>
+                    <li><strong>Role:</strong> Select from dropdown (Salesperson, Technician, Manager, etc.)</li>
+                    <li>Each role has specific permissions and access levels</li>
+                    <li>Choose the role that matches the staff member\'s responsibilities</li>
+                </ul>
+                <p><strong>Additional Settings:</strong></p>
+                <ul>
+                    <li><strong>Status:</strong> Set to "Active" to enable login, "Inactive" to disable</li>
+                    <li><strong>Permissions:</strong> Configure specific permissions if available</li>
+                    <li><strong>Notes:</strong> Any additional information about the staff member</li>
+                </ul>
+                <ol start="4">
+                    <li>Review all information for accuracy</li>
+                    <li>Click <strong>"Save Staff"</strong> or <strong>"Create Staff"</strong></li>
+                    <li>The staff member will be added to the system</li>
+                    <li>They will receive login credentials (share securely)</li>
+                </ol>
+                <div class="warning-box">
+                    <strong>Security Important:</strong> Only assign roles and permissions appropriate to each staff member\'s responsibilities. Never share admin-level access unnecessarily.
+                </div>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Editing Staff Information</div>
+            <div class="content">
+                <p>To update staff member details:</p>
                 <ol>
                     <li>Go to Staff Management</li>
-                    <li>Click <strong>Add New Staff</strong></li>
-                    <li>Enter personal information (name, email, phone)</li>
-                    <li>Assign a role (Salesperson, Technician, etc.)</li>
-                    <li>Set login credentials</li>
-                    <li>Configure permissions</li>
-                    <li>Save the staff member</li>
+                    <li>Find and click on the staff member\'s name</li>
+                    <li>Click the <strong>"Edit"</strong> button</li>
+                    <li>Update any information that has changed:
+                        <ul>
+                            <li>Personal information (name, email, phone)</li>
+                            <li>Role assignment</li>
+                            <li>Status (Active/Inactive)</li>
+                            <li>Permissions</li>
+                        </ul>
+                    </li>
+                    <li>Click <strong>"Save Changes"</strong></li>
                 </ol>
             </div>
         </div>
         <div class="subsection">
-            <div class="subsection-title">Managing Staff</div>
+            <div class="subsection-title">Resetting Staff Passwords</div>
             <div class="content">
-                <p>You can:</p>
+                <p>If a staff member forgets their password:</p>
+                <ol>
+                    <li>Open the staff member\'s profile</li>
+                    <li>Click <strong>"Reset Password"</strong> or <strong>"Change Password"</strong></li>
+                    <li>Enter a new temporary password</li>
+                    <li>Confirm the new password</li>
+                    <li>Click <strong>"Reset"</strong> or <strong>"Save"</strong></li>
+                    <li>Share the new password securely with the staff member</li>
+                    <li>Advise them to change it on their first login</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Deactivating/Activating Staff</div>
+            <div class="content">
+                <p>To temporarily disable a staff account:</p>
+                <ol>
+                    <li>Open the staff member\'s profile</li>
+                    <li>Change status from "Active" to "Inactive"</li>
+                    <li>Save changes</li>
+                    <li>The staff member will no longer be able to log in</li>
+                </ol>
+                <p>To reactivate:</p>
+                <ol>
+                    <li>Open the staff member\'s profile</li>
+                    <li>Change status from "Inactive" to "Active"</li>
+                    <li>Save changes</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Viewing Staff Performance</div>
+            <div class="content">
+                <p>To monitor staff performance:</p>
+                <ol>
+                    <li>Open a staff member\'s profile</li>
+                    <li>View performance metrics (if available):
+                        <ul>
+                            <li>Sales statistics (for salespersons)</li>
+                            <li>Repairs completed (for technicians)</li>
+                            <li>Activity logs</li>
+                            <li>Login history</li>
+                        </ul>
+                    </li>
+                    <li>Use this information for performance reviews and feedback</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">3. Product Management - Complete Guide</div>
+        <div class="subsection">
+            <div class="subsection-title">Viewing Products</div>
+            <div class="content">
+                <p><strong>Accessing Product List:</strong></p>
+                <ol>
+                    <li>Click <strong>"Product Management"</strong> or <strong>"Inventory"</strong> from the sidebar</li>
+                    <li>You\'ll see a comprehensive list of all products</li>
+                    <li>Use search to find products by name, SKU, or brand</li>
+                    <li>Use filters for category, brand, stock status, etc.</li>
+                    <li>Click on any product to view or edit details</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Adding a New Product - Detailed Steps</div>
+            <div class="content">
+                <p><strong>Complete Step-by-Step Process:</strong></p>
+                <ol>
+                    <li>Navigate to <strong>"Product Management"</strong> from the sidebar</li>
+                    <li>Click the <strong>"Add New Product"</strong> or <strong>"Create Product"</strong> button</li>
+                    <li>Fill in the product form systematically:</li>
+                </ol>
+                <p><strong>Basic Information:</strong></p>
+                <ol>
+                    <li><strong>Product Name:</strong> Enter the full product name (required)</li>
+                    <li><strong>SKU (Stock Keeping Unit):</strong> Unique identifier for the product (required, must be unique)</li>
+                    <li><strong>Description:</strong> Detailed product description (optional but recommended)</li>
+                    <li><strong>Short Description:</strong> Brief summary for quick reference</li>
+                </ol>
+                <p><strong>Classification:</strong></p>
+                <ol>
+                    <li><strong>Category:</strong> Select main category from dropdown (create category first if needed)</li>
+                    <li><strong>Subcategory:</strong> Select subcategory (optional, but helps organization)</li>
+                    <li><strong>Brand:</strong> Select brand from dropdown (create brand first if needed)</li>
+                </ol>
+                <p><strong>Pricing Information:</strong></p>
+                <ol>
+                    <li><strong>Cost Price:</strong> Price you paid to acquire the product</li>
+                    <li><strong>Selling Price:</strong> Price customers will pay (required)</li>
+                    <li><strong>Wholesale Price:</strong> Price for bulk purchases (optional)</li>
+                    <li><strong>Tax Rate:</strong> Applicable tax percentage (if any)</li>
+                </ol>
+                <p><strong>Inventory Information:</strong></p>
+                <ol>
+                    <li><strong>Initial Stock Quantity:</strong> Starting inventory amount</li>
+                    <li><strong>Low Stock Alert:</strong> Set minimum quantity that triggers alerts</li>
+                    <li><strong>Unit:</strong> Unit of measurement (pieces, boxes, etc.)</li>
+                </ol>
+                <p><strong>Product Specifications:</strong></p>
+                <ol>
+                    <li>Click <strong>"Add Specification"</strong> to add technical details</li>
+                    <li>Common specifications include:
+                        <ul>
+                            <li>Model number</li>
+                            <li>Color, size, weight</li>
+                            <li>Technical specifications</li>
+                            <li>Compatibility information</li>
+                            <li>Warranty information</li>
+                        </ul>
+                    </li>
+                    <li>Add as many specifications as needed</li>
+                </ol>
+                <p><strong>Product Images:</strong></p>
+                <ol>
+                    <li>Click <strong>"Upload Image"</strong> or <strong>"Add Image"</strong></li>
+                    <li>Select image file(s) from your computer</li>
+                    <li>Wait for upload to complete</li>
+                    <li>You can add multiple images</li>
+                    <li>Set a primary/main image</li>
+                </ol>
+                <p><strong>Saving the Product:</strong></p>
+                <ol>
+                    <li>Review all information for accuracy</li>
+                    <li>Verify prices and stock quantity</li>
+                    <li>Click <strong>"Save Product"</strong> or <strong>"Create Product"</strong></li>
+                    <li>The product will be added to inventory</li>
+                    <li>You\'ll be redirected to the product list or product details page</li>
+                </ol>
+                <div class="info-box">
+                    <strong>Tip:</strong> Create categories, subcategories, and brands before adding products to ensure proper organization.
+                </div>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Editing Product Information</div>
+            <div class="content">
+                <p>To update product details:</p>
+                <ol>
+                    <li>Go to Product Management</li>
+                    <li>Find and click on the product you want to edit</li>
+                    <li>Click the <strong>"Edit"</strong> button</li>
+                    <li>Update any information:
+                        <ul>
+                            <li>Product name, description, SKU</li>
+                            <li>Category, subcategory, brand</li>
+                            <li>Prices (cost, selling, wholesale)</li>
+                            <li>Stock quantity</li>
+                            <li>Specifications</li>
+                            <li>Images</li>
+                        </ul>
+                    </li>
+                    <li>Click <strong>"Save Changes"</strong></li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Managing Stock Quantities</div>
+            <div class="content">
+                <p><strong>Updating Stock Manually:</strong></p>
+                <ol>
+                    <li>Open the product you want to update</li>
+                    <li>Find the <strong>"Stock Quantity"</strong> or <strong>"Inventory"</strong> section</li>
+                    <li>Click <strong>"Update Stock"</strong> or <strong>"Adjust Quantity"</strong></li>
+                    <li>Enter the new quantity or adjustment amount</li>
+                    <li>Add a reason/note for the adjustment (e.g., "Restocked", "Damaged items removed")</li>
+                    <li>Click <strong>"Update"</strong> or <strong>"Save"</strong></li>
+                </ol>
+                <p><strong>Low Stock Alerts:</strong></p>
                 <ul>
-                    <li>Edit staff information</li>
-                    <li>Update roles and permissions</li>
-                    <li>Deactivate/reactivate staff accounts</li>
-                    <li>View staff activity and performance</li>
-                    <li>Reset staff passwords</li>
+                    <li>Set low stock threshold when creating/editing products</li>
+                    <li>You\'ll receive alerts when stock falls below threshold</li>
+                    <li>Check dashboard for low stock notifications</li>
+                    <li>Use alerts to plan restocking</li>
                 </ul>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Deleting Products</div>
+            <div class="content">
+                <p>To remove a product from the system:</p>
+                <ol>
+                    <li>Open the product</li>
+                    <li>Click <strong>"Delete"</strong> button (usually at bottom or in actions menu)</li>
+                    <li>Confirm deletion (this action may be irreversible)</li>
+                    <li>Product will be removed from inventory</li>
+                </ol>
                 <div class="warning-box">
-                    <strong>Important:</strong> Only assign appropriate roles and permissions to staff members based on their responsibilities.
+                    <strong>Warning:</strong> Deleting a product removes it permanently. Consider deactivating or archiving instead if you might need the data later.
                 </div>
             </div>
         </div>
     </div>
     
     <div class="section">
-        <div class="section-title">3. Inventory Management</div>
+        <div class="section-title">4. Categories, Subcategories, and Brands Management</div>
         <div class="subsection">
-            <div class="subsection-title">Product Management</div>
+            <div class="subsection-title">Managing Categories</div>
             <div class="content">
-                <p>As a manager, you can:</p>
-                <ul>
-                    <li>View all products in inventory</li>
-                    <li>Add new products</li>
-                    <li>Edit product information</li>
-                    <li>Update product prices</li>
-                    <li>Manage stock quantities</li>
-                    <li>Set low stock alerts</li>
-                </ul>
-            </div>
-        </div>
-        <div class="subsection">
-            <div class="subsection-title">Adding Products</div>
-            <div class="content">
-                <p>To add a new product:</p>
+                <p><strong>Viewing Categories:</strong></p>
                 <ol>
-                    <li>Go to Product Management</li>
-                    <li>Click <strong>Add New Product</strong></li>
-                    <li>Enter product details (name, description, SKU)</li>
-                    <li>Select category, subcategory, and brand</li>
-                    <li>Set pricing information</li>
-                    <li>Enter initial stock quantity</li>
-                    <li>Add product specifications</li>
-                    <li>Upload product images (if applicable)</li>
-                    <li>Save the product</li>
+                    <li>Navigate to <strong>"Categories"</strong> from the sidebar</li>
+                    <li>View all existing product categories</li>
+                    <li>See how many products are in each category</li>
+                </ol>
+                <p><strong>Adding a New Category:</strong></p>
+                <ol>
+                    <li>Click <strong>"Add New Category"</strong> button</li>
+                    <li>Enter category name (e.g., "Phones", "Accessories", "Repair Parts")</li>
+                    <li>Add description (optional)</li>
+                    <li>Set display order if needed</li>
+                    <li>Click <strong>"Save Category"</strong></li>
+                </ol>
+                <p><strong>Editing Categories:</strong></p>
+                <ol>
+                    <li>Click on a category name</li>
+                    <li>Click <strong>"Edit"</strong></li>
+                    <li>Update name or description</li>
+                    <li>Save changes</li>
                 </ol>
             </div>
         </div>
         <div class="subsection">
-            <div class="subsection-title">Stock Management</div>
+            <div class="subsection-title">Managing Subcategories</div>
             <div class="content">
-                <p>Monitor and manage inventory:</p>
-                <ul>
-                    <li>Track stock levels in real-time</li>
-                    <li>Receive low stock notifications</li>
-                    <li>Update quantities manually</li>
-                    <li>Process restock orders</li>
-                    <li>View stock movement history</li>
-                </ul>
+                <p><strong>Viewing Subcategories:</strong></p>
+                <ol>
+                    <li>Go to <strong>"Subcategories"</strong> from the sidebar</li>
+                    <li>View all subcategories organized by parent category</li>
+                </ol>
+                <p><strong>Adding a New Subcategory:</strong></p>
+                <ol>
+                    <li>Click <strong>"Add New Subcategory"</strong></li>
+                    <li>Select the parent <strong>Category</strong> from dropdown</li>
+                    <li>Enter subcategory name (e.g., "Smartphones", "Feature Phones" under "Phones")</li>
+                    <li>Add description (optional)</li>
+                    <li>Click <strong>"Save Subcategory"</strong></li>
+                </ol>
+                <p><strong>Editing Subcategories:</strong></p>
+                <ol>
+                    <li>Click on subcategory name</li>
+                    <li>Click <strong>"Edit"</strong></li>
+                    <li>Update information</li>
+                    <li>Save changes</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Managing Brands</div>
+            <div class="content">
+                <p><strong>Viewing Brands:</strong></p>
+                <ol>
+                    <li>Navigate to <strong>"Brands"</strong> from the sidebar</li>
+                    <li>View all product brands in the system</li>
+                    <li>See product count per brand</li>
+                </ol>
+                <p><strong>Adding a New Brand:</strong></p>
+                <ol>
+                    <li>Click <strong>"Add New Brand"</strong> button</li>
+                    <li>Enter brand name (e.g., "Samsung", "Apple", "Huawei")</li>
+                    <li>Add brand description (optional)</li>
+                    <li>Upload brand logo (optional)</li>
+                    <li>Click <strong>"Save Brand"</strong></li>
+                </ol>
+                <p><strong>Editing Brands:</strong></p>
+                <ol>
+                    <li>Click on brand name</li>
+                    <li>Click <strong>"Edit"</strong></li>
+                    <li>Update brand information</li>
+                    <li>Save changes</li>
+                </ol>
+                <div class="info-box">
+                    <strong>Organization Tip:</strong> Well-organized categories, subcategories, and brands make it easier to find products and manage inventory efficiently.
+                </div>
             </div>
         </div>
     </div>
     
     <div class="section">
-        <div class="section-title">4. Categories, Subcategories, and Brands</div>
+        <div class="section-title">5. Reports and Analytics - Complete Guide</div>
         <div class="subsection">
-            <div class="subsection-title">Category Management</div>
+            <div class="subsection-title">Accessing Reports</div>
             <div class="content">
-                <p>To manage categories:</p>
+                <p><strong>Step-by-Step:</strong></p>
                 <ol>
-                    <li>Navigate to <strong>Categories</strong> from the sidebar</li>
-                    <li>View all product categories</li>
-                    <li>Add new categories</li>
-                    <li>Edit existing categories</li>
-                    <li>Organize category hierarchy</li>
+                    <li>Navigate to <strong>"Reports"</strong> from the left sidebar</li>
+                    <li>You\'ll see different report types available</li>
+                    <li>Select the type of report you want to generate</li>
                 </ol>
             </div>
         </div>
         <div class="subsection">
-            <div class="subsection-title">Subcategory Management</div>
+            <div class="subsection-title">Sales Reports</div>
             <div class="content">
-                <p>To manage subcategories:</p>
+                <p><strong>Generating Sales Reports:</strong></p>
                 <ol>
-                    <li>Go to <strong>Subcategories</strong></li>
-                    <li>Create subcategories under main categories</li>
-                    <li>Edit subcategory details</li>
-                    <li>Assign products to subcategories</li>
+                    <li>Go to Reports → <strong>"Sales Reports"</strong></li>
+                    <li>Select date range:
+                        <ul>
+                            <li>Today</li>
+                            <li>This Week</li>
+                            <li>This Month</li>
+                            <li>This Year</li>
+                            <li>Custom Range (select start and end dates)</li>
+                        </ul>
+                    </li>
+                    <li>Select additional filters (optional):
+                        <ul>
+                            <li>By staff member</li>
+                            <li>By product</li>
+                            <li>By payment method</li>
+                        </ul>
+                    </li>
+                    <li>Click <strong>"Generate Report"</strong> or <strong>"View Report"</strong></li>
+                    <li>Review the report data</li>
                 </ol>
-            </div>
-        </div>
-        <div class="subsection">
-            <div class="subsection-title">Brand Management</div>
-            <div class="content">
-                <p>To manage brands:</p>
-                <ol>
-                    <li>Navigate to <strong>Brands</strong></li>
-                    <li>Add new brands</li>
-                    <li>Edit brand information</li>
-                    <li>Associate products with brands</li>
-                </ol>
-            </div>
-        </div>
-    </div>
-    
-    <div class="section">
-        <div class="section-title">5. Reports and Analytics</div>
-        <div class="subsection">
-            <div class="subsection-title">Generating Reports</div>
-            <div class="content">
-                <p>Access comprehensive reports:</p>
+                <p><strong>Sales Report Information Includes:</strong></p>
                 <ul>
-                    <li>Sales reports (daily, weekly, monthly, custom range)</li>
-                    <li>Inventory reports</li>
-                    <li>Staff performance reports</li>
-                    <li>Product performance reports</li>
-                    <li>Financial summaries</li>
+                    <li>Total sales count</li>
+                    <li>Total revenue</li>
+                    <li>Total discounts given</li>
+                    <li>Total taxes collected</li>
+                    <li>Net profit</li>
+                    <li>Breakdown by day/product/staff</li>
+                    <li>Top-selling products</li>
+                </ul>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Inventory Reports</div>
+            <div class="content">
+                <p><strong>Generating Inventory Reports:</strong></p>
+                <ol>
+                    <li>Go to Reports → <strong>"Inventory Reports"</strong></li>
+                    <li>Select report type:
+                        <ul>
+                            <li>Current Stock Levels</li>
+                            <li>Low Stock Items</li>
+                            <li>Stock Movement History</li>
+                            <li>Inventory Valuation</li>
+                        </ul>
+                    </li>
+                    <li>Apply filters (category, brand, stock status)</li>
+                    <li>Generate the report</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Staff Performance Reports</div>
+            <div class="content">
+                <p><strong>Generating Staff Reports:</strong></p>
+                <ol>
+                    <li>Go to Reports → <strong>"Staff Performance"</strong></li>
+                    <li>Select date range</li>
+                    <li>Select staff member(s) or view all</li>
+                    <li>Generate report</li>
+                </ol>
+                <p><strong>Report Shows:</strong></p>
+                <ul>
+                    <li>Sales made by each salesperson</li>
+                    <li>Repairs completed by each technician</li>
+                    <li>Revenue generated per staff member</li>
+                    <li>Activity statistics</li>
                 </ul>
             </div>
         </div>
         <div class="subsection">
             <div class="subsection-title">Exporting Reports</div>
             <div class="content">
-                <p>You can export reports in various formats:</p>
+                <p><strong>Export Options:</strong></p>
+                <ol>
+                    <li>After generating a report, you\'ll see export options</li>
+                    <li>Click on your preferred format:</li>
+                </ol>
+                <p><strong>PDF Export:</strong></p>
                 <ul>
-                    <li>PDF format for printing</li>
-                    <li>Excel format for analysis</li>
-                    <li>CSV format for data processing</li>
+                    <li>Click <strong>"Export as PDF"</strong></li>
+                    <li>PDF will be generated and downloaded</li>
+                    <li>Perfect for printing or sharing</li>
+                </ul>
+                <p><strong>Excel Export:</strong></p>
+                <ul>
+                    <li>Click <strong>"Export as Excel"</strong></li>
+                    <li>Excel file (.xlsx) will be downloaded</li>
+                    <li>Open in Microsoft Excel or Google Sheets</li>
+                    <li>Great for further analysis and calculations</li>
+                </ul>
+                <p><strong>CSV Export:</strong></p>
+                <ul>
+                    <li>Click <strong>"Export as CSV"</strong></li>
+                    <li>CSV file will be downloaded</li>
+                    <li>Compatible with most spreadsheet applications</li>
                 </ul>
             </div>
         </div>
     </div>
     
     <div class="section">
-        <div class="section-title">6. System Settings</div>
+        <div class="section-title">6. SMS Settings and Credit Purchasing - Complete Guide</div>
         <div class="subsection">
-            <div class="subsection-title">Company Settings</div>
+            <div class="subsection-title">Accessing SMS Settings</div>
             <div class="content">
-                <p>Manage company-wide settings:</p>
-                <ul>
-                    <li>Company information and details</li>
-                    <li>Business hours and contact information</li>
-                    <li>Tax settings and rates</li>
-                    <li>Currency and payment settings</li>
-                    <li>Notification preferences</li>
-                </ul>
+                <p><strong>Step-by-Step:</strong></p>
+                <ol>
+                    <li>Navigate to <strong>"Settings"</strong> from the left sidebar</li>
+                    <li>Click on <strong>"SMS Settings"</strong> or look for SMS-related options</li>
+                    <li>Alternatively, go directly to <strong>"SMS Settings"</strong> if available in sidebar</li>
+                </ol>
             </div>
         </div>
         <div class="subsection">
-            <div class="subsection-title">SMS Settings</div>
+            <div class="subsection-title">Setting Up SMS Account</div>
             <div class="content">
-                <p>Configure SMS functionality:</p>
+                <p><strong>Initial Setup (First Time):</strong></p>
+                <ol>
+                    <li>Go to SMS Settings page</li>
+                    <li>If no account exists, you\'ll see <strong>"Set Up SMS Account"</strong> option</li>
+                    <li>Click <strong>"Create Account"</strong> or <strong>"Set Up"</strong></li>
+                    <li>Fill in account information:
+                        <ul>
+                            <li>Account name/identifier</li>
+                            <li>Contact information</li>
+                            <li>Any required configuration</li>
+                        </ul>
+                    </li>
+                    <li>Save the account settings</li>
+                    <li>Your SMS account will be created</li>
+                </ol>
+                <div class="info-box">
+                    <strong>Note:</strong> SMS account setup may require approval or verification. Follow any additional steps if prompted.
+                </div>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Purchasing SMS Credits - Detailed Process</div>
+            <div class="content">
+                <p><strong>Complete Step-by-Step Guide:</strong></p>
+                <ol>
+                    <li>Navigate to <strong>"SMS Settings"</strong> or <strong>"Purchase SMS"</strong> from Settings</li>
+                    <li>You\'ll see your current SMS credit balance</li>
+                    <li>Click <strong>"Purchase Credits"</strong> or <strong>"Buy SMS"</strong> button</li>
+                    <li>You\'ll be taken to the SMS purchase page</li>
+                </ol>
+                <p><strong>Selecting a Plan:</strong></p>
+                <ol>
+                    <li>View available SMS packages/plans</li>
+                    <li>Each plan shows:
+                        <ul>
+                            <li>Number of SMS credits included</li>
+                            <li>Price per package</li>
+                            <li>Price per SMS (unit cost)</li>
+                            <li>Validity period (if applicable)</li>
+                        </ul>
+                    </li>
+                    <li>Compare different packages</li>
+                    <li>Select the package that best fits your needs</li>
+                </ol>
+                <p><strong>Purchase Options:</strong></p>
                 <ul>
-                    <li>Set up SMS account</li>
-                    <li>Purchase SMS credits</li>
-                    <li>Configure SMS templates</li>
-                    <li>View SMS logs and usage</li>
+                    <li><strong>Small Package:</strong> For light usage (e.g., 100-500 SMS)</li>
+                    <li><strong>Medium Package:</strong> For regular usage (e.g., 500-2000 SMS)</li>
+                    <li><strong>Large Package:</strong> For heavy usage (e.g., 2000+ SMS)</li>
+                    <li><strong>Custom Amount:</strong> Enter specific number of credits if available</li>
+                </ul>
+                <p><strong>Completing the Purchase:</strong></p>
+                <ol>
+                    <li>Click on your selected package</li>
+                    <li>Review the purchase details:
+                        <ul>
+                            <li>Number of credits</li>
+                            <li>Total cost</li>
+                            <li>Payment method</li>
+                        </ul>
+                    </li>
+                    <li>Select payment method (if multiple options available):
+                        <ul>
+                            <li>Mobile Money</li>
+                            <li>Bank Transfer</li>
+                            <li>Credit/Debit Card</li>
+                            <li>Other available methods</li>
+                        </ul>
+                    </li>
+                    <li>Enter payment details as required</li>
+                    <li>Review terms and conditions</li>
+                    <li>Click <strong>"Confirm Purchase"</strong> or <strong>"Proceed to Payment"</strong></li>
+                    <li>Complete payment through the selected method</li>
+                    <li>Wait for payment confirmation</li>
+                    <li>Credits will be added to your account automatically</li>
+                </ol>
+                <p><strong>After Purchase:</strong></p>
+                <ol>
+                    <li>You\'ll receive a confirmation message</li>
+                    <li>Your SMS credit balance will update</li>
+                    <li>You can start using SMS features immediately</li>
+                    <li>Check your purchase history in SMS Settings</li>
+                </ol>
+                <div class="highlight-box">
+                    <strong>Pro Tip:</strong> Purchase larger packages for better value. Monitor your usage to determine the right package size for future purchases.
+                </div>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Viewing SMS Balance and Usage</div>
+            <div class="content">
+                <p><strong>Checking Your Balance:</strong></p>
+                <ol>
+                    <li>Go to SMS Settings</li>
+                    <li>View your current credit balance (displayed prominently)</li>
+                    <li>Check remaining credits before they run out</li>
+                </ol>
+                <p><strong>Viewing Usage History:</strong></p>
+                <ol>
+                    <li>In SMS Settings, find <strong>"Usage History"</strong> or <strong>"SMS Logs"</strong></li>
+                    <li>View sent SMS records:
+                        <ul>
+                            <li>Date and time sent</li>
+                            <li>Recipient phone number</li>
+                            <li>Message content</li>
+                            <li>Status (sent, failed, pending)</li>
+                            <li>Credits used</li>
+                        </ul>
+                    </li>
+                    <li>Filter by date range if needed</li>
+                    <li>Export logs if required</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Configuring SMS Templates</div>
+            <div class="content">
+                <p><strong>Creating SMS Templates:</strong></p>
+                <ol>
+                    <li>Go to SMS Settings</li>
+                    <li>Navigate to <strong>"Templates"</strong> section</li>
+                    <li>Click <strong>"Create Template"</strong> or <strong>"Add Template"</strong></li>
+                    <li>Enter template details:
+                        <ul>
+                            <li>Template name</li>
+                            <li>Message content (use placeholders like {customer_name}, {amount}, etc.)</li>
+                            <li>Template type (receipt, notification, reminder, etc.)</li>
+                        </ul>
+                    </li>
+                    <li>Save the template</li>
+                    <li>Templates can be used when sending SMS</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Low Credit Alerts</div>
+            <div class="content">
+                <p>The system may send alerts when:</p>
+                <ul>
+                    <li>SMS credits are running low (below threshold)</li>
+                    <li>Credits are depleted</li>
+                    <li>Purchase is needed</li>
+                </ul>
+                <p>Set up alerts in SMS Settings to be notified before running out.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">7. System Settings and Configuration</div>
+        <div class="subsection">
+            <div class="subsection-title">Accessing System Settings</div>
+            <div class="content">
+                <p><strong>Step-by-Step:</strong></p>
+                <ol>
+                    <li>Navigate to <strong>"Settings"</strong> from the left sidebar</li>
+                    <li>You\'ll see various setting categories</li>
+                    <li>Click on the section you want to configure</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Company Information Settings</div>
+            <div class="content">
+                <p><strong>Updating Company Details:</strong></p>
+                <ol>
+                    <li>Go to Settings → <strong>"Company Information"</strong></li>
+                    <li>Update company details:
+                        <ul>
+                            <li>Company name</li>
+                            <li>Business registration number</li>
+                            <li>Contact information (phone, email, address)</li>
+                            <li>Business hours</li>
+                            <li>Logo (upload company logo)</li>
+                        </ul>
+                    </li>
+                    <li>Save changes</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Tax and Pricing Settings</div>
+            <div class="content">
+                <p><strong>Configuring Tax Settings:</strong></p>
+                <ol>
+                    <li>Go to Settings → <strong>"Tax Settings"</strong></li>
+                    <li>Set default tax rate (percentage)</li>
+                    <li>Configure tax rules if applicable</li>
+                    <li>Save settings</li>
+                </ol>
+                <p><strong>Currency Settings:</strong></p>
+                <ol>
+                    <li>Go to Settings → <strong>"Currency"</strong></li>
+                    <li>Select default currency</li>
+                    <li>Set currency symbol</li>
+                    <li>Save settings</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Notification Settings</div>
+            <div class="content">
+                <p><strong>Configuring Notifications:</strong></p>
+                <ol>
+                    <li>Go to Settings → <strong>"Notifications"</strong></li>
+                    <li>Enable/disable notification types:
+                        <ul>
+                            <li>Email notifications</li>
+                            <li>SMS notifications</li>
+                            <li>System alerts</li>
+                            <li>Low stock alerts</li>
+                            <li>Sales notifications</li>
+                        </ul>
+                    </li>
+                    <li>Configure notification preferences</li>
+                    <li>Save settings</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">8. Best Practices for Managers</div>
+        <div class="subsection">
+            <div class="subsection-title">Daily Management Routine</div>
+            <div class="content">
+                <ol>
+                    <li><strong>Morning:</strong> Check dashboard for overnight activity and alerts</li>
+                    <li><strong>Review Reports:</strong> Check sales, inventory, and staff performance</li>
+                    <li><strong>Monitor Inventory:</strong> Check low stock alerts and plan restocking</li>
+                    <li><strong>Staff Oversight:</strong> Review staff activities and provide guidance</li>
+                    <li><strong>End of Day:</strong> Review daily performance and plan for next day</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Key Management Principles</div>
+            <div class="content">
+                <ul>
+                    <li><strong>Regular Monitoring:</strong> Check dashboard and reports daily to stay informed</li>
+                    <li><strong>Staff Oversight:</strong> Regularly review staff performance and provide constructive feedback</li>
+                    <li><strong>Inventory Control:</strong> Maintain optimal stock levels - not too high (tying up capital) or too low (missing sales)</li>
+                    <li><strong>Data Accuracy:</strong> Ensure all product information, prices, and stock levels are accurate</li>
+                    <li><strong>Security:</strong> Protect system access, regularly update passwords, and monitor user activities</li>
+                    <li><strong>Backup:</strong> Ensure regular data backups are performed (check with system admin)</li>
+                    <li><strong>Training:</strong> Keep staff trained on system usage and best practices</li>
+                    <li><strong>SMS Management:</strong> Monitor SMS usage and maintain adequate credits</li>
                 </ul>
             </div>
         </div>
     </div>
     
     <div class="section">
-        <div class="section-title">7. Best Practices</div>
-        <div class="content">
-            <ul>
-                <li><strong>Regular monitoring:</strong> Check dashboard and reports regularly</li>
-                <li><strong>Staff oversight:</strong> Review staff performance and provide feedback</li>
-                <li><strong>Inventory control:</strong> Maintain optimal stock levels</li>
-                <li><strong>Data accuracy:</strong> Ensure all information is accurate and up-to-date</li>
-                <li><strong>Security:</strong> Protect system access and user credentials</li>
-                <li><strong>Backup:</strong> Ensure regular data backups are performed</li>
-                <li><strong>Training:</strong> Keep staff trained on system usage</li>
-            </ul>
-        </div>
-    </div>
-    
-    <div class="section">
-        <div class="section-title">8. Quick Reference</div>
+        <div class="section-title">9. Quick Reference Guide</div>
         <div class="content">
             <table>
                 <tr>
-                    <th>Action</th>
-                    <th>Location</th>
+                    <th>Task</th>
+                    <th>Steps</th>
                 </tr>
                 <tr>
-                    <td>View Dashboard</td>
+                    <td><strong>View Dashboard</strong></td>
                     <td>Sidebar → Dashboard</td>
                 </tr>
                 <tr>
-                    <td>Manage Staff</td>
-                    <td>Sidebar → Staff Management</td>
+                    <td><strong>Add Staff Member</strong></td>
+                    <td>Sidebar → Staff Management → Add New Staff → Fill form → Save</td>
                 </tr>
                 <tr>
-                    <td>Manage Products</td>
-                    <td>Sidebar → Product Management</td>
+                    <td><strong>Edit Staff</strong></td>
+                    <td>Staff Management → Click staff name → Edit → Update → Save</td>
                 </tr>
                 <tr>
-                    <td>Manage Categories</td>
-                    <td>Sidebar → Categories</td>
+                    <td><strong>Add Product</strong></td>
+                    <td>Sidebar → Product Management → Add New Product → Fill all fields → Save</td>
                 </tr>
                 <tr>
-                    <td>Manage Brands</td>
-                    <td>Sidebar → Brands</td>
+                    <td><strong>Edit Product</strong></td>
+                    <td>Product Management → Click product → Edit → Update → Save</td>
                 </tr>
                 <tr>
-                    <td>View Reports</td>
-                    <td>Sidebar → Reports</td>
+                    <td><strong>Update Stock</strong></td>
+                    <td>Product Management → Select product → Update Stock → Enter quantity → Save</td>
                 </tr>
                 <tr>
-                    <td>System Settings</td>
-                    <td>Sidebar → Settings</td>
+                    <td><strong>Add Category</strong></td>
+                    <td>Sidebar → Categories → Add New Category → Enter name → Save</td>
                 </tr>
                 <tr>
-                    <td>SMS Settings</td>
-                    <td>Sidebar → Settings → SMS Settings</td>
+                    <td><strong>Add Subcategory</strong></td>
+                    <td>Sidebar → Subcategories → Add New → Select category → Enter name → Save</td>
                 </tr>
                 <tr>
-                    <td>Access Profile</td>
-                    <td>Top Right → Profile Icon</td>
+                    <td><strong>Add Brand</strong></td>
+                    <td>Sidebar → Brands → Add New Brand → Enter name → Save</td>
+                </tr>
+                <tr>
+                    <td><strong>Generate Sales Report</strong></td>
+                    <td>Sidebar → Reports → Sales Reports → Select date range → Generate</td>
+                </tr>
+                <tr>
+                    <td><strong>Export Report</strong></td>
+                    <td>Reports → Generate report → Click Export → Select format (PDF/Excel/CSV)</td>
+                </tr>
+                <tr>
+                    <td><strong>Purchase SMS Credits</strong></td>
+                    <td>Settings → SMS Settings → Purchase Credits → Select package → Complete payment</td>
+                </tr>
+                <tr>
+                    <td><strong>View SMS Balance</strong></td>
+                    <td>Settings → SMS Settings → View balance at top of page</td>
+                </tr>
+                <tr>
+                    <td><strong>View SMS Logs</strong></td>
+                    <td>Settings → SMS Settings → SMS Logs/Usage History</td>
+                </tr>
+                <tr>
+                    <td><strong>System Settings</strong></td>
+                    <td>Sidebar → Settings → Select category → Update → Save</td>
+                </tr>
+                <tr>
+                    <td><strong>Access Profile</strong></td>
+                    <td>Top Right → Profile Icon → Your Profile</td>
                 </tr>
             </table>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">10. Getting Help</div>
+        <div class="content">
+            <p>If you need assistance:</p>
+            <ul>
+                <li><strong>System Issues:</strong> Contact system administrator</li>
+                <li><strong>Feature Questions:</strong> Refer to this guide</li>
+                <li><strong>SMS Issues:</strong> Check SMS Settings or contact SMS provider support</li>
+                <li><strong>Staff Training:</strong> Share relevant sections of this guide with staff</li>
+            </ul>
+            <div class="info-box">
+                <strong>Remember:</strong> This guide is always available in your profile menu. Download it and keep it handy for quick reference. You can also share specific sections with your staff members for training purposes.
+            </div>
         </div>
     </div>
 ';
