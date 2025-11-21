@@ -213,5 +213,19 @@ function updateSMSBalance(count) {
 // Refresh balance indicators every 2 minutes
 <?php if (in_array($userRole, ['manager', 'admin'])): ?>
 setInterval(loadBalanceIndicators, 120000);
+
+// Listen for SMS balance refresh events (triggered after SMS purchase/top-up)
+window.addEventListener('refreshSMSBalance', function() {
+    console.log('Refreshing SMS balance indicators...');
+    loadBalanceIndicators();
+});
+
+// Listen for messages from iframes/popups
+window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'refreshSMSBalance') {
+        console.log('Received refreshSMSBalance message, refreshing...');
+        loadBalanceIndicators();
+    }
+});
 <?php endif; ?>
 </script>

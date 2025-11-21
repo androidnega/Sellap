@@ -635,7 +635,17 @@ document.addEventListener('DOMContentLoaded', function() {
         
         showNotification(notificationMessage, result.sms_notification && !result.sms_notification.sent ? 'warning' : 'success');
         document.querySelector(`.topup-amount[data-company-id="${companyId}"]`).value = '';
-        setTimeout(() => location.reload(), 500);
+        
+        // Trigger refresh of manager dashboard and balance indicators
+        // Dispatch custom event to refresh balance across all open pages
+        if (window.parent && window.parent !== window) {
+            // If in iframe, trigger refresh in parent
+            window.parent.postMessage({ type: 'refreshSMSBalance' }, '*');
+        }
+        window.dispatchEvent(new CustomEvent('refreshSMSBalance'));
+        
+        // Reload page after short delay to show updated balance
+        setTimeout(() => location.reload(), 1000);
       } else {
         showNotification(result.error || 'Failed to add SMS credits', 'error');
       }

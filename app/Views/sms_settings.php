@@ -357,6 +357,20 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(loadSMSData, 500);
     }
     
+    // Listen for SMS balance refresh events (triggered after SMS purchase/top-up)
+    window.addEventListener('refreshSMSBalance', function() {
+        console.log('Refreshing SMS settings after SMS balance change...');
+        loadSMSData();
+    });
+    
+    // Listen for messages from iframes/popups
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'refreshSMSBalance') {
+            console.log('Received refreshSMSBalance message, refreshing SMS data...');
+            loadSMSData();
+        }
+    });
+    
     // Refresh every 2 minutes
     setInterval(loadSMSData, 120000);
     

@@ -1117,6 +1117,27 @@ ob_start();
         }
         
         document.addEventListener('DOMContentLoaded', function() {
+            // Listen for SMS balance refresh events (triggered after SMS purchase/top-up)
+            window.addEventListener('refreshSMSBalance', function() {
+                console.log('Refreshing manager dashboard after SMS balance change...');
+                loadManagerOverview();
+            });
+            
+            // Listen for messages from iframes/popups
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'refreshSMSBalance') {
+                    console.log('Received refreshSMSBalance message, refreshing dashboard...');
+                    loadManagerOverview();
+                }
+            });
+            
+            // Check if we need to refresh after returning from payment
+            if (sessionStorage.getItem('refreshSMSData') === 'true') {
+                sessionStorage.removeItem('refreshSMSData');
+                // Force immediate refresh
+                setTimeout(loadManagerOverview, 500);
+            }
+            
             
             // Attach export button event listener
             const exportBtn = document.getElementById('export-dashboard-btn');

@@ -144,9 +144,21 @@ $paymentId = $_GET['payment_id'] ?? null;
         // Set flag to refresh SMS data when returning to SMS settings
         sessionStorage.setItem('refreshSMSData', 'true');
         
-        // Refresh SMS balance on parent page if opened from there
-        if (window.opener && typeof window.opener.loadSMSData === 'function') {
-            window.opener.loadSMSData();
+        // Trigger refresh of SMS balance across all open pages
+        // Dispatch custom event to refresh balance
+        window.dispatchEvent(new CustomEvent('refreshSMSBalance'));
+        
+        // If opened in popup/iframe, notify parent window
+        if (window.opener && window.opener !== window) {
+            window.opener.postMessage({ type: 'refreshSMSBalance' }, '*');
+            if (typeof window.opener.loadSMSData === 'function') {
+                window.opener.loadSMSData();
+            }
+        }
+        
+        // If in iframe, notify parent
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'refreshSMSBalance' }, '*');
         }
         </script>
     </div>
