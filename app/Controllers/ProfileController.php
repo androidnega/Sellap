@@ -1421,25 +1421,43 @@ class ProfileController {
     <div class="section">
         <div class="section-title">Introduction</div>
         <div class="content">
-            <p>Welcome to the Salesperson User Guide! This guide will help you understand how to use the system effectively for managing sales, customers, and inventory.</p>
+            <p>Welcome to the Salesperson User Guide! This comprehensive guide will walk you through every feature available to you in the system. As a salesperson, you are the front line of the business, handling customer interactions, processing sales, and managing customer relationships.</p>
             <div class="info-box">
-                <strong>Your Role:</strong> As a salesperson, you have access to the dashboard, product management, sales operations, and customer management features.
+                <strong>Your Role Permissions:</strong> As a salesperson, you have access to:
+                <ul style="margin-top: 10px; margin-left: 20px;">
+                    <li>Dashboard with sales overview</li>
+                    <li>Product Management (view only)</li>
+                    <li>Sales Operations (create and manage sales)</li>
+                    <li>Customer Management (view and create customers)</li>
+                    <li>POS System for quick transactions</li>
+                </ul>
             </div>
         </div>
     </div>
     
     <div class="section">
         <div class="section-title">1. Dashboard Overview</div>
-        <div class="content">
-            <p>The dashboard is your central hub where you can view:</p>
-            <ul>
-                <li>Today\'s sales summary</li>
-                <li>Recent transactions</li>
-                <li>Product inventory status</li>
-                <li>Customer information</li>
-            </ul>
-            <div class="highlight-box">
-                <strong>Tip:</strong> Check your dashboard daily to stay updated on sales performance and inventory levels.
+        <div class="subsection">
+            <div class="subsection-title">Accessing Your Dashboard</div>
+            <div class="content">
+                <p><span class="step-number">1</span>After logging in, you will automatically be taken to your dashboard.</p>
+                <p><span class="step-number">2</span>You can also access it anytime by clicking <strong>"Dashboard"</strong> in the left sidebar.</p>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Dashboard Features</div>
+            <div class="content">
+                <p>Your dashboard displays several key metrics and information:</p>
+                <ul>
+                    <li><strong>Today\'s Sales Summary:</strong> Total sales count and revenue for today</li>
+                    <li><strong>Recent Transactions:</strong> List of your most recent sales</li>
+                    <li><strong>Product Inventory Status:</strong> Quick view of low stock items</li>
+                    <li><strong>Customer Information:</strong> Recent customer interactions</li>
+                    <li><strong>Performance Metrics:</strong> Your sales statistics</li>
+                </ul>
+                <div class="highlight-box">
+                    <strong>Pro Tip:</strong> Check your dashboard at the start of each day to understand your targets and review yesterday\'s performance.
+                </div>
             </div>
         </div>
     </div>
@@ -1449,26 +1467,46 @@ class ProfileController {
         <div class="subsection">
             <div class="subsection-title">Viewing Products</div>
             <div class="content">
-                <p>To view available products:</p>
+                <p><strong>Step-by-Step Guide:</strong></p>
                 <ol>
-                    <li>Navigate to <strong>Product Management</strong> from the sidebar</li>
-                    <li>Browse through the product list</li>
-                    <li>Use the search bar to find specific products</li>
-                    <li>Click on a product to view detailed information</li>
+                    <li>Click on <strong>"Product Management"</strong> in the left sidebar menu</li>
+                    <li>You will see a list of all available products in the system</li>
+                    <li>Use the search bar at the top to find specific products by name, SKU, or brand</li>
+                    <li>Use filters to narrow down products by category, brand, or stock status</li>
+                    <li>Click on any product name to view detailed information</li>
                 </ol>
             </div>
         </div>
         <div class="subsection">
-            <div class="subsection-title">Product Information</div>
+            <div class="subsection-title">Understanding Product Information</div>
             <div class="content">
-                <p>Each product displays:</p>
+                <p>When viewing a product, you will see:</p>
                 <ul>
-                    <li>Product name and description</li>
-                    <li>Current stock quantity</li>
-                    <li>Price information</li>
-                    <li>Brand and category</li>
-                    <li>Product specifications</li>
+                    <li><strong>Product Name:</strong> The full name of the product</li>
+                    <li><strong>SKU:</strong> Stock Keeping Unit - unique identifier</li>
+                    <li><strong>Description:</strong> Detailed product description</li>
+                    <li><strong>Current Stock Quantity:</strong> How many units are available</li>
+                    <li><strong>Price Information:</strong> Selling price and cost price</li>
+                    <li><strong>Brand:</strong> Manufacturer or brand name</li>
+                    <li><strong>Category & Subcategory:</strong> Product classification</li>
+                    <li><strong>Product Specifications:</strong> Technical details and features</li>
+                    <li><strong>Product Images:</strong> Visual representation of the product</li>
                 </ul>
+                <div class="warning-box">
+                    <strong>Important:</strong> Always check the stock quantity before promising a product to a customer. If stock is low or out of stock, inform your manager immediately.
+                </div>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Searching for Products</div>
+            <div class="content">
+                <p>To quickly find products:</p>
+                <ol>
+                    <li>Locate the search bar in the Product Management page</li>
+                    <li>Type the product name, SKU, or brand</li>
+                    <li>Results will filter automatically as you type</li>
+                    <li>You can also use advanced filters for category, brand, or price range</li>
+                </ol>
             </div>
         </div>
     </div>
@@ -1476,33 +1514,123 @@ class ProfileController {
     <div class="section">
         <div class="section-title">3. Sales Operations</div>
         <div class="subsection">
-            <div class="subsection-title">Creating a Sale</div>
+            <div class="subsection-title">Creating a New Sale</div>
             <div class="content">
-                <p>To process a sale:</p>
+                <p><strong>Complete Step-by-Step Process:</strong></p>
                 <ol>
-                    <li>Go to <strong>Sales</strong> from the sidebar</li>
-                    <li>Click <strong>New Sale</strong> or use the POS system</li>
-                    <li>Add products to the cart</li>
-                    <li>Enter customer information (if applicable)</li>
-                    <li>Apply discounts if needed</li>
-                    <li>Process payment</li>
-                    <li>Generate receipt</li>
+                    <li>Navigate to <strong>"Sales"</strong> from the left sidebar</li>
+                    <li>Click the <strong>"New Sale"</strong> button (usually at the top right)</li>
+                    <li>You will see the sales form with the following sections:</li>
+                </ol>
+                <p><strong>Adding Products to Sale:</strong></p>
+                <ol>
+                    <li>Click <strong>"Add Product"</strong> or search for products</li>
+                    <li>Select the product from the dropdown or search results</li>
+                    <li>Enter the quantity you want to sell</li>
+                    <li>The system will automatically calculate the subtotal</li>
+                    <li>Repeat for all products in the sale</li>
+                    <li>Review the items in your cart</li>
+                </ol>
+                <p><strong>Adding Customer Information:</strong></p>
+                <ol>
+                    <li>If the customer is new, click <strong>"Add New Customer"</strong></li>
+                    <li>Fill in customer details (name, phone, email, address)</li>
+                    <li>If customer exists, search and select from the customer list</li>
+                    <li>Customer information helps track purchase history</li>
+                </ol>
+                <p><strong>Applying Discounts:</strong></p>
+                <ol>
+                    <li>If authorized, you can apply discounts</li>
+                    <li>Enter discount amount or percentage</li>
+                    <li>Add discount reason if required</li>
+                    <li>System will recalculate the total</li>
+                </ol>
+                <p><strong>Processing Payment:</strong></p>
+                <ol>
+                    <li>Review the final total amount</li>
+                    <li>Select payment method (Cash, Card, Mobile Money, etc.)</li>
+                    <li>Enter the amount received</li>
+                    <li>If partial payment, mark as partial and note remaining balance</li>
+                    <li>Click <strong>"Complete Sale"</strong> or <strong>"Process Payment"</strong></li>
+                </ol>
+                <p><strong>Generating Receipt:</strong></p>
+                <ol>
+                    <li>After payment is processed, a receipt will be generated</li>
+                    <li>You can print the receipt immediately</li>
+                    <li>Receipt includes transaction number, items, prices, and payment details</li>
+                    <li>Save or email receipt to customer if needed</li>
                 </ol>
             </div>
         </div>
         <div class="subsection">
-            <div class="subsection-title">POS System</div>
+            <div class="subsection-title">Using the POS (Point of Sale) System</div>
             <div class="content">
-                <p>The Point of Sale (POS) system allows you to:</p>
+                <p>The POS system is designed for quick, efficient transactions at the counter:</p>
+                <p><strong>Accessing POS:</strong></p>
+                <ol>
+                    <li>Click <strong>"POS"</strong> or <strong>"Point of Sale"</strong> from the sidebar</li>
+                    <li>The POS interface will open with a clean, user-friendly layout</li>
+                </ol>
+                <p><strong>POS Features:</strong></p>
                 <ul>
-                    <li>Quickly scan or search for products</li>
-                    <li>Add multiple items to a transaction</li>
-                    <li>Calculate totals automatically</li>
-                    <li>Process various payment methods</li>
-                    <li>Print receipts</li>
+                    <li><strong>Product Search:</strong> Quickly search products by name, SKU, or barcode</li>
+                    <li><strong>Barcode Scanner:</strong> If available, scan product barcodes directly</li>
+                    <li><strong>Quick Add:</strong> Click products to instantly add to cart</li>
+                    <li><strong>Quantity Adjustment:</strong> Use +/- buttons or type quantity</li>
+                    <li><strong>Remove Items:</strong> Click remove button to delete items from cart</li>
+                    <li><strong>Real-time Calculation:</strong> Totals update automatically</li>
                 </ul>
+                <p><strong>POS Workflow:</strong></p>
+                <ol>
+                    <li>Scan or search for first product</li>
+                    <li>Add to cart (quantity defaults to 1)</li>
+                    <li>Repeat for all items</li>
+                    <li>Review cart on the right side</li>
+                    <li>Apply discounts if needed</li>
+                    <li>Select payment method</li>
+                    <li>Process payment</li>
+                    <li>Print or email receipt</li>
+                </ol>
                 <div class="warning-box">
-                    <strong>Important:</strong> Always verify product quantities and prices before completing a sale.
+                    <strong>Critical:</strong> Always verify:
+                    <ul style="margin-top: 10px; margin-left: 20px;">
+                        <li>Correct products are added</li>
+                        <li>Quantities are accurate</li>
+                        <li>Prices are correct</li>
+                        <li>Payment amount matches total</li>
+                        <li>Receipt is given to customer</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Viewing Sales History</div>
+            <div class="content">
+                <p>To view your past sales:</p>
+                <ol>
+                    <li>Go to <strong>"Sales"</strong> from the sidebar</li>
+                    <li>You will see a list of all sales transactions</li>
+                    <li>Use filters to view sales by date range</li>
+                    <li>Click on any sale to view full details</li>
+                    <li>You can reprint receipts from the sales list</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Handling Returns and Refunds</div>
+            <div class="content">
+                <p>If a customer wants to return a product:</p>
+                <ol>
+                    <li>Locate the original sale in the Sales list</li>
+                    <li>Click on the sale to view details</li>
+                    <li>If return functionality is available, click <strong>"Process Return"</strong></li>
+                    <li>Select items to return</li>
+                    <li>Enter return reason</li>
+                    <li>Process refund through the same payment method</li>
+                    <li>Generate return receipt</li>
+                </ol>
+                <div class="warning-box">
+                    <strong>Note:</strong> Returns and refunds may require manager approval. Always check with your manager before processing large returns.
                 </div>
             </div>
         </div>
@@ -1513,71 +1641,240 @@ class ProfileController {
         <div class="subsection">
             <div class="subsection-title">Viewing Customers</div>
             <div class="content">
-                <p>To view customer information:</p>
+                <p><strong>Accessing Customer List:</strong></p>
                 <ol>
-                    <li>Navigate to <strong>Customers</strong> from the sidebar</li>
-                    <li>Browse the customer list</li>
-                    <li>Search for specific customers</li>
-                    <li>View customer purchase history</li>
+                    <li>Click <strong>"Customers"</strong> from the left sidebar</li>
+                    <li>You will see a table/list of all customers</li>
+                    <li>Use the search bar to find specific customers by name, phone, or email</li>
+                    <li>Click on any customer name to view their full profile</li>
                 </ol>
             </div>
         </div>
         <div class="subsection">
-            <div class="subsection-title">Customer Information</div>
+            <div class="subsection-title">Creating a New Customer</div>
             <div class="content">
-                <p>Customer profiles include:</p>
+                <p><strong>Step-by-Step Process:</strong></p>
+                <ol>
+                    <li>Go to <strong>"Customers"</strong> from the sidebar</li>
+                    <li>Click the <strong>"Add New Customer"</strong> button (usually top right)</li>
+                    <li>Fill in the customer form with the following information:</li>
+                </ol>
                 <ul>
-                    <li>Contact information</li>
-                    <li>Purchase history</li>
-                    <li>Transaction records</li>
-                    <li>Payment information</li>
+                    <li><strong>Full Name:</strong> Customer\'s complete name (required)</li>
+                    <li><strong>Phone Number:</strong> Primary contact number (required)</li>
+                    <li><strong>Email Address:</strong> Email for receipts and communications (optional)</li>
+                    <li><strong>Address:</strong> Physical address (optional but recommended)</li>
+                    <li><strong>City/State:</strong> Location details</li>
+                    <li><strong>Notes:</strong> Any special information about the customer</li>
+                </ul>
+                <ol start="4">
+                    <li>Click <strong>"Save Customer"</strong> or <strong>"Create Customer"</strong></li>
+                    <li>The customer will be added to the system</li>
+                    <li>You can now select this customer when creating sales</li>
+                </ol>
+                <div class="info-box">
+                    <strong>Tip:</strong> Creating customer profiles helps track purchase history, send receipts via email/SMS, and build customer relationships.
+                </div>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Viewing Customer Details</div>
+            <div class="content">
+                <p>When you click on a customer, you can see:</p>
+                <ul>
+                    <li><strong>Contact Information:</strong> Phone, email, address</li>
+                    <li><strong>Purchase History:</strong> Complete list of all transactions</li>
+                    <li><strong>Transaction Records:</strong> Detailed view of each sale</li>
+                    <li><strong>Total Spent:</strong> Lifetime value of the customer</li>
+                    <li><strong>Last Purchase:</strong> Date and amount of most recent transaction</li>
+                    <li><strong>Payment Information:</strong> Payment methods used</li>
+                    <li><strong>Notes:</strong> Any special notes or preferences</li>
+                </ul>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Editing Customer Information</div>
+            <div class="content">
+                <p>To update customer details:</p>
+                <ol>
+                    <li>Find and click on the customer from the customer list</li>
+                    <li>Click the <strong>"Edit"</strong> button</li>
+                    <li>Update any information that has changed</li>
+                    <li>Click <strong>"Save Changes"</strong></li>
+                </ol>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">5. Profile and Settings</div>
+        <div class="subsection">
+            <div class="subsection-title">Accessing Your Profile</div>
+            <div class="content">
+                <p>To view or edit your profile:</p>
+                <ol>
+                    <li>Click on your profile icon/name in the top right corner</li>
+                    <li>Select <strong>"Your Profile"</strong> from the dropdown menu</li>
+                    <li>You can view and edit:</li>
+                </ol>
+                <ul>
+                    <li>Your name and contact information</li>
+                    <li>Email address</li>
+                    <li>Phone number</li>
+                    <li>Account settings</li>
+                </ul>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Changing Your Password</div>
+            <div class="content">
+                <p>To change your password:</p>
+                <ol>
+                    <li>Go to your Profile page</li>
+                    <li>Scroll to the <strong>"Change Password"</strong> section</li>
+                    <li>Enter your current password</li>
+                    <li>Enter your new password (minimum 6 characters)</li>
+                    <li>Confirm the new password</li>
+                    <li>Click <strong>"Change Password"</strong></li>
+                </ol>
+                <div class="warning-box">
+                    <strong>Security Tip:</strong> Use a strong password with a mix of letters, numbers, and special characters. Never share your password with anyone.
+                </div>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Downloading User Guide</div>
+            <div class="content">
+                <p>You can download this guide anytime:</p>
+                <ol>
+                    <li>Click on your profile icon in the top right</li>
+                    <li>Select <strong>"Download User Guide"</strong> from the menu</li>
+                    <li>The PDF will download automatically</li>
+                    <li>Save it for future reference</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">6. Best Practices and Tips</div>
+        <div class="subsection">
+            <div class="subsection-title">Daily Workflow</div>
+            <div class="content">
+                <ol>
+                    <li><strong>Start of Day:</strong> Check dashboard for daily targets and review yesterday\'s performance</li>
+                    <li><strong>Before Sales:</strong> Verify product availability and stock levels</li>
+                    <li><strong>During Sales:</strong> Always create customer profiles for new customers</li>
+                    <li><strong>After Sales:</strong> Ensure receipts are provided and transactions are complete</li>
+                    <li><strong>End of Day:</strong> Review your sales summary and prepare for next day</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Customer Service Excellence</div>
+            <div class="content">
+                <ul>
+                    <li><strong>Always verify stock:</strong> Check product availability before promising delivery to avoid disappointment</li>
+                    <li><strong>Accurate data entry:</strong> Double-check all information when creating sales to prevent errors</li>
+                    <li><strong>Professional communication:</strong> Maintain friendly and professional interaction with all customers</li>
+                    <li><strong>Receipt management:</strong> Always provide receipts for transactions - customers may need them for warranty or returns</li>
+                    <li><strong>Follow up:</strong> If a product is out of stock, take customer contact and notify when available</li>
+                </ul>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Common Issues and Solutions</div>
+            <div class="content">
+                <p><strong>Product Out of Stock:</strong></p>
+                <ul>
+                    <li>Inform customer immediately</li>
+                    <li>Check if similar products are available</li>
+                    <li>Take customer contact for restock notification</li>
+                    <li>Notify your manager about low stock</li>
+                </ul>
+                <p><strong>Payment Issues:</strong></p>
+                <ul>
+                    <li>If payment fails, verify amount entered</li>
+                    <li>Check payment method is correct</li>
+                    <li>For partial payments, ensure remaining balance is noted</li>
+                    <li>Always get manager approval for large discounts</li>
+                </ul>
+                <p><strong>System Errors:</strong></p>
+                <ul>
+                    <li>If you encounter errors, note the error message</li>
+                    <li>Try refreshing the page</li>
+                    <li>Report persistent issues to your manager</li>
+                    <li>Don\'t attempt to fix system issues yourself</li>
                 </ul>
             </div>
         </div>
     </div>
     
     <div class="section">
-        <div class="section-title">5. Best Practices</div>
+        <div class="section-title">7. Quick Reference Guide</div>
         <div class="content">
-            <ul>
-                <li><strong>Always verify stock:</strong> Check product availability before promising delivery</li>
-                <li><strong>Accurate data entry:</strong> Double-check all information when creating sales</li>
-                <li><strong>Customer service:</strong> Maintain professional communication with customers</li>
-                <li><strong>Receipt management:</strong> Always provide receipts for transactions</li>
-                <li><strong>Report issues:</strong> Notify your manager if you encounter any problems</li>
-            </ul>
+            <table>
+                <tr>
+                    <th>Task</th>
+                    <th>Steps</th>
+                </tr>
+                <tr>
+                    <td><strong>View Dashboard</strong></td>
+                    <td>Sidebar → Dashboard</td>
+                </tr>
+                <tr>
+                    <td><strong>Search Products</strong></td>
+                    <td>Sidebar → Product Management → Use search bar</td>
+                </tr>
+                <tr>
+                    <td><strong>Create New Sale</strong></td>
+                    <td>Sidebar → Sales → New Sale → Add products → Add customer → Process payment</td>
+                </tr>
+                <tr>
+                    <td><strong>Use POS System</strong></td>
+                    <td>Sidebar → POS → Scan/search products → Add to cart → Process payment</td>
+                </tr>
+                <tr>
+                    <td><strong>View Sales History</strong></td>
+                    <td>Sidebar → Sales → Browse list or use date filters</td>
+                </tr>
+                <tr>
+                    <td><strong>Add New Customer</strong></td>
+                    <td>Sidebar → Customers → Add New Customer → Fill form → Save</td>
+                </tr>
+                <tr>
+                    <td><strong>View Customer Details</strong></td>
+                    <td>Sidebar → Customers → Click on customer name</td>
+                </tr>
+                <tr>
+                    <td><strong>Access Profile</strong></td>
+                    <td>Top Right → Profile Icon → Your Profile</td>
+                </tr>
+                <tr>
+                    <td><strong>Download Guide</strong></td>
+                    <td>Top Right → Profile Icon → Download User Guide</td>
+                </tr>
+                <tr>
+                    <td><strong>Change Password</strong></td>
+                    <td>Profile → Change Password section → Enter old & new password</td>
+                </tr>
+            </table>
         </div>
     </div>
     
     <div class="section">
-        <div class="section-title">6. Quick Reference</div>
+        <div class="section-title">8. Getting Help</div>
         <div class="content">
-            <table>
-                <tr>
-                    <th>Action</th>
-                    <th>Location</th>
-                </tr>
-                <tr>
-                    <td>View Dashboard</td>
-                    <td>Sidebar → Dashboard</td>
-                </tr>
-                <tr>
-                    <td>View Products</td>
-                    <td>Sidebar → Product Management</td>
-                </tr>
-                <tr>
-                    <td>Create Sale</td>
-                    <td>Sidebar → Sales → New Sale</td>
-                </tr>
-                <tr>
-                    <td>View Customers</td>
-                    <td>Sidebar → Customers</td>
-                </tr>
-                <tr>
-                    <td>Access Profile</td>
-                    <td>Top Right → Profile Icon</td>
-                </tr>
-            </table>
+            <p>If you need assistance:</p>
+            <ul>
+                <li><strong>Technical Issues:</strong> Contact your manager or system administrator</li>
+                <li><strong>Sales Questions:</strong> Refer to this guide or ask your manager</li>
+                <li><strong>Product Information:</strong> Check product details in Product Management</li>
+                <li><strong>Customer Issues:</strong> Escalate to manager for complex situations</li>
+            </ul>
+            <div class="info-box">
+                <strong>Remember:</strong> This guide is always available in your profile menu. Download it and keep it handy for quick reference!
+            </div>
         </div>
     </div>
 ';
@@ -1591,25 +1888,45 @@ class ProfileController {
     <div class="section">
         <div class="section-title">Introduction</div>
         <div class="content">
-            <p>Welcome to the Technician User Guide! This guide will help you understand how to use the system for managing repairs, inventory, and product maintenance.</p>
+            <p>Welcome to the Technician User Guide! This comprehensive guide will help you master the repair management system. As a technician, you are responsible for handling device repairs, managing parts inventory, and ensuring quality service delivery.</p>
             <div class="info-box">
-                <strong>Your Role:</strong> As a technician, you have access to the dashboard, product management, and repair management features.
+                <strong>Your Role Permissions:</strong> As a technician, you have access to:
+                <ul style="margin-top: 10px; margin-left: 20px;">
+                    <li>Dashboard with repair statistics and active jobs</li>
+                    <li>Product Management (view product details and specifications)</li>
+                    <li>Repair Management (create, update, and complete repairs)</li>
+                    <li>Parts and Accessories tracking</li>
+                    <li>Inventory updates for parts used</li>
+                </ul>
             </div>
         </div>
     </div>
     
     <div class="section">
         <div class="section-title">1. Dashboard Overview</div>
-        <div class="content">
-            <p>The dashboard provides you with:</p>
-            <ul>
-                <li>Active repair jobs</li>
-                <li>Repair statistics</li>
-                <li>Product inventory status</li>
-                <li>Pending tasks</li>
-            </ul>
-            <div class="highlight-box">
-                <strong>Tip:</strong> Regularly check your dashboard to stay on top of repair assignments and deadlines.
+        <div class="subsection">
+            <div class="subsection-title">Accessing Your Dashboard</div>
+            <div class="content">
+                <p><span class="step-number">1</span>After logging in, you\'ll see your technician dashboard.</p>
+                <p><span class="step-number">2</span>Access it anytime by clicking <strong>"Dashboard"</strong> in the left sidebar.</p>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Dashboard Information</div>
+            <div class="content">
+                <p>Your dashboard displays critical repair information:</p>
+                <ul>
+                    <li><strong>Active Repair Jobs:</strong> Repairs currently assigned to you or in progress</li>
+                    <li><strong>Pending Repairs:</strong> New repairs waiting to be started</li>
+                    <li><strong>Completed Today:</strong> Number of repairs finished today</li>
+                    <li><strong>Waiting for Parts:</strong> Repairs on hold due to missing parts</li>
+                    <li><strong>Repair Statistics:</strong> Your performance metrics and completion rates</li>
+                    <li><strong>Product Inventory Alerts:</strong> Low stock warnings for commonly used parts</li>
+                    <li><strong>Upcoming Deadlines:</strong> Repairs with approaching completion dates</li>
+                </ul>
+                <div class="highlight-box">
+                    <strong>Pro Tip:</strong> Start each day by reviewing your dashboard to prioritize repairs and identify any parts you need to order.
+                </div>
             </div>
         </div>
     </div>
@@ -1617,174 +1934,462 @@ class ProfileController {
     <div class="section">
         <div class="section-title">2. Product Management</div>
         <div class="subsection">
-            <div class="subsection-title">Viewing Products</div>
+            <div class="subsection-title">Viewing Product Information</div>
             <div class="content">
-                <p>To access product information:</p>
+                <p><strong>Step-by-Step Guide:</strong></p>
                 <ol>
-                    <li>Navigate to <strong>Product Management</strong> from the sidebar</li>
-                    <li>Search for specific products</li>
-                    <li>View product details and specifications</li>
-                    <li>Check product availability and condition</li>
+                    <li>Click <strong>"Product Management"</strong> in the left sidebar</li>
+                    <li>Browse the product list or use the search bar to find specific products</li>
+                    <li>Click on any product name to view detailed information</li>
+                    <li>Review product specifications relevant to repairs</li>
                 </ol>
             </div>
         </div>
         <div class="subsection">
-            <div class="subsection-title">Product Specifications</div>
+            <div class="subsection-title">Important Product Details for Technicians</div>
             <div class="content">
-                <p>Important product information includes:</p>
+                <p>When viewing a product, pay attention to:</p>
                 <ul>
-                    <li>Model numbers and serial numbers</li>
-                    <li>Technical specifications</li>
-                    <li>Compatibility information</li>
-                    <li>Warranty status</li>
-                    <li>Repair history</li>
+                    <li><strong>Model Numbers:</strong> Exact model identification for compatibility</li>
+                    <li><strong>Serial Numbers:</strong> Unique device identifiers</li>
+                    <li><strong>Technical Specifications:</strong> Hardware details, screen size, processor, RAM, storage</li>
+                    <li><strong>Compatibility Information:</strong> Which parts are compatible with this model</li>
+                    <li><strong>Warranty Status:</strong> Whether device is under warranty</li>
+                    <li><strong>Repair History:</strong> Previous repairs performed on this device</li>
+                    <li><strong>Common Issues:</strong> Known problems with this model</li>
+                    <li><strong>Parts List:</strong> Available replacement parts for this product</li>
                 </ul>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Searching for Products</div>
+            <div class="content">
+                <p>To find products quickly:</p>
+                <ol>
+                    <li>Use the search bar in Product Management</li>
+                    <li>Search by product name, model number, or SKU</li>
+                    <li>Filter by brand or category if needed</li>
+                    <li>View product details to access repair-relevant information</li>
+                </ol>
             </div>
         </div>
     </div>
     
     <div class="section">
-        <div class="section-title">3. Repair Management</div>
+        <div class="section-title">3. Repair Management - Complete Guide</div>
         <div class="subsection">
-            <div class="subsection-title">Creating a Repair Job</div>
+            <div class="subsection-title">Creating a New Repair Job</div>
             <div class="content">
-                <p>To create a new repair job:</p>
+                <p><strong>Detailed Step-by-Step Process:</strong></p>
                 <ol>
-                    <li>Go to <strong>Repairs</strong> from the sidebar</li>
-                    <li>Click <strong>New Repair</strong></li>
-                    <li>Enter customer information</li>
-                    <li>Select the product/device to repair</li>
-                    <li>Describe the issue or problem</li>
-                    <li>Set repair status and priority</li>
-                    <li>Add estimated completion date</li>
-                    <li>Save the repair job</li>
+                    <li>Navigate to <strong>"Repairs"</strong> from the left sidebar</li>
+                    <li>Click the <strong>"New Repair"</strong> or <strong>"Create Repair"</strong> button</li>
+                    <li>Fill in the repair form with the following information:</li>
+                </ol>
+                <p><strong>Customer Information:</strong></p>
+                <ol>
+                    <li>If customer is new, click <strong>"Add New Customer"</strong></li>
+                    <li>Enter customer name, phone number, and email</li>
+                    <li>If customer exists, search and select from the customer list</li>
+                </ol>
+                <p><strong>Device/Product Information:</strong></p>
+                <ol>
+                    <li>Select the product/device being repaired</li>
+                    <li>Enter device serial number or IMEI if available</li>
+                    <li>Select device condition (Good, Fair, Poor)</li>
+                    <li>Note any physical damage or existing issues</li>
+                </ol>
+                <p><strong>Problem Description:</strong></p>
+                <ol>
+                    <li>Enter a detailed description of the issue</li>
+                    <li>Include symptoms (won\'t turn on, screen cracked, battery drains fast, etc.)</li>
+                    <li>Note when the problem started</li>
+                    <li>Mention any previous repair attempts</li>
+                </ol>
+                <p><strong>Repair Details:</strong></p>
+                <ol>
+                    <li>Set initial repair status (usually "Pending" for new repairs)</li>
+                    <li>Set priority level (Low, Medium, High, Urgent)</li>
+                    <li>Enter estimated repair cost (if known)</li>
+                    <li>Set estimated completion date</li>
+                    <li>Add any special notes or instructions</li>
+                </ol>
+                <p><strong>Saving the Repair:</strong></p>
+                <ol>
+                    <li>Review all information for accuracy</li>
+                    <li>Click <strong>"Save Repair"</strong> or <strong>"Create Repair"</strong></li>
+                    <li>The repair will be added to your repair list</li>
+                    <li>A repair ticket number will be generated</li>
                 </ol>
             </div>
         </div>
         <div class="subsection">
-            <div class="subsection-title">Managing Repair Jobs</div>
+            <div class="subsection-title">Updating Repair Status</div>
             <div class="content">
-                <p>You can manage repair jobs by:</p>
-                <ul>
-                    <li>Updating repair status (In Progress, Completed, Waiting for Parts, etc.)</li>
-                    <li>Adding repair notes and updates</li>
-                    <li>Recording parts and accessories used</li>
-                    <li>Updating repair costs</li>
-                    <li>Marking repairs as completed</li>
-                </ul>
+                <p><strong>How to Update Repair Status:</strong></p>
+                <ol>
+                    <li>Go to <strong>"Repairs"</strong> from the sidebar</li>
+                    <li>Find the repair job you want to update</li>
+                    <li>Click on the repair to open details</li>
+                    <li>Click <strong>"Update Status"</strong> button</li>
+                    <li>Select the new status from the dropdown</li>
+                    <li>Add a status update note explaining the change</li>
+                    <li>Click <strong>"Save"</strong></li>
+                </ol>
+                <p><strong>Understanding Repair Statuses:</strong></p>
+                <table>
+                    <tr>
+                        <th>Status</th>
+                        <th>When to Use</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Pending</strong></td>
+                        <td>New repair just created</td>
+                        <td>Repair job is in queue, waiting to be started</td>
+                    </tr>
+                    <tr>
+                        <td><strong>In Progress</strong></td>
+                        <td>You\'ve started working on it</td>
+                        <td>Repair is currently being worked on</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Waiting for Parts</strong></td>
+                        <td>Need parts to continue</td>
+                        <td>Repair is on hold, waiting for replacement parts to arrive</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Diagnosis Complete</strong></td>
+                        <td>After identifying the issue</td>
+                        <td>Problem identified, waiting for customer approval or parts</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Testing</strong></td>
+                        <td>After repair is done</td>
+                        <td>Repair completed, currently testing functionality</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Completed</strong></td>
+                        <td>Repair finished and tested</td>
+                        <td>Repair is complete, tested, and ready for customer pickup</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Cancelled</strong></td>
+                        <td>Customer cancelled or not repairable</td>
+                        <td>Repair job was cancelled or device cannot be repaired</td>
+                    </tr>
+                </table>
                 <div class="warning-box">
-                    <strong>Important:</strong> Always update repair status regularly to keep customers informed.
+                    <strong>Critical:</strong> Always update repair status immediately when it changes. This keeps customers informed and helps management track progress.
                 </div>
             </div>
         </div>
         <div class="subsection">
-            <div class="subsection-title">Repair Status Types</div>
+            <div class="subsection-title">Adding Repair Notes</div>
             <div class="content">
-                <table>
-                    <tr>
-                        <th>Status</th>
-                        <th>Description</th>
-                    </tr>
-                    <tr>
-                        <td>Pending</td>
-                        <td>Repair job created but not started</td>
-                    </tr>
-                    <tr>
-                        <td>In Progress</td>
-                        <td>Currently being worked on</td>
-                    </tr>
-                    <tr>
-                        <td>Waiting for Parts</td>
-                        <td>Awaiting replacement parts</td>
-                    </tr>
-                    <tr>
-                        <td>Completed</td>
-                        <td>Repair finished and ready for pickup</td>
-                    </tr>
-                    <tr>
-                        <td>Cancelled</td>
-                        <td>Repair job cancelled</td>
-                    </tr>
-                </table>
+                <p>To add notes or updates to a repair:</p>
+                <ol>
+                    <li>Open the repair job</li>
+                    <li>Scroll to the <strong>"Notes"</strong> or <strong>"Updates"</strong> section</li>
+                    <li>Click <strong>"Add Note"</strong> or <strong>"Add Update"</strong></li>
+                    <li>Enter your note (what you found, what you did, what\'s needed, etc.)</li>
+                    <li>Click <strong>"Save Note"</strong></li>
+                </ol>
+                <p><strong>What to Include in Notes:</strong></p>
+                <ul>
+                    <li>Diagnosis findings</li>
+                    <li>Repair steps taken</li>
+                    <li>Parts replaced</li>
+                    <li>Issues encountered</li>
+                    <li>Test results</li>
+                    <li>Customer communications</li>
+                    <li>Any special instructions</li>
+                </ul>
+                <div class="info-box">
+                    <strong>Best Practice:</strong> Add notes regularly throughout the repair process. Detailed notes help if the repair needs to be reviewed later or if another technician takes over.
+                </div>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Viewing All Repairs</div>
+            <div class="content">
+                <p>To view your repair list:</p>
+                <ol>
+                    <li>Go to <strong>"Repairs"</strong> from the sidebar</li>
+                    <li>You\'ll see a table/list of all repairs</li>
+                    <li>Use filters to view:
+                        <ul>
+                            <li>Repairs by status (Pending, In Progress, Completed, etc.)</li>
+                            <li>Repairs by date range</li>
+                            <li>Repairs by customer</li>
+                            <li>Your assigned repairs</li>
+                        </ul>
+                    </li>
+                    <li>Click on any repair to view full details</li>
+                </ol>
             </div>
         </div>
     </div>
     
     <div class="section">
-        <div class="section-title">4. Parts and Accessories</div>
+        <div class="section-title">4. Parts and Accessories Management</div>
         <div class="subsection">
-            <div class="subsection-title">Recording Parts Used</div>
+            <div class="subsection-title">Recording Parts Used in Repairs</div>
             <div class="content">
-                <p>When completing a repair:</p>
+                <p><strong>Complete Process:</strong></p>
+                <ol>
+                    <li>Open the repair job you\'re working on</li>
+                    <li>Navigate to the <strong>"Parts"</strong> or <strong>"Accessories"</strong> section</li>
+                    <li>Click <strong>"Add Part"</strong> or <strong>"Record Parts Used"</strong></li>
+                    <li>Search for the part in the system or select from list</li>
+                    <li>Enter the quantity used</li>
+                    <li>Enter the unit cost (if different from default)</li>
+                    <li>Add any notes about the part (condition, compatibility, etc.)</li>
+                    <li>Click <strong>"Save"</strong> or <strong>"Add Part"</strong></li>
+                </ol>
+                <p><strong>Important Notes:</strong></p>
+                <ul>
+                    <li>The system automatically deducts parts from inventory when recorded</li>
+                    <li>Always verify part numbers and quantities before saving</li>
+                    <li>If a part is not in the system, notify your manager to add it</li>
+                    <li>Record all parts used, even small components</li>
+                </ul>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Checking Parts Availability</div>
+            <div class="content">
+                <p>Before starting a repair, check if parts are available:</p>
                 <ol>
                     <li>Open the repair job</li>
-                    <li>Navigate to the Parts/Accessories section</li>
-                    <li>Add parts used in the repair</li>
-                    <li>Record quantities and costs</li>
-                    <li>Update inventory automatically</li>
+                    <li>Review the parts needed for the repair</li>
+                    <li>Check parts availability in the Parts section</li>
+                    <li>If parts are low or unavailable:
+                        <ul>
+                            <li>Update repair status to "Waiting for Parts"</li>
+                            <li>Notify your manager about needed parts</li>
+                            <li>Add a note about which parts are needed</li>
+                        </ul>
+                    </li>
                 </ol>
             </div>
         </div>
         <div class="subsection">
-            <div class="subsection-title">Inventory Updates</div>
+            <div class="subsection-title">Inventory Impact</div>
             <div class="content">
-                <p>The system automatically updates inventory when you record parts usage. Make sure to:</p>
+                <p>When you record parts usage:</p>
                 <ul>
-                    <li>Accurately record all parts used</li>
-                    <li>Verify part numbers and quantities</li>
-                    <li>Report low stock levels to your manager</li>
+                    <li>Inventory is automatically updated</li>
+                    <li>Stock levels decrease by the quantity used</li>
+                    <li>Cost is tracked for the repair</li>
+                    <li>Low stock alerts are triggered if needed</li>
                 </ul>
+                <div class="warning-box">
+                    <strong>Critical:</strong> Always record parts accurately. Incorrect recording affects inventory levels and repair costs. If you make a mistake, notify your manager immediately.
+                </div>
             </div>
         </div>
     </div>
     
     <div class="section">
-        <div class="section-title">5. Best Practices</div>
-        <div class="content">
-            <ul>
-                <li><strong>Document everything:</strong> Keep detailed notes on all repairs</li>
-                <li><strong>Update status regularly:</strong> Keep repair status current</li>
-                <li><strong>Accurate parts tracking:</strong> Record all parts and accessories used</li>
-                <li><strong>Quality control:</strong> Test all repairs before marking as completed</li>
-                <li><strong>Communication:</strong> Update customers on repair progress</li>
-                <li><strong>Time management:</strong> Set realistic completion dates</li>
-            </ul>
+        <div class="section-title">5. Completing a Repair</div>
+        <div class="subsection">
+            <div class="subsection-title">Final Steps Before Completion</div>
+            <div class="content">
+                <p><strong>Checklist Before Marking Repair as Complete:</strong></p>
+                <ol>
+                    <li><strong>Repair Work:</strong> All repair work is finished</li>
+                    <li><strong>Parts Recorded:</strong> All parts used have been recorded in the system</li>
+                    <li><strong>Testing:</strong> Device has been thoroughly tested</li>
+                    <li><strong>Functionality:</strong> All functions work as expected</li>
+                    <li><strong>Physical Condition:</strong> Device is clean and in good condition</li>
+                    <li><strong>Notes Updated:</strong> Final notes added about the repair</li>
+                    <li><strong>Cost Calculated:</strong> Total repair cost is accurate</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Testing the Repair</div>
+            <div class="content">
+                <p>Always test thoroughly before completion:</p>
+                <ul>
+                    <li>Test all basic functions (power on/off, charging, buttons)</li>
+                    <li>Test the specific issue that was reported</li>
+                    <li>Test related functions that might be affected</li>
+                    <li>Run device for a period to ensure stability</li>
+                    <li>Document test results in repair notes</li>
+                </ul>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Marking Repair as Complete</div>
+            <div class="content">
+                <p>To complete a repair:</p>
+                <ol>
+                    <li>Open the repair job</li>
+                    <li>Ensure all work is done and tested</li>
+                    <li>Update status to <strong>"Testing"</strong> first</li>
+                    <li>After successful testing, update status to <strong>"Completed"</strong></li>
+                    <li>Add final completion notes</li>
+                    <li>Enter final repair cost if different from estimate</li>
+                    <li>Save the changes</li>
+                </ol>
+                <div class="info-box">
+                    <strong>Note:</strong> Once marked as completed, the customer can be notified and the device is ready for pickup.
+                </div>
+            </div>
         </div>
     </div>
     
     <div class="section">
-        <div class="section-title">6. Quick Reference</div>
+        <div class="section-title">6. Best Practices for Technicians</div>
+        <div class="subsection">
+            <div class="subsection-title">Daily Workflow</div>
+            <div class="content">
+                <ol>
+                    <li><strong>Start of Day:</strong> Check dashboard for new repairs and prioritize</li>
+                    <li><strong>Review Pending:</strong> Look at pending repairs and plan your day</li>
+                    <li><strong>Check Parts:</strong> Verify you have necessary parts before starting</li>
+                    <li><strong>Update Status:</strong> Change status to "In Progress" when you start</li>
+                    <li><strong>Document Work:</strong> Add notes as you work through the repair</li>
+                    <li><strong>Record Parts:</strong> Record parts immediately after use</li>
+                    <li><strong>Test Thoroughly:</strong> Always test before marking complete</li>
+                    <li><strong>End of Day:</strong> Update all repair statuses and add end-of-day notes</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Quality Standards</div>
+            <div class="content">
+                <ul>
+                    <li><strong>Document Everything:</strong> Keep detailed notes on diagnosis, repair steps, and results</li>
+                    <li><strong>Update Status Regularly:</strong> Keep repair status current - customers and managers rely on this</li>
+                    <li><strong>Accurate Parts Tracking:</strong> Record all parts and accessories used, no matter how small</li>
+                    <li><strong>Quality Control:</strong> Test all repairs thoroughly before marking as completed</li>
+                    <li><strong>Communication:</strong> Add notes that help communicate progress to customers and managers</li>
+                    <li><strong>Time Management:</strong> Set realistic completion dates and update if needed</li>
+                    <li><strong>Professional Notes:</strong> Write clear, professional notes that others can understand</li>
+                </ul>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Common Scenarios</div>
+            <div class="content">
+                <p><strong>When Parts Are Not Available:</strong></p>
+                <ol>
+                    <li>Update repair status to "Waiting for Parts"</li>
+                    <li>Add a detailed note about which parts are needed</li>
+                    <li>Notify your manager</li>
+                    <li>Update estimated completion date</li>
+                </ol>
+                <p><strong>When Repair Cannot Be Completed:</strong></p>
+                <ol>
+                    <li>Add detailed notes explaining why</li>
+                    <li>Update status appropriately</li>
+                    <li>Notify manager and customer</li>
+                    <li>Document all attempts made</li>
+                </ol>
+                <p><strong>When Additional Work Is Needed:</strong></p>
+                <ol>
+                    <li>Add notes about additional issues found</li>
+                    <li>Update estimated cost if significant</li>
+                    <li>Get customer approval if needed</li>
+                    <li>Continue with additional repairs</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">7. Profile and Settings</div>
+        <div class="subsection">
+            <div class="subsection-title">Accessing Your Profile</div>
+            <div class="content">
+                <p>To view or edit your profile:</p>
+                <ol>
+                    <li>Click on your profile icon/name in the top right corner</li>
+                    <li>Select <strong>"Your Profile"</strong> from the dropdown</li>
+                    <li>Update your information as needed</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Changing Your Password</div>
+            <div class="content">
+                <p>To change your password:</p>
+                <ol>
+                    <li>Go to your Profile page</li>
+                    <li>Find the <strong>"Change Password"</strong> section</li>
+                    <li>Enter current password</li>
+                    <li>Enter new password (minimum 6 characters)</li>
+                    <li>Confirm new password</li>
+                    <li>Click <strong>"Change Password"</strong></li>
+                </ol>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">8. Quick Reference Guide</div>
         <div class="content">
             <table>
                 <tr>
-                    <th>Action</th>
-                    <th>Location</th>
+                    <th>Task</th>
+                    <th>Steps</th>
                 </tr>
                 <tr>
-                    <td>View Dashboard</td>
+                    <td><strong>View Dashboard</strong></td>
                     <td>Sidebar → Dashboard</td>
                 </tr>
                 <tr>
-                    <td>View Products</td>
+                    <td><strong>View Products</strong></td>
                     <td>Sidebar → Product Management</td>
                 </tr>
                 <tr>
-                    <td>Create Repair</td>
-                    <td>Sidebar → Repairs → New Repair</td>
+                    <td><strong>Create New Repair</strong></td>
+                    <td>Sidebar → Repairs → New Repair → Fill form → Save</td>
                 </tr>
                 <tr>
-                    <td>View Repairs</td>
-                    <td>Sidebar → Repairs</td>
+                    <td><strong>View All Repairs</strong></td>
+                    <td>Sidebar → Repairs → Browse list or use filters</td>
                 </tr>
                 <tr>
-                    <td>Update Repair Status</td>
-                    <td>Repairs → Select Repair → Update Status</td>
+                    <td><strong>Update Repair Status</strong></td>
+                    <td>Repairs → Select Repair → Update Status → Select status → Add note → Save</td>
                 </tr>
                 <tr>
-                    <td>Access Profile</td>
-                    <td>Top Right → Profile Icon</td>
+                    <td><strong>Add Repair Notes</strong></td>
+                    <td>Repairs → Select Repair → Notes section → Add Note → Save</td>
+                </tr>
+                <tr>
+                    <td><strong>Record Parts Used</strong></td>
+                    <td>Repairs → Select Repair → Parts section → Add Part → Select part → Enter quantity → Save</td>
+                </tr>
+                <tr>
+                    <td><strong>Complete Repair</strong></td>
+                    <td>Repairs → Select Repair → Update Status → "Completed" → Add final notes → Save</td>
+                </tr>
+                <tr>
+                    <td><strong>Access Profile</strong></td>
+                    <td>Top Right → Profile Icon → Your Profile</td>
                 </tr>
             </table>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">9. Getting Help</div>
+        <div class="content">
+            <p>If you need assistance:</p>
+            <ul>
+                <li><strong>Technical Issues:</strong> Contact your manager or system administrator</li>
+                <li><strong>Parts Availability:</strong> Check with your manager about ordering parts</li>
+                <li><strong>Repair Questions:</strong> Consult this guide or ask your manager</li>
+                <li><strong>System Errors:</strong> Report to manager immediately, don\'t attempt to fix</li>
+            </ul>
+            <div class="info-box">
+                <strong>Remember:</strong> This guide is always available in your profile menu. Download it and keep it handy for quick reference!
+            </div>
         </div>
     </div>
 ';

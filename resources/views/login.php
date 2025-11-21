@@ -198,7 +198,7 @@
     
     <!-- Footer -->
     <p class="text-center text-xs text-gray-500 mt-4">
-      © 2024 SellApp. All rights reserved.
+      © 2025 SellApp. All rights reserved.
     </p>
   </div>
 
