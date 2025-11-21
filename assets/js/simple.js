@@ -68,85 +68,126 @@ function setupLoginForm() {
 
     if (loginForm) {
         console.log('Login form found, attaching event listener...');
-        loginForm.addEventListener('submit', async (e) => {
-            console.log('Login form submitted!');
-            e.preventDefault();
         
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value.trim();
-        const errorMessage = document.getElementById('errorMessage');
-        const loginBtn = document.getElementById('loginBtn');
-        
-        // Validate inputs
-        if (!username || !password) {
-            errorMessage.textContent = 'Please enter both username and password.';
-            errorMessage.classList.remove('hidden');
-            return;
-        }
-        
-        loginBtn.disabled = true;
-        loginBtn.textContent = 'Logging in...';
-        errorMessage.classList.add('hidden');
-
-        try {
-            const loginUrl = `${apiBase}/auth/login`;
-            console.log('Attempting login to:', loginUrl);
-            console.log('Base path:', basePath);
-            console.log('API base:', apiBase);
+        // Main login handler
+        async function handleLogin(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const errorMessage = document.getElementById('errorMessage');
+            const loginBtn = document.getElementById('loginBtn');
             
-            const res = await fetch(loginUrl, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ username, password }),
-                credentials: 'same-origin' // Include cookies
-            });
-            
-            console.log('Login response status:', res.status);
-            console.log('Login response headers:', res.headers);
-            
-            // Check if response is JSON
-            const contentType = res.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                const text = await res.text();
-                console.error('Non-JSON response:', text);
-                throw new Error('Server returned invalid response. Please check the console for details.');
+            // Validate inputs
+            if (!username || !password) {
+                errorMessage.textContent = 'Please enter both username and password.';
+                errorMessage.classList.remove('hidden');
+                return;
             }
             
-            const data = await res.json();
-            console.log('Login response data:', data);
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Logging in...';
+            errorMessage.classList.add('hidden');
 
-            if (res.ok && data.success && data.data && data.data.token) {
-                localStorage.setItem('sellapp_token', data.data.token);
-                localStorage.setItem('token', data.data.token);
-                localStorage.setItem('sellapp_user', JSON.stringify(data.data.user));
+            try {
+                const loginUrl = `${apiBase}/auth/login`;
+                console.log('Attempting login to:', loginUrl);
+                console.log('Base path:', basePath);
+                console.log('API base:', apiBase);
+                console.log('Full URL:', window.location.origin + loginUrl);
                 
-                // Get redirect URL from query params or default to dashboard
-                const urlParams = new URLSearchParams(window.location.search);
-                const redirectUrl = urlParams.get('redirect') || data.redirect || '/dashboard';
+                const res = await fetch(loginUrl, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ username, password }),
+                    credentials: 'same-origin' // Include cookies
+                });
                 
-                console.log('Login successful, redirecting to:', `${basePath}${redirectUrl}`);
-                window.location.href = `${basePath}${redirectUrl}`;
-            } else {
-                const errorMsg = data.error || data.message || 'Login failed. Please check your credentials.';
-                console.error('Login failed:', errorMsg);
+                console.log('Login response status:', res.status);
+                console.log('Login response headers:', Object.fromEntries(res.headers.entries()));
+                
+                // Check if response is JSON
+                const contentType = res.headers.get('content-type');
+                let data;
+                
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await res.text();
+                    console.error('Non-JSON response:', text);
+                    console.error('Response status:', res.status);
+                    console.error('Response URL:', res.url);
+                    
+                    // Try to parse as JSON anyway (sometimes servers don't set content-type correctly)
+                    try {
+                        data = JSON.parse(text);
+                    } catch (parseErr) {
+                        throw new Error(`Server returned invalid response (${res.status}). Response: ${text.substring(0, 200)}`);
+                    }
+                } else {
+                    data = await res.json();
+                }
+                
+                console.log('Login response data:', data);
+
+                if (res.ok && data.success && data.data && data.data.token) {
+                    localStorage.setItem('sellapp_token', data.data.token);
+                    localStorage.setItem('token', data.data.token);
+                    localStorage.setItem('sellapp_user', JSON.stringify(data.data.user));
+                    
+                    // Get redirect URL from query params or default to dashboard
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const redirectUrl = urlParams.get('redirect') || data.redirect || '/dashboard';
+                    
+                    console.log('Login successful, redirecting to:', `${basePath}${redirectUrl}`);
+                    window.location.href = `${basePath}${redirectUrl}`;
+                } else {
+                    const errorMsg = data.error || data.message || 'Login failed. Please check your credentials.';
+                    console.error('Login failed:', errorMsg);
+                    console.error('Full response:', data);
+                    errorMessage.textContent = errorMsg;
+                    errorMessage.classList.remove('hidden');
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Sign In';
+                }
+            } catch (err) {
+                console.error('Login error:', err);
+                console.error('Error details:', {
+                    message: err.message,
+                    stack: err.stack,
+                    name: err.name
+                });
+                
+                let errorMsg = err.message || 'Server error. Please check your connection and try again.';
+                
+                // Provide more helpful error messages
+                if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+                    errorMsg = 'Cannot connect to server. Please check your internet connection and try again.';
+                } else if (err.message.includes('404')) {
+                    errorMsg = 'Login endpoint not found. Please contact support.';
+                } else if (err.message.includes('500')) {
+                    errorMsg = 'Server error. Please try again later or contact support.';
+                }
+                
                 errorMessage.textContent = errorMsg;
                 errorMessage.classList.remove('hidden');
                 loginBtn.disabled = false;
-                loginBtn.textContent = 'Login';
+                loginBtn.textContent = 'Sign In';
             }
-        } catch (err) {
-            console.error('Login error:', err);
-            console.error('Error details:', {
-                message: err.message,
-                stack: err.stack,
-                name: err.name
-            });
-            errorMessage.textContent = err.message || 'Server error. Please check your connection and try again.';
-            errorMessage.classList.remove('hidden');
-            loginBtn.disabled = false;
-            loginBtn.textContent = 'Login';
         }
-    });
+        
+        // Attach handler to form submit
+        loginForm.addEventListener('submit', handleLogin);
+        
+        // Also handle button click as backup (in case form submit doesn't fire)
+        const loginBtn = document.getElementById('loginBtn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleLogin(e);
+            });
+        }
     } else {
         console.error('Login form not found on page!');
         console.log('Available elements:', {
@@ -155,6 +196,15 @@ function setupLoginForm() {
             password: document.getElementById('password'),
             loginBtn: document.getElementById('loginBtn')
         });
+        
+        // Show error to user if form not found
+        setTimeout(() => {
+            const errorDiv = document.getElementById('errorMessage');
+            if (errorDiv) {
+                errorDiv.textContent = 'Login form initialization error. Please refresh the page.';
+                errorDiv.classList.remove('hidden');
+            }
+        }, 1000);
     }
 }
 

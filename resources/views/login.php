@@ -189,15 +189,17 @@
     <div class="bg-white rounded-xl shadow-lg p-4 border border-gray-100">
       <h2 class="text-lg font-bold text-gray-900 mb-4 text-center">Welcome Back</h2>
       
-      <form id="loginForm" class="space-y-3">
+      <form id="loginForm" class="space-y-3" action="#" method="post" onsubmit="return false;">
         <div>
           <label class="block text-gray-700 text-xs font-semibold mb-1">Username or Email</label>
           <input 
             type="text" 
             id="username" 
+            name="username"
             class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
             placeholder="Enter username or email"
-            required>
+            required
+            autocomplete="username">
         </div>
         
         <div>
@@ -205,15 +207,17 @@
           <input 
             type="password" 
             id="password" 
+            name="password"
             class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
             placeholder="Enter your password"
-            required>
+            required
+            autocomplete="current-password">
         </div>
         
         <button 
           type="submit" 
           id="loginBtn"
-          class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white py-2 rounded-lg font-semibold text-sm transition-all duration-200 shadow-md hover:shadow-lg">
+          class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white py-2 rounded-lg font-semibold text-sm transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
           Sign In
         </button>
       </form>

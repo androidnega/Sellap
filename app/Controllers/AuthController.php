@@ -23,8 +23,18 @@ class AuthController {
      * POST /api/auth/login
      */
     public function login() {
+        // Clean any existing output buffers
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        
+        // Start output buffering
+        ob_start();
+        
         // Ensure we always return JSON, even on fatal errors
-        header('Content-Type: application/json');
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
         
         // Set error handler to catch any fatal errors
         set_error_handler(function($severity, $message, $file, $line) {
@@ -32,17 +42,36 @@ class AuthController {
         });
         
         try {
-            $data = json_decode(file_get_contents('php://input'), true);
+            $rawInput = file_get_contents('php://input');
+            if (empty($rawInput)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'No request data received']);
+                ob_end_flush();
+                exit;
+            }
+            
+            $data = json_decode($rawInput, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Invalid JSON data: ' . json_last_error_msg()]);
+                ob_end_flush();
+                exit;
+            }
         } catch (\Exception $e) {
             http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Invalid request data']);
-            return;
+            echo json_encode(['success' => false, 'error' => 'Invalid request data: ' . $e->getMessage()]);
+            ob_end_flush();
+            exit;
         }
         
         if (!isset($data['username']) || !isset($data['password'])) {
-            http_response_code(400);
+            ob_end_clean();
+            if (!headers_sent()) {
+                header('Content-Type: application/json');
+                http_response_code(400);
+            }
             echo json_encode(['success' => false, 'error' => 'Username and password are required']);
-            return;
+            exit;
         }
 
         try {
@@ -101,12 +130,19 @@ class AuthController {
                 error_log("Audit logging error (non-fatal): " . $auditError->getMessage());
             }
             
-            echo json_encode([
+            $response = json_encode([
                 'success' => true,
                 'message' => 'Login successful',
                 'data' => $result,
                 'redirect' => '/dashboard'  // Always redirect to unified dashboard
             ]);
+            
+            ob_end_clean();
+            if (!headers_sent()) {
+                header('Content-Type: application/json');
+            }
+            echo $response;
+            exit;
         } catch (\Exception $e) {
             // Log the error for debugging
             error_log("Login error: " . $e->getMessage());
@@ -116,26 +152,42 @@ class AuthController {
             $isDbError = strpos($e->getMessage(), 'Database connection') !== false || 
                         strpos($e->getMessage(), 'SQLSTATE') !== false;
             
-            http_response_code($isDbError ? 500 : 401);
-            echo json_encode([
+            $errorResponse = [
                 'success' => false,
-                'error' => $e->getMessage(),
-                'debug' => (defined('APP_ENV') && APP_ENV === 'local') ? [
+                'error' => $e->getMessage()
+            ];
+            
+            // Add debug info only in local environment
+            if (defined('APP_ENV') && APP_ENV === 'local') {
+                $errorResponse['debug'] = [
                     'file' => $e->getFile(),
                     'line' => $e->getLine(),
                     'trace' => $e->getTraceAsString()
-                ] : null
-            ]);
+                ];
+            }
+            
+            ob_end_clean();
+            if (!headers_sent()) {
+                header('Content-Type: application/json');
+                http_response_code($isDbError ? 500 : 401);
+            }
+            echo json_encode($errorResponse);
+            exit;
         } catch (\Error $e) {
             // Catch fatal errors
             error_log("Login fatal error: " . $e->getMessage());
             error_log("Stack trace: " . $e->getTraceAsString());
             
-            http_response_code(500);
+            ob_end_clean();
+            if (!headers_sent()) {
+                header('Content-Type: application/json');
+                http_response_code(500);
+            }
             echo json_encode([
                 'success' => false,
                 'error' => 'Internal server error: ' . $e->getMessage()
             ]);
+            exit;
         } finally {
             // Restore error handler
             restore_error_handler();
