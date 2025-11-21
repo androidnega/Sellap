@@ -291,14 +291,21 @@ class CompanySMSAccount {
     public function allocateSMS($companyId, $amount) {
         try {
             if ($amount <= 0) {
+                error_log("CompanySMSAccount::allocateSMS - Invalid amount: {$amount} for company {$companyId}");
                 return false;
             }
+            
+            error_log("CompanySMSAccount::allocateSMS - Starting allocation: {$amount} SMS credits for company {$companyId}");
             
             $account = $this->getOrCreateAccount($companyId);
             
             if (!$account) {
+                error_log("CompanySMSAccount::allocateSMS - Failed to get or create account for company {$companyId}");
                 return false;
             }
+            
+            $balanceBefore = $account['total_sms'] ?? 0;
+            error_log("CompanySMSAccount::allocateSMS - Balance before: {$balanceBefore} for company {$companyId}");
             
             // Update total_sms by adding the new allocation
             $stmt = $this->conn->prepare("
@@ -308,9 +315,39 @@ class CompanySMSAccount {
             ");
             $result = $stmt->execute([$amount, $companyId]);
             
-            return $result && $stmt->rowCount() > 0;
+            if (!$result) {
+                error_log("CompanySMSAccount::allocateSMS - SQL execution failed for company {$companyId}");
+                return false;
+            }
+            
+            $rowsAffected = $stmt->rowCount();
+            error_log("CompanySMSAccount::allocateSMS - Rows affected: {$rowsAffected} for company {$companyId}");
+            
+            if ($rowsAffected === 0) {
+                error_log("CompanySMSAccount::allocateSMS - WARNING: No rows updated for company {$companyId}. Account may not exist.");
+                return false;
+            }
+            
+            // Verify the update by fetching the new balance
+            $verifyStmt = $this->conn->prepare("SELECT total_sms FROM {$this->table} WHERE company_id = ?");
+            $verifyStmt->execute([$companyId]);
+            $newAccount = $verifyStmt->fetch(\PDO::FETCH_ASSOC);
+            
+            if ($newAccount) {
+                $balanceAfter = $newAccount['total_sms'] ?? 0;
+                error_log("CompanySMSAccount::allocateSMS - Balance after: {$balanceAfter} for company {$companyId} (added {$amount}, expected: " . ($balanceBefore + $amount) . ")");
+                
+                if ($balanceAfter != ($balanceBefore + $amount)) {
+                    error_log("CompanySMSAccount::allocateSMS - WARNING: Balance mismatch! Expected: " . ($balanceBefore + $amount) . ", Got: {$balanceAfter}");
+                }
+            } else {
+                error_log("CompanySMSAccount::allocateSMS - WARNING: Could not verify balance after update for company {$companyId}");
+            }
+            
+            return true;
         } catch (\Exception $e) {
             error_log("CompanySMSAccount::allocateSMS error: " . $e->getMessage());
+            error_log("CompanySMSAccount::allocateSMS trace: " . $e->getTraceAsString());
             return false;
         }
     }

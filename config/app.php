@@ -13,8 +13,16 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // Application Constants
+// Auto-detect APP_URL from server if not set in environment
+$detectedAppUrl = null;
+if (isset($_SERVER['HTTP_HOST'])) {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'];
+    $detectedAppUrl = "{$protocol}://{$host}";
+}
+
 define('APP_NAME', 'SellApp');
-define('APP_URL', getenv('APP_URL') ?: 'http://localhost');
+define('APP_URL', getenv('APP_URL') ?: ($detectedAppUrl ?: 'https://sellapp.store'));
 define('APP_ENV', getenv('APP_ENV') ?: 'local');
 define('JWT_SECRET', getenv('JWT_SECRET') ?: 'your_secret_key');
 

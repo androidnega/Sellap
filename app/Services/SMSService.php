@@ -566,8 +566,16 @@ class SMSService {
             }
         }
         
-        // Get login URL dynamically
-        $appUrl = defined('APP_URL') ? APP_URL : (getenv('APP_URL') ?: 'http://localhost');
+        // Get login URL dynamically - use actual domain, not localhost
+        $appUrl = defined('APP_URL') ? APP_URL : (getenv('APP_URL') ?: null);
+        
+        // If APP_URL is not set, detect from server
+        if (empty($appUrl) || $appUrl === 'http://localhost' || $appUrl === 'https://localhost') {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $host = $_SERVER['HTTP_HOST'] ?? 'sellapp.store';
+            $appUrl = "{$protocol}://{$host}";
+        }
+        
         $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
         $loginUrl = rtrim($appUrl . $basePath, '/');
         $message = "Hello! Your {$companyName} account has been created.\n\n";

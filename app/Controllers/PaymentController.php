@@ -282,7 +282,20 @@ class PaymentController {
             ]);
             
             // Update company SMS balance
-            $this->smsAccountModel->allocateSMS($payment['company_id'], $payment['sms_credits']);
+            error_log("PaymentController::handleSuccess - Allocating {$payment['sms_credits']} SMS credits to company {$payment['company_id']}");
+            $allocationResult = $this->smsAccountModel->allocateSMS($payment['company_id'], $payment['sms_credits']);
+            
+            if (!$allocationResult) {
+                error_log("PaymentController::handleSuccess - WARNING: Failed to allocate SMS credits to company {$payment['company_id']}");
+            } else {
+                error_log("PaymentController::handleSuccess - Successfully allocated {$payment['sms_credits']} SMS credits to company {$payment['company_id']}");
+                
+                // Verify the allocation
+                $verifyBalance = $this->smsAccountModel->getSMSBalance($payment['company_id']);
+                if ($verifyBalance['success']) {
+                    error_log("PaymentController::handleSuccess - Verified balance for company {$payment['company_id']}: Total: {$verifyBalance['total_sms']}, Remaining: {$verifyBalance['sms_remaining']}");
+                }
+            }
             
             // Set success message in session
             if (session_status() === PHP_SESSION_NONE) {
@@ -857,7 +870,23 @@ class PaymentController {
             ]);
             
             // Credit SMS to company account
-            $this->smsAccountModel->allocateSMS($payment['company_id'], $payment['sms_credits']);
+            error_log("PaymentController::verifyPaystackPayment - Payment record: company_id={$payment['company_id']}, sms_credits={$payment['sms_credits']}, status={$payment['status']}");
+            error_log("PaymentController::verifyPaystackPayment - Allocating {$payment['sms_credits']} SMS credits to company {$payment['company_id']}");
+            $allocationResult = $this->smsAccountModel->allocateSMS($payment['company_id'], $payment['sms_credits']);
+            
+            if (!$allocationResult) {
+                error_log("PaymentController::verifyPaystackPayment - WARNING: Failed to allocate SMS credits to company {$payment['company_id']}");
+            } else {
+                error_log("PaymentController::verifyPaystackPayment - Successfully allocated {$payment['sms_credits']} SMS credits to company {$payment['company_id']}");
+                
+                // Verify the allocation by fetching the balance
+                $verifyBalance = $this->smsAccountModel->getSMSBalance($payment['company_id']);
+                if ($verifyBalance['success']) {
+                    error_log("PaymentController::verifyPaystackPayment - Verified balance for company {$payment['company_id']}: Total: {$verifyBalance['total_sms']}, Remaining: {$verifyBalance['sms_remaining']}");
+                } else {
+                    error_log("PaymentController::verifyPaystackPayment - WARNING: Could not verify balance after allocation for company {$payment['company_id']}");
+                }
+            }
             
             // Deduct from admin/system SMS balance (company_id = 0 represents system/admin)
             $this->deductAdminSMSBalance($payment['sms_credits']);
@@ -978,7 +1007,20 @@ class PaymentController {
             ]);
             
             // Credit SMS to company account
-            $this->smsAccountModel->allocateSMS($payment['company_id'], $payment['sms_credits']);
+            error_log("PaymentController::handlePaystackWebhook - Allocating {$payment['sms_credits']} SMS credits to company {$payment['company_id']}");
+            $allocationResult = $this->smsAccountModel->allocateSMS($payment['company_id'], $payment['sms_credits']);
+            
+            if (!$allocationResult) {
+                error_log("PaymentController::handlePaystackWebhook - WARNING: Failed to allocate SMS credits to company {$payment['company_id']}");
+            } else {
+                error_log("PaymentController::handlePaystackWebhook - Successfully allocated {$payment['sms_credits']} SMS credits to company {$payment['company_id']}");
+                
+                // Verify the allocation
+                $verifyBalance = $this->smsAccountModel->getSMSBalance($payment['company_id']);
+                if ($verifyBalance['success']) {
+                    error_log("PaymentController::handlePaystackWebhook - Verified balance for company {$payment['company_id']}: Total: {$verifyBalance['total_sms']}, Remaining: {$verifyBalance['sms_remaining']}");
+                }
+            }
             
             // Deduct from admin/system SMS balance (company_id = 0 represents system/admin)
             $this->deductAdminSMSBalance($payment['sms_credits']);
