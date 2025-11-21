@@ -109,12 +109,14 @@
 <body class="bg-gradient-to-br from-blue-50 via-white to-gray-50 min-h-screen flex items-center justify-center px-4 py-8">
   <div class="w-full max-w-xs">
     <!-- Logo and Branding -->
-    <div class="text-center mb-4">
-      <div class="inline-flex items-center justify-center w-12 h-12 bg-blue-600 rounded-xl mb-2 shadow-md">
-        <span class="text-2xl">📱</span>
+    <div class="mb-4">
+      <div class="flex items-center justify-center gap-3 mb-2">
+        <div class="inline-flex items-center justify-center w-12 h-12 bg-blue-600 rounded-xl shadow-md">
+          <span class="text-2xl">📱</span>
+        </div>
+        <h1 class="text-xl font-bold text-gray-900">SellApp</h1>
       </div>
-      <h1 class="text-xl font-bold text-gray-900 mb-1">SellApp</h1>
-      <p class="text-gray-600 text-xs">Multi-Tenant Phone Management System</p>
+      <p class="text-gray-600 text-xs text-center">Multi-Tenant Phone Management System</p>
     </div>
     
     <!-- Login Card -->
