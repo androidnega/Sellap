@@ -94,7 +94,15 @@ class AdminController {
      * Get all companies (System Admin only)
      */
     public function companies() {
-        $payload = AuthMiddleware::handle(['system_admin']);
+        try {
+            $payload = AuthMiddleware::handle(['system_admin']);
+        } catch (\Exception $e) {
+            http_response_code(401);
+            header('Content-Type: application/json');
+            echo json_encode([]); // Return empty array instead of error object
+            return;
+        }
+        
         $db = \Database::getInstance()->getConnection();
 
         try {
@@ -109,14 +117,17 @@ class AdminController {
                 FROM companies 
                 ORDER BY created_at DESC
             ");
-            $companies = $query->fetchAll();
+            $companies = $query ? $query->fetchAll(\PDO::FETCH_ASSOC) : [];
 
+            // Always return an array, even if empty
             header('Content-Type: application/json');
             echo json_encode($companies);
         } catch (\Exception $e) {
             http_response_code(500);
             header('Content-Type: application/json');
-            echo json_encode(['error' => 'Failed to fetch companies', 'message' => $e->getMessage()]);
+            // Return empty array on error instead of error object
+            echo json_encode([]);
+            error_log("Error fetching companies: " . $e->getMessage());
         }
     }
 

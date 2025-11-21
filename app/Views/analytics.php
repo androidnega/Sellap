@@ -689,19 +689,50 @@
         
         // Load company performance for company revenue chart
         fetch(BASE + '/api/admin/company-performance', {
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                // If error, return empty data
+                if (response.status === 401) {
+                    console.warn('Unauthorized access to company performance API');
+                    return { success: false, companies: [] };
+                }
+                throw new Error('Failed to load company performance: ' + response.status);
+            }
+            return response.json();
+        })
         .then(data => {
-            if (data.success && data.companies && companyRevenueChart) {
-                const topCompanies = data.companies.slice(0, 10); // Top 10 companies
-                companyRevenueChart.data.labels = topCompanies.map(c => c.name || 'Company');
-                companyRevenueChart.data.datasets[0].data = topCompanies.map(c => parseFloat(c.revenue) || 0);
+            if (companyRevenueChart) {
+                if (data.success && Array.isArray(data.companies) && data.companies.length > 0) {
+                    const topCompanies = data.companies.slice(0, 10); // Top 10 companies
+                    companyRevenueChart.data.labels = topCompanies.map(c => c.name || 'Company');
+                    companyRevenueChart.data.datasets[0].data = topCompanies.map(c => parseFloat(c.revenue) || 0);
+                } else {
+                    // No companies or empty data - show empty chart
+                    companyRevenueChart.data.labels = ['No Data'];
+                    companyRevenueChart.data.datasets[0].data = [0];
+                }
                 companyRevenueChart.update();
+            }
+            
+            // Update company performance table
+            if (data.success && Array.isArray(data.companies)) {
+                updateCompanyPerformanceTable(data.companies);
+            } else {
+                updateCompanyPerformanceTable([]);
             }
         })
         .catch(error => {
             console.error('Error loading company performance:', error);
+            // Show empty state on error
+            if (companyRevenueChart) {
+                companyRevenueChart.data.labels = ['No Data'];
+                companyRevenueChart.data.datasets[0].data = [0];
+                companyRevenueChart.update();
+            }
+            updateCompanyPerformanceTable([]);
         });
         
         // Update transaction types from analytics API (real data)
@@ -749,8 +780,8 @@
     let allAuditRecords = [];
     
     function loadCompanyPerformance() {
-        const dateFrom = document.getElementById('performance-date-from').value;
-        const dateTo = document.getElementById('performance-date-to').value;
+        const dateFrom = document.getElementById('performance-date-from')?.value || '';
+        const dateTo = document.getElementById('performance-date-to')?.value || '';
         
         let url = BASE + '/api/admin/company-performance';
         const params = new URLSearchParams();
@@ -759,19 +790,50 @@
         if (params.toString()) url += '?' + params.toString();
         
         fetch(url, {
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                // If error, return empty data structure
+                if (response.status === 401) {
+                    console.warn('Unauthorized access to company performance API');
+                    return { success: false, companies: [], summary: {} };
+                }
+                throw new Error('Failed to load company performance: ' + response.status);
+            }
+            return response.json();
+        })
         .then(data => {
+            // Ensure data is in expected format
+            if (!data || typeof data !== 'object') {
+                data = { success: false, companies: [], summary: {} };
+            }
+            
+            // Always ensure companies is an array
+            const companies = Array.isArray(data.companies) ? data.companies : [];
+            const summary = data.summary || {};
+            
             if (data.success) {
-                allCompanies = data.companies || [];
-                updateCompanyPerformanceTable(data.companies || []);
-                updateCompanyPerformanceSummary(data.summary || {});
-                updateCompanyRevenueChart(data.companies || []);
+                allCompanies = companies;
+                updateCompanyPerformanceTable(companies);
+                updateCompanyPerformanceSummary(summary);
+                updateCompanyRevenueChart(companies);
+            } else {
+                // Even if not successful, update with empty data
+                allCompanies = [];
+                updateCompanyPerformanceTable([]);
+                updateCompanyPerformanceSummary({});
+                updateCompanyRevenueChart([]);
             }
         })
         .catch(error => {
             console.error('Error loading company performance:', error);
+            // Show empty state on error
+            allCompanies = [];
+            updateCompanyPerformanceTable([]);
+            updateCompanyPerformanceSummary({});
+            updateCompanyRevenueChart([]);
         });
     }
     
@@ -813,31 +875,92 @@
     }
     
     function updateCompanyRevenueChart(companies) {
-        if (companyRevenueChart && companies.length > 0) {
+        if (!companyRevenueChart) return;
+        
+        // Ensure companies is an array
+        if (!Array.isArray(companies)) {
+            companies = [];
+        }
+        
+        if (companies.length > 0) {
             const topCompanies = companies.slice(0, 10);
             companyRevenueChart.data.labels = topCompanies.map(c => c.name || 'Company');
             companyRevenueChart.data.datasets[0].data = topCompanies.map(c => (c.metrics?.total_revenue || 0));
-            companyRevenueChart.update();
+        } else {
+            // Show empty state
+            companyRevenueChart.data.labels = ['No Companies'];
+            companyRevenueChart.data.datasets[0].data = [0];
         }
+        companyRevenueChart.update();
     }
     
     // Audit Functions
     function loadCompaniesForAudit() {
+        const select = document.getElementById('audit-company-id');
+        if (!select) return; // Element doesn't exist, skip
+        
+        // Check for token first
+        const token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
+        if (!token) {
+            console.warn('No token found for companies API');
+            select.innerHTML = '<option value="">Please login to load companies</option>';
+            return;
+        }
+        
         fetch(BASE + '/api/admin/companies', {
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                // If 401 or other error, return empty array
+                if (response.status === 401) {
+                    console.warn('Unauthorized access to companies API');
+                    return [];
+                }
+                throw new Error('Failed to load companies: ' + response.status);
+            }
+            return response.json();
+        })
         .then(companies => {
-            const select = document.getElementById('audit-company-id');
-            companies.forEach(company => {
+            // Ensure companies is an array
+            if (!Array.isArray(companies)) {
+                console.warn('Companies API returned non-array:', companies);
+                companies = [];
+            }
+            
+            // Clear existing options (except the first one if it's a placeholder)
+            const firstOption = select.firstElementChild;
+            if (firstOption && firstOption.value === '') {
+                select.innerHTML = '';
+                select.appendChild(firstOption);
+            } else {
+                select.innerHTML = '';
+            }
+            
+            // Add companies or show empty state
+            if (companies.length === 0) {
                 const option = document.createElement('option');
-                option.value = company.id;
-                option.textContent = company.name || 'Unknown';
+                option.value = '';
+                option.textContent = 'No companies available';
+                option.disabled = true;
                 select.appendChild(option);
-            });
+            } else {
+                companies.forEach(company => {
+                    const option = document.createElement('option');
+                    option.value = company.id;
+                    option.textContent = company.name || 'Unknown Company';
+                    select.appendChild(option);
+                });
+            }
         })
         .catch(error => {
             console.error('Error loading companies:', error);
+            // Show error message in select
+            const select = document.getElementById('audit-company-id');
+            if (select) {
+                select.innerHTML = '<option value="">Error loading companies</option>';
+            }
         });
     }
     
