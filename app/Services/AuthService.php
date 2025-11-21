@@ -14,6 +14,11 @@ class AuthService {
 
     public function __construct() {
         try {
+            // Check if JWT class is available
+            if (!class_exists('Firebase\JWT\JWT')) {
+                throw new \Exception('Firebase JWT library not found. Please run: composer install');
+            }
+            
             $this->userModel = new User();
             $this->secret = getenv('JWT_SECRET') ?: JWT_SECRET;
         } catch (\Exception $e) {
