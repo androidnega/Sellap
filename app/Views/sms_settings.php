@@ -150,16 +150,30 @@ let smsLogsTotal = 0;
 // Load SMS data - expose globally so payment-success page can call it
 window.loadSMSData = async function loadSMSData() {
     try {
-        const token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
+        // Try to get token from localStorage first
+        let token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
+        
+        // If no token in localStorage, try to get from cookies
         if (!token) {
-            console.error('No authentication token found');
-            return;
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'token' || name === 'sellapp_token') {
+                    token = value;
+                    break;
+                }
+            }
+        }
+        
+        // Prepare headers
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
         }
         
         const response = await fetch(BASE + '/api/dashboard/manager-overview', {
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
+            headers: headers,
+            credentials: 'same-origin' // Include session cookies as fallback
         });
         
         const data = await response.json();
@@ -180,16 +194,30 @@ window.loadSMSData = async function loadSMSData() {
 // Load SMS logs with pagination
 async function loadSMSLogs(page = smsLogsCurrentPage, limit = smsLogsPerPage) {
     try {
-        const token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
+        // Try to get token from localStorage first
+        let token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
+        
+        // If no token in localStorage, try to get from cookies
         if (!token) {
-            console.error('No authentication token found');
-            return;
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'token' || name === 'sellapp_token') {
+                    token = value;
+                    break;
+                }
+            }
+        }
+        
+        // Prepare headers
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
         }
         
         const response = await fetch(BASE + `/api/sms/logs?page=${page}&limit=${limit}`, {
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
+            headers: headers,
+            credentials: 'same-origin' // Include session cookies as fallback
         });
         
         const data = await response.json();

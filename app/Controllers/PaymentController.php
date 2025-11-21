@@ -894,6 +894,9 @@ class PaymentController {
             // Create admin notification for SMS credit purchase
             $this->notifyAdminsOfSMSPurchase($payment);
             
+            // Create notification for the manager who made the purchase
+            $this->notifyManagerOfSMSPurchase($payment);
+            
             // Set success message in session for display on success page
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
@@ -1028,6 +1031,9 @@ class PaymentController {
             // Create admin notification for SMS credit purchase
             $this->notifyAdminsOfSMSPurchase($payment);
             
+            // Create notification for the manager who made the purchase
+            $this->notifyManagerOfSMSPurchase($payment);
+            
             // Set success message in session for display on success page
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
@@ -1040,6 +1046,62 @@ class PaymentController {
             error_log("PaymentController handlePaystackWebhook error: " . $e->getMessage());
             http_response_code(500);
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Notify manager about their SMS credit purchase
+     * 
+     * @param array $payment Payment data
+     * @return void
+     */
+    private function notifyManagerOfSMSPurchase($payment) {
+        try {
+            $db = $this->getDb();
+            
+            // Get company and user info
+            $companyStmt = $db->prepare("SELECT name FROM companies WHERE id = ?");
+            $companyStmt->execute([$payment['company_id']]);
+            $company = $companyStmt->fetch(\PDO::FETCH_ASSOC);
+            $companyName = $company['name'] ?? 'Your Company';
+            
+            // Get the user who made the purchase
+            $userId = $payment['user_id'] ?? null;
+            if (!$userId) {
+                // Try to get manager from company
+                $managerStmt = $db->prepare("SELECT id FROM users WHERE company_id = ? AND role = 'manager' AND is_active = 1 LIMIT 1");
+                $managerStmt->execute([$payment['company_id']]);
+                $manager = $managerStmt->fetch(\PDO::FETCH_ASSOC);
+                $userId = $manager['id'] ?? null;
+            }
+            
+            if (!$userId) {
+                error_log("PaymentController::notifyManagerOfSMSPurchase - No user ID found for payment {$payment['payment_id']}");
+                return;
+            }
+            
+            // Check if notifications table exists
+            $tableCheck = $db->query("SHOW TABLES LIKE 'notifications'");
+            if ($tableCheck && $tableCheck->rowCount() > 0) {
+                $message = "SMS Purchase Successful! {$payment['sms_credits']} SMS credits have been added to {$companyName}'s account.";
+                $data = json_encode([
+                    'payment_id' => $payment['payment_id'],
+                    'company_id' => $payment['company_id'],
+                    'company_name' => $companyName,
+                    'sms_credits' => $payment['sms_credits'] ?? 0,
+                    'amount' => $payment['amount'] ?? 0,
+                    'type' => 'sms_purchase_success'
+                ]);
+                
+                $insertStmt = $db->prepare("
+                    INSERT INTO notifications (user_id, company_id, message, type, data, created_at)
+                    VALUES (?, ?, ?, 'sms_purchase_success', ?, NOW())
+                ");
+                $insertStmt->execute([$userId, $payment['company_id'], $message, $data]);
+                error_log("PaymentController::notifyManagerOfSMSPurchase - Created notification for user {$userId} about SMS purchase");
+            }
+        } catch (\Exception $e) {
+            error_log("Error creating manager notification for SMS purchase: " . $e->getMessage());
         }
     }
     

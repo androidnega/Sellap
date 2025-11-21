@@ -148,22 +148,68 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load balance indicators (GHS and SMS)
 async function loadBalanceIndicators() {
     try {
+        console.log('loadBalanceIndicators: Starting to load balance indicators...');
+        
+        // Get base URL - ensure BASE is defined
+        const baseUrl = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '');
+        const apiUrl = baseUrl + '/api/dashboard/manager-overview';
+        
+        console.log('loadBalanceIndicators: API URL:', apiUrl);
+        
+        // Try to get token from localStorage
         const token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
-        if (!token) return;
+        
+        // Prepare headers
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
+        }
         
         // Load manager overview to get balance data
-        const response = await fetch(BASE + '/api/dashboard/manager-overview', {
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
+        // Use credentials: 'same-origin' to include session cookies as fallback
+        const response = await fetch(apiUrl, {
+            headers: headers,
+            credentials: 'same-origin' // Include cookies as fallback for session-based auth
         });
         
-        const data = await response.json();
+        // Check if response is OK
+        if (!response.ok) {
+            console.error('loadBalanceIndicators: API response not OK', {
+                status: response.status,
+                statusText: response.statusText,
+                url: apiUrl
+            });
+            // Set defaults on error
+            updateGHSBalance(0);
+            updateSMSBalance(0);
+            return;
+        }
+        
+        // Parse JSON response
+        let data;
+        try {
+            const responseText = await response.text();
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('loadBalanceIndicators: Failed to parse JSON response', {
+                error: parseError,
+                url: apiUrl
+            });
+            // Set defaults on error
+            updateGHSBalance(0);
+            updateSMSBalance(0);
+            return;
+        }
         
         if (data.success && data.data) {
             // Update SMS Balance
             if (data.data.sms) {
                 const smsRemaining = data.data.sms.sms_remaining || 0;
+                console.log('loadBalanceIndicators: SMS balance loaded successfully', {
+                    sms_remaining: smsRemaining,
+                    total_sms: data.data.sms.total_sms,
+                    sms_used: data.data.sms.sms_used
+                });
                 updateSMSBalance(smsRemaining);
                 
                 // Calculate GHS Balance based on remaining SMS credits
@@ -173,10 +219,20 @@ async function loadBalanceIndicators() {
                 
                 updateGHSBalance(ghsBalance);
             } else {
+                console.warn('loadBalanceIndicators: SMS data not available in response', data);
                 // Fallback if SMS data not available
                 updateGHSBalance(0);
                 updateSMSBalance(0);
             }
+        } else {
+            console.error('loadBalanceIndicators: API returned unsuccessful response', {
+                success: data.success,
+                error: data.error || data.message,
+                data: data
+            });
+            // Set defaults on error
+            updateGHSBalance(0);
+            updateSMSBalance(0);
         }
     } catch (error) {
         console.error('Error loading balance indicators:', error);
