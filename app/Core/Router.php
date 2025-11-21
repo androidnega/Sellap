@@ -90,6 +90,18 @@ class Router {
             $uri = str_replace($scriptName, '', $uri);
         }
         
+        // Also remove common base paths like /sellapp or sellapp
+        // Handle both with and without leading slash
+        if (preg_match('#^/?sellapp/(.+)$#', $uri, $matches)) {
+            $uri = $matches[1];
+        } elseif (preg_match('#^/?sellapp$#', $uri)) {
+            $uri = '';
+        }
+        
+        // Additional cleanup for any remaining sellapp references
+        $uri = preg_replace('#^/sellapp/#', '/', $uri);
+        $uri = preg_replace('#^sellapp/#', '', $uri);
+        
         // Final cleanup - ensure no kabz_events remains
         $uri = preg_replace('#/kabz_events(/|$)#', '/', $uri);
         $uri = str_replace('kabz_events', '', $uri);
