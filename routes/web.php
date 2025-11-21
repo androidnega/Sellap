@@ -947,6 +947,34 @@ $router->post('api/profile/update', function() {
     }
 });
 
+// Download User Guide PDF
+$router->get('api/profile/download-guide', function() {
+    // Clean output buffers
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    
+    try {
+        \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson', 'technician']);
+        $controller = new \App\Controllers\ProfileController();
+        $controller->downloadUserGuide();
+    } catch (\Exception $e) {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        http_response_code(500);
+        error_log("User Guide Download Route Error: " . $e->getMessage());
+        echo "Error generating user guide. Please try again later.";
+    } catch (\Error $e) {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        http_response_code(500);
+        error_log("User Guide Download Route Fatal Error: " . $e->getMessage());
+        echo "Error generating user guide. Please try again later.";
+    }
+});
+
 // System Settings Page (System Admin only - restrict all other roles)
 $router->get('dashboard/system-settings', function() {
     try {

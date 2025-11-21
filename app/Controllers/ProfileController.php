@@ -1143,4 +1143,957 @@ class ProfileController {
             ]);
         }
     }
+    
+    /**
+     * Download user guide PDF based on user role
+     */
+    public function downloadUserGuide() {
+        // Start session to get user data
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
+        $userData = $_SESSION['user'] ?? null;
+        if (!$userData) {
+            http_response_code(401);
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Authentication required']);
+            exit;
+        }
+        
+        $userRole = $userData['role'] ?? 'salesperson';
+        
+        // Map roles to guide content
+        $allowedRoles = ['salesperson', 'technician', 'manager'];
+        if (!in_array($userRole, $allowedRoles)) {
+            // Default to salesperson guide for other roles
+            $userRole = 'salesperson';
+        }
+        
+        // Generate PDF content based on role
+        $html = $this->generateUserGuideHTML($userRole);
+        
+        // Try to use Dompdf if available
+        if (class_exists('Dompdf\Dompdf')) {
+            try {
+                $dompdf = new \Dompdf\Dompdf();
+                $dompdf->loadHtml($html);
+                $dompdf->setPaper('A4', 'portrait');
+                $dompdf->set_option('isRemoteEnabled', true);
+                $dompdf->set_option('isHtml5ParserEnabled', true);
+                $dompdf->render();
+                
+                $filename = ucfirst($userRole) . '_User_Guide_' . date('Y-m-d') . '.pdf';
+                
+                header('Content-Type: application/pdf');
+                header('Content-Disposition: attachment; filename="' . $filename . '"');
+                header('Cache-Control: max-age=0');
+                header('Pragma: public');
+                
+                echo $dompdf->output();
+                exit;
+            } catch (\Exception $e) {
+                error_log("Dompdf error: " . $e->getMessage());
+                // Fall through to HTML fallback
+            }
+        }
+        
+        // Fallback: Generate HTML that can be printed as PDF
+        $filename = ucfirst($userRole) . '_User_Guide_' . date('Y-m-d') . '.html';
+        header('Content-Type: text/html; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        
+        // Add print CSS
+        $html = str_replace('</head>', '
+    <style media="print">
+        @page { margin: 1cm; size: A4; }
+        body { margin: 0; padding: 20px; }
+        .no-print { display: none; }
+    </style>
+    <style>
+        .download-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #818CF8 0%, #6366F1 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(129, 140, 248, 0.4);
+            z-index: 1000;
+        }
+        .download-btn:hover {
+            background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+        }
+        @media print {
+            .download-btn { display: none; }
+        }
+    </style>
+    <script>
+        function downloadPDF() {
+            window.print();
+        }
+    </script>
+</head>', $html);
+        
+        $html = str_replace('</body>', '<button class="download-btn no-print" onclick="downloadPDF()"><i class="fas fa-download"></i> Print / Save as PDF</button></body>', $html);
+        
+        echo $html;
+        exit;
+    }
+    
+    /**
+     * Generate HTML content for user guide based on role
+     */
+    private function generateUserGuideHTML($role) {
+        $roleName = ucfirst(str_replace('_', ' ', $role));
+        $baseUrl = BASE_URL_PATH ?? '';
+        
+        $content = '';
+        
+        switch ($role) {
+            case 'salesperson':
+                $content = $this->getSalespersonGuideContent();
+                break;
+            case 'technician':
+                $content = $this->getTechnicianGuideContent();
+                break;
+            case 'manager':
+                $content = $this->getManagerGuideContent();
+                break;
+            default:
+                $content = $this->getSalespersonGuideContent();
+        }
+        
+        return '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>' . $roleName . ' User Guide</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; 
+            font-size: 11pt; 
+            color: #1F2937;
+            background: #FFFFFF;
+            padding: 40px;
+            line-height: 1.6;
+        }
+        .header {
+            background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 32pt;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        .header p {
+            font-size: 14pt;
+            opacity: 0.95;
+        }
+        .section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+        .section-title {
+            font-size: 20pt;
+            font-weight: 700;
+            color: #4F46E5;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #E0E7FF;
+        }
+        .subsection {
+            margin-bottom: 20px;
+            margin-left: 20px;
+        }
+        .subsection-title {
+            font-size: 16pt;
+            font-weight: 600;
+            color: #6366F1;
+            margin-bottom: 10px;
+            margin-top: 15px;
+        }
+        .content {
+            margin-bottom: 15px;
+        }
+        .content p {
+            margin-bottom: 10px;
+        }
+        .content ul, .content ol {
+            margin-left: 30px;
+            margin-bottom: 15px;
+        }
+        .content li {
+            margin-bottom: 8px;
+        }
+        .highlight-box {
+            background: #EEF2FF;
+            border-left: 4px solid #6366F1;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .warning-box {
+            background: #FEF3C7;
+            border-left: 4px solid #F59E0B;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .info-box {
+            background: #DBEAFE;
+            border-left: 4px solid #3B82F6;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #E5E7EB;
+            text-align: center;
+            color: #6B7280;
+            font-size: 10pt;
+        }
+        .step-number {
+            display: inline-block;
+            background: #6366F1;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: 700;
+            margin-right: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        table th, table td {
+            border: 1px solid #D1D5DB;
+            padding: 10px;
+            text-align: left;
+        }
+        table th {
+            background: #F3F4F6;
+            font-weight: 600;
+        }
+        @media print {
+            body { padding: 20px; }
+            .section { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>' . $roleName . ' User Guide</h1>
+        <p>Complete System Usage Manual</p>
+    </div>
+    
+    ' . $content . '
+    
+    <div class="footer">
+        <p>Generated on ' . date('F j, Y') . ' | ' . $roleName . ' User Guide</p>
+        <p>For support, please contact your system administrator</p>
+    </div>
+</body>
+</html>';
+    }
+    
+    /**
+     * Get salesperson guide content
+     */
+    private function getSalespersonGuideContent() {
+        return '
+    <div class="section">
+        <div class="section-title">Introduction</div>
+        <div class="content">
+            <p>Welcome to the Salesperson User Guide! This guide will help you understand how to use the system effectively for managing sales, customers, and inventory.</p>
+            <div class="info-box">
+                <strong>Your Role:</strong> As a salesperson, you have access to the dashboard, product management, sales operations, and customer management features.
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">1. Dashboard Overview</div>
+        <div class="content">
+            <p>The dashboard is your central hub where you can view:</p>
+            <ul>
+                <li>Today\'s sales summary</li>
+                <li>Recent transactions</li>
+                <li>Product inventory status</li>
+                <li>Customer information</li>
+            </ul>
+            <div class="highlight-box">
+                <strong>Tip:</strong> Check your dashboard daily to stay updated on sales performance and inventory levels.
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">2. Product Management</div>
+        <div class="subsection">
+            <div class="subsection-title">Viewing Products</div>
+            <div class="content">
+                <p>To view available products:</p>
+                <ol>
+                    <li>Navigate to <strong>Product Management</strong> from the sidebar</li>
+                    <li>Browse through the product list</li>
+                    <li>Use the search bar to find specific products</li>
+                    <li>Click on a product to view detailed information</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Product Information</div>
+            <div class="content">
+                <p>Each product displays:</p>
+                <ul>
+                    <li>Product name and description</li>
+                    <li>Current stock quantity</li>
+                    <li>Price information</li>
+                    <li>Brand and category</li>
+                    <li>Product specifications</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">3. Sales Operations</div>
+        <div class="subsection">
+            <div class="subsection-title">Creating a Sale</div>
+            <div class="content">
+                <p>To process a sale:</p>
+                <ol>
+                    <li>Go to <strong>Sales</strong> from the sidebar</li>
+                    <li>Click <strong>New Sale</strong> or use the POS system</li>
+                    <li>Add products to the cart</li>
+                    <li>Enter customer information (if applicable)</li>
+                    <li>Apply discounts if needed</li>
+                    <li>Process payment</li>
+                    <li>Generate receipt</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">POS System</div>
+            <div class="content">
+                <p>The Point of Sale (POS) system allows you to:</p>
+                <ul>
+                    <li>Quickly scan or search for products</li>
+                    <li>Add multiple items to a transaction</li>
+                    <li>Calculate totals automatically</li>
+                    <li>Process various payment methods</li>
+                    <li>Print receipts</li>
+                </ul>
+                <div class="warning-box">
+                    <strong>Important:</strong> Always verify product quantities and prices before completing a sale.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">4. Customer Management</div>
+        <div class="subsection">
+            <div class="subsection-title">Viewing Customers</div>
+            <div class="content">
+                <p>To view customer information:</p>
+                <ol>
+                    <li>Navigate to <strong>Customers</strong> from the sidebar</li>
+                    <li>Browse the customer list</li>
+                    <li>Search for specific customers</li>
+                    <li>View customer purchase history</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Customer Information</div>
+            <div class="content">
+                <p>Customer profiles include:</p>
+                <ul>
+                    <li>Contact information</li>
+                    <li>Purchase history</li>
+                    <li>Transaction records</li>
+                    <li>Payment information</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">5. Best Practices</div>
+        <div class="content">
+            <ul>
+                <li><strong>Always verify stock:</strong> Check product availability before promising delivery</li>
+                <li><strong>Accurate data entry:</strong> Double-check all information when creating sales</li>
+                <li><strong>Customer service:</strong> Maintain professional communication with customers</li>
+                <li><strong>Receipt management:</strong> Always provide receipts for transactions</li>
+                <li><strong>Report issues:</strong> Notify your manager if you encounter any problems</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">6. Quick Reference</div>
+        <div class="content">
+            <table>
+                <tr>
+                    <th>Action</th>
+                    <th>Location</th>
+                </tr>
+                <tr>
+                    <td>View Dashboard</td>
+                    <td>Sidebar → Dashboard</td>
+                </tr>
+                <tr>
+                    <td>View Products</td>
+                    <td>Sidebar → Product Management</td>
+                </tr>
+                <tr>
+                    <td>Create Sale</td>
+                    <td>Sidebar → Sales → New Sale</td>
+                </tr>
+                <tr>
+                    <td>View Customers</td>
+                    <td>Sidebar → Customers</td>
+                </tr>
+                <tr>
+                    <td>Access Profile</td>
+                    <td>Top Right → Profile Icon</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+';
+    }
+    
+    /**
+     * Get technician guide content
+     */
+    private function getTechnicianGuideContent() {
+        return '
+    <div class="section">
+        <div class="section-title">Introduction</div>
+        <div class="content">
+            <p>Welcome to the Technician User Guide! This guide will help you understand how to use the system for managing repairs, inventory, and product maintenance.</p>
+            <div class="info-box">
+                <strong>Your Role:</strong> As a technician, you have access to the dashboard, product management, and repair management features.
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">1. Dashboard Overview</div>
+        <div class="content">
+            <p>The dashboard provides you with:</p>
+            <ul>
+                <li>Active repair jobs</li>
+                <li>Repair statistics</li>
+                <li>Product inventory status</li>
+                <li>Pending tasks</li>
+            </ul>
+            <div class="highlight-box">
+                <strong>Tip:</strong> Regularly check your dashboard to stay on top of repair assignments and deadlines.
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">2. Product Management</div>
+        <div class="subsection">
+            <div class="subsection-title">Viewing Products</div>
+            <div class="content">
+                <p>To access product information:</p>
+                <ol>
+                    <li>Navigate to <strong>Product Management</strong> from the sidebar</li>
+                    <li>Search for specific products</li>
+                    <li>View product details and specifications</li>
+                    <li>Check product availability and condition</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Product Specifications</div>
+            <div class="content">
+                <p>Important product information includes:</p>
+                <ul>
+                    <li>Model numbers and serial numbers</li>
+                    <li>Technical specifications</li>
+                    <li>Compatibility information</li>
+                    <li>Warranty status</li>
+                    <li>Repair history</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">3. Repair Management</div>
+        <div class="subsection">
+            <div class="subsection-title">Creating a Repair Job</div>
+            <div class="content">
+                <p>To create a new repair job:</p>
+                <ol>
+                    <li>Go to <strong>Repairs</strong> from the sidebar</li>
+                    <li>Click <strong>New Repair</strong></li>
+                    <li>Enter customer information</li>
+                    <li>Select the product/device to repair</li>
+                    <li>Describe the issue or problem</li>
+                    <li>Set repair status and priority</li>
+                    <li>Add estimated completion date</li>
+                    <li>Save the repair job</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Managing Repair Jobs</div>
+            <div class="content">
+                <p>You can manage repair jobs by:</p>
+                <ul>
+                    <li>Updating repair status (In Progress, Completed, Waiting for Parts, etc.)</li>
+                    <li>Adding repair notes and updates</li>
+                    <li>Recording parts and accessories used</li>
+                    <li>Updating repair costs</li>
+                    <li>Marking repairs as completed</li>
+                </ul>
+                <div class="warning-box">
+                    <strong>Important:</strong> Always update repair status regularly to keep customers informed.
+                </div>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Repair Status Types</div>
+            <div class="content">
+                <table>
+                    <tr>
+                        <th>Status</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td>Pending</td>
+                        <td>Repair job created but not started</td>
+                    </tr>
+                    <tr>
+                        <td>In Progress</td>
+                        <td>Currently being worked on</td>
+                    </tr>
+                    <tr>
+                        <td>Waiting for Parts</td>
+                        <td>Awaiting replacement parts</td>
+                    </tr>
+                    <tr>
+                        <td>Completed</td>
+                        <td>Repair finished and ready for pickup</td>
+                    </tr>
+                    <tr>
+                        <td>Cancelled</td>
+                        <td>Repair job cancelled</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">4. Parts and Accessories</div>
+        <div class="subsection">
+            <div class="subsection-title">Recording Parts Used</div>
+            <div class="content">
+                <p>When completing a repair:</p>
+                <ol>
+                    <li>Open the repair job</li>
+                    <li>Navigate to the Parts/Accessories section</li>
+                    <li>Add parts used in the repair</li>
+                    <li>Record quantities and costs</li>
+                    <li>Update inventory automatically</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Inventory Updates</div>
+            <div class="content">
+                <p>The system automatically updates inventory when you record parts usage. Make sure to:</p>
+                <ul>
+                    <li>Accurately record all parts used</li>
+                    <li>Verify part numbers and quantities</li>
+                    <li>Report low stock levels to your manager</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">5. Best Practices</div>
+        <div class="content">
+            <ul>
+                <li><strong>Document everything:</strong> Keep detailed notes on all repairs</li>
+                <li><strong>Update status regularly:</strong> Keep repair status current</li>
+                <li><strong>Accurate parts tracking:</strong> Record all parts and accessories used</li>
+                <li><strong>Quality control:</strong> Test all repairs before marking as completed</li>
+                <li><strong>Communication:</strong> Update customers on repair progress</li>
+                <li><strong>Time management:</strong> Set realistic completion dates</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">6. Quick Reference</div>
+        <div class="content">
+            <table>
+                <tr>
+                    <th>Action</th>
+                    <th>Location</th>
+                </tr>
+                <tr>
+                    <td>View Dashboard</td>
+                    <td>Sidebar → Dashboard</td>
+                </tr>
+                <tr>
+                    <td>View Products</td>
+                    <td>Sidebar → Product Management</td>
+                </tr>
+                <tr>
+                    <td>Create Repair</td>
+                    <td>Sidebar → Repairs → New Repair</td>
+                </tr>
+                <tr>
+                    <td>View Repairs</td>
+                    <td>Sidebar → Repairs</td>
+                </tr>
+                <tr>
+                    <td>Update Repair Status</td>
+                    <td>Repairs → Select Repair → Update Status</td>
+                </tr>
+                <tr>
+                    <td>Access Profile</td>
+                    <td>Top Right → Profile Icon</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+';
+    }
+    
+    /**
+     * Get manager guide content
+     */
+    private function getManagerGuideContent() {
+        return '
+    <div class="section">
+        <div class="section-title">Introduction</div>
+        <div class="content">
+            <p>Welcome to the Manager User Guide! This comprehensive guide covers all system features available to managers, including staff management, inventory control, reporting, and system configuration.</p>
+            <div class="info-box">
+                <strong>Your Role:</strong> As a manager, you have access to dashboard analytics, staff management, inventory management, categories, brands, subcategories, reports, and system settings.
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">1. Dashboard and Analytics</div>
+        <div class="subsection">
+            <div class="subsection-title">Dashboard Overview</div>
+            <div class="content">
+                <p>Your manager dashboard provides:</p>
+                <ul>
+                    <li>Sales analytics and trends</li>
+                    <li>Revenue summaries</li>
+                    <li>Inventory status and alerts</li>
+                    <li>Staff performance metrics</li>
+                    <li>Recent transactions</li>
+                    <li>System notifications</li>
+                </ul>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Analytics Features</div>
+            <div class="content">
+                <p>Use analytics to:</p>
+                <ul>
+                    <li>Track sales performance over time</li>
+                    <li>Identify top-selling products</li>
+                    <li>Monitor inventory turnover</li>
+                    <li>Analyze staff productivity</li>
+                    <li>Generate business insights</li>
+                </ul>
+                <div class="highlight-box">
+                    <strong>Tip:</strong> Review analytics regularly to make informed business decisions.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">2. Staff Management</div>
+        <div class="subsection">
+            <div class="subsection-title">Viewing Staff</div>
+            <div class="content">
+                <p>To manage staff members:</p>
+                <ol>
+                    <li>Navigate to <strong>Staff Management</strong> from the sidebar</li>
+                    <li>View all staff members and their roles</li>
+                    <li>Search and filter staff by role or status</li>
+                    <li>View individual staff profiles</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Adding Staff Members</div>
+            <div class="content">
+                <p>To add a new staff member:</p>
+                <ol>
+                    <li>Go to Staff Management</li>
+                    <li>Click <strong>Add New Staff</strong></li>
+                    <li>Enter personal information (name, email, phone)</li>
+                    <li>Assign a role (Salesperson, Technician, etc.)</li>
+                    <li>Set login credentials</li>
+                    <li>Configure permissions</li>
+                    <li>Save the staff member</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Managing Staff</div>
+            <div class="content">
+                <p>You can:</p>
+                <ul>
+                    <li>Edit staff information</li>
+                    <li>Update roles and permissions</li>
+                    <li>Deactivate/reactivate staff accounts</li>
+                    <li>View staff activity and performance</li>
+                    <li>Reset staff passwords</li>
+                </ul>
+                <div class="warning-box">
+                    <strong>Important:</strong> Only assign appropriate roles and permissions to staff members based on their responsibilities.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">3. Inventory Management</div>
+        <div class="subsection">
+            <div class="subsection-title">Product Management</div>
+            <div class="content">
+                <p>As a manager, you can:</p>
+                <ul>
+                    <li>View all products in inventory</li>
+                    <li>Add new products</li>
+                    <li>Edit product information</li>
+                    <li>Update product prices</li>
+                    <li>Manage stock quantities</li>
+                    <li>Set low stock alerts</li>
+                </ul>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Adding Products</div>
+            <div class="content">
+                <p>To add a new product:</p>
+                <ol>
+                    <li>Go to Product Management</li>
+                    <li>Click <strong>Add New Product</strong></li>
+                    <li>Enter product details (name, description, SKU)</li>
+                    <li>Select category, subcategory, and brand</li>
+                    <li>Set pricing information</li>
+                    <li>Enter initial stock quantity</li>
+                    <li>Add product specifications</li>
+                    <li>Upload product images (if applicable)</li>
+                    <li>Save the product</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Stock Management</div>
+            <div class="content">
+                <p>Monitor and manage inventory:</p>
+                <ul>
+                    <li>Track stock levels in real-time</li>
+                    <li>Receive low stock notifications</li>
+                    <li>Update quantities manually</li>
+                    <li>Process restock orders</li>
+                    <li>View stock movement history</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">4. Categories, Subcategories, and Brands</div>
+        <div class="subsection">
+            <div class="subsection-title">Category Management</div>
+            <div class="content">
+                <p>To manage categories:</p>
+                <ol>
+                    <li>Navigate to <strong>Categories</strong> from the sidebar</li>
+                    <li>View all product categories</li>
+                    <li>Add new categories</li>
+                    <li>Edit existing categories</li>
+                    <li>Organize category hierarchy</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Subcategory Management</div>
+            <div class="content">
+                <p>To manage subcategories:</p>
+                <ol>
+                    <li>Go to <strong>Subcategories</strong></li>
+                    <li>Create subcategories under main categories</li>
+                    <li>Edit subcategory details</li>
+                    <li>Assign products to subcategories</li>
+                </ol>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Brand Management</div>
+            <div class="content">
+                <p>To manage brands:</p>
+                <ol>
+                    <li>Navigate to <strong>Brands</strong></li>
+                    <li>Add new brands</li>
+                    <li>Edit brand information</li>
+                    <li>Associate products with brands</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">5. Reports and Analytics</div>
+        <div class="subsection">
+            <div class="subsection-title">Generating Reports</div>
+            <div class="content">
+                <p>Access comprehensive reports:</p>
+                <ul>
+                    <li>Sales reports (daily, weekly, monthly, custom range)</li>
+                    <li>Inventory reports</li>
+                    <li>Staff performance reports</li>
+                    <li>Product performance reports</li>
+                    <li>Financial summaries</li>
+                </ul>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">Exporting Reports</div>
+            <div class="content">
+                <p>You can export reports in various formats:</p>
+                <ul>
+                    <li>PDF format for printing</li>
+                    <li>Excel format for analysis</li>
+                    <li>CSV format for data processing</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">6. System Settings</div>
+        <div class="subsection">
+            <div class="subsection-title">Company Settings</div>
+            <div class="content">
+                <p>Manage company-wide settings:</p>
+                <ul>
+                    <li>Company information and details</li>
+                    <li>Business hours and contact information</li>
+                    <li>Tax settings and rates</li>
+                    <li>Currency and payment settings</li>
+                    <li>Notification preferences</li>
+                </ul>
+            </div>
+        </div>
+        <div class="subsection">
+            <div class="subsection-title">SMS Settings</div>
+            <div class="content">
+                <p>Configure SMS functionality:</p>
+                <ul>
+                    <li>Set up SMS account</li>
+                    <li>Purchase SMS credits</li>
+                    <li>Configure SMS templates</li>
+                    <li>View SMS logs and usage</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">7. Best Practices</div>
+        <div class="content">
+            <ul>
+                <li><strong>Regular monitoring:</strong> Check dashboard and reports regularly</li>
+                <li><strong>Staff oversight:</strong> Review staff performance and provide feedback</li>
+                <li><strong>Inventory control:</strong> Maintain optimal stock levels</li>
+                <li><strong>Data accuracy:</strong> Ensure all information is accurate and up-to-date</li>
+                <li><strong>Security:</strong> Protect system access and user credentials</li>
+                <li><strong>Backup:</strong> Ensure regular data backups are performed</li>
+                <li><strong>Training:</strong> Keep staff trained on system usage</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">8. Quick Reference</div>
+        <div class="content">
+            <table>
+                <tr>
+                    <th>Action</th>
+                    <th>Location</th>
+                </tr>
+                <tr>
+                    <td>View Dashboard</td>
+                    <td>Sidebar → Dashboard</td>
+                </tr>
+                <tr>
+                    <td>Manage Staff</td>
+                    <td>Sidebar → Staff Management</td>
+                </tr>
+                <tr>
+                    <td>Manage Products</td>
+                    <td>Sidebar → Product Management</td>
+                </tr>
+                <tr>
+                    <td>Manage Categories</td>
+                    <td>Sidebar → Categories</td>
+                </tr>
+                <tr>
+                    <td>Manage Brands</td>
+                    <td>Sidebar → Brands</td>
+                </tr>
+                <tr>
+                    <td>View Reports</td>
+                    <td>Sidebar → Reports</td>
+                </tr>
+                <tr>
+                    <td>System Settings</td>
+                    <td>Sidebar → Settings</td>
+                </tr>
+                <tr>
+                    <td>SMS Settings</td>
+                    <td>Sidebar → Settings → SMS Settings</td>
+                </tr>
+                <tr>
+                    <td>Access Profile</td>
+                    <td>Top Right → Profile Icon</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+';
+    }
 }

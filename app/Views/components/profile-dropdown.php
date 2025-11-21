@@ -53,6 +53,13 @@
             Your Profile
         </a>
         
+        <?php if (in_array($userRole, ['salesperson', 'technician', 'manager'])): ?>
+        <a href="<?= BASE_URL_PATH ?>/api/profile/download-guide" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" target="_blank">
+            <i class="fas fa-download mr-3 text-gray-400"></i>
+            Download User Guide
+        </a>
+        <?php endif; ?>
+        
         <?php if ($userRole === 'system_admin'): ?>
         <a href="<?= BASE_URL_PATH ?>/dashboard/system-settings" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
             <i class="fas fa-shield-alt mr-3 text-gray-400"></i>

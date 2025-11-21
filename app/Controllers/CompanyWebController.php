@@ -223,6 +223,12 @@ class CompanyWebController {
             error_log("Failed to create automatic backup for company ID {$companyId}: " . $e->getMessage());
         }
 
+        // Set success message and redirect
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $smsStatus = !empty($phoneNumberToUse) ? " Account credentials have been sent to {$phoneNumberToUse} via SMS." : "";
+        $_SESSION['success_message'] = "Company account created successfully!{$smsStatus}";
         header("Location: " . BASE_URL_PATH . "/dashboard/companies");
         exit;
     }
