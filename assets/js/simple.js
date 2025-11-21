@@ -71,43 +71,78 @@ if (loginForm) {
         const errorMessage = document.getElementById('errorMessage');
         const loginBtn = document.getElementById('loginBtn');
         
+        // Validate inputs
+        if (!username || !password) {
+            errorMessage.textContent = 'Please enter both username and password.';
+            errorMessage.classList.remove('hidden');
+            return;
+        }
+        
         loginBtn.disabled = true;
         loginBtn.textContent = 'Logging in...';
         errorMessage.classList.add('hidden');
 
         try {
-            const res = await fetch(`${apiBase}/auth/login`, {
+            const loginUrl = `${apiBase}/auth/login`;
+            console.log('Attempting login to:', loginUrl);
+            console.log('Base path:', basePath);
+            console.log('API base:', apiBase);
+            
+            const res = await fetch(loginUrl, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ username, password }),
+                credentials: 'same-origin' // Include cookies
             });
             
+            console.log('Login response status:', res.status);
+            console.log('Login response headers:', res.headers);
+            
+            // Check if response is JSON
+            const contentType = res.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await res.text();
+                console.error('Non-JSON response:', text);
+                throw new Error('Server returned invalid response. Please check the console for details.');
+            }
+            
             const data = await res.json();
+            console.log('Login response data:', data);
 
-            if (res.ok && data.success && data.data.token) {
+            if (res.ok && data.success && data.data && data.data.token) {
                 localStorage.setItem('sellapp_token', data.data.token);
                 localStorage.setItem('token', data.data.token);
                 localStorage.setItem('sellapp_user', JSON.stringify(data.data.user));
                 
                 // Get redirect URL from query params or default to dashboard
                 const urlParams = new URLSearchParams(window.location.search);
-                const redirectUrl = urlParams.get('redirect') || '/dashboard';
+                const redirectUrl = urlParams.get('redirect') || data.redirect || '/dashboard';
                 
+                console.log('Login successful, redirecting to:', `${basePath}${redirectUrl}`);
                 window.location.href = `${basePath}${redirectUrl}`;
             } else {
-                errorMessage.textContent = data.error || 'Login failed. Please check your credentials.';
+                const errorMsg = data.error || data.message || 'Login failed. Please check your credentials.';
+                console.error('Login failed:', errorMsg);
+                errorMessage.textContent = errorMsg;
                 errorMessage.classList.remove('hidden');
                 loginBtn.disabled = false;
                 loginBtn.textContent = 'Login';
             }
         } catch (err) {
             console.error('Login error:', err);
-            errorMessage.textContent = 'Server error. Please try again.';
+            console.error('Error details:', {
+                message: err.message,
+                stack: err.stack,
+                name: err.name
+            });
+            errorMessage.textContent = err.message || 'Server error. Please check your connection and try again.';
             errorMessage.classList.remove('hidden');
             loginBtn.disabled = false;
             loginBtn.textContent = 'Login';
         }
     });
+} else {
+    console.warn('Login form not found on page');
 }
 
 // Dashboard stats loading

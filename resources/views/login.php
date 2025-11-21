@@ -13,6 +13,12 @@
     window.APP_BASE_PATH = '<?php echo defined("BASE_URL_PATH") ? BASE_URL_PATH : "/sellapp"; ?>';
     const BASE = window.APP_BASE_PATH || '';
     
+    // Debug logging for live server troubleshooting
+    console.log('SellApp Login Page Loaded');
+    console.log('Detected BASE_URL_PATH:', window.APP_BASE_PATH);
+    console.log('Current URL:', window.location.href);
+    console.log('Current Pathname:', window.location.pathname);
+    
     // Remove kabz_events from URL if present (completely remove this path)
     (function() {
       if (window.location.pathname.includes('kabz_events')) {

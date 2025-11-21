@@ -18,11 +18,33 @@ define('APP_URL', getenv('APP_URL') ?: 'http://localhost');
 define('APP_ENV', getenv('APP_ENV') ?: 'local');
 define('JWT_SECRET', getenv('JWT_SECRET') ?: 'your_secret_key');
 
-// Base URL Path - Set for sellapp subdirectory
-// Force to /sellapp (not kabz_events) for this project
-// This project is in /sellapp, not /kabz_events
-// Completely ignore any kabz_events references
-$basePath = '/sellapp';
+// Base URL Path - Auto-detect from request URI for live server compatibility
+// This will work for both local development and live server
+$basePath = '/sellapp'; // Default fallback
+
+// Auto-detect base path from request URI
+if (isset($_SERVER['REQUEST_URI']) && isset($_SERVER['SCRIPT_NAME'])) {
+    $requestUri = $_SERVER['REQUEST_URI'];
+    $scriptName = $_SERVER['SCRIPT_NAME'];
+    
+    // Remove query string from request URI
+    $requestUri = strtok($requestUri, '?');
+    
+    // Get the directory of the script (e.g., /sellapp/index.php -> /sellapp)
+    $scriptDir = dirname($scriptName);
+    
+    // If script is in a subdirectory, use that as base path
+    if ($scriptDir !== '/' && $scriptDir !== '.') {
+        $basePath = rtrim($scriptDir, '/');
+    } else {
+        // Try to detect from request URI
+        // If request URI starts with a path, extract it
+        if (preg_match('#^/([^/]+)/#', $requestUri, $matches)) {
+            $basePath = '/' . $matches[1];
+        }
+    }
+}
+
 // Final safety check - ensure kabz_events is never in base path
 $basePath = preg_replace('#/kabz_events(/|$)#', '/', $basePath);
 $basePath = str_replace('kabz_events', '', $basePath);
@@ -48,11 +70,19 @@ define('ASSETS_PATH', BASE_PATH . '/assets');
 // Session timeout: 30 minutes of inactivity (in seconds)
 define('SESSION_TIMEOUT', 30 * 60); // 1800 seconds = 30 minutes
 ini_set('session.gc_maxlifetime', SESSION_TIMEOUT);
+
+// Detect if we're using HTTPS
+$isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
+            (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
+            (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+
+// Set session cookie path to base path for proper cookie handling
+$sessionPath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '/';
 session_set_cookie_params([
     'lifetime' => SESSION_TIMEOUT,
-    'path' => '/',
+    'path' => $sessionPath,
     'domain' => '',
-    'secure' => false, // Set to true if using HTTPS
+    'secure' => $isSecure, // Auto-detect HTTPS
     'httponly' => true,
     'samesite' => 'Lax'
 ]);
