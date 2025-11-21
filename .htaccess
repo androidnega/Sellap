@@ -10,16 +10,18 @@
     RewriteCond %{REQUEST_URI} ^/kabz_events
     RewriteRule ^kabz_events(.*)$ /sellapp$1 [R=301,L]
     
-    # Exclude static assets from routing - serve them directly
-    RewriteCond %{REQUEST_URI} \.(css|js|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot|pdf|zip|mp4|mp3)$ [NC]
+    # Serve static files directly if they exist
+    RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^ - [L]
     
-    # Exclude assets directory from routing
+    # For static assets that don't exist as files, route to index.php
+    # This handles cases where files are in subdirectories
+    RewriteCond %{REQUEST_URI} \.(css|js|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot|pdf|zip|mp4|mp3)$ [NC,OR]
     RewriteCond %{REQUEST_URI} ^/sellapp/assets/ [NC,OR]
     RewriteCond %{REQUEST_URI} ^/assets/ [NC]
-    RewriteRule ^ - [L]
+    RewriteRule ^(.*)$ index.php [QSA,L]
     
-    # Redirect all requests to index.php unless file or directory exists
+    # Redirect all other requests to index.php unless file or directory exists
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ index.php [QSA,L]

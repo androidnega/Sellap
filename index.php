@@ -12,28 +12,36 @@ $requestPath = parse_url($requestUri, PHP_URL_PATH);
 // Remove query string
 $requestPath = strtok($requestPath, '?');
 
-// Remove base directory from path if present
-$scriptDir = dirname($_SERVER['SCRIPT_NAME']);
-if ($scriptDir !== '/' && $scriptDir !== '.' && !empty($scriptDir)) {
-    // Remove the script directory from the beginning of the path
-    if (strpos($requestPath, $scriptDir) === 0) {
-        $requestPath = substr($requestPath, strlen($scriptDir));
-    }
-}
+// Normalize the path
+$requestPath = trim($requestPath, '/');
 
-// Also try removing common base paths
-$requestPath = preg_replace('#^/sellapp/#', '', $requestPath);
-$requestPath = ltrim($requestPath, '/');
-
-// Check if this is a static asset request
+// Check if this is a static asset request by extension or path
 $staticExtensions = ['css', 'js', 'jpg', 'jpeg', 'png', 'gif', 'ico', 'svg', 'woff', 'woff2', 'ttf', 'eot', 'pdf', 'zip', 'mp4', 'mp3'];
 $extension = strtolower(pathinfo($requestPath, PATHINFO_EXTENSION));
+$isStaticFile = in_array($extension, $staticExtensions) || strpos($requestPath, 'assets/') !== false;
 
-if (in_array($extension, $staticExtensions) || strpos($requestPath, 'assets/') === 0) {
-    // This is a static file request - serve it directly
-    $filePath = __DIR__ . '/' . $requestPath;
+if ($isStaticFile) {
+    // Extract the actual file path from the request
+    // Request might be: "sellapp/assets/css/styles.css" or "assets/css/styles.css"
+    $cleanPath = $requestPath;
     
-    if (file_exists($filePath) && is_file($filePath)) {
+    // Remove "sellapp/" prefix if present
+    $cleanPath = preg_replace('#^sellapp/#', '', $cleanPath);
+    $cleanPath = preg_replace('#^/sellapp/#', '', $cleanPath);
+    
+    // Build the file path
+    $filePath = __DIR__ . '/' . $cleanPath;
+    
+    // If file doesn't exist, try extracting just the assets part
+    if (!file_exists($filePath) || !is_file($filePath)) {
+        // Extract assets path: "sellapp/assets/css/styles.css" -> "assets/css/styles.css"
+        if (preg_match('#(assets/.*)$#', $requestPath, $matches)) {
+            $filePath = __DIR__ . '/' . $matches[1];
+        }
+    }
+    
+    // Check if file exists and is readable
+    if (file_exists($filePath) && is_file($filePath) && is_readable($filePath)) {
         // Set appropriate MIME type
         $mimeTypes = [
             'css' => 'text/css',
@@ -68,7 +76,12 @@ if (in_array($extension, $staticExtensions) || strpos($requestPath, 'assets/') =
         // File doesn't exist - return 404
         http_response_code(404);
         header('Content-Type: text/plain');
-        echo 'File not found';
+        if (defined('APP_ENV') && APP_ENV === 'local') {
+            echo "File not found. Requested: {$requestPath}\n";
+            echo "Tried path: {$filePath}\n";
+        } else {
+            echo 'File not found';
+        }
         exit;
     }
 }
