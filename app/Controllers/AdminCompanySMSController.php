@@ -590,7 +590,9 @@ class AdminCompanySMSController {
             
             // Prepare message - administrative message from SellApp
             $remaining = $balance['sms_remaining'] ?? 0;
-            $message = "Your SMS account has been credited with {$amount} SMS credits.\n\n";
+            $message = "SMS Credits Top-Up Notification\n\n";
+            $message .= "Your SMS account has been topped up with {$amount} SMS credits.\n\n";
+            $message .= "Credits Added: {$amount} SMS\n";
             $message .= "New Balance: {$remaining} SMS credits\n\n";
             $message .= "Thank you for using SellApp.";
             
