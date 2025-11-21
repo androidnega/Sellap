@@ -79,6 +79,31 @@ $router->get('api/test/db', function() {
     }
 });
 
+// Check if users exist in database (for debugging)
+$router->get('api/test/users', function() {
+    header('Content-Type: application/json');
+    try {
+        $db = \Database::getInstance()->getConnection();
+        $stmt = $db->query("SELECT COUNT(*) as count FROM users");
+        $count = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        $stmt = $db->query("SELECT id, username, email, role, is_active FROM users LIMIT 5");
+        $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        echo json_encode([
+            'success' => true,
+            'user_count' => $count['count'],
+            'sample_users' => $users
+        ]);
+    } catch (\Exception $e) {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+    }
+});
+
 // Logout endpoint
 $router->post('api/auth/logout', function() {
     $controller = new \App\Controllers\AuthController();
