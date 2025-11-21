@@ -11,11 +11,11 @@ class Database {
     private $connection;
 
     private function __construct() {
-        // Use hardcoded values since we know they work
-        $host = '127.0.0.1:3306';
-        $dbname = 'sellapp_db';
-        $username = 'root';
-        $password = 'newpassword';
+        // Live server credentials
+        $host = 'localhost';
+        $dbname = 'manuelc8_sellapp';
+        $username = 'manuelc8_sellapp';
+        $password = 'Atomic2@2020^';
         
         // Debug output (remove in production)
         error_log("Database connection attempt: host=$host, dbname=$dbname, username=$username");
