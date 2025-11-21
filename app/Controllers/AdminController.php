@@ -461,6 +461,17 @@ class AdminController {
                         WHERE DATE(sent_at) = CURDATE() AND status = 'sent'
                     ");
                     $apiRequestsToday = $smsLogsResult ? (int)$smsLogsResult->fetchColumn() : 0;
+                    error_log("AdminController: API calls today from sms_logs: {$apiRequestsToday}");
+                    
+                    // Diagnostic: Check total records today (both sent and failed)
+                    $totalTodayResult = $db->query("
+                        SELECT COUNT(*) FROM sms_logs 
+                        WHERE DATE(sent_at) = CURDATE()
+                    ");
+                    $totalToday = $totalTodayResult ? (int)$totalTodayResult->fetchColumn() : 0;
+                    error_log("AdminController: Total SMS logs today (sent + failed): {$totalToday}");
+                } else {
+                    error_log("AdminController: sms_logs table does not exist for API calls count");
                 }
                 
                 // Also count from notification_logs if it exists (for other notifications)
@@ -473,10 +484,11 @@ class AdminController {
                     $notificationCount = $notificationResult ? (int)$notificationResult->fetchColumn() : 0;
                     // Add to API calls (SMS logs are primary, notifications are additional)
                     $apiRequestsToday += $notificationCount;
+                    error_log("AdminController: Added {$notificationCount} notifications to API calls count");
                 }
             } catch (\Exception $e) {
                 // Table might not exist, that's okay - use 0
-                error_log("API requests check: " . $e->getMessage());
+                error_log("API requests check error: " . $e->getMessage());
             }
             
             // Total SMS Sent (from sms_logs table - primary source for SMS tracking)
@@ -489,22 +501,19 @@ class AdminController {
                         SELECT COUNT(*) FROM sms_logs 
                         WHERE status = 'sent'
                     ");
-                    $smsCountTotal = $smsTotalResult ? (int)$smsTotalResult->fetchColumn() : 0;
+                    if ($smsTotalResult) {
+                        $smsCountTotal = (int)$smsTotalResult->fetchColumn();
+                    }
+                    error_log("AdminController: Total SMS count from sms_logs: {$smsCountTotal}");
+                } else {
+                    error_log("AdminController: sms_logs table does not exist");
                 }
                 
-                // Fallback to notification_logs if sms_logs doesn't exist
-                $tableCheck = $db->query("SHOW TABLES LIKE 'notification_logs'");
-                if ($tableCheck && $tableCheck->rowCount() > 0) {
-                    // Count all SMS notifications in the table (all entries are SMS-related)
-                    // This includes both successful and failed attempts
-                    $smsResult = $db->query("
-                        SELECT COUNT(*) FROM notification_logs
-                    ");
-                    $smsCountTotal = $smsResult ? (int)$smsResult->fetchColumn() : 0;
-                }
+                // DO NOT fallback to notification_logs for total count - only use sms_logs
+                // notification_logs is only used for API calls today count as additional source
             } catch (\Exception $e) {
                 // Table might not exist, that's okay
-                error_log("SMS count check: " . $e->getMessage());
+                error_log("SMS count check error: " . $e->getMessage());
             }
             
             // SMS Balance from Arkasel API (SMS credits/units, not money)

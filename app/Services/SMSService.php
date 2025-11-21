@@ -1159,8 +1159,8 @@ class SMSService {
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $postData,
             CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_TIMEOUT => 10,  // Balanced timeout for reasonable response time
-            CURLOPT_CONNECTTIMEOUT => 8,  // Connection timeout to handle network delays without being too slow
+            CURLOPT_TIMEOUT => 5,  // Reduced timeout for instant SMS delivery (5 seconds max)
+            CURLOPT_CONNECTTIMEOUT => 3,  // Fast connection timeout for instant delivery
             CURLOPT_SSL_VERIFYPEER => false,
             CURLOPT_FOLLOWLOCATION => true,  // Allow redirects
             CURLOPT_MAXREDIRS => 3,

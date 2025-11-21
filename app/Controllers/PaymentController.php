@@ -284,6 +284,12 @@ class PaymentController {
             // Update company SMS balance
             $this->smsAccountModel->allocateSMS($payment['company_id'], $payment['sms_credits']);
             
+            // Set success message in session
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            $_SESSION['success_message'] = "SMS purchase successful! {$payment['sms_credits']} SMS credits have been added to your account.";
+            
             // Redirect to success page
             $this->redirectToSuccessPage($paymentId);
         } catch (\Exception $e) {
@@ -859,12 +865,19 @@ class PaymentController {
             // Create admin notification for SMS credit purchase
             $this->notifyAdminsOfSMSPurchase($payment);
             
+            // Set success message in session for display on success page
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            $_SESSION['success_message'] = "SMS purchase successful! {$payment['sms_credits']} SMS credits have been added to your account.";
+            
             // Return JSON response (frontend will handle redirect)
             echo json_encode([
                 'success' => true,
                 'status' => 'success',
                 'payment_id' => $payment['payment_id'],
-                'message' => 'Payment verified and SMS credits added successfully'
+                'message' => 'Payment verified and SMS credits added successfully',
+                'sms_credits' => $payment['sms_credits']
             ]);
             return;
         } catch (\Exception $e) {
@@ -972,6 +985,12 @@ class PaymentController {
             
             // Create admin notification for SMS credit purchase
             $this->notifyAdminsOfSMSPurchase($payment);
+            
+            // Set success message in session for display on success page
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            $_SESSION['success_message'] = "SMS purchase successful! {$payment['sms_credits']} SMS credits have been added to your account.";
             
             http_response_code(200);
             echo json_encode(['success' => true, 'message' => 'Payment processed successfully']);

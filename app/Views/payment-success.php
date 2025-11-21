@@ -1,8 +1,14 @@
 <?php
+// Start session to access success message
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 $title = 'Payment Successful';
 $userRole = 'manager';
 $currentPage = 'dashboard';
 $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+$paymentId = $_GET['payment_id'] ?? null;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -103,7 +109,17 @@ $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                 <i class="fas fa-check-circle text-5xl text-green-600"></i>
             </div>
             <h1 class="text-3xl font-bold text-gray-900 mb-2">Payment Successful!</h1>
-            <p class="text-gray-600">Your SMS credits have been added to your account.</p>
+            <?php if (isset($_SESSION['success_message'])): ?>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                    <p class="text-green-800 font-medium">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <?= htmlspecialchars($_SESSION['success_message']) ?>
+                    </p>
+                </div>
+                <?php unset($_SESSION['success_message']); ?>
+            <?php else: ?>
+                <p class="text-gray-600">Your SMS credits have been added to your account.</p>
+            <?php endif; ?>
         </div>
         
         <?php if (isset($paymentId) && $paymentId): ?>

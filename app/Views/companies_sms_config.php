@@ -619,7 +619,21 @@ document.addEventListener('DOMContentLoaded', function() {
       );
       
       if (result.success) {
-        showNotification(result.message || 'SMS credits added successfully');
+        let notificationMessage = result.message || 'SMS credits added successfully';
+        
+        // Check if SMS notification was sent
+        if (result.sms_notification) {
+          if (!result.sms_notification.sent) {
+            notificationMessage += '\n\n⚠️ SMS notification could not be sent: ' + (result.sms_notification.error || 'Unknown error');
+            if (result.sms_notification.phone) {
+              notificationMessage += '\nPhone: ' + result.sms_notification.phone;
+            }
+          } else {
+            notificationMessage += '\n\n✓ SMS notification sent to manager';
+          }
+        }
+        
+        showNotification(notificationMessage, result.sms_notification && !result.sms_notification.sent ? 'warning' : 'success');
         document.querySelector(`.topup-amount[data-company-id="${companyId}"]`).value = '';
         setTimeout(() => location.reload(), 500);
       } else {

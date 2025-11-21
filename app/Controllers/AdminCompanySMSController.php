@@ -565,6 +565,9 @@ class AdminCompanySMSController {
      * @return array Result with 'sent' boolean and optional 'error' message
      */
     private function notifyCompanyOfCreditAddition($companyId, $amount, $balance) {
+        // Log that notification method is being called
+        error_log("AdminCompanySMSController::notifyCompanyOfCreditAddition: START - Company ID: {$companyId}, Amount: {$amount}");
+        
         try {
             $db = \Database::getInstance()->getConnection();
             
@@ -579,15 +582,19 @@ class AdminCompanySMSController {
                 return ['sent' => false, 'error' => $error];
             }
             
+            error_log("AdminCompanySMSController::notifyCompanyOfCreditAddition: Company found - Name: {$company['name']}, Phone: " . ($company['phone_number'] ?? 'not set'));
+            
             // Get manager information (including email for fallback logging)
             $managerStmt = $db->prepare("
-                SELECT id, full_name, phone_number, email
+                SELECT id, full_name, phone_number, email, username
                 FROM users 
                 WHERE company_id = ? AND role = 'manager' AND is_active = 1 
                 LIMIT 1
             ");
             $managerStmt->execute([$companyId]);
             $manager = $managerStmt->fetch(\PDO::FETCH_ASSOC);
+            
+            error_log("AdminCompanySMSController::notifyCompanyOfCreditAddition: Manager lookup - " . ($manager ? "Found: {$manager['full_name']} ({$manager['email']}), Phone: " . ($manager['phone_number'] ?? 'not set') : 'Not found'));
             
             // Determine phone number: Prefer manager phone, fallback to company phone
             $phoneNumberToUse = null;
@@ -596,9 +603,11 @@ class AdminCompanySMSController {
             if (!empty($manager['phone_number'])) {
                 $phoneNumberToUse = trim($manager['phone_number']);
                 $phoneSource = "manager ({$manager['full_name']} - {$manager['email']})";
+                error_log("AdminCompanySMSController::notifyCompanyOfCreditAddition: Using manager phone: {$phoneNumberToUse}");
             } elseif (!empty($company['phone_number'])) {
                 $phoneNumberToUse = trim($company['phone_number']);
                 $phoneSource = "company ({$company['name']})";
+                error_log("AdminCompanySMSController::notifyCompanyOfCreditAddition: Using company phone: {$phoneNumberToUse}");
             }
             
             if (empty($phoneNumberToUse)) {
@@ -607,8 +616,17 @@ class AdminCompanySMSController {
                 return ['sent' => false, 'error' => $error];
             }
             
+            // Validate phone number format before sending
+            // Phone should be in format: 0XXXXXXXXX, 233XXXXXXXXX, or +233XXXXXXXXX
+            $phoneClean = preg_replace('/[^0-9+]/', '', $phoneNumberToUse);
+            if (empty($phoneClean) || (strlen($phoneClean) < 9 || strlen($phoneClean) > 13)) {
+                $error = "Invalid phone number format: {$phoneNumberToUse} (cleaned: {$phoneClean}). Expected format: 0XXXXXXXXX, 233XXXXXXXXX, or +233XXXXXXXXX";
+                error_log("AdminCompanySMSController::notifyCompanyOfCreditAddition: {$error}");
+                return ['sent' => false, 'error' => $error, 'phone' => $phoneNumberToUse];
+            }
+            
             // Prepare message - administrative message from SellApp
-            $remaining = $balance['sms_remaining'] ?? 0;
+            $remaining = isset($balance['sms_remaining']) ? (int)$balance['sms_remaining'] : 0;
             $message = "SMS Credits Top-Up Notification\n\n";
             $message .= "Your SMS account has been topped up with {$amount} SMS credits.\n\n";
             $message .= "Credits Added: {$amount} SMS\n";
@@ -617,23 +635,37 @@ class AdminCompanySMSController {
             
             // Log before sending
             error_log("AdminCompanySMSController::notifyCompanyOfCreditAddition: Preparing to send SMS to {$phoneNumberToUse} ({$phoneSource}) for company {$companyId}");
+            error_log("AdminCompanySMSController::notifyCompanyOfCreditAddition: Message: " . substr($message, 0, 100) . "...");
+            error_log("AdminCompanySMSController::notifyCompanyOfCreditAddition: Balance data: " . json_encode($balance));
             
             // Send administrative SMS (uses system balance, sender: "SellApp")
-            $smsService = new \App\Services\SMSService();
-            $smsResult = $smsService->sendAdministrativeSMS($phoneNumberToUse, $message);
+            try {
+                $smsService = new \App\Services\SMSService();
+                error_log("AdminCompanySMSController::notifyCompanyOfCreditAddition: SMS service instantiated, calling sendAdministrativeSMS...");
+                $smsResult = $smsService->sendAdministrativeSMS($phoneNumberToUse, $message);
+                error_log("AdminCompanySMSController::notifyCompanyOfCreditAddition: SMS service call completed");
+            } catch (\Exception $smsException) {
+                error_log("AdminCompanySMSController::notifyCompanyOfCreditAddition: Exception calling SMS service: " . $smsException->getMessage());
+                error_log("AdminCompanySMSController::notifyCompanyOfCreditAddition: Exception trace: " . $smsException->getTraceAsString());
+                return ['sent' => false, 'error' => 'SMS service exception: ' . $smsException->getMessage()];
+            }
             
             // Log detailed result
             error_log("AdminCompanySMSController::notifyCompanyOfCreditAddition: SMS result for company {$companyId}: " . json_encode($smsResult));
             
-            if ($smsResult['success'] && !($smsResult['simulated'] ?? false)) {
+            // Check if SMS was actually sent successfully
+            $smsSuccess = isset($smsResult['success']) && $smsResult['success'] === true;
+            $isSimulated = isset($smsResult['simulated']) && $smsResult['simulated'] === true;
+            
+            if ($smsSuccess && !$isSimulated) {
                 error_log("AdminCompanySMSController: SMS credit notification sent successfully to {$phoneNumberToUse} ({$phoneSource}) for company {$companyId}");
-                return ['sent' => true, 'phone' => $phoneNumberToUse, 'source' => $phoneSource];
+                return ['sent' => true, 'phone' => $phoneNumberToUse, 'source' => $phoneSource, 'message_id' => $smsResult['message_id'] ?? null];
             } else {
                 $errorMsg = $smsResult['error'] ?? 'Unknown error';
-                $isSimulated = $smsResult['simulated'] ?? false;
-                $fullError = $isSimulated ? "SMS service is in simulation mode or not configured" : $errorMsg;
+                $fullError = $isSimulated ? "SMS service is in simulation mode or not configured. Please configure your Arkasel API key in system settings." : $errorMsg;
                 error_log("AdminCompanySMSController: Failed to send SMS credit notification for company {$companyId} to {$phoneNumberToUse}: {$fullError}");
-                return ['sent' => false, 'error' => $fullError, 'phone' => $phoneNumberToUse, 'source' => $phoneSource];
+                error_log("AdminCompanySMSController: SMS result details - success: " . ($smsSuccess ? 'true' : 'false') . ", simulated: " . ($isSimulated ? 'true' : 'false') . ", error: " . $errorMsg);
+                return ['sent' => false, 'error' => $fullError, 'phone' => $phoneNumberToUse, 'source' => $phoneSource, 'simulated' => $isSimulated];
             }
         } catch (\Exception $e) {
             $error = "Exception: " . $e->getMessage();
