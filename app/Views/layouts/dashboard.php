@@ -112,12 +112,17 @@
                 }
             }, 500);
             
-            // Fallback: Show body after 5 seconds even if Tailwind hasn't loaded
+            // Show body immediately - don't wait for Tailwind
+            if (document.body) {
+                document.body.classList.add('tailwind-loaded');
+            }
+            
+            // Fallback: Ensure body is visible after 1 second even if Tailwind hasn't loaded
             setTimeout(function() {
                 if (!tailwindLoaded && document.body) {
                     document.body.classList.add('tailwind-loaded');
                 }
-            }, 5000);
+            }, 1000);
         })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -151,11 +156,10 @@
     
     <!-- Custom Styles for Layout Fix -->
     <style>
-        /* Hide body until Tailwind is loaded to prevent FOUC */
+        /* Show body immediately - don't hide it */
         body {
-            visibility: hidden;
-            opacity: 0;
-            transition: opacity 0.2s ease-in;
+            visibility: visible;
+            opacity: 1;
         }
         
         body.tailwind-loaded {

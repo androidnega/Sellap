@@ -399,6 +399,15 @@ ob_start();
             // Make sure page content is visible immediately
             if (document.body) {
                 document.body.style.display = '';
+                document.body.style.visibility = 'visible';
+                document.body.style.opacity = '1';
+            }
+            
+            // Show main content immediately
+            const mainContent = document.querySelector('main') || document.querySelector('.dashboard-content') || document.body;
+            if (mainContent) {
+                mainContent.style.display = '';
+                mainContent.style.visibility = 'visible';
             }
             
             // Load data immediately, don't wait
