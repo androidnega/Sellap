@@ -6,7 +6,7 @@
         "php": ">=8.0",
         "firebase/php-jwt": "^6.10",
         "cloudinary/cloudinary_php": "^2.0",
-        "dompdf/dompdf": "^2.0"
+        "dompdf/dompdf": "^3.1"
     },
     "autoload": {
         "psr-4": {
@@ -17,4 +17,3 @@
         "optimize-autoloader": true
     }
 }
-
