@@ -465,35 +465,8 @@ class ProfileController {
                             <h2 class="text-lg font-semibold text-gray-900">Personal Information</h2>
                         </div>
                         <div class="p-6">
-                            <!-- Display Current Information (Read-only) -->
-                            <div class="mb-6 space-y-4 pb-6 border-b border-gray-200">
+                            <form id="profile-form" class="space-y-6">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700">First Name</label>
-                                        <p class="mt-1 text-sm text-gray-900"><?= htmlspecialchars($user['first_name'] ?? 'N/A') ?></p>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700">Last Name</label>
-                                        <p class="mt-1 text-sm text-gray-900"><?= htmlspecialchars($user['last_name'] ?? 'N/A') ?></p>
-                                    </div>
-                                </div>
-                                
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Email Address</label>
-                                    <p class="mt-1 text-sm text-gray-900"><?= htmlspecialchars($user['email'] ?? 'N/A') ?></p>
-                                </div>
-                                
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Phone Number</label>
-                                    <p class="mt-1 text-sm text-gray-900"><?= htmlspecialchars($user['phone'] ?? $user['phone_number'] ?? 'N/A') ?></p>
-                                </div>
-                            </div>
-                            
-                            <!-- Edit Form -->
-                            <div>
-                                <h3 class="text-md font-semibold text-gray-900 mb-4">Edit Information</h3>
-                                <form id="profile-form" class="space-y-6">
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
                                             <label for="first_name" class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
                                             <input type="text" id="first_name" name="first_name" 
@@ -529,7 +502,6 @@ class ProfileController {
                                         </button>
                                     </div>
                                 </form>
-                            </div>
                         </div>
                     </div>
                     
@@ -572,35 +544,75 @@ class ProfileController {
                 
                 <!-- Account Information -->
                 <div class="lg:col-span-1">
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-                        <div class="px-6 py-4 border-b border-gray-200">
-                            <h2 class="text-lg font-semibold text-gray-900">Account Information</h2>
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 <?= $userRole === 'system_admin' ? 'border-purple-300 shadow-md' : '' ?>">
+                        <div class="px-6 py-4 border-b border-gray-200 <?= $userRole === 'system_admin' ? 'bg-gradient-to-r from-purple-50 to-indigo-50' : '' ?>">
+                            <h2 class="text-lg font-semibold text-gray-900">
+                                <?= $userRole === 'system_admin' ? '<i class="fas fa-crown text-purple-600 mr-2"></i>' : '' ?>
+                                Account Information
+                            </h2>
                         </div>
                         <div class="p-6 space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Role</label>
-                                <p class="mt-1 text-sm text-gray-900 capitalize"><?= htmlspecialchars($userRole) ?></p>
+                            <!-- Personal Information Display -->
+                            <div class="pb-4 border-b border-gray-200">
+                                <h3 class="text-sm font-semibold text-gray-700 mb-3">Personal Information</h3>
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500">First Name</label>
+                                        <p class="mt-1 text-sm text-gray-900 font-medium"><?= htmlspecialchars($user['first_name'] ?? 'N/A') ?></p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500">Last Name</label>
+                                        <p class="mt-1 text-sm text-gray-900 font-medium"><?= htmlspecialchars($user['last_name'] ?? 'N/A') ?></p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500">Email Address</label>
+                                        <p class="mt-1 text-sm text-gray-900 font-medium"><?= htmlspecialchars($user['email'] ?? 'N/A') ?></p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500">Phone Number</label>
+                                        <p class="mt-1 text-sm text-gray-900 font-medium"><?= htmlspecialchars($user['phone'] ?? $user['phone_number'] ?? 'N/A') ?></p>
+                                    </div>
+                                </div>
                             </div>
                             
-                            <?php if ($user['company_name']): ?>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Company</label>
-                                <p class="mt-1 text-sm text-gray-900"><?= htmlspecialchars($user['company_name']) ?></p>
-                            </div>
-                            <?php endif; ?>
-                            
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Member Since</label>
-                                <p class="mt-1 text-sm text-gray-900">
-                                    <?= date('F j, Y', strtotime($user['created_at'] ?? 'now')) ?>
-                                </p>
-                            </div>
-                            
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Last Updated</label>
-                                <p class="mt-1 text-sm text-gray-900">
-                                    <?= date('F j, Y g:i A', strtotime($user['updated_at'] ?? 'now')) ?>
-                                </p>
+                            <!-- Account Details -->
+                            <div class="pt-2">
+                                <h3 class="text-sm font-semibold text-gray-700 mb-3">Account Details</h3>
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500">Role</label>
+                                        <p class="mt-1 text-sm text-gray-900 font-medium capitalize">
+                                            <?php if ($userRole === 'system_admin'): ?>
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                    <i class="fas fa-crown mr-1"></i>System Administrator
+                                                </span>
+                                            <?php else: ?>
+                                                <?= htmlspecialchars($userRole) ?>
+                                            <?php endif; ?>
+                                        </p>
+                                    </div>
+                                    
+                                    <?php if ($user['company_name']): ?>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500">Company</label>
+                                        <p class="mt-1 text-sm text-gray-900 font-medium"><?= htmlspecialchars($user['company_name']) ?></p>
+                                    </div>
+                                    <?php endif; ?>
+                                    
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500">Member Since</label>
+                                        <p class="mt-1 text-sm text-gray-900 font-medium">
+                                            <?= date('F j, Y', strtotime($user['created_at'] ?? 'now')) ?>
+                                        </p>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500">Last Updated</label>
+                                        <p class="mt-1 text-sm text-gray-900 font-medium">
+                                            <?= date('F j, Y g:i A', strtotime($user['updated_at'] ?? 'now')) ?>
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
