@@ -64,9 +64,11 @@ class AuthController {
             $_SESSION['last_activity'] = time();
             
             // Set JWT token in cookie for web page authentication
+            // Use same path as session cookie
+            $cookiePath = defined('BASE_URL_PATH') && !empty(BASE_URL_PATH) ? BASE_URL_PATH : '/';
             $cookieExpire = time() + (24 * 60 * 60);
-            setcookie('sellapp_token', $result['token'], $cookieExpire, '/', '', false, true);
-            setcookie('token', $result['token'], $cookieExpire, '/', '', false, true);
+            setcookie('sellapp_token', $result['token'], $cookieExpire, $cookiePath, '', false, true);
+            setcookie('token', $result['token'], $cookieExpire, $cookiePath, '', false, true);
             
             // Log audit event for login
             try {
@@ -90,7 +92,19 @@ class AuthController {
                 error_log("Audit logging error (non-fatal): " . $auditError->getMessage());
             }
             
-            // Redirect to dashboard
+            // Write session data before redirect
+            // Ensure session is saved
+            session_write_close();
+            
+            // Redirect to dashboard - ensure redirect URL is properly formatted
+            if (empty($redirectUrl) || $redirectUrl === '/') {
+                $redirectUrl = '/dashboard';
+            }
+            // Ensure redirect URL starts with /
+            if ($redirectUrl[0] !== '/') {
+                $redirectUrl = '/' . $redirectUrl;
+            }
+            
             $redirectPath = BASE_URL_PATH . $redirectUrl;
             header('Location: ' . $redirectPath);
             exit;

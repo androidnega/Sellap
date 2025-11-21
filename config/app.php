@@ -87,7 +87,8 @@ $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
             (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
 
 // Set session cookie path to base path for proper cookie handling
-$sessionPath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '/';
+// If BASE_URL_PATH is empty, use '/' for root domain
+$sessionPath = defined('BASE_URL_PATH') && !empty(BASE_URL_PATH) ? BASE_URL_PATH : '/';
 session_set_cookie_params([
     'lifetime' => SESSION_TIMEOUT,
     'path' => $sessionPath,
