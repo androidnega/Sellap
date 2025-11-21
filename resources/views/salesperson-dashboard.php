@@ -98,7 +98,7 @@
         })();
     </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/assets/css/styles.css">
+    <link rel="stylesheet" href="<?php echo defined('BASE_URL_PATH') ? BASE_URL_PATH : '/sellapp'; ?>/assets/css/styles.css">
 </head>
 <body class="bg-gray-100">
     <!-- Sidebar Toggle Button -->

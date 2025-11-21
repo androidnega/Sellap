@@ -81,6 +81,29 @@ VALUES
 ON DUPLICATE KEY UPDATE username=username;
 
 -- =====================================================
+-- NOTIFICATIONS TABLE (User Notifications - Multi-Tenant)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    company_id BIGINT UNSIGNED NOT NULL,
+    message TEXT NOT NULL,
+    type ENUM('repair','stock','swap','sale','system') DEFAULT 'system',
+    status ENUM('unread','read') DEFAULT 'unread',
+    data LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(data)),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    read_at TIMESTAMP NULL DEFAULT NULL,
+    PRIMARY KEY (id),
+    KEY idx_user (user_id),
+    KEY idx_company (company_id),
+    KEY idx_status (status),
+    KEY idx_type (type),
+    KEY idx_created (created_at),
+    CONSTRAINT notifications_ibfk_1 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT notifications_ibfk_2 FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
 -- PHONES TABLE (Inventory & Swapping - Multi-Tenant)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS phones (
