@@ -1230,11 +1230,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Search and Filter Functionality - DISABLED FOR DEBUGGING
+// Search and Filter Functionality
 (function(){
-    console.log('Search/filter functionality temporarily disabled');
-    return; // EXIT EARLY - DON'T RUN ANY FILTER CODE
-    
     const searchInput = document.getElementById('customerSearch');
     const dateFilter = document.getElementById('dateFilter');
     const tbody = document.getElementById('customersTableBody');
