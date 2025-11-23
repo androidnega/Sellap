@@ -1282,16 +1282,39 @@ document.addEventListener('DOMContentLoaded', function() {
         // Log for debugging
         console.log('Customers page loaded: Cleared all filters, showing all customers');
         
-        // CRITICAL DEBUG: Count actual rows in DOM after page load
+        // CRITICAL DEBUG: Count actual rows in DOM after page load and force visibility
         setTimeout(() => {
             const allRows = document.querySelectorAll('#customersTableBody tr[data-customer-id]');
-            const visibleRows = Array.from(allRows).filter(row => row.style.display !== 'none');
+            
+            // FORCE all rows to be visible (remove any hidden styles)
+            allRows.forEach(row => {
+                if (row.style.display === 'none' || row.style.visibility === 'hidden' || row.style.opacity === '0') {
+                    console.warn('Found hidden row, forcing visible:', row.dataset.customerId);
+                    row.style.display = '';
+                    row.style.visibility = 'visible';
+                    row.style.opacity = '1';
+                }
+            });
+            
+            const visibleRows = Array.from(allRows).filter(row => row.offsetHeight > 0);
             console.log('Customers page loaded: Total rows in DOM:', allRows.length, 'Visible rows:', visibleRows.length);
+            
             if (allRows.length !== visibleRows.length) {
-                console.warn('WARNING: Some customer rows are hidden!', {
+                console.warn('WARNING: Some customer rows are still hidden!', {
                     total: allRows.length,
                     visible: visibleRows.length,
                     hidden: allRows.length - visibleRows.length
+                });
+                
+                // Log details of hidden rows
+                allRows.forEach((row, i) => {
+                    if (row.offsetHeight === 0) {
+                        console.error('Hidden row:', {
+                            index: i,
+                            id: row.dataset.customerId,
+                            computed: window.getComputedStyle(row).display
+                        });
+                    }
                 });
             }
         }, 500);
