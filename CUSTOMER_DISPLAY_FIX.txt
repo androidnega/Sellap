@@ -205,14 +205,58 @@ The debug logs will show:
 If logs show correct data but display is wrong, it's a JavaScript/frontend issue.
 If logs show wrong data, it's a backend/query issue.
 
+LATEST FIXES APPLIED (v2):
+==========================
+
+✅ FIXED: app/Views/customers_index.php
+   - Added code to clear filters on page load if URL has no filter params
+   - Added delay before redirect to ensure database commit
+   - Ensures search/date filter inputs are cleared before redirect
+   - Prevents accidental filtering on page load
+
+✅ FIXED: app/Controllers/CustomerController.php
+   - Added explicit check to ensure search/dateFilter are empty when no params
+   - Added detailed debug logging showing customer IDs returned
+   - Logs warning if no customers are returned
+
+ROOT CAUSE HYPOTHESIS:
+======================
+
+The issue is likely one of these:
+1. Search input has a value from browser autocomplete, triggering filter
+2. Date filter is being applied accidentally
+3. Query is only returning 1 customer instead of all customers
+4. Race condition - redirect happens before customer is committed
+
+The new fixes address all of these:
+- Clears filters on page load if URL has no params
+- Waits 300ms before redirect to ensure DB commit
+- Explicitly clears search/dateFilter in controller
+- Adds detailed logging to identify the exact issue
+
 TESTING CHECKLIST:
 ==================
 
 After applying fixes:
-1. Create first customer "John" - verify it appears
-2. Create second customer "Mary" - verify BOTH appear
-3. Create third customer "Bob" - verify ALL THREE appear
-4. Delete one customer - verify remaining customers still show
-5. Check pagination - if more than 10 customers, verify page 2 works
-6. Test with filters - verify filters don't hide customers incorrectly
+1. Clear browser cache and cookies for the site
+2. Create first customer "John" - verify it appears
+3. Check browser console - should see debug logs
+4. Check server error logs - should see customer count and IDs
+5. Create second customer "Mary" - verify BOTH appear
+6. Check logs again - should show 2 customers returned
+7. Create third customer "Bob" - verify ALL THREE appear
+8. Delete one customer - verify remaining customers still show
+9. Check pagination - if more than 10 customers, verify page 2 works
+10. Test with filters - verify filters don't hide customers incorrectly
+
+DEBUGGING:
+==========
+
+If issue persists, check server error logs for:
+- "CustomerController: Customer IDs returned: X, Y, Z"
+- "CustomerController: WARNING - No customers returned!"
+- "Customer::getPaginated - Results: N"
+
+If logs show only 1 customer ID when there should be 2, it's a query issue.
+If logs show 2 customer IDs but only 1 displays, it's a frontend/display issue.
 

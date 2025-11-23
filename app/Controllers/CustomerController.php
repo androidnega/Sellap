@@ -48,6 +48,14 @@ class CustomerController {
             exit;
         }
         
+        // CRITICAL: If no search and no date filter, ensure we get ALL customers for the company
+        // This prevents accidental filtering that hides customers
+        if (empty($search) && empty($dateFilter)) {
+            // Double-check: verify we're not accidentally filtering
+            $search = ''; // Explicitly clear
+            $dateFilter = null; // Explicitly clear
+        }
+        
         $customers = $this->model->getPaginated($currentPage, $itemsPerPage, $search, $dateFilter, $companyId);
         $totalItems = $this->model->getTotalCount($search, $dateFilter, $companyId);
         
@@ -58,7 +66,15 @@ class CustomerController {
         header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
         
         // Debug logging (can be removed after testing)
-        error_log("CustomerController: Page=$currentPage, ItemsPerPage=$itemsPerPage, TotalItems=$totalItems, Company=$companyId, CustomersReturned=" . count($customers));
+        error_log("CustomerController: Page=$currentPage, ItemsPerPage=$itemsPerPage, Search='$search', DateFilter=" . ($dateFilter ?? 'null') . ", TotalItems=$totalItems, Company=$companyId, CustomersReturned=" . count($customers));
+        
+        // CRITICAL DEBUG: Log actual customer IDs being returned
+        if (!empty($customers)) {
+            $customerIds = array_map(function($c) { return $c['id'] ?? 'no-id'; }, $customers);
+            error_log("CustomerController: Customer IDs returned: " . implode(', ', $customerIds));
+        } else {
+            error_log("CustomerController: WARNING - No customers returned! This might indicate a query issue.");
+        }
         
         // Calculate total pages and adjust current page if needed
         $totalPages = $itemsPerPage > 0 ? max(1, ceil($totalItems / $itemsPerPage)) : 1;

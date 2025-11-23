@@ -14,7 +14,8 @@
                     <input type="text" id="customerSearch" 
                            value="<?= htmlspecialchars($_GET['search'] ?? '') ?>"
                            placeholder="Search by name, phone, email, or customer ID..." 
-                           class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                           class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           autocomplete="off">
                     <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
                 </div>
             </div>
@@ -611,23 +612,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 closeModal();
                 // Clear form
                 form.reset();
-                // Clear all filters and search
-                const duplicateFilter = document.getElementById('showDuplicatesOnly');
-                if (duplicateFilter && duplicateFilter.checked) {
-                    duplicateFilter.checked = false;
-                }
-                const searchInput = document.getElementById('customerSearch');
-                if (searchInput) searchInput.value = '';
-                const dateFilter = document.getElementById('dateFilter');
-                if (dateFilter) dateFilter.value = '';
                 
-                // Force a complete page reload with cache busting to ensure ALL customers show
-                // Use replace instead of href to prevent back button issues
-                const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
-                const url = new URL(window.location.origin + base + '/dashboard/customers');
-                url.searchParams.set('page', '1');
-                url.searchParams.set('_refresh', Date.now().toString()); // Cache busting
-                window.location.replace(url.toString()); // Use replace to prevent back button issues
+                // IMPORTANT: Wait a moment for the database to commit, then reload
+                // This ensures the new customer is in the database before we reload
+                setTimeout(() => {
+                    // Clear all filters and search inputs
+                    const duplicateFilter = document.getElementById('showDuplicatesOnly');
+                    if (duplicateFilter && duplicateFilter.checked) {
+                        duplicateFilter.checked = false;
+                    }
+                    const searchInput = document.getElementById('customerSearch');
+                    if (searchInput) searchInput.value = '';
+                    const dateFilter = document.getElementById('dateFilter');
+                    if (dateFilter) dateFilter.value = '';
+                    
+                    // Force a complete page reload with cache busting to ensure ALL customers show
+                    // Use replace instead of href to prevent back button issues
+                    // Go to clean URL with no search/filter params to show ALL customers
+                    const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
+                    window.location.replace(base + '/dashboard/customers?page=1&_t=' + Date.now());
+                }, 300); // Small delay to ensure DB commit
             } else {
                 // Check if it's a duplicate phone number error
                 let errorMsg = result.error || 'Failed to create customer';
@@ -1260,6 +1264,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalCountEl = document.getElementById('customerTotalCount');
     
     if (!searchInput || !dateFilter || !tbody) return;
+    
+    // CRITICAL: On page load, ensure no filters are active if URL has no search/date_filter params
+    // This prevents filters from hiding customers on initial load
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasSearchParam = urlParams.has('search') && urlParams.get('search').trim() !== '';
+    const hasDateFilterParam = urlParams.has('date_filter') && urlParams.get('date_filter').trim() !== '';
+    
+    // If URL has no search or date_filter, clear any values in inputs to prevent accidental filtering
+    if (!hasSearchParam && !hasDateFilterParam) {
+        if (searchInput) searchInput.value = '';
+        if (dateFilter) dateFilter.value = '';
+        // Hide filter info
+        if (info) info.classList.add('hidden');
+    }
     
     // Store original HTML for restoration - will be updated on page load
     let originalHTML = tbody.innerHTML;
