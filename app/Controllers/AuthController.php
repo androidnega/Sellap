@@ -471,7 +471,8 @@ class AuthController {
                 'id' => $payload->sub,
                 'username' => $payload->username,
                 'role' => $payload->role,
-                'company_id' => $payload->company_id
+                'company_id' => $payload->company_id,
+                'company_name' => $payload->company_name ?? ''
             ];
             
             // Set initial last activity time for session timeout tracking
@@ -480,6 +481,12 @@ class AuthController {
             // Clear validation flag
             unset($_SESSION['validating_token']);
             unset($_SESSION['validating_token_time']);
+            
+            // Force session write to ensure it's persisted before response
+            session_write_close();
+            
+            // Restart session for any subsequent operations
+            session_start();
             
             echo json_encode([
                 'success' => true,

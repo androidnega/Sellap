@@ -58,67 +58,14 @@ class WebAuthMiddleware {
         // Prevent infinite loops by checking if we just validated
         if (!$token) {
             // Check if this is a redirect after validation (has _auth param but no session yet)
-            // If we already tried once and it didn't work, redirect to login to avoid loop
+            // The _auth parameter should not exist if we reach here - it means session wasn't set
+            // This could be a timing issue, so we'll just redirect to login cleanly
             if (isset($_GET['_auth'])) {
-                // Check session again after a brief moment (might have been set by previous request)
-                // Use a small delay counter to prevent infinite loops
-                $retryCount = $_SESSION['_auth_retry_count'] ?? 0;
-                
-                if ($retryCount >= 2) {
-                    // Tried too many times, give up and redirect to login
-                    unset($_SESSION['_auth_retry_count']);
-                    unset($_SESSION['_auth_attempt']);
-                    // Clear any partial session data
-                    session_destroy();
-                    session_start();
-                    header('Location: ' . (defined('BASE_URL_PATH') ? BASE_URL_PATH : '') . '/?error=' . urlencode('Session setup failed. Please login again.'));
-                    exit;
-                }
-                
-                $_SESSION['_auth_retry_count'] = $retryCount + 1;
-                
-                // Wait a moment and try to get session (might have been set in parallel request)
-                usleep(300000); // 300ms delay to allow session to be set
-                session_write_close();
-                session_start();
-                
-                // Check again after delay - check both user and token
-                $userData = $_SESSION['user'] ?? null;
-                $token = $_SESSION['token'] ?? null;
-                
-                if ($userData && !empty($userData['role'])) {
-                    // User session found, continue - clear retry counters
-                    unset($_SESSION['_auth_retry_count']);
-                    unset($_SESSION['_auth_attempt']);
-                    self::updateLastActivity();
-                    
-                    // Remove _auth parameter to prevent redirect loops
-                    $cleanUrl = strtok($_SERVER['REQUEST_URI'], '?');
-                    $queryParams = $_GET;
-                    unset($queryParams['_auth']);
-                    if (!empty($queryParams)) {
-                        $cleanUrl .= '?' . http_build_query($queryParams);
-                    }
-                    // Redirect to clean URL (without _auth parameter)
-                    header('Location: ' . $cleanUrl);
-                    exit;
-                    
-                    if (!empty($allowedRoles) && !in_array($userData['role'], $allowedRoles)) {
-                        self::redirectToLogin('You do not have permission to access this page');
-                    }
-                    return (object) $userData;
-                } elseif ($token) {
-                    unset($_SESSION['_auth_retry_count']);
-                    // Token found, continue with validation below
-                } else {
-                    // Still no token or user after retry, redirect to login to break loop
-                    unset($_SESSION['_auth_retry_count']);
-                    unset($_SESSION['_auth_attempt']);
-                    session_destroy();
-                    session_start();
-                    header('Location: ' . (defined('BASE_URL_PATH') ? BASE_URL_PATH : '') . '/?error=' . urlencode('Unable to establish session. Please login again.'));
-                    exit;
-                }
+                // Don't retry, just redirect to login to avoid loops
+                unset($_SESSION['_auth_retry_count']);
+                unset($_SESSION['_auth_attempt']);
+                header('Location: ' . (defined('BASE_URL_PATH') ? BASE_URL_PATH : '') . '/?error=' . urlencode('Please login to continue.'));
+                exit;
             } else {
                 // Check if we're already in an auth attempt to prevent loops
                 if (isset($_SESSION['_auth_attempt'])) {
@@ -222,7 +169,7 @@ class WebAuthMiddleware {
                 .then(data => {
                     if (data.success) {
                         // Token is valid, reload page to continue
-                        // Use a longer delay to ensure session cookie is saved
+                        // Use a longer delay to ensure session cookie is fully saved
                         setTimeout(function() {
                             // Get clean URL without query params
                             const fullUrl = window.location.href.split("?")[0].split("#")[0];
@@ -235,7 +182,7 @@ class WebAuthMiddleware {
                             // Just redirect to clean URL without _auth parameter
                             // The server will handle the session properly
                             window.location.replace(cleanUrl);
-                        }, 500);
+                        }, 1000);
                     } else {
                         // Token is invalid, redirect to login with current URL as redirect param
                         localStorage.removeItem("token");
