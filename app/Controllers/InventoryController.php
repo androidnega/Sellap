@@ -61,6 +61,13 @@ class InventoryController {
     }
 
     public function index() {
+        // BLOCK ADMIN IMMEDIATELY - Must be first thing in method
+        \App\Helpers\AdminBlockHelper::blockAdmin(
+            ['manager', 'salesperson', 'technician', 'system_admin'],
+            "You do not have permission to access inventory pages.",
+            BASE_URL_PATH . '/dashboard'
+        );
+        
         // Start session and check authentication
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
@@ -73,44 +80,6 @@ class InventoryController {
             $currentPath = $_SERVER['REQUEST_URI'] ?? '/dashboard/inventory';
             $redirectParam = 'redirect=' . urlencode($currentPath);
             header('Location: ' . $basePath . '/?' . $redirectParam);
-            exit;
-        }
-        
-        // Check role - admin should NOT have access to inventory pages
-        // Only manager, salesperson, technician, and system_admin can access
-        $userRole = $userData['role'] ?? '';
-        $allowedRoles = ['manager', 'salesperson', 'technician', 'system_admin'];
-        
-        // Explicitly block 'admin' role and any role not in allowed list
-        if ($userRole === 'admin' || !in_array($userRole, $allowedRoles)) {
-            // Show access denied page
-            $title = 'Access Denied';
-            $errorMessage = "You do not have permission to access inventory pages. Your current role is: " . htmlspecialchars($userRole);
-            
-            ob_start();
-            ?>
-            <div class="max-w-2xl mx-auto">
-                <div class="bg-red-50 border border-red-200 rounded-lg p-6">
-                    <div class="flex items-center mb-4">
-                        <svg class="w-8 h-8 text-red-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                        </svg>
-                        <h1 class="text-2xl font-bold text-red-900">Access Denied</h1>
-                    </div>
-                    <p class="text-red-800 mb-4"><?= htmlspecialchars($errorMessage) ?></p>
-                    <a href="<?= BASE_URL_PATH ?>/dashboard" class="inline-block px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-                        Return to Dashboard
-                    </a>
-                </div>
-            </div>
-            <?php
-            $content = ob_get_clean();
-            
-            $GLOBALS['content'] = $content;
-            $GLOBALS['title'] = $title;
-            $GLOBALS['user_data'] = $userData;
-            
-            require __DIR__ . '/../Views/simple_layout.php';
             exit;
         }
         
@@ -250,6 +219,13 @@ class InventoryController {
     }
 
     public function create() {
+        // BLOCK ADMIN IMMEDIATELY - Must be first thing in method
+        \App\Helpers\AdminBlockHelper::blockAdmin(
+            ['manager', 'system_admin'],
+            "You do not have permission to create products. Only Managers and System Administrators can add products to inventory.",
+            BASE_URL_PATH . '/dashboard/inventory'
+        );
+        
         // Start session and check authentication
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
@@ -262,44 +238,6 @@ class InventoryController {
             $currentPath = $_SERVER['REQUEST_URI'] ?? '/dashboard/inventory/create';
             $redirectParam = 'redirect=' . urlencode($currentPath);
             header('Location: ' . $basePath . '/?' . $redirectParam);
-            exit;
-        }
-        
-        // Check role - only manager and system_admin can create products
-        // Admin role should NOT have access to create products
-        $userRole = $userData['role'] ?? '';
-        $allowedRoles = ['manager', 'system_admin'];
-        
-        // Explicitly block 'admin' role and any role not in allowed list
-        if ($userRole === 'admin' || !in_array($userRole, $allowedRoles)) {
-            // Show access denied page
-            $title = 'Access Denied';
-            $errorMessage = "You do not have permission to create products. Only Managers and System Administrators can add products to inventory. Your current role is: " . htmlspecialchars($userRole);
-            
-            ob_start();
-            ?>
-            <div class="max-w-2xl mx-auto">
-                <div class="bg-red-50 border border-red-200 rounded-lg p-6">
-                    <div class="flex items-center mb-4">
-                        <svg class="w-8 h-8 text-red-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                        </svg>
-                        <h1 class="text-2xl font-bold text-red-900">Access Denied</h1>
-                    </div>
-                    <p class="text-red-800 mb-4"><?= htmlspecialchars($errorMessage) ?></p>
-                    <a href="<?= BASE_URL_PATH ?>/dashboard/inventory" class="inline-block px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-                        Return to Inventory
-                    </a>
-                </div>
-            </div>
-            <?php
-            $content = ob_get_clean();
-            
-            $GLOBALS['content'] = $content;
-            $GLOBALS['title'] = $title;
-            $GLOBALS['user_data'] = $userData;
-            
-            require __DIR__ . '/../Views/simple_layout.php';
             exit;
         }
         
@@ -606,6 +544,13 @@ class InventoryController {
     }
 
     public function edit($id) {
+        // BLOCK ADMIN IMMEDIATELY - Must be first thing in method
+        \App\Helpers\AdminBlockHelper::blockAdmin(
+            ['manager', 'system_admin'],
+            "You do not have permission to edit products. Only Managers and System Administrators can modify inventory.",
+            BASE_URL_PATH . '/dashboard/inventory'
+        );
+        
         // Start session and check authentication
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
@@ -618,42 +563,6 @@ class InventoryController {
             $currentPath = $_SERVER['REQUEST_URI'] ?? '/dashboard/inventory/edit/' . $id;
             $redirectParam = 'redirect=' . urlencode($currentPath);
             header('Location: ' . $basePath . '/?' . $redirectParam);
-            exit;
-        }
-        
-        // Check role - only manager and system_admin can edit products
-        $userRole = $userData['role'] ?? '';
-        $allowedRoles = ['manager', 'system_admin'];
-        
-        if (!in_array($userRole, $allowedRoles)) {
-            // Show access denied page
-            $title = 'Access Denied';
-            $errorMessage = "You do not have permission to edit products. Only Managers and System Administrators can modify inventory. Your current role is: " . htmlspecialchars($userRole);
-            
-            ob_start();
-            ?>
-            <div class="max-w-2xl mx-auto">
-                <div class="bg-red-50 border border-red-200 rounded-lg p-6">
-                    <div class="flex items-center mb-4">
-                        <svg class="w-8 h-8 text-red-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                        </svg>
-                        <h1 class="text-2xl font-bold text-red-900">Access Denied</h1>
-                    </div>
-                    <p class="text-red-800 mb-4"><?= htmlspecialchars($errorMessage) ?></p>
-                    <a href="<?= BASE_URL_PATH ?>/dashboard/inventory" class="inline-block px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-                        Return to Inventory
-                    </a>
-                </div>
-            </div>
-            <?php
-            $content = ob_get_clean();
-            
-            $GLOBALS['content'] = $content;
-            $GLOBALS['title'] = $title;
-            $GLOBALS['user_data'] = $userData;
-            
-            require __DIR__ . '/../Views/simple_layout.php';
             exit;
         }
         
@@ -901,6 +810,13 @@ class InventoryController {
     }
 
     public function view($id) {
+        // BLOCK ADMIN IMMEDIATELY - Must be first thing in method
+        \App\Helpers\AdminBlockHelper::blockAdmin(
+            ['manager', 'salesperson', 'technician', 'system_admin'],
+            "You do not have permission to view inventory.",
+            BASE_URL_PATH . '/dashboard'
+        );
+        
         // Start session and check authentication
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
@@ -913,42 +829,6 @@ class InventoryController {
             $currentPath = $_SERVER['REQUEST_URI'] ?? '/dashboard/inventory/view/' . $id;
             $redirectParam = 'redirect=' . urlencode($currentPath);
             header('Location: ' . $basePath . '/?' . $redirectParam);
-            exit;
-        }
-        
-        // Check role - admin should NOT have access to inventory pages
-        $userRole = $userData['role'] ?? '';
-        $allowedRoles = ['manager', 'salesperson', 'technician', 'system_admin'];
-        
-        if ($userRole === 'admin' || !in_array($userRole, $allowedRoles)) {
-            // Show access denied page
-            $title = 'Access Denied';
-            $errorMessage = "You do not have permission to view inventory. Your current role is: " . htmlspecialchars($userRole);
-            
-            ob_start();
-            ?>
-            <div class="max-w-2xl mx-auto">
-                <div class="bg-red-50 border border-red-200 rounded-lg p-6">
-                    <div class="flex items-center mb-4">
-                        <svg class="w-8 h-8 text-red-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                        </svg>
-                        <h1 class="text-2xl font-bold text-red-900">Access Denied</h1>
-                    </div>
-                    <p class="text-red-800 mb-4"><?= htmlspecialchars($errorMessage) ?></p>
-                    <a href="<?= BASE_URL_PATH ?>/dashboard" class="inline-block px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-                        Return to Dashboard
-                    </a>
-                </div>
-            </div>
-            <?php
-            $content = ob_get_clean();
-            
-            $GLOBALS['content'] = $content;
-            $GLOBALS['title'] = $title;
-            $GLOBALS['user_data'] = $userData;
-            
-            require __DIR__ . '/../Views/simple_layout.php';
             exit;
         }
         
@@ -1011,6 +891,13 @@ class InventoryController {
      * Delete a product
      */
     public function delete($id) {
+        // BLOCK ADMIN IMMEDIATELY - Must be first thing in method
+        \App\Helpers\AdminBlockHelper::blockAdmin(
+            ['manager', 'system_admin'],
+            "You do not have permission to delete products. Only Managers and System Administrators can delete inventory items.",
+            BASE_URL_PATH . '/dashboard/inventory'
+        );
+        
         try {
             // Start session and check authentication
             if (session_status() === PHP_SESSION_NONE) {
@@ -1024,17 +911,6 @@ class InventoryController {
                 $currentPath = $_SERVER['REQUEST_URI'] ?? '/dashboard/inventory';
                 $redirectParam = 'redirect=' . urlencode($currentPath);
                 header('Location: ' . $basePath . '/?' . $redirectParam);
-                exit;
-            }
-            
-            // Check role - only manager and system_admin can delete products
-            // Admin role should NOT have access
-            $userRole = $userData['role'] ?? '';
-            $allowedRoles = ['manager', 'system_admin'];
-            
-            if ($userRole === 'admin' || !in_array($userRole, $allowedRoles)) {
-                $_SESSION['flash_error'] = 'You do not have permission to delete products. Only Managers and System Administrators can delete inventory items.';
-                header('Location: ' . BASE_URL_PATH . '/dashboard/inventory');
                 exit;
             }
             
@@ -1080,6 +956,17 @@ class InventoryController {
     public function bulkDelete() {
         header('Content-Type: application/json');
         
+        // BLOCK ADMIN IMMEDIATELY - Must be first thing in method
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
+        if (\App\Helpers\AdminBlockHelper::shouldBlockAdmin(['manager', 'system_admin'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'You do not have permission to delete products']);
+            exit;
+        }
+        
         try {
             // Start session and check authentication
             if (session_status() === PHP_SESSION_NONE) {
@@ -1091,16 +978,6 @@ class InventoryController {
             if (!$userData) {
                 http_response_code(401);
                 echo json_encode(['success' => false, 'error' => 'Authentication required']);
-                exit;
-            }
-            
-            // Check role - only manager and system_admin can delete products
-            $userRole = $userData['role'] ?? '';
-            $allowedRoles = ['manager', 'system_admin'];
-            
-            if ($userRole === 'admin' || !in_array($userRole, $allowedRoles)) {
-                http_response_code(403);
-                echo json_encode(['success' => false, 'error' => 'You do not have permission to delete products']);
                 exit;
             }
             
