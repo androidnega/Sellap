@@ -1,3 +1,7 @@
+$router->get('dashboard/tools/run-laptop-migration', function() {
+    $controller = new \App\Controllers\MigrationController();
+    $controller->runLaptopCategoryMigration();
+});
 <?php
 
 // ========================================
