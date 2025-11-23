@@ -597,10 +597,16 @@ document.addEventListener('DOMContentLoaded', function() {
             if (result.success) {
                 showNotification('Customer created successfully!', 'success');
                 closeModal();
-                // Clear form and reload immediately to show the new customer
+                // Clear form
                 form.reset();
-                // Force reload without cache
-                window.location.reload(true);
+                // Clear duplicate filter checkbox if checked
+                const duplicateFilter = document.getElementById('showDuplicatesOnly');
+                if (duplicateFilter && duplicateFilter.checked) {
+                    duplicateFilter.checked = false;
+                }
+                // Redirect to customers page without filters/search to show the new customer on page 1
+                const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
+                window.location.href = base + '/dashboard/customers?page=1';
             } else {
                 // Check if it's a duplicate phone number error
                 let errorMsg = result.error || 'Failed to create customer';
@@ -963,10 +969,16 @@ async function deleteCustomer(customerId, customerName) {
         
         showNotification('Customer deleted successfully!', 'success');
         
-        // Refresh the list after a short delay to ensure consistency
+        // Redirect to customers page without filters/search to refresh the list
+        // Use a short delay to ensure the deletion is complete
         setTimeout(() => {
-            window.location.reload();
-        }, 1000);
+            const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
+            // Get current page from URL or default to 1
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentPage = urlParams.get('page') || '1';
+            // Redirect to same page (or page 1 if current page might be empty after deletion)
+            window.location.href = base + '/dashboard/customers?page=' + currentPage;
+        }, 500);
     } catch (error) {
         console.error('Error deleting customer:', error);
         showErrorModal('Error deleting customer: ' + (error.message || 'An unexpected error occurred. Please try again.'));
@@ -1190,10 +1202,21 @@ document.addEventListener('DOMContentLoaded', function() {
             if (result.success) {
                 showNotification('Customer updated successfully!', 'success');
                 closeEditModal();
-                // Reload the page to show updated customer
+                // Redirect to customers page to show updated customer
+                // Preserve current page and filters if any
                 setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
+                    const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const currentPage = urlParams.get('page') || '1';
+                    const search = urlParams.get('search') || '';
+                    const dateFilter = urlParams.get('date_filter') || '';
+                    
+                    let redirectUrl = base + '/dashboard/customers?page=' + currentPage;
+                    if (search) redirectUrl += '&search=' + encodeURIComponent(search);
+                    if (dateFilter) redirectUrl += '&date_filter=' + encodeURIComponent(dateFilter);
+                    
+                    window.location.href = redirectUrl;
+                }, 500);
             } else {
                 showNotification(result.error || 'Failed to update customer', 'error');
             }
@@ -1222,8 +1245,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (!searchInput || !dateFilter || !tbody) return;
     
-    // Store original HTML for restoration
-    const originalHTML = tbody.innerHTML;
+    // Store original HTML for restoration - will be updated on page load
+    let originalHTML = tbody.innerHTML;
+    
+    // Update originalHTML when page loads or filters are cleared
+    function updateOriginalHTML() {
+        originalHTML = tbody.innerHTML;
+    }
+    
+    // Update original HTML after a short delay to ensure DOM is ready
+    setTimeout(updateOriginalHTML, 100);
     
     function escapeHtml(str) {
         return String(str).replace(/[&<>"']+/g, s => ({
@@ -1300,8 +1331,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // If both are empty, restore original HTML
         if (!searchTerm && !dateValue) {
-            tbody.innerHTML = originalHTML;
-            info.classList.add('hidden');
+            // Reload page to get fresh data from server (ensures all customers are shown)
+            const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
+            window.location.href = base + '/dashboard/customers?page=1';
             return;
         }
         
