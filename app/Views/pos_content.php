@@ -4043,16 +4043,34 @@ function printReceipt() {
 </script>
 
 <style>
-/* Hide scrollbar but keep scrolling functionality */
+/* Custom scrollbar for modals */
 #receiptModal > div::-webkit-scrollbar,
 #swapModal > div::-webkit-scrollbar {
-    display: none;
+    width: 8px;
 }
 
+#receiptModal > div::-webkit-scrollbar-track,
+#swapModal > div::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+#receiptModal > div::-webkit-scrollbar-thumb,
+#swapModal > div::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+#receiptModal > div::-webkit-scrollbar-thumb:hover,
+#swapModal > div::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* For Firefox */
 #receiptModal > div,
 #swapModal > div {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: #888 #f1f1f1;
 }
 </style>
 
@@ -4130,7 +4148,7 @@ function printReceipt() {
 
 <!-- Swap Modal -->
 <div id="swapModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full my-auto max-h-[90vh] overflow-y-auto">
+    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full my-auto max-h-[90vh] overflow-y-auto" style="scroll-behavior: smooth;">
             <div class="p-4">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-semibold text-gray-800">Process Swap</h3>
