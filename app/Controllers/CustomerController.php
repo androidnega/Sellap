@@ -81,11 +81,7 @@ class CustomerController {
         }
         $customers = $uniqueCustomers;
         
-        // DEBUG: Log before duplicate detection
-        error_log("BEFORE DUPLICATE DETECTION: " . count($customers) . " customers, IDs: " . implode(',', array_column($customers, 'id')));
-        
         // Detect duplicate customers by phone number (check ONLY within same company)
-        // NOTE: This detection is ONLY for flagging, not for filtering
         $allDuplicatePhones = $this->detectDuplicatePhonesFromDatabase();
         foreach ($customers as $key => &$customer) {
             $phone = $customer['phone_number'] ?? '';
@@ -109,10 +105,7 @@ class CustomerController {
                 $customer['duplicate_ids'] = [];
             }
         }
-        unset($customer); // Break reference
-        
-        // DEBUG: Log after duplicate detection
-        error_log("AFTER DUPLICATE DETECTION: " . count($customers) . " customers, IDs: " . implode(',', array_column($customers, 'id')));
+        unset($customer); // CRITICAL: Break the reference to prevent array corruption
         
         // Build pagination URL with search and filter params
         $paginationBaseUrl = BASE_URL_PATH . '/dashboard/customers';

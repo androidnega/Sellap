@@ -75,27 +75,14 @@
             <tbody id="customersTableBody" class="bg-white divide-y divide-gray-200">
                 <?php if (!empty($customers)): ?>
                     <?php 
-                    // DEBUG: Print what we received
-                    $customerIds = array_map(function($c) { return $c['id']; }, $customers);
-                    echo "<!-- Customers in array: " . implode(',', $customerIds) . " (Total: " . count($customers) . ") -->\n";
-                    
-                    // Count occurrences
-                    $idCounts = array_count_values($customerIds);
-                    foreach ($idCounts as $id => $count) {
-                        if ($count > 1) {
-                            echo "<!-- WARNING: Customer ID $id appears $count times! -->\n";
-                        }
-                    }
-                    
-                    // Track which customer IDs we've already rendered
+                    // Track rendered IDs to prevent duplicates
                     $renderedCustomerIds = [];
                     
                     foreach ($customers as $customer):
-                        // Skip if we already rendered this customer ID
+                        // Skip if already rendered (safety check)
                         $customerId = $customer['id'];
                         if (in_array($customerId, $renderedCustomerIds)) {
-                            echo "<!-- SKIPPING duplicate customer ID: $customerId -->\n";
-                            continue; // Skip duplicate
+                            continue;
                         }
                         $renderedCustomerIds[] = $customerId;
                         $isDuplicate = false;
@@ -159,7 +146,6 @@
                 <?php else: ?>
                     <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No customers found</td></tr>
                 <?php endif; ?>
-                <!-- Total customers rendered: <?= isset($customers) ? count($customers) : 0 ?> -->
             </tbody>
         </table>
     </div>
