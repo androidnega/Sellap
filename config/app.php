@@ -60,9 +60,7 @@ if (isset($_SERVER['REQUEST_URI']) && isset($_SERVER['SCRIPT_NAME'])) {
     }
 }
 
-// Final safety check - ensure kabz_events is never in base path
-$basePath = preg_replace('#/kabz_events(/|$)#', '/', $basePath);
-$basePath = str_replace('kabz_events', '', $basePath);
+// No additional base path cleanup needed
 
 // Normalize: empty string or '/' both mean root
 if ($basePath === '/') {

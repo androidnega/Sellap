@@ -20,8 +20,6 @@ if (!defined('BASE_URL_PATH')) {
         window.APP_BASE_PATH = '<?php echo defined("BASE_URL_PATH") ? BASE_URL_PATH : ""; ?>';
         const BASE = window.APP_BASE_PATH || '';
         
-        // Removed kabz_events cleanup - no longer needed
-        
         // Clean up _auth parameter from URL if present (prevents redirect loops)
         // Use replaceState to change URL without reloading page
         (function() {

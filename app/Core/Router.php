@@ -70,21 +70,8 @@ class Router {
         
         $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
         
-        // Aggressively remove kabz_events from URI in all forms (completely remove this path)
-        $uri = preg_replace('#/kabz_events(/|$)#', '/', $uri);
-        $uri = preg_replace('#^/kabz_events#', '', $uri);
-        $uri = str_replace('/kabz_events', '', $uri);
-        $uri = str_replace('kabz_events/', '', $uri);
-        $uri = str_replace('kabz_events', '', $uri);
-        
         // Remove base directory from URI if running in subdirectory
         $scriptName = dirname($_SERVER['SCRIPT_NAME']);
-        // Aggressively remove kabz_events from script name
-        $scriptName = preg_replace('#/kabz_events(/|$)#', '/', $scriptName);
-        $scriptName = preg_replace('#^/kabz_events#', '', $scriptName);
-        $scriptName = str_replace('/kabz_events', '', $scriptName);
-        $scriptName = str_replace('kabz_events/', '', $scriptName);
-        $scriptName = str_replace('kabz_events', '', $scriptName);
         
         if ($scriptName !== '/' && $scriptName !== '.' && !empty($scriptName)) {
             $uri = str_replace($scriptName, '', $uri);
@@ -119,10 +106,6 @@ class Router {
         $uri = preg_replace('#^/sellapp/#', '/', $uri);
         $uri = preg_replace('#^sellapp/#', '', $uri);
         }
-        
-        // Final cleanup - ensure no kabz_events remains
-        $uri = preg_replace('#/kabz_events(/|$)#', '/', $uri);
-        $uri = str_replace('kabz_events', '', $uri);
         
         $uri = trim($uri, '/');
 
@@ -184,9 +167,6 @@ class Router {
             // Show nice "Oops!" page with option to go to homepage
             header('Content-Type: text/html; charset=utf-8');
             $homeUrl = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
-            // Ensure kabz_events is not in home URL
-            $homeUrl = preg_replace('#/kabz_events(/|$)#', '/', $homeUrl);
-            $homeUrl = str_replace('kabz_events', '', $homeUrl);
             // Normalize: empty string means root
             if ($homeUrl === '/') {
                 $homeUrl = '';
