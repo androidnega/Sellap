@@ -53,6 +53,20 @@ class CustomerController {
         }
         
         $customers = $this->model->getPaginated($currentPage, $itemsPerPage, $search, $dateFilter, $companyId);
+        
+        // DEBUG: Log what came from database
+        error_log("CUSTOMER FETCH: Got " . count($customers) . " customers from database");
+        if (!empty($customers)) {
+            $ids = array_column($customers, 'id');
+            error_log("CUSTOMER FETCH: IDs = " . implode(',', $ids));
+            $idCounts = array_count_values($ids);
+            foreach ($idCounts as $id => $count) {
+                if ($count > 1) {
+                    error_log("WARNING: Customer ID $id appears $count times in query result!");
+                }
+            }
+        }
+        
         $totalItems = $this->model->getTotalCount($search, $dateFilter, $companyId);
         
         // Add cache control headers to prevent stale data
@@ -73,19 +87,32 @@ class CustomerController {
         $originalCount = count($customers);
         $seenIds = [];
         $uniqueCustomers = [];
+        
         foreach ($customers as $customer) {
             $customerId = $customer['id'] ?? null;
-            if ($customerId && !isset($seenIds[$customerId])) {
+            if (!$customerId) {
+                error_log("ERROR: Customer without ID found: " . json_encode($customer));
+                continue;
+            }
+            
+            if (!isset($seenIds[$customerId])) {
                 $seenIds[$customerId] = true;
                 $uniqueCustomers[] = $customer;
+            } else {
+                error_log("DEDUP: Skipping duplicate customer ID $customerId");
             }
         }
+        
         $customers = $uniqueCustomers;
         
         // Log if we removed duplicates
-        if ($originalCount != count($customers)) {
-            error_log("DEDUP: Removed " . ($originalCount - count($customers)) . " duplicate rows from query results");
+        $finalCount = count($customers);
+        if ($originalCount != $finalCount) {
+            error_log("DEDUP: Removed " . ($originalCount - $finalCount) . " duplicate rows from query results");
+            error_log("DEDUP: Original count: $originalCount, Final count: $finalCount");
         }
+        
+        error_log("FINAL: Passing " . count($customers) . " customers to view");
         
         // Detect duplicate customers by phone number (check ONLY within same company)
         $allDuplicatePhones = $this->detectDuplicatePhonesFromDatabase();
