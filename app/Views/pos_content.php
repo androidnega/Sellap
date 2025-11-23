@@ -3185,11 +3185,8 @@ function openSwapModal(productId, productName, productPrice) {
     // Prevent body scrolling when modal is open
     document.body.style.overflow = 'hidden';
     
-    // Scroll modal container to top to ensure modal is visible
-    modal.scrollTop = 0;
-    
-    // Also scroll the modal content to top
-    const modalContent = modal.querySelector('div > div');
+    // Scroll the modal content to top (the white box with overflow-y-auto)
+    const modalContent = modal.querySelector('.overflow-y-auto');
     if (modalContent) {
         modalContent.scrollTop = 0;
     }
