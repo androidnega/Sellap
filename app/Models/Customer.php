@@ -336,7 +336,12 @@ class Customer {
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Debug logging (can be removed after fixing)
+        error_log("Customer::getPaginated - Page: $page, Limit: $limit, Offset: $offset, Company: $companyId, Results: " . count($results));
+        
+        return $results;
     }
 
     /**

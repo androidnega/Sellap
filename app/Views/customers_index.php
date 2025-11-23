@@ -79,7 +79,10 @@
                 </tr>
             </thead>
             <tbody id="customersTableBody" class="bg-white divide-y divide-gray-200">
-                <?php if (!empty($customers)): ?>
+                <?php 
+                // Debug: Log customer count (remove after fixing)
+                error_log("Customers View: Total customers to display: " . count($customers ?? []));
+                if (!empty($customers)): ?>
                     <?php 
                     // Track seen customer IDs to prevent duplicate rows
                     $seenCustomerIds = [];
@@ -608,14 +611,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 closeModal();
                 // Clear form
                 form.reset();
-                // Clear duplicate filter checkbox if checked
+                // Clear all filters and search
                 const duplicateFilter = document.getElementById('showDuplicatesOnly');
                 if (duplicateFilter && duplicateFilter.checked) {
                     duplicateFilter.checked = false;
                 }
-                // Redirect to customers page without filters/search to show the new customer on page 1
+                const searchInput = document.getElementById('customerSearch');
+                if (searchInput) searchInput.value = '';
+                const dateFilter = document.getElementById('dateFilter');
+                if (dateFilter) dateFilter.value = '';
+                
+                // Force a complete page reload with cache busting to ensure ALL customers show
+                // Use replace instead of href to prevent back button issues
                 const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
-                window.location.href = base + '/dashboard/customers?page=1';
+                const url = new URL(window.location.origin + base + '/dashboard/customers');
+                url.searchParams.set('page', '1');
+                url.searchParams.set('_refresh', Date.now().toString()); // Cache busting
+                window.location.replace(url.toString()); // Use replace to prevent back button issues
             } else {
                 // Check if it's a duplicate phone number error
                 let errorMsg = result.error || 'Failed to create customer';

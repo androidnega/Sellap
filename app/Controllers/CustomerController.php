@@ -30,9 +30,14 @@ class CustomerController {
         }
         
         $currentPage = max(1, intval($_GET['page'] ?? 1));
-        $itemsPerPage = 10;
+        $itemsPerPage = 10; // Ensure this is always 10, not 1
         $search = trim($_GET['search'] ?? '');
         $dateFilter = $_GET['date_filter'] ?? null;
+        
+        // Verify itemsPerPage is correct (safety check)
+        if ($itemsPerPage < 1 || $itemsPerPage > 100) {
+            $itemsPerPage = 10;
+        }
         
         // Get customers with pagination, search and filters (FILTERED BY COMPANY)
         // Ensure companyId is always provided and is an integer
@@ -47,9 +52,13 @@ class CustomerController {
         $totalItems = $this->model->getTotalCount($search, $dateFilter, $companyId);
         
         // Add cache control headers to prevent stale data
-        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');
         header('Pragma: no-cache');
         header('Expires: 0');
+        header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
+        
+        // Debug logging (can be removed after testing)
+        error_log("CustomerController: Page=$currentPage, ItemsPerPage=$itemsPerPage, TotalItems=$totalItems, Company=$companyId, CustomersReturned=" . count($customers));
         
         // Calculate total pages and adjust current page if needed
         $totalPages = $itemsPerPage > 0 ? max(1, ceil($totalItems / $itemsPerPage)) : 1;
