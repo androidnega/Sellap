@@ -56,35 +56,22 @@ class WebAuthMiddleware {
         // Check for token in session
         $token = $_SESSION['token'] ?? null;
         
-        // If no token in session, try to get from localStorage via JavaScript redirect page
-        // Prevent infinite loops by checking if we just validated
+        // If no token in session, redirect to login
+        // Don't try to validate from localStorage - that causes loops
         if (!$token) {
-            // Check if this is a redirect after validation (has _auth param but no session yet)
-            // The _auth parameter should not exist if we reach here - it means session wasn't set
-            // This could be a timing issue, so we'll just redirect to login cleanly
-            if (isset($_GET['_auth'])) {
-                // Don't retry, just redirect to login to avoid loops
-                unset($_SESSION['_auth_retry_count']);
-                unset($_SESSION['_auth_attempt']);
-                header('Location: ' . (defined('BASE_URL_PATH') ? BASE_URL_PATH : '') . '/?error=' . urlencode('Please login to continue.'));
-                exit;
-            } else {
-                // Check if we're already in an auth attempt to prevent loops
-                if (isset($_SESSION['_auth_attempt'])) {
-                    // Already attempted, clear and redirect to login
-                    unset($_SESSION['_auth_attempt']);
-                    session_destroy();
-                    session_start();
-                    header('Location: ' . (defined('BASE_URL_PATH') ? BASE_URL_PATH : '') . '/?error=' . urlencode('Authentication failed. Please login again.'));
-                    exit;
-                }
-                
-                // Mark that we're attempting auth
-                $_SESSION['_auth_attempt'] = true;
-                
-                // No session token, redirect to login with JavaScript validation
-                self::redirectToLogin();
-            }
+            error_log("WebAuthMiddleware: No token in session, redirecting to login");
+            
+            // Clear any auth flags
+            unset($_SESSION['_auth_attempt']);
+            unset($_SESSION['_auth_retry_count']);
+            
+            // Redirect to login page
+            $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+            $currentPath = $_SERVER['REQUEST_URI'] ?? '/dashboard';
+            $redirectParam = 'redirect=' . urlencode($currentPath);
+            
+            header('Location: ' . $basePath . '/?' . $redirectParam);
+            exit;
         }
         
         try {

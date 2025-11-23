@@ -87,22 +87,26 @@ define('ASSETS_PATH', BASE_PATH . '/assets');
 // Session Configuration
 // Session timeout: 30 minutes of inactivity (in seconds)
 define('SESSION_TIMEOUT', 30 * 60); // 1800 seconds = 30 minutes
-ini_set('session.gc_maxlifetime', SESSION_TIMEOUT);
 
-// Detect if we're using HTTPS
-$isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
-            (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
-            (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
-
-// Set session cookie path to base path for proper cookie handling
-// If BASE_URL_PATH is empty, use '/' for root domain
-$sessionPath = defined('BASE_URL_PATH') && !empty(BASE_URL_PATH) ? BASE_URL_PATH : '/';
-session_set_cookie_params([
-    'lifetime' => SESSION_TIMEOUT,
-    'path' => $sessionPath,
-    'domain' => '',
-    'secure' => $isSecure, // Auto-detect HTTPS
-    'httponly' => true,
-    'samesite' => 'Lax'
-]);
+// Only set session configuration if session is not already active
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.gc_maxlifetime', SESSION_TIMEOUT);
+    
+    // Detect if we're using HTTPS
+    $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
+                (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
+                (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+    
+    // Set session cookie path to base path for proper cookie handling
+    // If BASE_URL_PATH is empty, use '/' for root domain
+    $sessionPath = defined('BASE_URL_PATH') && !empty(BASE_URL_PATH) ? BASE_URL_PATH : '/';
+    session_set_cookie_params([
+        'lifetime' => SESSION_TIMEOUT,
+        'path' => $sessionPath,
+        'domain' => '',
+        'secure' => $isSecure, // Auto-detect HTTPS
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+}
 
