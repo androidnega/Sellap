@@ -75,8 +75,16 @@
             <tbody id="customersTableBody" class="bg-white divide-y divide-gray-200">
                 <?php if (!empty($customers)): ?>
                     <?php 
-                    // Simple rendering - no filters, no checks, just render all customers
+                    // Track which customer IDs we've already rendered
+                    $renderedCustomerIds = [];
+                    
                     foreach ($customers as $customer):
+                        // Skip if we already rendered this customer ID
+                        $customerId = $customer['id'];
+                        if (in_array($customerId, $renderedCustomerIds)) {
+                            continue; // Skip duplicate
+                        }
+                        $renderedCustomerIds[] = $customerId;
                         $isDuplicate = false;
                         $duplicateCount = 1;
                         $rowClass = '';
