@@ -75,33 +75,11 @@
             <tbody id="customersTableBody" class="bg-white divide-y divide-gray-200">
                 <?php if (!empty($customers)): ?>
                     <?php 
-                    // FINAL SAFETY CHECK: Ensure no duplicate IDs in array
-                    $customerIds = array_column($customers, 'id');
-                    $uniqueIds = array_unique($customerIds);
-                    if (count($customerIds) !== count($uniqueIds)) {
-                        error_log("CRITICAL: Duplicate IDs still in customers array!");
-                        error_log("IDs: " . implode(',', $customerIds));
-                        // Force remove duplicates
-                        $temp = [];
-                        $seen = [];
-                        foreach ($customers as $c) {
-                            if (!isset($seen[$c['id']])) {
-                                $seen[$c['id']] = true;
-                                $temp[] = $c;
-                            }
-                        }
-                        $customers = $temp;
-                    }
-                    
-                    error_log("VIEW RENDER: Rendering " . count($customers) . " customers");
-                    error_log("VIEW RENDER: IDs = " . implode(',', array_column($customers, 'id')));
-                    
                     $displayedCount = 0;
-                    $renderedIds = []; // Track what we actually render
+                    $renderedIds = []; // Track rendered IDs to prevent duplicates
                     foreach ($customers as $customer):
-                        // Skip if already rendered
+                        // Skip if already rendered (safety check)
                         if (isset($renderedIds[$customer['id']])) {
-                            error_log("VIEW: Skipping duplicate render of customer ID " . $customer['id']);
                             continue;
                         }
                         $renderedIds[$customer['id']] = true; 
