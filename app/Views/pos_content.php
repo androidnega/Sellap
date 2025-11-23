@@ -4130,7 +4130,7 @@ function printReceipt() {
 
 <!-- Swap Modal -->
 <div id="swapModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4 overflow-y-auto">
-    <div class="bg-white rounded-lg shadow-xl max-w-xl w-full my-4 max-h-[90vh] overflow-y-auto">
+    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full my-4 max-h-[90vh] overflow-y-auto">
             <div class="p-4">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-semibold text-gray-800">Process Swap</h3>
@@ -4209,7 +4209,7 @@ function printReceipt() {
                     <!-- Customer's Device -->
                     <div class="mb-4">
                         <h4 class="font-semibold text-gray-800 mb-3 text-sm">Customer's Device</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div>
                                 <label for="swapCustomerBrandId" class="block text-xs font-medium text-gray-700 mb-1">Brand <span class="text-red-500">*</span></label>
                                 <select id="swapCustomerBrandId" name="customer_brand_id" required
@@ -4227,11 +4227,6 @@ function printReceipt() {
                                        placeholder="e.g. iPhone 12, Galaxy S21">
                             </div>
                             <div>
-                                <label for="swapCustomerImei" class="block text-xs font-medium text-gray-700 mb-1">IMEI (Optional)</label>
-                                <input type="text" id="swapCustomerImei" name="customer_imei" 
-                                       class="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            </div>
-                            <div>
                                 <label for="swapCustomerCondition" class="block text-xs font-medium text-gray-700 mb-1">Condition</label>
                                 <select id="swapCustomerCondition" name="customer_condition" 
                                         class="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -4240,12 +4235,18 @@ function printReceipt() {
                                     <option value="faulty">Faulty</option>
                                 </select>
                             </div>
+                            <div class="md:col-span-3">
+                                <label for="swapCustomerImei" class="block text-xs font-medium text-gray-700 mb-1">IMEI (Optional)</label>
+                                <input type="text" id="swapCustomerImei" name="customer_imei" 
+                                       class="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="Enter device IMEI number">
+                            </div>
                         </div>
                         
                         <!-- Dynamic Spec Fields Container -->
                         <div id="swapCustomerSpecsContainer" class="mt-3 hidden">
                             <h5 class="text-xs font-semibold text-gray-700 mb-2">Device Specifications</h5>
-                            <div id="swapCustomerDynamicSpecs" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div id="swapCustomerDynamicSpecs" class="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <!-- Dynamic fields will be inserted here -->
                             </div>
                         </div>
@@ -4254,7 +4255,7 @@ function printReceipt() {
                     <!-- Swap Calculation -->
                     <div class="mb-4">
                         <h4 class="font-semibold text-gray-800 mb-3 text-sm">Swap Calculation</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div>
                                 <label for="swapEstimatedValue" class="block text-xs font-medium text-gray-700 mb-1">Estimated Value (₵)</label>
                                 <input type="number" id="swapEstimatedValue" name="customer_estimated_value" step="0.01" min="0" 
@@ -4266,6 +4267,12 @@ function printReceipt() {
                                 <input type="number" id="swapTopup" name="customer_topup" step="0.01" min="0" 
                                        class="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                        placeholder="0.00">
+                            </div>
+                            <div class="flex items-end">
+                                <div class="w-full p-2.5 bg-gray-50 rounded-md border border-gray-200">
+                                    <div class="text-xs text-gray-600 mb-0.5">Balance</div>
+                                    <div id="swapBalance" class="text-base font-bold text-gray-900">₵0.00</div>
+                                </div>
                             </div>
                         </div>
                         
