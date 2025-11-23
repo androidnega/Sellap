@@ -643,15 +643,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Clear cart on page load/refresh
     clearCartOnLoad();
     
-    // Check authentication
+    // Check authentication (non-blocking - session cookies will handle auth)
     const token = getAuthToken();
     if (!token) {
-        console.error('No authentication token found');
-        showNotification('Please login to access POS system', 'error');
-        return;
+        console.warn('No authentication token found in localStorage - will use session cookies for authentication');
+    } else {
+        console.log('POS page loaded with authentication token');
     }
-    
-    console.log('POS page loaded with authentication');
     
     // Load quick stats
     loadPOSQuickStats();
@@ -728,9 +726,24 @@ let customers = [];
 let cart = [];
 let lastSaleId = null;
 
-// Get auth token
+// Get auth token from localStorage or cookies
 function getAuthToken() {
-    return localStorage.getItem('sellapp_token') || localStorage.getItem('token');
+    // Try localStorage first
+    let token = localStorage.getItem('sellapp_token') || localStorage.getItem('token');
+    
+    // If not in localStorage, try to get from cookies (non-HttpOnly cookies only)
+    if (!token) {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'sellapp_token' || name === 'token') {
+                token = decodeURIComponent(value);
+                break;
+            }
+        }
+    }
+    
+    return token || null;
 }
 
 async function clearCartAfterSale() {
@@ -738,7 +751,8 @@ async function clearCartAfterSale() {
         const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '');
         const response = await fetch(basePath + '/pos/cart/clear', {
             method: 'POST',
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies for authentication
         });
         const data = await response.json();
         if (data.success) {
@@ -749,7 +763,7 @@ async function clearCartAfterSale() {
     }
 }
 
-// Get auth headers
+// Get auth headers (works with or without token - session cookies will handle auth)
 function getAuthHeaders() {
     const token = getAuthToken();
     const headers = {
@@ -757,6 +771,7 @@ function getAuthHeaders() {
     };
     
     // Only add Authorization header if token exists
+    // If no token, session cookies will be used via credentials: 'same-origin'
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
@@ -783,7 +798,8 @@ async function loadPOSQuickStats() {
     try {
         const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
         const response = await fetch(basePath + '/api/pos/quick-stats', {
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies for authentication
         });
         
         if (!response.ok) {
@@ -827,7 +843,8 @@ async function loadProducts() {
     try {
         const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
         const response = await fetch(basePath + '/api/pos/products', {
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies for authentication
         });
         
         // Check if response is OK
@@ -1009,7 +1026,8 @@ async function loadCustomers() {
     try {
         const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
         const response = await fetch(basePath + '/api/customers', {
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies for authentication
         });
         
         // Check if response is OK
@@ -1055,7 +1073,8 @@ async function loadCart() {
     try {
         const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
         const response = await fetch(basePath + '/pos/cart', {
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies for authentication
         });
         const data = await response.json();
         
@@ -1608,6 +1627,7 @@ async function addToCart(productId) {
         const response = await fetch(basePath + '/pos/cart/add', {
             method: 'POST',
             headers: getAuthHeaders(),
+            credentials: 'same-origin', // Include session cookies for authentication
             body: JSON.stringify({
                 product_id: productId,
                 quantity: 1
@@ -2319,6 +2339,7 @@ function setupEventListeners() {
                         ...getAuthHeaders(),
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'same-origin', // Include session cookies for authentication
                     body: JSON.stringify(formData)
                 });
                 
@@ -2370,6 +2391,7 @@ function setupEventListeners() {
                 const response = await fetch(basePath + '/api/customers', {
                     method: 'POST',
                     headers: getAuthHeaders(),
+                    credentials: 'same-origin', // Include session cookies for authentication
                     body: JSON.stringify(contactData)
                 });
                 
@@ -2429,7 +2451,8 @@ async function clearCart() {
         const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
         const response = await fetch(basePath + '/pos/cart/clear', {
             method: 'POST',
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies for authentication
         });
         const data = await response.json();
         if (data.success) {
@@ -2451,7 +2474,8 @@ async function clearCartOnLoad() {
         const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
         const response = await fetch(basePath + '/pos/cart/clear', {
             method: 'POST',
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies for authentication
         });
         
         const data = await response.json();
@@ -2482,6 +2506,7 @@ window.updateCartQuantity = async function(productId, quantity) {
         const response = await fetch(basePath + '/pos/cart/update', {
             method: 'POST',
             headers: getAuthHeaders(),
+            credentials: 'same-origin', // Include session cookies for authentication
             body: JSON.stringify({
                 product_id: productId,
                 quantity: quantity
@@ -2512,6 +2537,7 @@ window.removeFromCart = async function(productId) {
         const response = await fetch(basePath + '/pos/cart/remove', {
             method: 'POST',
             headers: getAuthHeaders(),
+            credentials: 'same-origin', // Include session cookies for authentication
             body: JSON.stringify({
                 product_id: productId
             })
@@ -2715,7 +2741,10 @@ document.head.appendChild(style);
 async function loadPOSManagerMetrics() {
     try {
         // Use dashboard company-metrics endpoint for basic POS KPIs
-        const res = await fetch(BASE + '/api/dashboard/company-metrics', { headers: getAuthHeaders() });
+        const res = await fetch(BASE + '/api/dashboard/company-metrics', { 
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies for authentication
+        });
         const data = await res.json();
         if (data && data.success) {
             const m = data.metrics || {};
@@ -2772,7 +2801,10 @@ async function refreshStatsForRange() {
         const url = new URL(BASE + '/api/pos/stats', window.location.origin);
         if (from) url.searchParams.set('date_from', from);
         if (to) url.searchParams.set('date_to', to);
-        const res = await fetch(url.toString(), { headers: getAuthHeaders() });
+        const res = await fetch(url.toString(), { 
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies for authentication
+        });
         const data = await res.json();
         if (data && data.success && (data.data || data.metrics)) {
             const s = data.data || data.metrics;
@@ -2800,7 +2832,10 @@ function exportPdfForRange() {
 // Load inventory stats
 async function loadInventoryStats() {
     try {
-        const res = await fetch(BASE + '/api/pos/inventory-stats', { headers: getAuthHeaders() });
+        const res = await fetch(BASE + '/api/pos/inventory-stats', { 
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies for authentication
+        });
         const data = await res.json();
         if (data && data.success && data.data) {
             const d = data.data;
@@ -2818,7 +2853,10 @@ async function loadInventoryStats() {
 // Load comprehensive audit data
 async function loadAuditData() {
     try {
-        const res = await fetch(BASE + '/api/pos/audit-data?limit=10', { headers: getAuthHeaders() });
+        const res = await fetch(BASE + '/api/pos/audit-data?limit=10', { 
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies for authentication
+        });
         const data = await res.json();
         if (data && data.success && data.data) {
             const d = data.data;
@@ -3452,14 +3490,18 @@ function loadSwapBrands() {
     
     // Load brands for phone category
     const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
-    fetch(basePath + '/api/brands/by-category/1')
+    fetch(basePath + '/api/brands/by-category/1', {
+        credentials: 'same-origin' // Include session cookies for authentication
+    })
         .then(response => response.json())
         .then(result => {
             // Handle both formats: direct array or {success: true, data: [...]}
             let brands = Array.isArray(result) ? result : (result.data || []);
             if (!populateBrandSelect(brands)) {
                 // Fallback: try alternative API endpoint
-                fetch(basePath + '/api/products/brands/1')
+                fetch(basePath + '/api/products/brands/1', {
+                    credentials: 'same-origin' // Include session cookies for authentication
+                })
                     .then(response => response.json())
                     .then(data => {
                         let brands = data.success && data.data ? data.data : (Array.isArray(data) ? data : []);
@@ -3471,7 +3513,9 @@ function loadSwapBrands() {
         .catch(error => {
             console.error('Error loading brands:', error);
             // Fallback: try alternative API endpoint
-                        fetch(basePath + '/api/products/brands/1')
+                        fetch(basePath + '/api/products/brands/1', {
+                    credentials: 'same-origin' // Include session cookies for authentication
+                })
                 .then(response => response.json())
                 .then(data => {
                     let brands = data.success && data.data ? data.data : (Array.isArray(data) ? data : []);
@@ -3562,7 +3606,9 @@ function loadSwapCustomerSpecs(brandId) {
     
     // Fetch brand specs from API using brand ID
     const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
-    fetch(basePath + '/api/brands/specs/' + encodeURIComponent(brandId))
+    fetch(basePath + '/api/brands/specs/' + encodeURIComponent(brandId), {
+        credentials: 'same-origin' // Include session cookies for authentication
+    })
         .then(response => response.json())
         .then(data => {
             const specsContainer = document.getElementById('swapCustomerSpecsContainer');
@@ -3739,6 +3785,7 @@ function processSwap() {
             'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
         },
+        credentials: 'same-origin', // Include session cookies for authentication
         body: JSON.stringify(data)
     })
     .then(async response => {
@@ -3900,7 +3947,8 @@ async function searchPOSCustomers(query) {
         const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
         const response = await fetch(`${basePath}/pos/swap/customers?q=${encodeURIComponent(query)}`, {
             method: 'GET',
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            credentials: 'same-origin' // Include session cookies for authentication
         });
         
         const result = await response.json();
