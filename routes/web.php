@@ -304,7 +304,19 @@ $router->get('dashboard/products/{id}', function($id) {
 
 // Inventory Index
 $router->get('dashboard/inventory', function() {
-    \App\Middleware\WebAuthMiddleware::handle();
+    // BLOCK ADMIN IMMEDIATELY - Check before anything else
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    $userRole = strtolower(trim($_SESSION['user']['role'] ?? ''));
+    if ($userRole === 'admin') {
+        \App\Helpers\AdminBlockHelper::showAccessDenied(
+            "You do not have permission to access inventory pages.",
+            BASE_URL_PATH . '/dashboard'
+        );
+    }
+    
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'salesperson', 'technician', 'system_admin']);
     $GLOBALS['currentPage'] = 'inventory';
     $controller = new \App\Controllers\InventoryController();
     $controller->index();
