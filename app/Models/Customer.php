@@ -132,6 +132,17 @@ class Customer {
     }
 
     /**
+     * Find customer by email in a specific company
+     */
+    public function findByEmailInCompany($email, $company_id) {
+        // Normalize email to lowercase for case-insensitive comparison
+        $normalizedEmail = strtolower(trim($email));
+        $stmt = $this->conn->prepare("SELECT * FROM {$this->table} WHERE LOWER(TRIM(email)) = :email AND company_id = :company_id LIMIT 1");
+        $stmt->execute(['email' => $normalizedEmail, 'company_id' => $company_id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
      * Update customer information (Multi-tenant safe)
      * @param int $id Customer ID
      * @param array $data Update data

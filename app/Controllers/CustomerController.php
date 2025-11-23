@@ -381,56 +381,47 @@ class CustomerController {
         }
         
         // Check for duplicate phone number (REQUIRED - phone is a key)
+        // Use direct database query for better performance and race condition handling
         $phoneNumber = trim($data['phone_number'] ?? '');
         if (!empty($phoneNumber)) {
-            // Normalize phone number for comparison (remove spaces, dashes, parentheses)
-            $normalizedPhone = preg_replace('/[\s\-\(\)]/', '', $phoneNumber);
+            // Use the existing model method which is more efficient
+            $existingCustomer = $this->model->findByPhoneInCompany($phoneNumber, $companyId);
             
-            // Query all customers in company and check normalized phones
-            $allCustomers = $this->model->allByCompany($companyId);
-            foreach ($allCustomers as $customer) {
-                $existingNormalized = preg_replace('/[\s\-\(\)]/', '', $customer['phone_number'] ?? '');
-                if ($existingNormalized === $normalizedPhone && !empty($existingNormalized)) {
-                    http_response_code(400);
-                    echo json_encode([
-                        'success' => false,
-                        'error' => 'A customer with this phone number already exists',
-                        'existing_customer' => [
-                            'id' => $customer['id'],
-                            'unique_id' => $customer['unique_id'],
-                            'full_name' => $customer['full_name'],
-                            'phone_number' => $customer['phone_number']
-                        ]
-                    ]);
-                    return;
-                }
+            if ($existingCustomer) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'A customer with this phone number already exists',
+                    'existing_customer' => [
+                        'id' => $existingCustomer['id'],
+                        'unique_id' => $existingCustomer['unique_id'],
+                        'full_name' => $existingCustomer['full_name'],
+                        'phone_number' => $existingCustomer['phone_number']
+                    ]
+                ]);
+                return;
             }
         }
         
         // Check for duplicate email (OPTIONAL - only if email is provided)
+        // Use direct database query for better performance
         $email = trim($data['email'] ?? '');
         if (!empty($email)) {
-            // Normalize email (lowercase, trim)
-            $normalizedEmail = strtolower(trim($email));
+            $existingCustomerByEmail = $this->model->findByEmailInCompany($email, $companyId);
             
-            // Query all customers in company and check emails
-            $allCustomers = $this->model->allByCompany($companyId);
-            foreach ($allCustomers as $customer) {
-                $existingEmail = strtolower(trim($customer['email'] ?? ''));
-                if (!empty($existingEmail) && $existingEmail === $normalizedEmail) {
-                    http_response_code(400);
-                    echo json_encode([
-                        'success' => false,
-                        'error' => 'A customer with this email address already exists',
-                        'existing_customer' => [
-                            'id' => $customer['id'],
-                            'unique_id' => $customer['unique_id'],
-                            'full_name' => $customer['full_name'],
-                            'email' => $customer['email']
-                        ]
-                    ]);
-                    return;
-                }
+            if ($existingCustomerByEmail) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'A customer with this email address already exists',
+                    'existing_customer' => [
+                        'id' => $existingCustomerByEmail['id'],
+                        'unique_id' => $existingCustomerByEmail['unique_id'],
+                        'full_name' => $existingCustomerByEmail['full_name'],
+                        'email' => $existingCustomerByEmail['email']
+                    ]
+                ]);
+                return;
             }
         }
 
