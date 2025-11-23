@@ -1325,15 +1325,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Store original HTML for restoration - will be updated on page load
-    let originalHTML = tbody.innerHTML;
+    let originalHTML = '';
     
     // Update originalHTML when page loads or filters are cleared
     function updateOriginalHTML() {
         originalHTML = tbody.innerHTML;
+        console.log('Captured original HTML, row count:', tbody.querySelectorAll('tr[data-customer-id]').length);
     }
     
-    // Update original HTML after a short delay to ensure DOM is ready
-    setTimeout(updateOriginalHTML, 100);
+    // Update original HTML after a longer delay to ensure ALL rows are fully loaded
+    setTimeout(updateOriginalHTML, 500);
     
     function escapeHtml(str) {
         return String(str).replace(/[&<>"']+/g, s => ({
