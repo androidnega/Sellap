@@ -1188,7 +1188,19 @@ $router->post('api/swaps/sync-to-inventory', function() {
 
 // Repairs Index
 $router->get('dashboard/repairs', function() {
-    \App\Middleware\WebAuthMiddleware::handle();
+    // BLOCK ADMIN IMMEDIATELY
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    $userRole = strtolower(trim($_SESSION['user']['role'] ?? ''));
+    if ($userRole === 'admin') {
+        \App\Helpers\AdminBlockHelper::showAccessDenied(
+            "You do not have permission to access repair pages.",
+            BASE_URL_PATH . '/dashboard'
+        );
+    }
+    
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'technician', 'system_admin']);
     $GLOBALS['currentPage'] = 'repairs';
     $controller = new \App\Controllers\RepairController();
     $controller->index();
@@ -1196,7 +1208,19 @@ $router->get('dashboard/repairs', function() {
 
 // Repairs Create Form
 $router->get('dashboard/repairs/create', function() {
-    \App\Middleware\WebAuthMiddleware::handle();
+    // BLOCK ADMIN IMMEDIATELY
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    $userRole = strtolower(trim($_SESSION['user']['role'] ?? ''));
+    if ($userRole === 'admin') {
+        \App\Helpers\AdminBlockHelper::showAccessDenied(
+            "You do not have permission to create repairs.",
+            BASE_URL_PATH . '/dashboard'
+        );
+    }
+    
+    \App\Middleware\WebAuthMiddleware::handle(['technician', 'system_admin']);
     $GLOBALS['currentPage'] = 'repairs';
     $controller = new \App\Controllers\RepairController();
     $controller->create();
@@ -1255,16 +1279,24 @@ $router->get('api/repairs/search', function() {
 
 // Booking (for technicians and managers)
 $router->get('dashboard/booking', function() {
-    // BLOCK ADMIN - admin should not access technician booking page
+    // BLOCK ADMIN IMMEDIATELY - Must be first check
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
     }
-    $userRole = strtolower(trim($_SESSION['user']['role'] ?? ''));
-    if ($userRole === 'admin') {
-        \App\Helpers\AdminBlockHelper::showAccessDenied(
-            "You do not have permission to access technician booking pages.",
-            BASE_URL_PATH . '/dashboard'
-        );
+    
+    // Double-check: ensure user data exists
+    if (!isset($_SESSION['user']) || empty($_SESSION['user']['role'])) {
+        // Not logged in - let middleware handle it
+    } else {
+        $userRole = strtolower(trim($_SESSION['user']['role'] ?? ''));
+        error_log("Booking route - User role detected: " . $userRole);
+        if ($userRole === 'admin') {
+            error_log("Booking route - BLOCKING admin user");
+            \App\Helpers\AdminBlockHelper::showAccessDenied(
+                "You do not have permission to access technician booking pages.",
+                BASE_URL_PATH . '/dashboard'
+            );
+        }
     }
     
     \App\Middleware\WebAuthMiddleware::handle(['technician', 'manager', 'system_admin']);
@@ -1313,7 +1345,19 @@ $router->get('dashboard/settings', function() {
 
 // Customers Index
 $router->get('dashboard/customers', function() {
-    \App\Middleware\WebAuthMiddleware::handle();
+    // BLOCK ADMIN IMMEDIATELY
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    $userRole = strtolower(trim($_SESSION['user']['role'] ?? ''));
+    if ($userRole === 'admin') {
+        \App\Helpers\AdminBlockHelper::showAccessDenied(
+            "You do not have permission to access customer pages.",
+            BASE_URL_PATH . '/dashboard'
+        );
+    }
+    
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'salesperson', 'system_admin']);
     $GLOBALS['currentPage'] = 'customers';
     $controller = new \App\Controllers\CustomerController();
     $controller->webIndex();
@@ -1345,15 +1389,23 @@ $router->post('dashboard/customers/update/{id}', function($id) {
 
 // POS Main Page
 $router->get('dashboard/pos', function() {
-    \App\Middleware\WebAuthMiddleware::handle();
-    
-    // Check if user is a manager and should be redirected to audit trail
+    // BLOCK ADMIN IMMEDIATELY - Must check before anything else
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
     }
+    $userRole = strtolower(trim($_SESSION['user']['role'] ?? ''));
+    if ($userRole === 'admin') {
+        \App\Helpers\AdminBlockHelper::showAccessDenied(
+            "You do not have permission to access POS (Point of Sale) pages.",
+            BASE_URL_PATH . '/dashboard'
+        );
+    }
     
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'manager', 'salesperson']);
+    
+    // Check if user is a manager and should be redirected to audit trail
     $user = $_SESSION['user'] ?? null;
-    if ($user && ($user['role'] === 'manager' || $user['role'] === 'admin')) {
+    if ($user && $user['role'] === 'manager') {
         $companyId = $user['company_id'] ?? null;
         if ($companyId) {
             // Check if manager_can_sell module is enabled
@@ -1373,6 +1425,18 @@ $router->get('dashboard/pos', function() {
 
 // POS Sales History
 $router->get('dashboard/pos/sales-history', function() {
+    // BLOCK ADMIN IMMEDIATELY
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    $userRole = strtolower(trim($_SESSION['user']['role'] ?? ''));
+    if ($userRole === 'admin') {
+        \App\Helpers\AdminBlockHelper::showAccessDenied(
+            "You do not have permission to access sales history.",
+            BASE_URL_PATH . '/dashboard'
+        );
+    }
+    
     \App\Middleware\WebAuthMiddleware::handle();
     $GLOBALS['currentPage'] = 'sales-history';
     $controller = new \App\Controllers\POSController();
@@ -1387,7 +1451,19 @@ $router->get('pos/sales-history', function() {
 
 // Sales History (alternative route for technicians)
 $router->get('dashboard/sales-history', function() {
-    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson', 'technician']);
+    // BLOCK ADMIN IMMEDIATELY
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    $userRole = strtolower(trim($_SESSION['user']['role'] ?? ''));
+    if ($userRole === 'admin') {
+        \App\Helpers\AdminBlockHelper::showAccessDenied(
+            "You do not have permission to access sales history.",
+            BASE_URL_PATH . '/dashboard'
+        );
+    }
+    
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'manager', 'salesperson', 'technician']);
     $GLOBALS['currentPage'] = 'sales-history';
     $controller = new \App\Controllers\POSController();
     $controller->salesHistory();
