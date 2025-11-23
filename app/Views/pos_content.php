@@ -3132,6 +3132,13 @@ function closeReceiptModal() {
     document.body.style.overflow = '';
 }
 
+function ensureModalInBody(modal) {
+    if (modal && modal.parentNode !== document.body) {
+        console.log(`Moving modal #${modal.id} to document.body to avoid clipping issues`);
+        document.body.appendChild(modal);
+    }
+}
+
 // Swap Modal Functions
 function openSwapModal(productId, productName, productPrice) {
     console.log('Opening swap modal:', { productId, productName, productPrice });
@@ -3143,6 +3150,7 @@ function openSwapModal(productId, productName, productPrice) {
         showNotification('Swap modal not found. Please refresh the page.', 'error');
         return;
     }
+    ensureModalInBody(modal);
     
     // Hide any previous errors
     hideSwapModalError();
@@ -3442,6 +3450,12 @@ function updateSwapBalance() {
 
 // Add event listeners for swap modal
 document.addEventListener('DOMContentLoaded', function() {
+    // Ensure modals live directly under body to prevent stacking/overflow issues
+    ['receiptModal', 'swapModal', 'newCustomerModal'].forEach(modalId => {
+        const modalEl = document.getElementById(modalId);
+        ensureModalInBody(modalEl);
+    });
+    
     // Swap button click handlers - use event delegation to handle clicks on button or child elements
     // Use a flag to prevent multiple rapid clicks
     let swapModalOpening = false;
@@ -4227,7 +4241,7 @@ function printReceipt() {
 </div>
 
 <!-- Swap Modal -->
-<div id="swapModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 overflow-hidden">
+<div id="swapModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 overflow-hidden" style="z-index: 9999;">
     <div class="h-full w-full flex items-center justify-center p-4">
         <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" style="scroll-behavior: smooth;">
             <div class="p-4">
