@@ -15,9 +15,37 @@ class BrandManagementController {
     }
 
     /**
+     * Ensure PHP session is available for flash messages/forms
+     */
+    private function ensureSession(): void {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+    }
+
+    /**
+     * Remember selected categories between failed submissions
+     */
+    private function persistSelectedCategories(array $categoryIds): void {
+        $this->ensureSession();
+        $_SESSION['brand_form_categories'] = $categoryIds;
+    }
+
+    /**
+     * Retrieve and clear persisted category selection
+     */
+    private function pullPersistedCategories(): array {
+        $this->ensureSession();
+        $selected = $_SESSION['brand_form_categories'] ?? [];
+        unset($_SESSION['brand_form_categories']);
+        return array_values(array_unique(array_filter(array_map('intval', (array)$selected))));
+    }
+
+    /**
      * Display brands list
      */
     public function index() {
+        $this->ensureSession();
         $currentPage = max(1, intval($_GET['page'] ?? 1));
         $itemsPerPage = 10;
         
@@ -58,8 +86,9 @@ class BrandManagementController {
      * Show create brand form
      */
     public function create() {
+        $this->ensureSession();
         $categories = $this->category->getAll();
-        $selectedCategoryIds = [];
+        $selectedCategoryIds = $this->pullPersistedCategories();
         
         $page = 'brand_management';
         $title = 'Add New Brand';
@@ -94,6 +123,7 @@ class BrandManagementController {
      * Store new brand
      */
     public function store() {
+        $this->ensureSession();
         $name = trim($_POST['name'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $rawCategoryIds = $_POST['category_ids'] ?? [];
@@ -106,6 +136,7 @@ class BrandManagementController {
         $primaryCategoryId = $categoryIds[0] ?? null;
 
         if (!$name) {
+            $this->persistSelectedCategories($categoryIds);
             $_SESSION['flash_error'] = 'Brand name is required';
             header('Location: ' . BASE_URL_PATH . '/dashboard/brands/create');
             exit;
@@ -115,6 +146,7 @@ class BrandManagementController {
         foreach ($categoryIds as $categoryId) {
             $existing = $this->brand->findByNameAndCategory($name, $categoryId);
             if ($existing) {
+                $this->persistSelectedCategories($categoryIds);
                 $_SESSION['flash_error'] = 'Brand already exists for one of the selected categories';
                 header('Location: ' . BASE_URL_PATH . '/dashboard/brands/create');
                 exit;
@@ -129,9 +161,11 @@ class BrandManagementController {
 
         if ($brandId) {
             $this->brand->syncCategories($brandId, $categoryIds);
+            unset($_SESSION['brand_form_categories']);
             $_SESSION['flash_success'] = 'Brand created successfully';
             header('Location: ' . BASE_URL_PATH . '/dashboard/brands');
         } else {
+            $this->persistSelectedCategories($categoryIds);
             $_SESSION['flash_error'] = 'Failed to create brand';
             header('Location: ' . BASE_URL_PATH . '/dashboard/brands/create');
         }
@@ -142,9 +176,14 @@ class BrandManagementController {
      * Show edit brand form
      */
     public function edit($id) {
+        $this->ensureSession();
         $brand = $this->brand->find($id);
         $categories = $this->category->getAll();
         $selectedCategoryIds = $brand ? ($brand['category_ids'] ?? []) : [];
+        $persisted = $this->pullPersistedCategories();
+        if (!empty($persisted)) {
+            $selectedCategoryIds = $persisted;
+        }
         
         if (!$brand) {
             $_SESSION['flash_error'] = 'Brand not found';
@@ -179,6 +218,7 @@ class BrandManagementController {
      * Update brand
      */
     public function update($id) {
+        $this->ensureSession();
         $name = trim($_POST['name'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $rawCategoryIds = $_POST['category_ids'] ?? [];
@@ -191,6 +231,7 @@ class BrandManagementController {
         $primaryCategoryId = $categoryIds[0] ?? null;
 
         if (!$name) {
+            $this->persistSelectedCategories($categoryIds);
             $_SESSION['flash_error'] = 'Brand name is required';
             header('Location: ' . BASE_URL_PATH . '/dashboard/brands/edit/' . $id);
             exit;
@@ -200,6 +241,7 @@ class BrandManagementController {
         foreach ($categoryIds as $categoryId) {
             $existing = $this->brand->findByNameAndCategory($name, $categoryId);
             if ($existing && $existing['id'] != $id) {
+                $this->persistSelectedCategories($categoryIds);
                 $_SESSION['flash_error'] = 'Brand name already exists for one of the selected categories';
                 header('Location: ' . BASE_URL_PATH . '/dashboard/brands/edit/' . $id);
                 exit;
@@ -214,9 +256,11 @@ class BrandManagementController {
 
         if ($success) {
             $this->brand->syncCategories($id, $categoryIds);
+            unset($_SESSION['brand_form_categories']);
             $_SESSION['flash_success'] = 'Brand updated successfully';
             header('Location: ' . BASE_URL_PATH . '/dashboard/brands');
         } else {
+            $this->persistSelectedCategories($categoryIds);
             $_SESSION['flash_error'] = 'Failed to update brand';
             header('Location: ' . BASE_URL_PATH . '/dashboard/brands/edit/' . $id);
         }
@@ -227,6 +271,7 @@ class BrandManagementController {
      * Delete brand
      */
     public function delete($id) {
+        $this->ensureSession();
         $brand = $this->brand->find($id);
         
         if (!$brand) {

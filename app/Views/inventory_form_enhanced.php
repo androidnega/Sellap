@@ -227,6 +227,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const dynamicSpecs = document.getElementById('dynamicSpecs');
     const swapContainer = document.getElementById('swapContainer');
 
+    const EXISTING_PRODUCT_SPECS = <?= json_encode(isset($product) ? json_decode($product['specs'] ?? '{}', true) : new stdClass()) ?> || {};
+    const phoneCategories = ['phone', 'phones', 'smartphone', 'smartphones', 'mobile', 'mobiles'];
+    const accessoryCategories = ['accessory', 'accessories'];
+    const repairCategories = ['repair', 'repairs', 'part', 'parts', 'repair part', 'repair parts'];
+    const tabletCategories = ['tablet', 'tablets'];
+    const laptopCategories = ['laptop', 'laptops', 'notebook', 'notebooks'];
+    const wearableCategories = ['wearable', 'wearables', 'smartwatch', 'smartwatches'];
+
     // Category change handler
     categorySelect.addEventListener('change', () => {
         const categoryId = categorySelect.value;
@@ -243,18 +251,21 @@ document.addEventListener('DOMContentLoaded', () => {
         subcategorySelect.innerHTML = '<option value="">Select Subcategory</option>';
 
         // Show brand dropdown for any category that might have brands
-        // Check by category name (phone, tablet, accessory, repair, etc.)
+        // Check by category name (phone, tablet, accessory, repair, laptop, etc.)
         if (categoryId) {
             const normalizedCategoryName = categoryName.toLowerCase().trim();
-            const phoneCategories = ['phone', 'phones', 'smartphone', 'smartphones', 'mobile', 'mobiles'];
-            const accessoryCategories = ['accessory', 'accessories'];
-            const repairCategories = ['repair', 'repairs', 'part', 'parts', 'repair part', 'repair parts'];
-            const tabletCategories = ['tablet', 'tablets'];
+            const isPhoneCategory = phoneCategories.includes(normalizedCategoryName);
+            const isAccessoryCategory = accessoryCategories.includes(normalizedCategoryName);
+            const isRepairCategory = repairCategories.includes(normalizedCategoryName);
+            const isTabletCategory = tabletCategories.includes(normalizedCategoryName);
+            const isLaptopCategory = laptopCategories.includes(normalizedCategoryName);
             
-            const shouldShowBrand = phoneCategories.includes(normalizedCategoryName) ||
-                                   accessoryCategories.includes(normalizedCategoryName) ||
-                                   repairCategories.includes(normalizedCategoryName) ||
-                                   tabletCategories.includes(normalizedCategoryName);
+            const shouldShowBrand = isPhoneCategory ||
+                                   isAccessoryCategory ||
+                                   isRepairCategory ||
+                                   isTabletCategory ||
+                                   isLaptopCategory ||
+                                   isWearableCategory;
             
             if (shouldShowBrand) {
                 brandContainer.style.display = 'block';
@@ -317,8 +328,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        const isPhoneCategory = phoneCategories.includes(normalizedCategoryName);
+        const isAccessoryCategory = accessoryCategories.includes(normalizedCategoryName);
+        const isRepairCategory = repairCategories.includes(normalizedCategoryName);
+        const isWearableCategory = wearableCategories.includes(normalizedCategoryName);
+        const isLaptopCategory = laptopCategories.includes(normalizedCategoryName);
+        
         // Show subcategory dropdown for Accessories, Repair Parts, and Wearables
-        if (categoryId && ['2', '5', '6'].includes(categoryId)) {
+        if (categoryId && (isAccessoryCategory || isRepairCategory || isWearableCategory)) {
             subcategoryContainer.style.display = 'block';
 
             // Fetch subcategories dynamically
@@ -339,12 +356,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Show swap option only for Phone category (check by name)
-        const normalizedCategoryName = categoryName.toLowerCase().trim();
-        const phoneCategories = ['phone', 'phones', 'smartphone', 'smartphones', 'mobile', 'mobiles'];
-        const accessoryCategories = ['accessory', 'accessories'];
-        const isPhoneCategory = phoneCategories.includes(normalizedCategoryName);
-        const isAccessoryCategory = accessoryCategories.includes(normalizedCategoryName);
-        
         if (isPhoneCategory) {
             swapContainer.style.display = 'block';
         } else {
@@ -354,20 +365,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show generic specs for categories without brand-specific specs
         // For accessories, always show generic specs (not phone specs, even if brand is Apple/iPhone)
         if (categoryId) {
-            if (isAccessoryCategory) {
-                // For accessories, show generic accessory specs
-                // Clear any phone specs that might be showing
-                specsContainer.style.display = 'block';
-                dynamicSpecs.innerHTML = '';
+            if (isAccessoryCategory || isLaptopCategory || isRepairCategory || isWearableCategory) {
                 showGenericSpecs(categoryName);
-            } else if (!['1', '4'].includes(categoryId)) {
-                // For other non-phone categories, show generic specs
-                showGenericSpecs(categoryName);
-            } else {
+            } else if (isPhoneCategory) {
                 // For phone categories, if brand is already selected, reload specs
                 if (brandSelect.value) {
                     brandSelect.dispatchEvent(new Event('change'));
                 }
+            } else {
+                showGenericSpecs(categoryName);
             }
         }
     });
@@ -379,13 +385,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const categoryName = categoryOption ? categoryOption.text.toLowerCase() : '';
         const normalizedCategoryName = categoryName.toLowerCase().trim();
         
-        // Check if category is accessory
-        const accessoryCategories = ['accessory', 'accessories'];
+        // Category helpers
         const isAccessoryCategory = accessoryCategories.includes(normalizedCategoryName);
-        
-        // Check if category is phone
-        const phoneCategories = ['phone', 'phones', 'smartphone', 'smartphones', 'mobile', 'mobiles'];
         const isPhoneCategory = phoneCategories.includes(normalizedCategoryName);
+        const isLaptopCategory = laptopCategories.includes(normalizedCategoryName);
+        const isWearableCategory = wearableCategories.includes(normalizedCategoryName);
         
         if (!brandId) {
             specsContainer.style.display = 'none';
@@ -404,6 +408,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return; // Exit early, don't fetch brand specs
         }
         
+        if (isLaptopCategory || isWearableCategory) {
+            specsContainer.style.display = 'block';
+            dynamicSpecs.innerHTML = '';
+            showGenericSpecs(categoryName);
+            return;
+        }
+        
         // Only fetch and show phone-specific specs if category is actually "phone"
         if (isPhoneCategory) {
             // Fetch brand-specific specifications for phones
@@ -416,9 +427,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         const currentCategoryName = currentCategoryOption ? currentCategoryOption.text.toLowerCase() : '';
                         const currentNormalized = currentCategoryName.toLowerCase().trim();
                         const isCurrentlyAccessory = accessoryCategories.includes(currentNormalized);
+                        const isCurrentlyLaptop = laptopCategories.includes(currentNormalized);
+                        const isCurrentlyWearable = wearableCategories.includes(currentNormalized);
                         
-                        if (isCurrentlyAccessory) {
-                            // Category changed to accessory while fetching, show generic specs
+                        if (isCurrentlyAccessory || isCurrentlyLaptop || isCurrentlyWearable) {
+                            // Category changed while fetching, show generic specs
                             showGenericSpecs(currentCategoryName);
                         } else {
                             showBrandSpecs(data.data);
@@ -447,11 +460,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const initCategoryOption = categorySelect.options[categorySelect.selectedIndex];
             const initCategoryName = initCategoryOption ? initCategoryOption.text.toLowerCase() : '';
             const initNormalized = initCategoryName.toLowerCase().trim();
-            const initAccessoryCategories = ['accessory', 'accessories'];
-            const isInitAccessory = initAccessoryCategories.includes(initNormalized);
+            const isInitAccessory = accessoryCategories.includes(initNormalized);
+            const isInitLaptop = laptopCategories.includes(initNormalized);
+            const isInitWearable = wearableCategories.includes(initNormalized);
             
-            // If editing an accessory, clear any phone specs that might be in the product data
-            if (isInitAccessory) {
+            if (isInitAccessory || isInitLaptop || isInitWearable) {
                 specsContainer.style.display = 'block';
                 dynamicSpecs.innerHTML = '';
                 showGenericSpecs(initCategoryName);
@@ -462,19 +475,18 @@ document.addEventListener('DOMContentLoaded', () => {
     <?php endif; ?>
 
     function showBrandSpecs(specs) {
-        // CRITICAL SAFETY CHECK: Don't show phone specs if category is accessory
+        // CRITICAL SAFETY CHECK: Don't show phone specs if category is accessory/laptop/etc.
         const categoryOption = categorySelect.options[categorySelect.selectedIndex];
         const categoryName = categoryOption ? categoryOption.text.toLowerCase() : '';
         const normalizedCategoryName = categoryName.toLowerCase().trim();
-        const accessoryCategories = ['accessory', 'accessories'];
         const isAccessoryCategory = accessoryCategories.includes(normalizedCategoryName);
+        const isLaptopCategory = laptopCategories.includes(normalizedCategoryName);
+        const isWearableCategory = wearableCategories.includes(normalizedCategoryName);
         
-        // Phone-specific spec names that should NEVER appear for accessories
+        // Phone-specific spec names that should NEVER appear for other categories
         const phoneSpecNames = ['storage', 'ram', 'battery_health', 'imei', 'model', 'network'];
         
-        if (isAccessoryCategory) {
-            // If category is accessory, show generic accessory specs instead
-            // Clear any phone specs that might have been passed
+        if (isAccessoryCategory || isLaptopCategory || isWearableCategory) {
             specsContainer.style.display = 'block';
             dynamicSpecs.innerHTML = '';
             showGenericSpecs(categoryName);
@@ -482,7 +494,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Check if this is a phone category
-        const phoneCategories = ['phone', 'phones', 'smartphone', 'smartphones', 'mobile', 'mobiles'];
         const isPhoneCategory = phoneCategories.includes(normalizedCategoryName);
         
         // Specs come as an array of objects, not an object
@@ -549,12 +560,9 @@ document.addEventListener('DOMContentLoaded', () => {
             input.name = `specs[${key}]`;
             
             // Set existing value if editing
-            <?php if (isset($product) && !empty($product['specs'])): ?>
-                const existingSpecs = <?= json_encode(json_decode($product['specs'] ?? '{}', true)) ?>;
-                if (existingSpecs[key]) {
-                    input.value = existingSpecs[key];
-                }
-            <?php endif; ?>
+            if (EXISTING_PRODUCT_SPECS && EXISTING_PRODUCT_SPECS[key]) {
+                input.value = EXISTING_PRODUCT_SPECS[key];
+            }
             
             div.appendChild(label);
             div.appendChild(input);
@@ -581,10 +589,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 { key: 'type', label: 'Type', type: 'text', placeholder: 'e.g., Smartwatch, Fitness Band' },
                 { key: 'color', label: 'Color', type: 'text', placeholder: 'e.g., Black, Silver, Rose Gold' },
                 { key: 'size', label: 'Size', type: 'text', placeholder: 'e.g., 42mm, 44mm, One Size' }
+            ],
+            'laptop': [
+                { key: 'cpu', label: 'Processor', type: 'text', placeholder: 'e.g., Intel Core i7-12700H' },
+                { key: 'ram', label: 'RAM (GB)', type: 'text', placeholder: 'e.g., 16GB DDR5' },
+                { key: 'storage', label: 'Storage', type: 'text', placeholder: 'e.g., 512GB NVMe SSD' },
+                { key: 'screen_size', label: 'Screen Size', type: 'text', placeholder: 'e.g., 15.6\" FHD' },
+                { key: 'gpu', label: 'Graphics', type: 'text', placeholder: 'e.g., NVIDIA RTX 4060' },
+                { key: 'os', label: 'Operating System', type: 'text', placeholder: 'e.g., Windows 11 Pro' }
             ]
         };
         
-        const specs = genericSpecs[categoryName] || [];
+        const aliasMap = {
+            'accessories': 'accessory',
+            'repair': 'repair parts',
+            'repair part': 'repair parts',
+            'repair parts': 'repair parts',
+            'wearable': 'wearables',
+            'wearables': 'wearables',
+            'smartwatch': 'wearables',
+            'smartwatches': 'wearables',
+            'laptop': 'laptop',
+            'laptops': 'laptop',
+            'notebook': 'laptop',
+            'notebooks': 'laptop'
+        };
+        
+        const normalizedCategory = (categoryName || '').toLowerCase().trim();
+        const specKey = aliasMap[normalizedCategory] || normalizedCategory;
+        const specs = genericSpecs[specKey] || [];
         
         specs.forEach(spec => {
             const div = document.createElement('div');
@@ -618,8 +651,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.placeholder = spec.placeholder;
             }
             
-            input.id = `spec_${spec.key}`;
-            input.name = `spec_${spec.key}`;
+            const fieldKey = spec.key || spec.name;
+            input.id = `spec_${fieldKey}`;
+            input.name = `specs[${fieldKey}]`;
+            
+            if (EXISTING_PRODUCT_SPECS && EXISTING_PRODUCT_SPECS[fieldKey]) {
+                input.value = EXISTING_PRODUCT_SPECS[fieldKey];
+            }
             
             div.appendChild(label);
             div.appendChild(input);

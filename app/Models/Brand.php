@@ -21,13 +21,53 @@ class Brand {
         if (self::$brandCategoryTableExists !== null) {
             return self::$brandCategoryTableExists;
         }
+
+        self::$brandCategoryTableExists = $this->checkBrandCategoryTable();
+        if (!self::$brandCategoryTableExists) {
+            self::$brandCategoryTableExists = $this->createBrandCategoryLinksTable();
+        }
+
+        return self::$brandCategoryTableExists;
+    }
+
+    private function checkBrandCategoryTable(): bool {
         try {
             $stmt = $this->db->query("SHOW TABLES LIKE 'brand_category_links'");
-            self::$brandCategoryTableExists = $stmt && $stmt->rowCount() > 0;
+            return $stmt && $stmt->rowCount() > 0;
         } catch (\Exception $e) {
-            self::$brandCategoryTableExists = false;
+            return false;
         }
-        return self::$brandCategoryTableExists;
+    }
+
+    private function createBrandCategoryLinksTable(): bool {
+        try {
+            $createSql = "
+                CREATE TABLE IF NOT EXISTS brand_category_links (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    brand_id INT NOT NULL,
+                    category_id INT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY unique_brand_category (brand_id, category_id),
+                    INDEX idx_brand_category_brand (brand_id),
+                    INDEX idx_brand_category_category (category_id),
+                    FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE CASCADE,
+                    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+                )
+            ";
+            $this->db->exec($createSql);
+
+            $backfillSql = "
+                INSERT IGNORE INTO brand_category_links (brand_id, category_id)
+                SELECT id, category_id FROM {$this->table}
+                WHERE category_id IS NOT NULL
+            ";
+            $this->db->exec($backfillSql);
+
+            return true;
+        } catch (\Exception $e) {
+            error_log('Brand::createBrandCategoryLinksTable() error: ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
