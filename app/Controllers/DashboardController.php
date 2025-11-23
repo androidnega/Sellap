@@ -450,19 +450,28 @@ class DashboardController {
      * Render technician dashboard
      */
     private function renderTechnicianDashboard() {
-        // Get user data from session
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
+        // Session is already started by WebAuthMiddleware
+        // Don't start it again to avoid session conflicts
         $userData = $_SESSION['user'] ?? null;
         
         // Debug logging to track session state
+        error_log("renderTechnicianDashboard: Session ID - " . session_id());
         error_log("renderTechnicianDashboard: Session status - " . (session_status() === PHP_SESSION_ACTIVE ? "ACTIVE" : "INACTIVE"));
         error_log("renderTechnicianDashboard: User data - " . ($userData ? json_encode($userData) : "NULL"));
         
+        // WebAuthMiddleware already authenticated the user
+        // If session is missing here, it's a critical issue - don't redirect (causes loop)
         if (!$userData) {
-            error_log("renderTechnicianDashboard: No user data in session, redirecting to login");
-            header('Location: ' . BASE_URL_PATH . '/');
+            error_log("renderTechnicianDashboard: CRITICAL - No user data despite WebAuthMiddleware check");
+            error_log("renderTechnicianDashboard: All session data - " . print_r($_SESSION, true));
+            // Show error instead of redirecting
+            echo '<!DOCTYPE html><html><head><title>Session Error</title></head><body>';
+            echo '<h1>Session Error</h1>';
+            echo '<p>Your session could not be established properly.</p>';
+            echo '<p>Session ID: ' . session_id() . '</p>';
+            echo '<p>Please try <a href="' . BASE_URL_PATH . '/?force_logout=1">logging in again</a>.</p>';
+            echo '<p>If this problem persists, please contact support.</p>';
+            echo '</body></html>';
             exit;
         }
         
