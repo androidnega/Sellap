@@ -589,11 +589,24 @@ document.addEventListener('DOMContentLoaded', function(){
     const phoneCategories = ['phone', 'phones', 'smartphone', 'smartphones', 'mobile', 'mobiles'];
     const isPhoneCategory = phoneCategories.includes(normalizedCategoryName);
     
-    // Try multiple API endpoints
-    const apiEndpoints = [
+    // Get category ID and name for API call
+    const categoryId = categorySelect.value;
+    const categoryNameParam = categoryOption ? encodeURIComponent(categoryOption.text) : '';
+    
+    // Build API endpoints with category parameters
+    const baseEndpoints = [
       `<?= BASE_URL_PATH ?>/api/products/brand-specs/${brandId}`,
       `<?= BASE_URL_PATH ?>/api/brands/specs/${brandId}`
     ];
+    
+    // Add category parameters to endpoints
+    const apiEndpoints = baseEndpoints.map(endpoint => {
+      const params = new URLSearchParams();
+      if (categoryId) params.append('category_id', categoryId);
+      if (categoryNameParam) params.append('category_name', categoryNameParam);
+      const queryString = params.toString();
+      return queryString ? `${endpoint}?${queryString}` : endpoint;
+    });
     
     let fields = [];
     for (const endpoint of apiEndpoints) {

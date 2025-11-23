@@ -237,16 +237,153 @@ class ProductController {
         header('Content-Type: application/json');
         
         try {
+            // Get category from query parameter or from brand's category_id
+            $categoryId = $_GET['category_id'] ?? null;
+            $categoryName = $_GET['category_name'] ?? null;
+            
             // Check if brandId is numeric (ID) or string (name)
             if (is_numeric($brandId)) {
                 $brand = $this->brand->find($brandId);
                 $brandName = $brand ? $brand['name'] : $brandId;
+                
+                // If category not provided, try to get it from brand
+                if (!$categoryId && !$categoryName && $brand && isset($brand['category_id'])) {
+                    $categoryId = $brand['category_id'];
+                }
             } else {
                 // It's a brand name, use it directly
                 $brandName = $brandId;
             }
+            
+            // Get category name if we have category_id
+            if ($categoryId && !$categoryName) {
+                $category = $this->category->find($categoryId);
+                if ($category) {
+                    $categoryName = strtolower($category['name'] ?? '');
+                }
+            } elseif ($categoryName) {
+                $categoryName = strtolower($categoryName);
+            }
 
-            // Brand-specific spec field definitions
+            // Laptop-specific specs for different brands
+            $laptopSpecs = [
+                'Apple' => [
+                    ['name' => 'model', 'label' => 'Model', 'type' => 'text', 'required' => true, 'placeholder' => 'e.g., MacBook Pro 16" M3 Pro', 'tooltip' => 'Enter the specific MacBook model'],
+                    ['name' => 'screen_size', 'label' => 'Screen Size', 'type' => 'select', 'required' => true, 'options' => ['13"', '14"', '15"', '16"'], 'tooltip' => 'Select the screen size'],
+                    ['name' => 'processor', 'label' => 'Processor', 'type' => 'select', 'required' => true, 'options' => ['M1', 'M1 Pro', 'M1 Max', 'M2', 'M2 Pro', 'M2 Max', 'M3', 'M3 Pro', 'M3 Max', 'Intel Core i5', 'Intel Core i7', 'Intel Core i9'], 'tooltip' => 'Select the processor'],
+                    ['name' => 'ram', 'label' => 'RAM', 'type' => 'select', 'required' => true, 'options' => ['8GB', '16GB', '24GB', '32GB', '36GB', '48GB', '64GB', '96GB', '128GB'], 'tooltip' => 'Select the RAM size'],
+                    ['name' => 'storage', 'label' => 'Storage', 'type' => 'select', 'required' => true, 'options' => ['256GB', '512GB', '1TB', '2TB', '4TB', '8TB'], 'tooltip' => 'Select the storage capacity'],
+                    ['name' => 'color', 'label' => 'Color', 'type' => 'text', 'required' => false, 'placeholder' => 'e.g., Space Gray, Silver', 'tooltip' => 'Enter the device color'],
+                    ['name' => 'year', 'label' => 'Year', 'type' => 'select', 'required' => false, 'options' => ['2020', '2021', '2022', '2023', '2024', '2025'], 'tooltip' => 'Select the model year'],
+                    ['name' => 'condition', 'label' => 'Condition', 'type' => 'select', 'required' => false, 'options' => ['New', 'Refurbished', 'Used - Excellent', 'Used - Good', 'Used - Fair'], 'tooltip' => 'Select the condition'],
+                ],
+                'HP' => [
+                    ['name' => 'model', 'label' => 'Model', 'type' => 'text', 'required' => true, 'placeholder' => 'e.g., HP Pavilion 15', 'tooltip' => 'Enter the specific HP laptop model'],
+                    ['name' => 'screen_size', 'label' => 'Screen Size', 'type' => 'select', 'required' => true, 'options' => ['13.3"', '14"', '15.6"', '17.3"'], 'tooltip' => 'Select the screen size'],
+                    ['name' => 'processor', 'label' => 'Processor', 'type' => 'select', 'required' => true, 'options' => ['Intel Core i3', 'Intel Core i5', 'Intel Core i7', 'Intel Core i9', 'AMD Ryzen 3', 'AMD Ryzen 5', 'AMD Ryzen 7', 'AMD Ryzen 9'], 'tooltip' => 'Select the processor'],
+                    ['name' => 'ram', 'label' => 'RAM', 'type' => 'select', 'required' => true, 'options' => ['4GB', '8GB', '16GB', '32GB', '64GB'], 'tooltip' => 'Select the RAM size'],
+                    ['name' => 'storage', 'label' => 'Storage', 'type' => 'select', 'required' => true, 'options' => ['128GB', '256GB', '512GB', '1TB', '2TB'], 'tooltip' => 'Select the storage capacity'],
+                    ['name' => 'graphics', 'label' => 'Graphics', 'type' => 'select', 'required' => false, 'options' => ['Integrated', 'NVIDIA GeForce GTX', 'NVIDIA GeForce RTX', 'AMD Radeon'], 'tooltip' => 'Select the graphics card'],
+                    ['name' => 'color', 'label' => 'Color', 'type' => 'text', 'required' => false, 'placeholder' => 'e.g., Silver, Black, Blue', 'tooltip' => 'Enter the device color'],
+                    ['name' => 'condition', 'label' => 'Condition', 'type' => 'select', 'required' => false, 'options' => ['New', 'Refurbished', 'Used - Excellent', 'Used - Good', 'Used - Fair'], 'tooltip' => 'Select the condition'],
+                ],
+                'Dell' => [
+                    ['name' => 'model', 'label' => 'Model', 'type' => 'text', 'required' => true, 'placeholder' => 'e.g., Dell XPS 15', 'tooltip' => 'Enter the specific Dell laptop model'],
+                    ['name' => 'screen_size', 'label' => 'Screen Size', 'type' => 'select', 'required' => true, 'options' => ['13.3"', '14"', '15.6"', '17.3"'], 'tooltip' => 'Select the screen size'],
+                    ['name' => 'processor', 'label' => 'Processor', 'type' => 'select', 'required' => true, 'options' => ['Intel Core i3', 'Intel Core i5', 'Intel Core i7', 'Intel Core i9', 'AMD Ryzen 3', 'AMD Ryzen 5', 'AMD Ryzen 7', 'AMD Ryzen 9'], 'tooltip' => 'Select the processor'],
+                    ['name' => 'ram', 'label' => 'RAM', 'type' => 'select', 'required' => true, 'options' => ['4GB', '8GB', '16GB', '32GB', '64GB'], 'tooltip' => 'Select the RAM size'],
+                    ['name' => 'storage', 'label' => 'Storage', 'type' => 'select', 'required' => true, 'options' => ['128GB', '256GB', '512GB', '1TB', '2TB'], 'tooltip' => 'Select the storage capacity'],
+                    ['name' => 'graphics', 'label' => 'Graphics', 'type' => 'select', 'required' => false, 'options' => ['Integrated', 'NVIDIA GeForce GTX', 'NVIDIA GeForce RTX', 'AMD Radeon'], 'tooltip' => 'Select the graphics card'],
+                    ['name' => 'color', 'label' => 'Color', 'type' => 'text', 'required' => false, 'placeholder' => 'e.g., Silver, Black, Platinum', 'tooltip' => 'Enter the device color'],
+                    ['name' => 'condition', 'label' => 'Condition', 'type' => 'select', 'required' => false, 'options' => ['New', 'Refurbished', 'Used - Excellent', 'Used - Good', 'Used - Fair'], 'tooltip' => 'Select the condition'],
+                ],
+            ];
+            
+            // Repair Parts specs for different brands
+            $repairPartsSpecs = [
+                'Apple' => [
+                    ['name' => 'part_type', 'label' => 'Part Type', 'type' => 'select', 'required' => true, 'options' => ['Screen/Display', 'Battery', 'Charging Port', 'Camera Module', 'Logic Board', 'Speaker', 'Microphone', 'Home Button', 'Face ID Module', 'Back Glass', 'Frame/Chassis', 'Other'], 'tooltip' => 'Select the type of repair part'],
+                    ['name' => 'compatible_models', 'label' => 'Compatible Models', 'type' => 'text', 'required' => true, 'placeholder' => 'e.g., iPhone 12, iPhone 13, iPhone 14', 'tooltip' => 'Enter compatible iPhone/iPad models'],
+                    ['name' => 'part_number', 'label' => 'Part Number', 'type' => 'text', 'required' => false, 'placeholder' => 'e.g., 661-12345', 'tooltip' => 'Enter the Apple part number if available'],
+                    ['name' => 'condition', 'label' => 'Condition', 'type' => 'select', 'required' => true, 'options' => ['New', 'Refurbished', 'Used - Working', 'Used - Needs Testing'], 'tooltip' => 'Select the condition of the part'],
+                    ['name' => 'color', 'label' => 'Color', 'type' => 'text', 'required' => false, 'placeholder' => 'e.g., Black, White, Space Gray', 'tooltip' => 'Enter the color if applicable'],
+                    ['name' => 'notes', 'label' => 'Notes', 'type' => 'text', 'required' => false, 'placeholder' => 'Additional notes for technicians', 'tooltip' => 'Enter any additional information'],
+                ],
+                'Samsung' => [
+                    ['name' => 'part_type', 'label' => 'Part Type', 'type' => 'select', 'required' => true, 'options' => ['Screen/Display', 'Battery', 'Charging Port', 'Camera Module', 'Main Board', 'Speaker', 'Microphone', 'Fingerprint Sensor', 'Back Glass', 'Frame/Chassis', 'Other'], 'tooltip' => 'Select the type of repair part'],
+                    ['name' => 'compatible_models', 'label' => 'Compatible Models', 'type' => 'text', 'required' => true, 'placeholder' => 'e.g., Galaxy S21, Galaxy S22, Galaxy Note 20', 'tooltip' => 'Enter compatible Samsung models'],
+                    ['name' => 'part_number', 'label' => 'Part Number', 'type' => 'text', 'required' => false, 'placeholder' => 'e.g., GH82-12345', 'tooltip' => 'Enter the Samsung part number if available'],
+                    ['name' => 'condition', 'label' => 'Condition', 'type' => 'select', 'required' => true, 'options' => ['New', 'Refurbished', 'Used - Working', 'Used - Needs Testing'], 'tooltip' => 'Select the condition of the part'],
+                    ['name' => 'color', 'label' => 'Color', 'type' => 'text', 'required' => false, 'placeholder' => 'e.g., Black, White, Blue', 'tooltip' => 'Enter the color if applicable'],
+                    ['name' => 'notes', 'label' => 'Notes', 'type' => 'text', 'required' => false, 'placeholder' => 'Additional notes for technicians', 'tooltip' => 'Enter any additional information'],
+                ],
+                'default_repair_parts' => [
+                    ['name' => 'part_type', 'label' => 'Part Type', 'type' => 'text', 'required' => true, 'placeholder' => 'e.g., Screen, Battery, Charging Port', 'tooltip' => 'Enter the type of repair part'],
+                    ['name' => 'compatible_models', 'label' => 'Compatible Models', 'type' => 'text', 'required' => true, 'placeholder' => 'e.g., iPhone 12, Samsung Galaxy S21', 'tooltip' => 'Enter compatible device models'],
+                    ['name' => 'condition', 'label' => 'Condition', 'type' => 'select', 'required' => true, 'options' => ['New', 'Refurbished', 'Used - Working', 'Used - Needs Testing'], 'tooltip' => 'Select the condition of the part'],
+                    ['name' => 'color', 'label' => 'Color', 'type' => 'text', 'required' => false, 'placeholder' => 'e.g., Black, White', 'tooltip' => 'Enter the color if applicable'],
+                    ['name' => 'notes', 'label' => 'Notes', 'type' => 'text', 'required' => false, 'placeholder' => 'Additional notes for technicians', 'tooltip' => 'Enter any additional information'],
+                ],
+            ];
+
+            // Check if category is Laptops - return laptop specs
+            if ($categoryName && (strpos($categoryName, 'laptop') !== false)) {
+                $normalizedBrandName = strtolower(trim($brandName));
+                $specs = null;
+                
+                // Try to find brand-specific laptop specs
+                foreach ($laptopSpecs as $specBrand => $specData) {
+                    if (strtolower($specBrand) === $normalizedBrandName) {
+                        $specs = $specData;
+                        break;
+                    }
+                }
+                
+                // If no brand-specific specs found, return generic laptop specs
+                if (!$specs) {
+                    $specs = [
+                        ['name' => 'model', 'label' => 'Model', 'type' => 'text', 'required' => true, 'placeholder' => 'Enter laptop model', 'tooltip' => 'Enter the specific laptop model'],
+                        ['name' => 'screen_size', 'label' => 'Screen Size', 'type' => 'select', 'required' => false, 'options' => ['13"', '13.3"', '14"', '15.6"', '16"', '17.3"'], 'tooltip' => 'Select the screen size'],
+                        ['name' => 'processor', 'label' => 'Processor', 'type' => 'text', 'required' => false, 'placeholder' => 'e.g., Intel Core i5', 'tooltip' => 'Enter the processor'],
+                        ['name' => 'ram', 'label' => 'RAM', 'type' => 'select', 'required' => false, 'options' => ['4GB', '8GB', '16GB', '32GB', '64GB'], 'tooltip' => 'Select the RAM size'],
+                        ['name' => 'storage', 'label' => 'Storage', 'type' => 'select', 'required' => false, 'options' => ['128GB', '256GB', '512GB', '1TB', '2TB'], 'tooltip' => 'Select the storage capacity'],
+                        ['name' => 'color', 'label' => 'Color', 'type' => 'text', 'required' => false, 'placeholder' => 'Enter device color', 'tooltip' => 'Enter the device color'],
+                    ];
+                }
+                
+                echo json_encode([
+                    'success' => true,
+                    'data' => $specs
+                ]);
+                exit;
+            }
+            
+            // Check if category is Repair Parts - return repair parts specs
+            if ($categoryName && (strpos($categoryName, 'repair') !== false || strpos($categoryName, 'part') !== false)) {
+                $normalizedBrandName = strtolower(trim($brandName));
+                $specs = null;
+                
+                // Try to find brand-specific repair parts specs
+                foreach ($repairPartsSpecs as $specBrand => $specData) {
+                    if (strtolower($specBrand) === $normalizedBrandName) {
+                        $specs = $specData;
+                        break;
+                    }
+                }
+                
+                // If no brand-specific specs found, return default repair parts specs
+                if (!$specs) {
+                    $specs = $repairPartsSpecs['default_repair_parts'];
+                }
+                
+                echo json_encode([
+                    'success' => true,
+                    'data' => $specs
+                ]);
+                exit;
+            }
+
+            // Brand-specific spec field definitions (for phones and other categories)
             $specMap = [
                 'Apple' => [
                     ['name' => 'model', 'label' => 'Model', 'type' => 'text', 'required' => true, 'placeholder' => 'e.g., A2896 (iPhone 14 Pro Max)', 'tooltip' => 'Enter the specific model number'],

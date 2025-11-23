@@ -408,7 +408,55 @@ document.addEventListener('DOMContentLoaded', () => {
             return; // Exit early, don't fetch brand specs
         }
         
-        if (isLaptopCategory || isWearableCategory) {
+        // Check if this is a repair parts category
+        const repairPartsCategories = ['repair parts', 'repair part', 'repair-parts', 'repair_parts', 'repair'];
+        const isRepairPartsCategory = repairPartsCategories.some(cat => normalizedCategoryName.includes(cat));
+        
+        // For laptops and repair parts, fetch brand-specific specs
+        if (isLaptopCategory || isRepairPartsCategory) {
+            // Get category ID and name for API call
+            const categoryId = categorySelect.value;
+            const categoryNameParam = categoryOption ? encodeURIComponent(categoryOption.text) : '';
+            
+            // Build API endpoint with category parameters
+            let apiUrl = `${BASE}/api/products/brand-specs/${brandId}`;
+            const params = new URLSearchParams();
+            if (categoryId) params.append('category_id', categoryId);
+            if (categoryNameParam) params.append('category_name', categoryNameParam);
+            const queryString = params.toString();
+            if (queryString) apiUrl = `${apiUrl}?${queryString}`;
+            
+            // Fetch brand-specific specifications for laptops/repair parts
+            fetch(apiUrl)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.data && Array.isArray(data.data) && data.data.length > 0) {
+                        // Double-check category hasn't changed
+                        const currentCategoryOption = categorySelect.options[categorySelect.selectedIndex];
+                        const currentCategoryName = currentCategoryOption ? currentCategoryOption.text.toLowerCase() : '';
+                        const currentNormalized = currentCategoryName.toLowerCase().trim();
+                        const isCurrentlyAccessory = accessoryCategories.includes(currentNormalized);
+                        
+                        if (isCurrentlyAccessory) {
+                            // Category changed to accessory, show generic specs
+                            showGenericSpecs(currentCategoryName);
+                        } else {
+                            showBrandSpecs(data.data);
+                        }
+                    } else {
+                        // Fallback to generic specs if no brand-specific specs found
+                        showGenericSpecs(categoryName);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading brand specs:', error);
+                    // Fallback to generic specs on error
+                    showGenericSpecs(categoryName);
+                });
+            return;
+        }
+        
+        if (isWearableCategory) {
             specsContainer.style.display = 'block';
             dynamicSpecs.innerHTML = '';
             showGenericSpecs(categoryName);
