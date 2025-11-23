@@ -3272,6 +3272,28 @@ $router->get('api/sms/logs', function() {
 // MIGRATION TOOLS (System Admin Only)
 // ========================================
 
+// Migration tools index page
+$router->get('dashboard/tools', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin']);
+    $title = 'Migration Tools';
+    
+    ob_start();
+    include __DIR__ . '/../app/Views/migration_tools_index.php';
+    $content = ob_get_clean();
+    
+    $GLOBALS['content'] = $content;
+    $GLOBALS['title'] = $title;
+    
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    if (isset($_SESSION['user'])) {
+        $GLOBALS['user_data'] = $_SESSION['user'];
+    }
+    
+    require __DIR__ . '/../app/Views/simple_layout.php';
+});
+
 // Run laptop category and brands migration
 $router->get('dashboard/tools/run-laptop-migration', function() {
     \App\Middleware\WebAuthMiddleware::handle(['system_admin']);
