@@ -81,6 +81,10 @@ class CustomerController {
         }
         $customers = $uniqueCustomers;
         
+        // DEBUG: What are we passing to the view?
+        error_log("CONTROLLER: Passing " . count($customers) . " customers to view");
+        error_log("CONTROLLER: Customer IDs: " . implode(',', array_column($customers, 'id')));
+        
         // Detect duplicate customers by phone number (check ONLY within same company)
         $allDuplicatePhones = $this->detectDuplicatePhonesFromDatabase();
         foreach ($customers as &$customer) {

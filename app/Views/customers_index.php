@@ -74,6 +74,10 @@
             </thead>
             <tbody id="customersTableBody" class="bg-white divide-y divide-gray-200">
                 <!-- DEBUG: About to render <?= count($customers) ?> customers -->
+                <?php 
+                error_log("VIEW: Received " . count($customers) . " customers");
+                error_log("VIEW: Customer IDs in array: " . implode(',', array_column($customers, 'id')));
+                ?>
                 <?php if (!empty($customers)): ?>
                     <?php 
                     $displayedCount = 0;
