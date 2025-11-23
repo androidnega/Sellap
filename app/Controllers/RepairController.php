@@ -52,6 +52,13 @@ class RepairController {
      * Display repair list for managers/technicians
      */
     public function index() {
+        // BLOCK ADMIN IMMEDIATELY - Must be first thing in method
+        \App\Helpers\AdminBlockHelper::blockAdmin(
+            ['manager', 'technician', 'system_admin'],
+            "You do not have permission to access repair pages.",
+            BASE_URL_PATH . '/dashboard'
+        );
+        
         // Use WebAuthMiddleware for session-based authentication
         WebAuthMiddleware::handle(['manager', 'technician', 'system_admin']);
         
@@ -186,6 +193,13 @@ class RepairController {
      * Show create repair form - Uses booking form instead of repair form
      */
     public function create() {
+        // BLOCK ADMIN IMMEDIATELY - Must be first thing in method
+        \App\Helpers\AdminBlockHelper::blockAdmin(
+            ['technician', 'system_admin'],
+            "You do not have permission to create repairs. Only Technicians and System Administrators can create repair bookings.",
+            BASE_URL_PATH . '/dashboard'
+        );
+        
         // Use WebAuthMiddleware for session-based authentication
         // Managers cannot create repairs, only technicians can
         WebAuthMiddleware::handle(['technician', 'system_admin']);

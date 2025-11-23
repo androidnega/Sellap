@@ -16,6 +16,13 @@ class CustomerController {
      * Web interface for customer management
      */
     public function webIndex() {
+        // BLOCK ADMIN IMMEDIATELY - Must be first thing in method
+        \App\Helpers\AdminBlockHelper::blockAdmin(
+            ['manager', 'salesperson', 'system_admin'],
+            "You do not have permission to access customer pages.",
+            BASE_URL_PATH . '/dashboard'
+        );
+        
         // Get company_id from session for multi-tenant isolation
         if (session_status() === PHP_SESSION_NONE) {
             session_start();

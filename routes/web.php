@@ -1243,7 +1243,19 @@ $router->get('api/repairs/search', function() {
 
 // Booking (for technicians and managers)
 $router->get('dashboard/booking', function() {
-    \App\Middleware\WebAuthMiddleware::handle(['technician', 'manager', 'admin', 'system_admin']);
+    // BLOCK ADMIN - admin should not access technician booking page
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    $userRole = strtolower(trim($_SESSION['user']['role'] ?? ''));
+    if ($userRole === 'admin') {
+        \App\Helpers\AdminBlockHelper::showAccessDenied(
+            "You do not have permission to access technician booking pages.",
+            BASE_URL_PATH . '/dashboard'
+        );
+    }
+    
+    \App\Middleware\WebAuthMiddleware::handle(['technician', 'manager', 'system_admin']);
     $GLOBALS['currentPage'] = 'booking';
     $controller = new \App\Controllers\TechnicianController();
     $controller->booking();

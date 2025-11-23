@@ -140,8 +140,15 @@ class POSController {
      * Display POS interface
      */
     public function index() {
+        // BLOCK ADMIN IMMEDIATELY - Must be first thing in method
+        \App\Helpers\AdminBlockHelper::blockAdmin(
+            ['system_admin', 'manager', 'salesperson'],
+            "You do not have permission to access POS (Point of Sale) pages.",
+            BASE_URL_PATH . '/dashboard'
+        );
+        
         // Handle web authentication
-        $user = WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson']);
+        $user = WebAuthMiddleware::handle(['system_admin', 'manager', 'salesperson']);
         
         // Get company_id from session
         $companyId = $_SESSION['user']['company_id'] ?? null;

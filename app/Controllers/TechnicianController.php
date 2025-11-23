@@ -160,7 +160,14 @@ class TechnicianController {
      * Booking/Create Repair Page
      */
     public function booking() {
-        WebAuthMiddleware::handle(['technician', 'manager', 'admin', 'system_admin']);
+        // BLOCK ADMIN IMMEDIATELY - Must be first thing in method
+        \App\Helpers\AdminBlockHelper::blockAdmin(
+            ['technician', 'manager', 'system_admin'],
+            "You do not have permission to access technician booking pages.",
+            BASE_URL_PATH . '/dashboard'
+        );
+        
+        WebAuthMiddleware::handle(['technician', 'manager', 'system_admin']);
         
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
