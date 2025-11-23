@@ -73,6 +73,19 @@
                 </tr>
             </thead>
             <tbody id="customersTableBody" class="bg-white divide-y divide-gray-200">
+                <script>
+                // IMMEDIATE CHECK: How many rows are in the HTML right now?
+                document.addEventListener('DOMContentLoaded', function() {
+                    const tbody = document.getElementById('customersTableBody');
+                    if (tbody) {
+                        const rows = tbody.querySelectorAll('tr[data-customer-id]');
+                        console.log('DOM LOADED: Found', rows.length, 'customer rows in tbody');
+                        rows.forEach((row, i) => {
+                            console.log(`  Row ${i+1}: ID ${row.dataset.customerId}`);
+                        });
+                    }
+                });
+                </script>
                 <!-- DEBUG: About to render <?= count($customers) ?> customers -->
                 <?php 
                 error_log("VIEW: Received " . count($customers) . " customers");
