@@ -1,46 +1,46 @@
 <?php
-// Capture the HTML output of the customer page
-ob_start();
+header('Content-Type: text/plain');
 
-$_GET['page'] = 1;
 session_start();
+require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/app/Models/Customer.php';
+
+// Set up session like a logged in user
 $_SESSION['user'] = [
     'id' => 1,
     'company_id' => 11,
     'role' => 'manager'
 ];
 
-require_once __DIR__ . '/app/Controllers/CustomerController.php';
-$controller = new App\Controllers\CustomerController();
-$controller->webIndex();
+$companyId = 11;
+$customerModel = new App\Models\Customer();
 
-$html = ob_get_clean();
+echo "HTML Rendering Test\n";
+echo "══════════════════════════════════════════\n\n";
 
-// Extract just the table body
-preg_match('/<tbody[^>]*id="customersTableBody"[^>]*>(.*?)<\/tbody>/s', $html, $matches);
+// Get customers
+$customers = $customerModel->getPaginated(1, 10, null, null, $companyId);
 
-if ($matches) {
-    $tbody = $matches[0];
-    
-    // Count <tr> tags
-    preg_match_all('/<tr[^>]*data-customer-id="(\d+)"/', $tbody, $rows);
-    
-    echo "Table body HTML analysis:\n";
-    echo "══════════════════════════════════════════\n\n";
-    echo "Total <tr> tags found: " . count($rows[0]) . "\n\n";
-    
-    if (!empty($rows[1])) {
-        echo "Customer IDs in HTML:\n";
-        foreach ($rows[1] as $id) {
-            echo "  - Customer ID: $id\n";
-        }
+echo "Customers from database: " . count($customers) . "\n\n";
+
+// Simulate the rendering loop
+$displayedCount = 0;
+$renderedIds = [];
+
+foreach ($customers as $customer) {
+    if (isset($renderedIds[$customer['id']])) {
+        echo "SKIPPED: Duplicate customer ID {$customer['id']}\n";
+        continue;
     }
+    $renderedIds[$customer['id']] = true;
+    $displayedCount++;
     
-    echo "\n══════════════════════════════════════════\n";
-    echo "Full <tbody> content:\n";
-    echo "══════════════════════════════════════════\n\n";
-    echo $tbody;
-} else {
-    echo "Could not find table body in HTML\n";
+    echo "Rendering #{$displayedCount}:\n";
+    echo "  ID: {$customer['id']}\n";
+    echo "  Unique ID: {$customer['unique_id']}\n";
+    echo "  Name: {$customer['full_name']}\n";
+    echo "  Phone: {$customer['phone_number']}\n\n";
 }
 
+echo "══════════════════════════════════════════\n";
+echo "Total displayed: {$displayedCount}\n";
