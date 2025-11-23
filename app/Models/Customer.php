@@ -339,8 +339,8 @@ class Customer {
         $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
         
         // Select customers ordered by creation date (newest first)
-        // PHP-side deduplication will handle any duplicate rows
-        $sql = "SELECT * FROM {$this->table} {$whereClause} ORDER BY created_at DESC, id DESC LIMIT :limit OFFSET :offset";
+        // Use DISTINCT to ensure no duplicate rows at database level
+        $sql = "SELECT DISTINCT * FROM {$this->table} {$whereClause} ORDER BY created_at DESC, id DESC LIMIT :limit OFFSET :offset";
         $stmt = $this->conn->prepare($sql);
         
         foreach ($params as $key => $value) {

@@ -70,6 +70,7 @@ class CustomerController {
         }
         
         // CRITICAL FIX: Remove actual duplicate rows (same customer ID appearing twice)
+        $originalCount = count($customers);
         $seenIds = [];
         $uniqueCustomers = [];
         foreach ($customers as $customer) {
@@ -80,6 +81,11 @@ class CustomerController {
             }
         }
         $customers = $uniqueCustomers;
+        
+        // Log if we removed duplicates
+        if ($originalCount != count($customers)) {
+            error_log("DEDUP: Removed " . ($originalCount - count($customers)) . " duplicate rows from query results");
+        }
         
         // Detect duplicate customers by phone number (check ONLY within same company)
         $allDuplicatePhones = $this->detectDuplicatePhonesFromDatabase();
