@@ -59,6 +59,18 @@ class CustomerController {
             $customers = $this->model->getPaginated($currentPage, $itemsPerPage, $search, $dateFilter, $companyId);
         }
         
+        // Remove any duplicate customers by ID (in case of data issues)
+        $seenIds = [];
+        $uniqueCustomers = [];
+        foreach ($customers as $customer) {
+            $customerId = $customer['id'] ?? null;
+            if ($customerId && !isset($seenIds[$customerId])) {
+                $seenIds[$customerId] = true;
+                $uniqueCustomers[] = $customer;
+            }
+        }
+        $customers = $uniqueCustomers;
+        
         // Detect duplicate customers by phone number (check ONLY within same company)
         $allDuplicatePhones = $this->detectDuplicatePhonesFromDatabase();
         foreach ($customers as &$customer) {
@@ -1193,6 +1205,20 @@ class CustomerController {
         
         // Delete customer with company isolation (only delete if belongs to company)
         $result = $this->model->delete($id, $companyId);
+        
+        if ($result) {
+            // Verify deletion was successful
+            $verifyCustomer = $companyId ? $this->model->find($id, $companyId) : $this->model->findById($id);
+            if ($verifyCustomer) {
+                // Customer still exists, deletion failed
+                http_response_code(500);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Failed to delete customer. Customer still exists in database.'
+                ]);
+                return;
+            }
+        }
         
         echo json_encode([
             'success' => $result,

@@ -80,12 +80,21 @@
             </thead>
             <tbody id="customersTableBody" class="bg-white divide-y divide-gray-200">
                 <?php if (!empty($customers)): ?>
-                    <?php foreach ($customers as $customer): ?>
-                        <?php 
+                    <?php 
+                    // Track seen customer IDs to prevent duplicate rows
+                    $seenCustomerIds = [];
+                    foreach ($customers as $customer): 
+                        $customerId = $customer['id'] ?? null;
+                        // Skip if we've already displayed this customer ID
+                        if ($customerId && isset($seenCustomerIds[$customerId])) {
+                            continue;
+                        }
+                        $seenCustomerIds[$customerId] = true;
+                        
                         $isDuplicate = $customer['is_duplicate'] ?? false;
                         $duplicateCount = $customer['duplicate_count'] ?? 1;
                         $rowClass = $isDuplicate ? 'bg-yellow-50 hover:bg-yellow-100 border-l-4 border-yellow-400' : '';
-                        ?>
+                    ?>
                         <tr data-customer-id="<?= $customer['id'] ?>" class="<?= $rowClass ?>" data-phone="<?= htmlspecialchars($customer['phone_number'] ?? '') ?>">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 <?= htmlspecialchars($customer['unique_id']) ?>
@@ -955,29 +964,24 @@ async function deleteCustomer(customerId, customerName) {
             return;
         }
         
-        // Success - remove the row from the table
-        const row = document.querySelector(`tr[data-customer-id="${customerId}"]`);
-        if (row) {
+        // Success - remove ALL rows with this customer ID (in case of duplicates)
+        const rows = document.querySelectorAll(`tr[data-customer-id="${customerId}"]`);
+        rows.forEach(row => {
             row.style.transition = 'opacity 0.3s';
             row.style.opacity = '0';
             setTimeout(() => {
                 row.remove();
-                // Update duplicate counts if needed
-                updateDuplicateDisplay();
             }, 300);
-        }
+        });
         
         showNotification('Customer deleted successfully!', 'success');
         
-        // Redirect to customers page without filters/search to refresh the list
-        // Use a short delay to ensure the deletion is complete
+        // Redirect to customers page to refresh the list and ensure customer is completely removed
+        // Use a short delay to ensure the deletion is complete on the server
         setTimeout(() => {
             const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
-            // Get current page from URL or default to 1
-            const urlParams = new URLSearchParams(window.location.search);
-            const currentPage = urlParams.get('page') || '1';
-            // Redirect to same page (or page 1 if current page might be empty after deletion)
-            window.location.href = base + '/dashboard/customers?page=' + currentPage;
+            // Always go to page 1 after deletion to ensure clean state
+            window.location.href = base + '/dashboard/customers?page=1';
         }, 500);
     } catch (error) {
         console.error('Error deleting customer:', error);
