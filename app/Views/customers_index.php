@@ -73,6 +73,7 @@
                 </tr>
             </thead>
             <tbody id="customersTableBody" class="bg-white divide-y divide-gray-200">
+                <!-- DEBUG: About to render <?= count($customers) ?> customers -->
                 <?php if (!empty($customers)): ?>
                     <?php 
                     $displayedCount = 0;
@@ -80,10 +81,13 @@
                     foreach ($customers as $customer):
                         // Skip if already rendered (safety check)
                         if (isset($renderedIds[$customer['id']])) {
+                            echo "<!-- SKIPPED: Duplicate customer ID {$customer['id']} -->";
                             continue;
                         }
-                        $renderedIds[$customer['id']] = true; 
+                        $renderedIds[$customer['id']] = true;
                         $displayedCount++;
+                        
+                        echo "<!-- Rendering customer ID: {$customer['id']}, Name: {$customer['full_name']} -->";
                         
                         $isDuplicate = $customer['is_duplicate'] ?? false;
                         $duplicateCount = $customer['duplicate_count'] ?? 1;
