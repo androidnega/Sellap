@@ -388,7 +388,9 @@ print_info("Creating a test technician session for manual testing...");
 
 // Get a technician user from database
 try {
-    $db = \App\Models\User::getDB();
+    // Get database connection
+    require_once __DIR__ . '/config/database.php';
+    $db = getDBConnection();
     $stmt = $db->prepare("SELECT * FROM users WHERE role = 'technician' LIMIT 1");
     $stmt->execute();
     $technician = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -421,7 +423,7 @@ try {
         print_info("Token: " . substr($token, 0, 20) . "...");
         
         print_warning("\nYou can now test the dashboard by navigating to:");
-        print_info("  " . BASE_URL_PATH . "/technician/dashboard");
+        print_info("  " . BASE_URL_PATH . "/dashboard");
         print_warning("\nIf redirect loop still occurs, check the following:");
         print_info("  1. Browser console for JavaScript errors");
         print_info("  2. Network tab for redirect chain");

@@ -343,7 +343,7 @@ switch ($action) {
         // Go to dashboard
         function goToDashboard() {
             // Clear any _auth parameters that might exist
-            window.location.href = BASE + '/technician/dashboard';
+            window.location.href = BASE + '/dashboard';
         }
         
         // Auto-run on page load

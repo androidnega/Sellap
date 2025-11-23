@@ -58,11 +58,11 @@ if (isset($_GET['reset_monitor'])) {
 
 // Test dashboard button handler
 if (isset($_GET['test_dashboard'])) {
-    // Record that we're testing
-    $_SESSION['_testing_dashboard'] = true;
-    $_SESSION['_redirect_monitor_test_start'] = time();
-    header('Location: ' . BASE_URL_PATH . '/technician/dashboard');
-    exit;
+            // Record that we're testing
+            $_SESSION['_testing_dashboard'] = true;
+            $_SESSION['_redirect_monitor_test_start'] = time();
+            header('Location: ' . BASE_URL_PATH . '/dashboard');
+            exit;
 }
 ?>
 <!DOCTYPE html>
@@ -179,7 +179,7 @@ if (isset($_GET['test_dashboard'])) {
             sessionStorage.setItem('monitor_start_time', Date.now());
             
             // Open dashboard in new tab to monitor
-            window.open(BASE + '/technician/dashboard', '_blank');
+            window.open(BASE + '/dashboard', '_blank');
         }
         
         // Check if we came back from dashboard
@@ -493,7 +493,7 @@ if (isset($_GET['test_dashboard'])) {
                     Test Dashboard (New Tab)
                 </button>
                 
-                <a href="<?php echo BASE_URL_PATH; ?>/technician/dashboard" 
+                <a href="<?php echo BASE_URL_PATH; ?>/dashboard" 
                    class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition inline-block">
                     <i class="fas fa-external-link-alt mr-2"></i>
                     Go to Dashboard
