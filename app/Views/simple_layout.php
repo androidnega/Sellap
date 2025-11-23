@@ -20,27 +20,21 @@ if (!defined('BASE_URL_PATH')) {
         window.APP_BASE_PATH = '<?php echo defined("BASE_URL_PATH") ? BASE_URL_PATH : ""; ?>';
         const BASE = window.APP_BASE_PATH || '';
         
-        // Remove kabz_events from URL if present (completely remove this path)
-        (function() {
-            if (window.location.pathname.includes('kabz_events')) {
-                let newPath = window.location.pathname.replace(/\/kabz_events\/?/g, '/');
-                newPath = newPath.replace(/kabz_events/g, '');
-                // Clean up path - no need to add /sellapp prefix
-                if (newPath === '/' || newPath === '') {
-                    newPath = '/';
-                }
-                const newUrl = newPath + window.location.search + window.location.hash;
-                window.location.replace(newUrl);
-                return;
-            }
-        })();
+        // Removed kabz_events cleanup - no longer needed
         
         // Clean up _auth parameter from URL if present (prevents redirect loops)
+        // Use replaceState to change URL without reloading page
         (function() {
-            if (window.location.search.includes('_auth=')) {
-                const url = new URL(window.location);
-                url.searchParams.delete('_auth');
-                window.history.replaceState({}, '', url.pathname + (url.search || '') + (url.hash || ''));
+            try {
+                if (window.location.search.includes('_auth=')) {
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('_auth');
+                    const cleanUrl = url.pathname + (url.search || '') + (url.hash || '');
+                    window.history.replaceState({}, '', cleanUrl);
+                    console.log('Cleaned _auth parameter from URL');
+                }
+            } catch (e) {
+                console.error('Error cleaning _auth parameter:', e);
             }
         })();
         
