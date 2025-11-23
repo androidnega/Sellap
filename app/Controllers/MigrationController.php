@@ -90,6 +90,66 @@ class MigrationController
                 'name' => 'Apple',
                 'description' => 'MacBook Air and MacBook Pro laptops',
             ],
+            [
+                'name' => 'Acer',
+                'description' => 'Acer Aspire, Predator and Swift laptop series',
+            ],
+            [
+                'name' => 'ASUS',
+                'description' => 'ASUS VivoBook, ZenBook, ROG and TUF gaming laptops',
+            ],
+            [
+                'name' => 'MSI',
+                'description' => 'MSI gaming and professional laptops',
+            ],
+            [
+                'name' => 'Samsung',
+                'description' => 'Samsung Galaxy Book and Notebook series',
+            ],
+            [
+                'name' => 'Microsoft',
+                'description' => 'Microsoft Surface laptops and 2-in-1 devices',
+            ],
+            [
+                'name' => 'Razer',
+                'description' => 'Razer Blade gaming and professional laptops',
+            ],
+            [
+                'name' => 'Toshiba',
+                'description' => 'Toshiba Satellite and Portégé laptops',
+            ],
+            [
+                'name' => 'LG',
+                'description' => 'LG Gram ultra-lightweight laptops',
+            ],
+            [
+                'name' => 'Alienware',
+                'description' => 'Alienware gaming laptops by Dell',
+            ],
+            [
+                'name' => 'Acer Predator',
+                'description' => 'Acer Predator gaming laptop series',
+            ],
+            [
+                'name' => 'HP Omen',
+                'description' => 'HP Omen gaming laptops',
+            ],
+            [
+                'name' => 'Dell Alienware',
+                'description' => 'Dell Alienware gaming laptops',
+            ],
+            [
+                'name' => 'Chromebook',
+                'description' => 'Chromebook laptops running Chrome OS',
+            ],
+            [
+                'name' => 'Huawei',
+                'description' => 'Huawei MateBook laptop series',
+            ],
+            [
+                'name' => 'Xiaomi',
+                'description' => 'Xiaomi Mi Notebook and RedmiBook laptops',
+            ],
         ];
 
         try {

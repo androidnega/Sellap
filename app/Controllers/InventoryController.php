@@ -204,12 +204,58 @@ class InventoryController {
     }
 
     public function create() {
-        // Don't check auth here - let JavaScript handle it since token is in localStorage
-        // The dashboard HTML will check the token and redirect to login if needed
-        
+        // Start session and check authentication
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
+        
+        // Check if user is logged in
+        $userData = $_SESSION['user'] ?? null;
+        if (!$userData) {
+            $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+            $currentPath = $_SERVER['REQUEST_URI'] ?? '/dashboard/inventory/create';
+            $redirectParam = 'redirect=' . urlencode($currentPath);
+            header('Location: ' . $basePath . '/?' . $redirectParam);
+            exit;
+        }
+        
+        // Check role - only manager and system_admin can create products
+        // Admin role should NOT have access to create products
+        $userRole = $userData['role'] ?? '';
+        $allowedRoles = ['manager', 'system_admin'];
+        
+        if (!in_array($userRole, $allowedRoles)) {
+            // Show access denied page
+            $title = 'Access Denied';
+            $errorMessage = "You do not have permission to create products. Only Managers and System Administrators can add products to inventory. Your current role is: " . htmlspecialchars($userRole);
+            
+            ob_start();
+            ?>
+            <div class="max-w-2xl mx-auto">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                    <div class="flex items-center mb-4">
+                        <svg class="w-8 h-8 text-red-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                        </svg>
+                        <h1 class="text-2xl font-bold text-red-900">Access Denied</h1>
+                    </div>
+                    <p class="text-red-800 mb-4"><?= htmlspecialchars($errorMessage) ?></p>
+                    <a href="<?= BASE_URL_PATH ?>/dashboard/inventory" class="inline-block px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                        Return to Inventory
+                    </a>
+                </div>
+            </div>
+            <?php
+            $content = ob_get_clean();
+            
+            $GLOBALS['content'] = $content;
+            $GLOBALS['title'] = $title;
+            $GLOBALS['user_data'] = $userData;
+            
+            require __DIR__ . '/../Views/simple_layout.php';
+            exit;
+        }
+        
         $companyId = $_SESSION['user']['company_id'] ?? 1;
         
         $categories = (new \App\Models\Category())->getAll();
@@ -273,7 +319,8 @@ class InventoryController {
 
     public function store() {
         // Handle web form submission with session-based authentication
-        \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+        // Only manager and system_admin can create products - admin role excluded
+        \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'manager']);
         
         try {
             // Get company_id from session (for web users)
@@ -512,12 +559,57 @@ class InventoryController {
     }
 
     public function edit($id) {
-        // Don't check auth here - let JavaScript handle it since token is in localStorage
-        // The dashboard HTML will check the token and redirect to login if needed
-        
+        // Start session and check authentication
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
+        
+        // Check if user is logged in
+        $userData = $_SESSION['user'] ?? null;
+        if (!$userData) {
+            $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+            $currentPath = $_SERVER['REQUEST_URI'] ?? '/dashboard/inventory/edit/' . $id;
+            $redirectParam = 'redirect=' . urlencode($currentPath);
+            header('Location: ' . $basePath . '/?' . $redirectParam);
+            exit;
+        }
+        
+        // Check role - only manager and system_admin can edit products
+        $userRole = $userData['role'] ?? '';
+        $allowedRoles = ['manager', 'system_admin'];
+        
+        if (!in_array($userRole, $allowedRoles)) {
+            // Show access denied page
+            $title = 'Access Denied';
+            $errorMessage = "You do not have permission to edit products. Only Managers and System Administrators can modify inventory. Your current role is: " . htmlspecialchars($userRole);
+            
+            ob_start();
+            ?>
+            <div class="max-w-2xl mx-auto">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                    <div class="flex items-center mb-4">
+                        <svg class="w-8 h-8 text-red-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                        </svg>
+                        <h1 class="text-2xl font-bold text-red-900">Access Denied</h1>
+                    </div>
+                    <p class="text-red-800 mb-4"><?= htmlspecialchars($errorMessage) ?></p>
+                    <a href="<?= BASE_URL_PATH ?>/dashboard/inventory" class="inline-block px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                        Return to Inventory
+                    </a>
+                </div>
+            </div>
+            <?php
+            $content = ob_get_clean();
+            
+            $GLOBALS['content'] = $content;
+            $GLOBALS['title'] = $title;
+            $GLOBALS['user_data'] = $userData;
+            
+            require __DIR__ . '/../Views/simple_layout.php';
+            exit;
+        }
+        
         $companyId = $_SESSION['user']['company_id'] ?? 1;
         
         // Clear any existing flash messages when opening edit page
@@ -568,7 +660,8 @@ class InventoryController {
 
     public function update($id) {
         // Handle web form submission with session-based authentication
-        \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+        // Only manager and system_admin can update products - admin role excluded
+        \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'manager']);
         
         try {
             // Get company_id from session (for web users)
