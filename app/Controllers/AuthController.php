@@ -482,15 +482,25 @@ class AuthController {
             unset($_SESSION['validating_token']);
             unset($_SESSION['validating_token_time']);
             
+            // Debug logging
+            error_log("validateLocalToken: Session ID - " . session_id());
+            error_log("validateLocalToken: User set in session - " . json_encode($_SESSION['user']));
+            error_log("validateLocalToken: Session save path - " . session_save_path());
+            
             // Force session write to ensure it's persisted before response
             session_write_close();
             
             // Restart session for any subsequent operations
             session_start();
             
+            // Verify session was properly saved
+            $verifyUser = $_SESSION['user'] ?? null;
+            error_log("validateLocalToken: Session verification after restart - " . ($verifyUser ? "SUCCESS" : "FAILED"));
+            
             echo json_encode([
                 'success' => true,
                 'message' => 'Token validated and session set',
+                'session_id' => session_id(), // Send session ID for debugging
                 'user' => [
                     'id' => $payload->sub,
                     'username' => $payload->username,

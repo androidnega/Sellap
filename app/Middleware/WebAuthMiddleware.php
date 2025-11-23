@@ -24,6 +24,12 @@ class WebAuthMiddleware {
         
         // Check for existing session-based user first
         $userData = $_SESSION['user'] ?? null;
+        
+        // Debug logging
+        error_log("WebAuthMiddleware: Session ID - " . session_id());
+        error_log("WebAuthMiddleware: User data - " . ($userData ? json_encode($userData) : "NULL"));
+        error_log("WebAuthMiddleware: Request URI - " . ($_SERVER['REQUEST_URI'] ?? 'unknown'));
+        
         if ($userData && !empty($userData['role'])) {
             // User is already logged in via session
             // Update last activity time
@@ -35,6 +41,7 @@ class WebAuthMiddleware {
             
             // If _auth parameter exists in URL, remove it by redirecting to clean URL
             if (isset($_GET['_auth'])) {
+                error_log("WebAuthMiddleware: Cleaning _auth parameter from URL");
                 $cleanUrl = strtok($_SERVER['REQUEST_URI'], '?');
                 $queryParams = $_GET;
                 unset($queryParams['_auth']);
@@ -48,6 +55,8 @@ class WebAuthMiddleware {
             if (!empty($allowedRoles) && !in_array($userData['role'], $allowedRoles)) {
                 self::redirectToLogin('You do not have permission to access this page');
             }
+            
+            error_log("WebAuthMiddleware: User authenticated successfully - Role: " . $userData['role']);
             return (object) $userData;
         }
         

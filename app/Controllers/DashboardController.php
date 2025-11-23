@@ -455,7 +455,13 @@ class DashboardController {
             session_start();
         }
         $userData = $_SESSION['user'] ?? null;
+        
+        // Debug logging to track session state
+        error_log("renderTechnicianDashboard: Session status - " . (session_status() === PHP_SESSION_ACTIVE ? "ACTIVE" : "INACTIVE"));
+        error_log("renderTechnicianDashboard: User data - " . ($userData ? json_encode($userData) : "NULL"));
+        
         if (!$userData) {
+            error_log("renderTechnicianDashboard: No user data in session, redirecting to login");
             header('Location: ' . BASE_URL_PATH . '/');
             exit;
         }
