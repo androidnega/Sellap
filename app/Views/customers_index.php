@@ -81,19 +81,22 @@
             </thead>
             <tbody id="customersTableBody" class="bg-white divide-y divide-gray-200">
                 <?php 
-                // Debug: Log customer count (remove after fixing)
+                // Debug: Log customer count and details (remove after fixing)
                 error_log("Customers View: Total customers to display: " . count($customers ?? []));
+                if (!empty($customers)) {
+                    $customerDetails = [];
+                    foreach ($customers as $c) {
+                        $customerDetails[] = "ID:{$c['id']}, Name:{$c['full_name']}, Phone:{$c['phone_number']}";
+                    }
+                    error_log("Customers View: Customer details: " . implode(' | ', $customerDetails));
+                }
                 if (!empty($customers)): ?>
                     <?php 
-                    // Track seen customer IDs to prevent duplicate rows
-                    $seenCustomerIds = [];
+                    // REMOVED: Duplicate checking logic - display ALL customers from controller
+                    $displayedCount = 0;
                     foreach ($customers as $customer): 
-                        $customerId = $customer['id'] ?? null;
-                        // Skip if we've already displayed this customer ID
-                        if ($customerId && isset($seenCustomerIds[$customerId])) {
-                            continue;
-                        }
-                        $seenCustomerIds[$customerId] = true;
+                        $displayedCount++;
+                        error_log("Customers View: Displaying customer ID: " . ($customer['id'] ?? 'N/A') . ", Name: " . ($customer['full_name'] ?? 'N/A') . ", Count: $displayedCount");
                         
                         $isDuplicate = $customer['is_duplicate'] ?? false;
                         $duplicateCount = $customer['duplicate_count'] ?? 1;
@@ -152,7 +155,10 @@
                                 </div>
                             </td>
                         </tr>
-                    <?php endforeach; ?>
+                    <?php 
+                    endforeach; 
+                    error_log("Customers View: Total customers displayed in table: $displayedCount");
+                    ?>
                 <?php else: ?>
                     <tr>
                         <td colspan="6" class="px-6 py-4 text-center text-gray-500">
@@ -608,30 +614,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (result.success) {
+                console.log('Customer created successfully:', result.data);
                 showNotification('Customer created successfully!', 'success');
                 closeModal();
                 // Clear form
                 form.reset();
                 
-                // IMPORTANT: Wait a moment for the database to commit, then reload
-                // This ensures the new customer is in the database before we reload
+                // IMPORTANT: Reload the page to show the new customer
+                // Use a simple redirect to page 1 to ensure all customers are displayed
+                const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
+                
+                // Add a small delay to allow the database to commit
                 setTimeout(() => {
-                    // Clear all filters and search inputs
-                    const duplicateFilter = document.getElementById('showDuplicatesOnly');
-                    if (duplicateFilter && duplicateFilter.checked) {
-                        duplicateFilter.checked = false;
-                    }
-                    const searchInput = document.getElementById('customerSearch');
-                    if (searchInput) searchInput.value = '';
-                    const dateFilter = document.getElementById('dateFilter');
-                    if (dateFilter) dateFilter.value = '';
-                    
-                    // Force a complete page reload with cache busting to ensure ALL customers show
-                    // Use replace instead of href to prevent back button issues
-                    // Go to clean URL with no search/filter params to show ALL customers
-                    const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
-                    window.location.replace(base + '/dashboard/customers?page=1&_t=' + Date.now());
-                }, 300); // Small delay to ensure DB commit
+                    // Use href for a clean reload
+                    window.location.href = base + '/dashboard/customers?page=1';
+                }, 500);
             } else {
                 // Check if it's a duplicate phone number error
                 let errorMsg = result.error || 'Failed to create customer';
@@ -1275,8 +1272,35 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!hasSearchParam && !hasDateFilterParam) {
         if (searchInput) searchInput.value = '';
         if (dateFilter) dateFilter.value = '';
+        // CRITICAL: Uncheck duplicate filter checkbox - this might be hiding customers!
+        const duplicateFilterCheckbox = document.getElementById('showDuplicatesOnly');
+        if (duplicateFilterCheckbox && duplicateFilterCheckbox.checked) {
+            duplicateFilterCheckbox.checked = false;
+            // Also ensure all rows are visible
+            const rows = document.querySelectorAll('#customersTableBody tr[data-customer-id]');
+            rows.forEach(row => {
+                row.style.display = '';
+            });
+        }
         // Hide filter info
         if (info) info.classList.add('hidden');
+        
+        // Log for debugging
+        console.log('Customers page loaded: Cleared all filters, showing all customers');
+        
+        // CRITICAL DEBUG: Count actual rows in DOM after page load
+        setTimeout(() => {
+            const allRows = document.querySelectorAll('#customersTableBody tr[data-customer-id]');
+            const visibleRows = Array.from(allRows).filter(row => row.style.display !== 'none');
+            console.log('Customers page loaded: Total rows in DOM:', allRows.length, 'Visible rows:', visibleRows.length);
+            if (allRows.length !== visibleRows.length) {
+                console.warn('WARNING: Some customer rows are hidden!', {
+                    total: allRows.length,
+                    visible: visibleRows.length,
+                    hidden: allRows.length - visibleRows.length
+                });
+            }
+        }, 500);
     }
     
     // Store original HTML for restoration - will be updated on page load

@@ -34,6 +34,10 @@ class CustomerController {
         $search = trim($_GET['search'] ?? '');
         $dateFilter = $_GET['date_filter'] ?? null;
         
+        // Ensure empty strings are treated as null for proper filtering
+        if ($search === '') $search = null;
+        if ($dateFilter === '') $dateFilter = null;
+        
         // Verify itemsPerPage is correct (safety check)
         if ($itemsPerPage < 1 || $itemsPerPage > 100) {
             $itemsPerPage = 10;
@@ -54,6 +58,24 @@ class CustomerController {
             // Double-check: verify we're not accidentally filtering
             $search = ''; // Explicitly clear
             $dateFilter = null; // Explicitly clear
+            
+            // DIRECT DATABASE CHECK: Verify all customers exist for this company
+            try {
+                $db = \Database::getInstance()->getConnection();
+                $checkStmt = $db->prepare("SELECT id, full_name, phone_number, created_at FROM customers WHERE company_id = :company_id ORDER BY created_at DESC");
+                $checkStmt->execute([':company_id' => $companyId]);
+                $allCustomersInDb = $checkStmt->fetchAll(\PDO::FETCH_ASSOC);
+                error_log("CustomerController: DIRECT DB CHECK - Total customers in database for company $companyId: " . count($allCustomersInDb));
+                if (!empty($allCustomersInDb)) {
+                    $dbDetails = [];
+                    foreach ($allCustomersInDb as $c) {
+                        $dbDetails[] = "ID:{$c['id']}, Name:{$c['full_name']}, Created:{$c['created_at']}";
+                    }
+                    error_log("CustomerController: DIRECT DB CHECK - All customers: " . implode(' | ', $dbDetails));
+                }
+            } catch (\Exception $e) {
+                error_log("CustomerController: Error in direct DB check: " . $e->getMessage());
+            }
         }
         
         $customers = $this->model->getPaginated($currentPage, $itemsPerPage, $search, $dateFilter, $companyId);
@@ -84,17 +106,10 @@ class CustomerController {
             $customers = $this->model->getPaginated($currentPage, $itemsPerPage, $search, $dateFilter, $companyId);
         }
         
-        // Remove any duplicate customers by ID (in case of data issues)
-        $seenIds = [];
-        $uniqueCustomers = [];
-        foreach ($customers as $customer) {
-            $customerId = $customer['id'] ?? null;
-            if ($customerId && !isset($seenIds[$customerId])) {
-                $seenIds[$customerId] = true;
-                $uniqueCustomers[] = $customer;
-            }
-        }
-        $customers = $uniqueCustomers;
+        // REMOVED: Duplicate removal logic - this was causing issues
+        // The database query should not return duplicates
+        // If there are duplicates, it indicates a data integrity issue that should be fixed at the source
+        error_log("CustomerController: Before duplicate check - Count: " . count($customers));
         
         // Detect duplicate customers by phone number (check ONLY within same company)
         $allDuplicatePhones = $this->detectDuplicatePhonesFromDatabase();
@@ -484,16 +499,27 @@ class CustomerController {
             }
         }
         
+        error_log("CustomerController::store - About to create customer: Name={$data['full_name']}, Phone={$data['phone_number']}, Company=$companyId");
+        
         try {
             $result = $this->model->create($data);
             
             if ($result) {
+                error_log("CustomerController::store - Customer created, fetching from database...");
+                
                 // Fetch the created customer to get full data including ID (with company isolation)
                 $customer = $this->model->findByUniqueId($data['unique_id'], $companyId);
                 
                 if (!$customer) {
+                    error_log("CustomerController::store - Could not find by unique_id, trying by phone...");
                     // If findByUniqueId failed, try to find by phone in company
                     $customer = $this->model->findByPhoneInCompany($data['phone_number'], $companyId);
+                }
+                
+                if ($customer) {
+                    error_log("CustomerController::store - Successfully retrieved customer ID: {$customer['id']}, Name: {$customer['full_name']}");
+                } else {
+                    error_log("CustomerController::store - WARNING: Could not retrieve customer after creation!");
                 }
                 
                 http_response_code(201);
@@ -509,6 +535,7 @@ class CustomerController {
                     ]
                 ]);
             } else {
+                error_log("CustomerController::store - Customer creation returned FALSE");
                 http_response_code(500);
                 echo json_encode([
                     'success' => false,
