@@ -1,7 +1,3 @@
-$router->get('dashboard/tools/run-laptop-migration', function() {
-    $controller = new \App\Controllers\MigrationController();
-    $controller->runLaptopCategoryMigration();
-});
 <?php
 
 // ========================================
@@ -3270,6 +3266,17 @@ $router->get('api/sms/paystack/webhook', function() {
 $router->get('api/sms/logs', function() {
     $controller = new \App\Controllers\ProfileController();
     $controller->getSMSLogs();
+});
+
+// ========================================
+// MIGRATION TOOLS (System Admin Only)
+// ========================================
+
+// Run laptop category and brands migration
+$router->get('dashboard/tools/run-laptop-migration', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin']);
+    $controller = new \App\Controllers\MigrationController();
+    $controller->runLaptopCategoryMigration();
 });
 
 // ========================================
