@@ -75,6 +75,18 @@
             <tbody id="customersTableBody" class="bg-white divide-y divide-gray-200">
                 <?php if (!empty($customers)): ?>
                     <?php 
+                    // DEBUG: Print what we received
+                    $customerIds = array_map(function($c) { return $c['id']; }, $customers);
+                    echo "<!-- Customers in array: " . implode(',', $customerIds) . " (Total: " . count($customers) . ") -->\n";
+                    
+                    // Count occurrences
+                    $idCounts = array_count_values($customerIds);
+                    foreach ($idCounts as $id => $count) {
+                        if ($count > 1) {
+                            echo "<!-- WARNING: Customer ID $id appears $count times! -->\n";
+                        }
+                    }
+                    
                     // Track which customer IDs we've already rendered
                     $renderedCustomerIds = [];
                     
@@ -82,6 +94,7 @@
                         // Skip if we already rendered this customer ID
                         $customerId = $customer['id'];
                         if (in_array($customerId, $renderedCustomerIds)) {
+                            echo "<!-- SKIPPING duplicate customer ID: $customerId -->\n";
                             continue; // Skip duplicate
                         }
                         $renderedCustomerIds[] = $customerId;
