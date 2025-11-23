@@ -802,8 +802,10 @@ if (!defined('BASE_URL_PATH')) {
                         this.updateUI();
                     }
                 } catch (error) {
-                    console.error('Error loading notifications:', error);
                     // Silently fail to prevent UI disruption
+                    // Don't log to console to avoid cluttering
+                    this.notifications = [];
+                    this.unreadCount = 0;
                 }
             }
             
