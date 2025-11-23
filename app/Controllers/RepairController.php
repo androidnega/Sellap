@@ -37,6 +37,8 @@ class RepairController {
         // System admins bypass module checks
         if ($userRole === 'system_admin') {
             return true;
+        } else {
+            error_log("RepairController::create() - Repair Parts category not found. No repair parts available.");
         }
         
         if (!$companyId) {
@@ -212,12 +214,16 @@ class RepairController {
         $categoryModel = new \App\Models\Category();
         $categories = $categoryModel->getAll();
         $accessoriesCategoryId = null;
+        $repairPartsCategoryId = null;
         $phoneCategoryId = null;
         
         foreach ($categories as $cat) {
             $catName = strtolower($cat['name']);
             if ($catName === 'accessories' || $catName === 'accessory') {
                 $accessoriesCategoryId = $cat['id'];
+            }
+            if (in_array($catName, ['repair parts', 'repair part', 'repair-parts', 'repair_parts', 'repair'], true)) {
+                $repairPartsCategoryId = $cat['id'];
             }
             if ($catName === 'phone') {
                 $phoneCategoryId = $cat['id'];
@@ -230,17 +236,21 @@ class RepairController {
             $products = $this->product->findByCompany($companyId, 1000, $phoneCategoryId);
         }
         
-        // Get products from Accessories category for repair parts
+        // Get products from Repair Parts category for technicians/managers (fallback to accessories if needed)
         $partsAndAccessories = [];
-        if ($accessoriesCategoryId) {
-            $accessoriesProducts = $this->product->findByCompany($companyId, 1000, $accessoriesCategoryId);
-            foreach ($accessoriesProducts as $product) {
+        $partsCategoryId = $repairPartsCategoryId ?? $accessoriesCategoryId;
+        if ($partsCategoryId) {
+            $categoryLabel = $repairPartsCategoryId ? 'Repair Parts' : 'Accessories (legacy fallback)';
+            $partsProducts = $this->product->findByCompany($companyId, 1000, $partsCategoryId);
+            error_log("RepairController::create() - Found " . count($partsProducts) . " products in {$categoryLabel} category");
+            foreach ($partsProducts as $product) {
                 // Only include products with stock > 0
                 $quantity = (int)($product['quantity'] ?? 0);
                 if ($quantity > 0) {
                     $partsAndAccessories[] = $product;
                 }
             }
+            error_log("RepairController::create() - Total repair parts with stock: " . count($partsAndAccessories));
         }
         
         // Get brands for device details

@@ -8,9 +8,152 @@ require_once __DIR__ . '/../../config/database.php';
 class Brand {
     private $db;
     private $table = 'brands';
+    private static $brandCategoryTableExists = null;
 
     public function __construct() {
         $this->db = \Database::getInstance()->getConnection();
+    }
+
+    /**
+     * Check if brand_category_links table exists (cached)
+     */
+    private function brandCategoryTableExists(): bool {
+        if (self::$brandCategoryTableExists !== null) {
+            return self::$brandCategoryTableExists;
+        }
+        try {
+            $stmt = $this->db->query("SHOW TABLES LIKE 'brand_category_links'");
+            self::$brandCategoryTableExists = $stmt && $stmt->rowCount() > 0;
+        } catch (\Exception $e) {
+            self::$brandCategoryTableExists = false;
+        }
+        return self::$brandCategoryTableExists;
+    }
+
+    /**
+     * Get all category IDs linked to a brand (includes primary category_id)
+     */
+    public function getCategoryIds(int $brandId): array {
+        $categoryIds = [];
+
+        // Include primary category from brands table
+        $stmt = $this->db->prepare("SELECT category_id FROM {$this->table} WHERE id = ? LIMIT 1");
+        $stmt->execute([$brandId]);
+        $primaryId = $stmt->fetchColumn();
+        if ($primaryId) {
+            $categoryIds[] = (int) $primaryId;
+        }
+
+        if ($this->brandCategoryTableExists()) {
+            $stmt = $this->db->prepare("
+                SELECT category_id 
+                FROM brand_category_links 
+                WHERE brand_id = ?
+            ");
+            $stmt->execute([$brandId]);
+            $linked = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            foreach ($linked as $id) {
+                if ($id) {
+                    $categoryIds[] = (int) $id;
+                }
+            }
+        }
+
+        // Deduplicate and filter invalid entries
+        $categoryIds = array_values(array_unique(array_filter($categoryIds, function($id) {
+            return (int)$id > 0;
+        })));
+
+        return $categoryIds;
+    }
+
+    /**
+     * Synchronize category links for a brand
+     */
+    public function syncCategories(int $brandId, array $categoryIds): void {
+        // Normalize IDs
+        $categoryIds = array_values(array_unique(array_filter(array_map('intval', $categoryIds), function($id) {
+            return $id > 0;
+        })));
+
+        // Update primary category for backward compatibility
+        $primaryCategoryId = $categoryIds[0] ?? null;
+        $stmt = $this->db->prepare("UPDATE {$this->table} SET category_id = ? WHERE id = ?");
+        $stmt->execute([$primaryCategoryId, $brandId]);
+
+        if (!$this->brandCategoryTableExists()) {
+            return;
+        }
+
+        // Remove all links if no categories selected
+        if (empty($categoryIds)) {
+            $deleteStmt = $this->db->prepare("DELETE FROM brand_category_links WHERE brand_id = ?");
+            $deleteStmt->execute([$brandId]);
+            return;
+        }
+
+        // Insert or keep existing links
+        $insertStmt = $this->db->prepare("
+            INSERT IGNORE INTO brand_category_links (brand_id, category_id)
+            VALUES (?, ?)
+        ");
+        foreach ($categoryIds as $categoryId) {
+            $insertStmt->execute([$brandId, $categoryId]);
+        }
+
+        // Remove links that are no longer selected
+        $placeholders = implode(',', array_fill(0, count($categoryIds), '?'));
+        $deleteSql = "
+            DELETE FROM brand_category_links 
+            WHERE brand_id = ? AND category_id NOT IN ({$placeholders})
+        ";
+        $deleteStmt = $this->db->prepare($deleteSql);
+        $deleteStmt->execute(array_merge([$brandId], $categoryIds));
+    }
+
+    /**
+     * Build map of brand_id => [category names]
+     */
+    private function getCategoryNameMap(array $brandIds): array {
+        $map = [];
+        if (empty($brandIds)) {
+            return $map;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($brandIds), '?'));
+
+        // Include primary category names
+        $stmt = $this->db->prepare("
+            SELECT b.id as brand_id, c.name 
+            FROM {$this->table} b
+            JOIN categories c ON b.category_id = c.id
+            WHERE b.category_id IS NOT NULL AND b.id IN ({$placeholders})
+        ");
+        $stmt->execute($brandIds);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $map[$row['brand_id']][] = $row['name'];
+        }
+
+        // Include linked categories if pivot table exists
+        if ($this->brandCategoryTableExists()) {
+            $stmt = $this->db->prepare("
+                SELECT bcl.brand_id, c.name
+                FROM brand_category_links bcl
+                JOIN categories c ON bcl.category_id = c.id
+                WHERE bcl.brand_id IN ({$placeholders})
+            ");
+            $stmt->execute($brandIds);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $map[$row['brand_id']][] = $row['name'];
+            }
+        }
+
+        // Deduplicate names per brand
+        foreach ($map as $brandId => $names) {
+            $map[$brandId] = array_values(array_unique(array_filter($names)));
+        }
+
+        return $map;
     }
 
     /**
@@ -24,20 +167,42 @@ class Brand {
             ORDER BY c.name ASC, b.name ASC
         ");
         $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($results) {
+            $map = $this->getCategoryNameMap(array_column($results, 'id'));
+            foreach ($results as &$row) {
+                $row['category_names'] = $map[$row['id']] ?? [];
+                if (empty($row['category_names']) && !empty($row['category_name'])) {
+                    $row['category_names'] = [$row['category_name']];
+                }
+            }
+            unset($row);
+        }
+        return $results;
     }
 
     /**
      * Get brands by category ID
      */
     public function getByCategory($categoryId) {
-        $stmt = $this->db->prepare("
-            SELECT DISTINCT b.id, b.name, b.category_id, b.is_active, b.created_at
-            FROM brands b 
-            WHERE b.category_id = ? 
-            ORDER BY b.name ASC
-        ");
-        $stmt->execute([$categoryId]);
+        if ($this->brandCategoryTableExists()) {
+            $stmt = $this->db->prepare("
+                SELECT DISTINCT b.id, b.name, b.category_id, b.created_at
+                FROM brands b 
+                LEFT JOIN brand_category_links bcl ON b.id = bcl.brand_id
+                WHERE b.category_id = ? OR bcl.category_id = ?
+                ORDER BY b.name ASC
+            ");
+            $stmt->execute([$categoryId, $categoryId]);
+        } else {
+            $stmt = $this->db->prepare("
+                SELECT DISTINCT b.id, b.name, b.category_id, b.created_at
+                FROM brands b 
+                WHERE b.category_id = ? 
+                ORDER BY b.name ASC
+            ");
+            $stmt->execute([$categoryId]);
+        }
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         // Deduplicate by name (case-insensitive) to avoid duplicates like "Samsung, Samsung"
         $unique = [];
@@ -65,19 +230,43 @@ class Brand {
             LIMIT 1
         ");
         $stmt->execute([$id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $brand = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($brand) {
+            $brand['category_ids'] = $this->getCategoryIds($id);
+        }
+        return $brand;
     }
 
     /**
      * Find brand by name and category
      */
     public function findByNameAndCategory($name, $categoryId) {
-        $stmt = $this->db->prepare("
-            SELECT * FROM brands 
-            WHERE name = ? AND category_id = ? 
-            LIMIT 1
-        ");
-        $stmt->execute([$name, $categoryId]);
+        if (!$categoryId) {
+            return false;
+        }
+
+        if ($this->brandCategoryTableExists()) {
+            $stmt = $this->db->prepare("
+                SELECT * FROM brands 
+                WHERE LOWER(name) = LOWER(?) 
+                AND (
+                    category_id = ?
+                    OR EXISTS (
+                        SELECT 1 FROM brand_category_links bcl 
+                        WHERE bcl.brand_id = brands.id AND bcl.category_id = ?
+                    )
+                )
+                LIMIT 1
+            ");
+            $stmt->execute([$name, $categoryId, $categoryId]);
+        } else {
+            $stmt = $this->db->prepare("
+                SELECT * FROM brands 
+                WHERE LOWER(name) = LOWER(?) AND category_id = ? 
+                LIMIT 1
+            ");
+            $stmt->execute([$name, $categoryId]);
+        }
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
@@ -177,7 +366,18 @@ class Brand {
             ORDER BY c.name ASC, b.name ASC
         ");
         $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($results) {
+            $map = $this->getCategoryNameMap(array_column($results, 'id'));
+            foreach ($results as &$row) {
+                $row['category_names'] = $map[$row['id']] ?? [];
+                if (empty($row['category_names']) && !empty($row['category_name'])) {
+                    $row['category_names'] = [$row['category_name']];
+                }
+            }
+            unset($row);
+        }
+        return $results;
     }
 
     /**
@@ -205,7 +405,18 @@ class Brand {
         
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($results) {
+            $map = $this->getCategoryNameMap(array_column($results, 'id'));
+            foreach ($results as &$row) {
+                $row['category_names'] = $map[$row['id']] ?? [];
+                if (empty($row['category_names']) && !empty($row['category_name'])) {
+                    $row['category_names'] = [$row['category_name']];
+                }
+            }
+            unset($row);
+        }
+        return $results;
     }
 
     /**

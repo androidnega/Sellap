@@ -177,12 +177,16 @@ class TechnicianController {
         $categoryModel = new \App\Models\Category();
         $categories = $categoryModel->getAll();
         $accessoriesCategoryId = null;
+        $repairPartsCategoryId = null;
         $phoneCategoryId = null;
         
         foreach ($categories as $cat) {
             $catName = strtolower($cat['name']);
             if ($catName === 'accessories' || $catName === 'accessory') {
                 $accessoriesCategoryId = $cat['id'];
+            }
+            if (in_array($catName, ['repair parts', 'repair part', 'repair-parts', 'repair_parts', 'repair'], true)) {
+                $repairPartsCategoryId = $cat['id'];
             }
             if ($catName === 'phone') {
                 $phoneCategoryId = $cat['id'];
@@ -198,16 +202,17 @@ class TechnicianController {
             error_log("Warning: Phone category not found. No devices available for device source.");
         }
         
-        // Get products from Accessories category for repair parts
+        // Get products from Repair Parts category (falls back to Accessories for legacy data)
         $partsAndAccessories = [];
-        if ($accessoriesCategoryId) {
-            // Get products specifically from Accessories category
-            $accessoriesProducts = $this->product->findByCompany($companyId, 1000, $accessoriesCategoryId);
+        $partsCategoryId = $repairPartsCategoryId ?? $accessoriesCategoryId;
+        if ($partsCategoryId) {
+            $categoryLabel = $repairPartsCategoryId ? 'Repair Parts' : 'Accessories (legacy fallback)';
+            $partsProducts = $this->product->findByCompany($companyId, 1000, $partsCategoryId);
             
             // Debug logging
-            error_log("TechnicianController: Found " . count($accessoriesProducts) . " products in Accessories category");
+            error_log("TechnicianController: Found " . count($partsProducts) . " products in {$categoryLabel} category");
             
-            foreach ($accessoriesProducts as $product) {
+            foreach ($partsProducts as $product) {
                 // Only include products with stock > 0
                 $quantity = (int)($product['quantity'] ?? 0);
                 if ($quantity > 0) {
@@ -216,10 +221,10 @@ class TechnicianController {
                 }
             }
             
-            error_log("TechnicianController: Total accessories with stock: " . count($partsAndAccessories));
+            error_log("TechnicianController: Total repair parts with stock: " . count($partsAndAccessories));
         } else {
-            // Fallback: if Accessories category doesn't exist, show nothing or log warning
-            error_log("Warning: Accessories category not found. No repair parts available for technician.");
+            // Fallback: if Repair Parts category doesn't exist, show nothing or log warning
+            error_log("Warning: Repair Parts category not found. No repair parts available for technician.");
         }
         
         // Get customers

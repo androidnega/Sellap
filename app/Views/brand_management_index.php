@@ -52,7 +52,13 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">
-                                        <?= htmlspecialchars($brand['category_name'] ?? 'General') ?>
+                                        <?php
+                                            $categoryNames = $brand['category_names'] ?? [];
+                                            $categoryLabel = !empty($categoryNames)
+                                                ? implode(', ', $categoryNames)
+                                                : ($brand['category_name'] ?? 'General');
+                                        ?>
+                                        <?= htmlspecialchars($categoryLabel) ?>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4">

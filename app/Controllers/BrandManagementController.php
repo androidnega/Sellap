@@ -59,10 +59,17 @@ class BrandManagementController {
      */
     public function create() {
         $categories = $this->category->getAll();
+        $selectedCategoryIds = [];
         
         $page = 'brand_management';
         $title = 'Add New Brand';
         
+        // Pass selected categories to view
+        $GLOBALS['selectedCategoryIds'] = $selectedCategoryIds;
+
+        // Pass selected categories to view
+        $GLOBALS['selectedCategoryIds'] = $selectedCategoryIds;
+
         // Capture the view content
         ob_start();
         include __DIR__ . '/../Views/brand_management_form.php';
@@ -89,7 +96,14 @@ class BrandManagementController {
     public function store() {
         $name = trim($_POST['name'] ?? '');
         $description = trim($_POST['description'] ?? '');
-        $category_id = $_POST['category_id'] ?? null;
+        $rawCategoryIds = $_POST['category_ids'] ?? [];
+        if (!is_array($rawCategoryIds)) {
+            $rawCategoryIds = [$rawCategoryIds];
+        }
+        $categoryIds = array_values(array_unique(array_filter(array_map('intval', $rawCategoryIds), function($id) {
+            return $id > 0;
+        })));
+        $primaryCategoryId = $categoryIds[0] ?? null;
 
         if (!$name) {
             $_SESSION['flash_error'] = 'Brand name is required';
@@ -98,10 +112,10 @@ class BrandManagementController {
         }
 
         // Check if brand already exists for this category
-        if ($category_id) {
-            $existing = $this->brand->findByNameAndCategory($name, $category_id);
+        foreach ($categoryIds as $categoryId) {
+            $existing = $this->brand->findByNameAndCategory($name, $categoryId);
             if ($existing) {
-                $_SESSION['flash_error'] = 'Brand already exists for this category';
+                $_SESSION['flash_error'] = 'Brand already exists for one of the selected categories';
                 header('Location: ' . BASE_URL_PATH . '/dashboard/brands/create');
                 exit;
             }
@@ -110,10 +124,11 @@ class BrandManagementController {
         $brandId = $this->brand->create([
             'name' => $name,
             'description' => $description,
-            'category_id' => $category_id
+            'category_id' => $primaryCategoryId
         ]);
 
         if ($brandId) {
+            $this->brand->syncCategories($brandId, $categoryIds);
             $_SESSION['flash_success'] = 'Brand created successfully';
             header('Location: ' . BASE_URL_PATH . '/dashboard/brands');
         } else {
@@ -129,6 +144,7 @@ class BrandManagementController {
     public function edit($id) {
         $brand = $this->brand->find($id);
         $categories = $this->category->getAll();
+        $selectedCategoryIds = $brand ? ($brand['category_ids'] ?? []) : [];
         
         if (!$brand) {
             $_SESSION['flash_error'] = 'Brand not found';
@@ -165,7 +181,14 @@ class BrandManagementController {
     public function update($id) {
         $name = trim($_POST['name'] ?? '');
         $description = trim($_POST['description'] ?? '');
-        $category_id = $_POST['category_id'] ?? null;
+        $rawCategoryIds = $_POST['category_ids'] ?? [];
+        if (!is_array($rawCategoryIds)) {
+            $rawCategoryIds = [$rawCategoryIds];
+        }
+        $categoryIds = array_values(array_unique(array_filter(array_map('intval', $rawCategoryIds), function($value) {
+            return $value > 0;
+        })));
+        $primaryCategoryId = $categoryIds[0] ?? null;
 
         if (!$name) {
             $_SESSION['flash_error'] = 'Brand name is required';
@@ -173,11 +196,11 @@ class BrandManagementController {
             exit;
         }
 
-        // Check if brand already exists for this category (excluding current one)
-        if ($category_id) {
-            $existing = $this->brand->findByNameAndCategory($name, $category_id);
+        // Check if brand already exists for selected categories (excluding current one)
+        foreach ($categoryIds as $categoryId) {
+            $existing = $this->brand->findByNameAndCategory($name, $categoryId);
             if ($existing && $existing['id'] != $id) {
-                $_SESSION['flash_error'] = 'Brand name already exists for this category';
+                $_SESSION['flash_error'] = 'Brand name already exists for one of the selected categories';
                 header('Location: ' . BASE_URL_PATH . '/dashboard/brands/edit/' . $id);
                 exit;
             }
@@ -186,10 +209,11 @@ class BrandManagementController {
         $success = $this->brand->update($id, [
             'name' => $name,
             'description' => $description,
-            'category_id' => $category_id
+            'category_id' => $primaryCategoryId
         ]);
 
         if ($success) {
+            $this->brand->syncCategories($id, $categoryIds);
             $_SESSION['flash_success'] = 'Brand updated successfully';
             header('Location: ' . BASE_URL_PATH . '/dashboard/brands');
         } else {
