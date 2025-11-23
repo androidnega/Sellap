@@ -75,6 +75,11 @@
             <tbody id="customersTableBody" class="bg-white divide-y divide-gray-200">
                 <?php if (!empty($customers)): ?>
                     <?php 
+                    // DEBUG: Log customer array
+                    error_log("RENDER: About to render " . count($customers) . " customers");
+                    $customerIds = array_map(function($c) { return $c['id']; }, $customers);
+                    error_log("RENDER: Customer IDs: " . implode(',', $customerIds));
+                    
                     $displayedCount = 0;
                     foreach ($customers as $customer): 
                         $displayedCount++;
