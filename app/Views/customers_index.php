@@ -546,8 +546,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Form submission
+    let isSubmitting = false;
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
+        
+        // Prevent double submission
+        if (isSubmitting) {
+            console.log('Form already submitting, ignoring duplicate submission');
+            return;
+        }
+        isSubmitting = true;
         
         const formData = new FormData(form);
         const data = Object.fromEntries(formData.entries());
@@ -601,11 +609,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Reload current page to show the new customer (newest first, so always on page 1)
                 const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
                 
-                setTimeout(() => {
-                    // Stay on current page or go to page 1 if we're on a high page number
-                    window.location.href = base + '/dashboard/customers?page=1';
-                }, 500);
+                // Redirect immediately - don't reset isSubmitting as we're leaving the page
+                window.location.href = base + '/dashboard/customers?page=1';
             } else {
+                isSubmitting = false; // Reset on error
                 // Check if it's a duplicate phone number error
                 let errorMsg = result.error || 'Failed to create customer';
                 if (result.existing_customer) {
@@ -616,6 +623,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Error creating customer:', error);
             showNotification('Error creating customer: ' + error.message, 'error');
+            isSubmitting = false; // Reset on error
         } finally {
             // Reset button
             if (submitBtn) {

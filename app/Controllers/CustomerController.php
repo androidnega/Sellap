@@ -69,6 +69,17 @@ class CustomerController {
             $customers = $this->model->getPaginated($currentPage, $itemsPerPage, $search, $dateFilter, $companyId);
         }
         
+        // CRITICAL FIX: Remove actual duplicate rows (same customer ID appearing twice)
+        $seenIds = [];
+        $uniqueCustomers = [];
+        foreach ($customers as $customer) {
+            $customerId = $customer['id'] ?? null;
+            if ($customerId && !isset($seenIds[$customerId])) {
+                $seenIds[$customerId] = true;
+                $uniqueCustomers[] = $customer;
+            }
+        }
+        $customers = $uniqueCustomers;
         
         // Detect duplicate customers by phone number (check ONLY within same company)
         $allDuplicatePhones = $this->detectDuplicatePhonesFromDatabase();

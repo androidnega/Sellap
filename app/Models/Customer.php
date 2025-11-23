@@ -33,7 +33,16 @@ class Customer {
             'created_by_user_id' => isset($data['created_by_user_id']) && $data['created_by_user_id'] !== null ? (int)$data['created_by_user_id'] : null
         ];
         
+        error_log("CUSTOMER CREATE: unique_id={$params['unique_id']}, name={$params['full_name']}, phone={$params['phone_number']}");
+        
         $result = $stmt->execute($params);
+        
+        if ($result) {
+            $newId = $this->conn->lastInsertId();
+            error_log("CUSTOMER CREATED: ID=$newId, unique_id={$params['unique_id']}");
+        } else {
+            error_log("CUSTOMER CREATE FAILED: " . print_r($stmt->errorInfo(), true));
+        }
         
         return $result;
     }
@@ -331,6 +340,10 @@ class Customer {
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Log query results
+        $ids = array_map(function($r) { return $r['id']; }, $results);
+        error_log("CUSTOMER QUERY: Page=$page, Limit=$limit, Company=$companyId, IDs=" . implode(',', $ids));
         
         return $results;
     }
