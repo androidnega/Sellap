@@ -166,11 +166,7 @@ class Router {
         } else {
             // Show nice "Oops!" page with option to go to homepage
             header('Content-Type: text/html; charset=utf-8');
-            $homeUrl = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
-            // Normalize: empty string means root
-            if ($homeUrl === '/') {
-                $homeUrl = '';
-            }
+            $homeUrl = 'https://www.sellapp.store';
             echo '<!DOCTYPE html>
 <html lang="en">
 <head>

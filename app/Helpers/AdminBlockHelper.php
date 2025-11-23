@@ -61,33 +61,91 @@ class AdminBlockHelper {
         
         $title = 'Access Denied';
         $errorMessage = $message ?? "You do not have permission to access this page. Your current role is: " . htmlspecialchars($userRole);
+        $returnUrl = $redirectUrl ?? (defined('BASE_URL_PATH') ? rtrim(BASE_URL_PATH, '/') . '/dashboard' : '/dashboard');
         
-        ob_start();
-        ?>
-        <div class="max-w-2xl mx-auto">
-            <div class="bg-red-50 border border-red-200 rounded-lg p-6">
-                <div class="flex items-center mb-4">
-                    <svg class="w-8 h-8 text-red-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                    </svg>
-                    <h1 class="text-2xl font-bold text-red-900">Access Denied</h1>
-                </div>
-                <p class="text-red-800 mb-4"><?= htmlspecialchars($errorMessage) ?></p>
-                <a href="<?= htmlspecialchars($redirectUrl ?? BASE_URL_PATH . '/dashboard') ?>" class="inline-block px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-                    Return to Dashboard
-                </a>
-            </div>
-        </div>
-        <?php
-        $content = ob_get_clean();
+        header('Content-Type: text/html; charset=utf-8');
+        http_response_code(403);
         
-        $GLOBALS['content'] = $content;
-        $GLOBALS['title'] = $title;
-        if ($userData) {
-            $GLOBALS['user_data'] = $userData;
+        echo '<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>' . htmlspecialchars($title) . '</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: radial-gradient(circle at top, #0f172a 0%, #020617 55%);
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
         }
-        
-        require __DIR__ . '/../Views/simple_layout.php';
+        .card {
+            width: 100%;
+            max-width: 520px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 80px rgba(2, 6, 23, 0.8);
+            text-align: center;
+        }
+        .icon {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 1.5rem;
+            border-radius: 20px;
+            background: rgba(248, 113, 113, 0.15);
+            color: #f87171;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+        h1 {
+            margin: 0 0 1rem;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        p {
+            margin: 0 0 2rem;
+            color: rgba(248, 250, 252, 0.8);
+            line-height: 1.6;
+        }
+        a.button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 1.75rem;
+            height: 52px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: #fff;
+            text-decoration: none;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            box-shadow: 0 15px 35px rgba(37, 99, 235, 0.35);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        a.button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 45px rgba(37, 99, 235, 0.45);
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">!</div>
+        <h1>' . htmlspecialchars($title) . '</h1>
+        <p>' . htmlspecialchars($errorMessage) . '</p>
+        <a class="button" href="' . htmlspecialchars($returnUrl) . '">Return to Dashboard</a>
+    </div>
+</body>
+</html>';
         exit;
     }
     
