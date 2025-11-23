@@ -22,15 +22,16 @@ class AdminBlockHelper {
         }
         
         $userRole = strtolower(trim($userData['role'] ?? ''));
+        $username = strtolower(trim($userData['username'] ?? ''));
         
         // Debug logging
         error_log("AdminBlockHelper::shouldBlockAdmin - User role: '" . $userRole . "'");
         error_log("AdminBlockHelper::shouldBlockAdmin - Allowed roles: " . json_encode($allowedRoles));
         error_log("AdminBlockHelper::shouldBlockAdmin - User data: " . json_encode($userData));
         
-        // Explicitly block 'admin' role (case-insensitive)
-        if ($userRole === 'admin') {
-            error_log("AdminBlockHelper::shouldBlockAdmin - BLOCKING: User is admin");
+        // Explicitly block 'admin' role OR username (case-insensitive)
+        if ($userRole === 'admin' || $username === 'admin' || $username === 'administrator') {
+            error_log("AdminBlockHelper::shouldBlockAdmin - BLOCKING: User is admin (role or username match)");
             return true;
         }
         
