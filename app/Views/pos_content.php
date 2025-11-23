@@ -3207,7 +3207,29 @@ function openSwapModal(productId, productName, productPrice) {
     }
     
     // Show modal
+    console.log('Removing hidden class from modal');
     modal.classList.remove('hidden');
+    
+    // Force display style to ensure visibility (use block since modal is a fixed container)
+    modal.style.display = 'block';
+    
+    // Verify modal is visible
+    const isHidden = modal.classList.contains('hidden');
+    const computedStyle = window.getComputedStyle(modal);
+    console.log('Modal visibility check:', {
+        hasHiddenClass: isHidden,
+        display: computedStyle.display,
+        visibility: computedStyle.visibility,
+        zIndex: computedStyle.zIndex,
+        opacity: computedStyle.opacity
+    });
+    
+    if (isHidden) {
+        console.error('Modal still has hidden class after removal attempt');
+        // Force remove hidden class again
+        modal.classList.remove('hidden');
+        modal.style.display = 'block';
+    }
     
     // Prevent body scrolling when modal is open
     document.body.style.overflow = 'hidden';
@@ -3217,6 +3239,8 @@ function openSwapModal(productId, productName, productPrice) {
     if (modalContent) {
         modalContent.scrollTop = 0;
     }
+    
+    console.log('Swap modal should now be visible');
 }
 
 // New Customer Modal Functions
@@ -3355,7 +3379,11 @@ function selectExistingCustomer(customerId, customerName, customerPhone) {
 }
 
 function closeSwapModal() {
-    document.getElementById('swapModal').classList.add('hidden');
+    const modal = document.getElementById('swapModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
     hideSwapModalError();
     // Restore body scrolling when modal is closed
     document.body.style.overflow = '';
@@ -3415,10 +3443,19 @@ function updateSwapBalance() {
 // Add event listeners for swap modal
 document.addEventListener('DOMContentLoaded', function() {
     // Swap button click handlers - use event delegation to handle clicks on button or child elements
+    // Use a flag to prevent multiple rapid clicks
+    let swapModalOpening = false;
+    
     document.addEventListener('click', function(e) {
         // Check if the clicked element or its parent has the open-swap-btn class
         const swapButton = e.target.closest('.open-swap-btn');
         if (swapButton) {
+            // Prevent multiple rapid clicks
+            if (swapModalOpening) {
+                console.log('Swap modal already opening, ignoring click');
+                return;
+            }
+            
             e.preventDefault();
             e.stopPropagation(); // Prevent product selection
             const productId = swapButton.getAttribute('data-product-id');
@@ -3429,7 +3466,12 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Swap button clicked:', { productId, productName, productPrice });
             
             if (productId && productName && productPrice) {
+                swapModalOpening = true;
                 openSwapModal(productId, productName, productPrice);
+                // Reset flag after a short delay
+                setTimeout(() => {
+                    swapModalOpening = false;
+                }, 500);
             } else {
                 console.error('Missing swap button data:', { productId, productName, productPrice });
             }
