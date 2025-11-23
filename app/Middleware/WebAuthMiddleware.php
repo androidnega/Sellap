@@ -174,7 +174,14 @@ class WebAuthMiddleware {
                     headers: {"Content-Type": "application/json"},
                     body: JSON.stringify({token: token})
                 })
-                .then(response => response.json())
+                .then(response => {
+                    // Check if response is OK (200-299)
+                    if (!response.ok) {
+                        // Token validation failed (401, 400, etc.)
+                        throw new Error("Token validation failed");
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         // Token is valid, reload page to continue
@@ -193,10 +200,11 @@ class WebAuthMiddleware {
                             window.location.replace(cleanUrl);
                         }, 1000);
                     } else {
-                        // Token is invalid, redirect to login with current URL as redirect param
+                        // Token is invalid or expired, clear and redirect to login
                         localStorage.removeItem("token");
                         localStorage.removeItem("sellapp_token");
-                        window.location.href = BASE + "/?{{QUERY_PARAMS}}";
+                        localStorage.removeItem("sellapp_user");
+                        window.location.href = BASE + "/?error=" + encodeURIComponent("Your session has expired. Please login again.");
                     }
                 })
                 .catch(function(error) {
