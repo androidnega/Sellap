@@ -312,7 +312,7 @@ $router->get('dashboard/inventory', function() {
 
 // Inventory Create Form
 $router->get('dashboard/inventory/create', function() {
-    \App\Middleware\WebAuthMiddleware::handle();
+    // Let controller handle authentication and role checking
     $GLOBALS['currentPage'] = 'inventory';
     $controller = new \App\Controllers\InventoryController();
     $controller->create();
@@ -334,7 +334,7 @@ $router->get('dashboard/inventory/view/{id}', function($id) {
 
 // Inventory Edit Form
 $router->get('dashboard/inventory/edit/{id}', function($id) {
-    \App\Middleware\WebAuthMiddleware::handle();
+    // Let controller handle authentication and role checking
     $GLOBALS['currentPage'] = 'inventory';
     $controller = new \App\Controllers\InventoryController();
     $controller->edit($id);
