@@ -3134,24 +3134,45 @@ function closeReceiptModal() {
 
 // Swap Modal Functions
 function openSwapModal(productId, productName, productPrice) {
+    console.log('Opening swap modal:', { productId, productName, productPrice });
+    
+    // Check if modal exists
+    const modal = document.getElementById('swapModal');
+    if (!modal) {
+        console.error('Swap modal not found in DOM');
+        showNotification('Swap modal not found. Please refresh the page.', 'error');
+        return;
+    }
+    
     // Hide any previous errors
     hideSwapModalError();
     
-    // Set product details
-    document.getElementById('swapProductId').value = productId;
-    document.getElementById('swapProductName').value = productName;
-    document.getElementById('swapProductPrice').value = productPrice;
+    // Set product details - check if elements exist
+    const swapProductId = document.getElementById('swapProductId');
+    const swapProductName = document.getElementById('swapProductName');
+    const swapProductPrice = document.getElementById('swapProductPrice');
     
-    // Display product info
-    document.getElementById('displayProductName').textContent = productName;
-    document.getElementById('displayProductPrice').textContent = '₵' + parseFloat(productPrice).toFixed(2);
-    document.getElementById('swapCompanyPrice').textContent = '₵' + parseFloat(productPrice).toFixed(2);
+    if (swapProductId) swapProductId.value = productId;
+    if (swapProductName) swapProductName.value = productName;
+    if (swapProductPrice) swapProductPrice.value = productPrice;
+    
+    // Display product info - check if elements exist
+    const displayProductName = document.getElementById('displayProductName');
+    const displayProductPrice = document.getElementById('displayProductPrice');
+    const swapCompanyPrice = document.getElementById('swapCompanyPrice');
+    
+    if (displayProductName) displayProductName.textContent = productName;
+    if (displayProductPrice) displayProductPrice.textContent = '₵' + parseFloat(productPrice).toFixed(2);
+    if (swapCompanyPrice) swapCompanyPrice.textContent = '₵' + parseFloat(productPrice).toFixed(2);
     
     // Reset form
-    document.getElementById('swapForm').reset();
-    document.getElementById('swapProductId').value = productId;
-    document.getElementById('swapProductName').value = productName;
-    document.getElementById('swapProductPrice').value = productPrice;
+    const swapForm = document.getElementById('swapForm');
+    if (swapForm) {
+        swapForm.reset();
+        if (swapProductId) swapProductId.value = productId;
+        if (swapProductName) swapProductName.value = productName;
+        if (swapProductPrice) swapProductPrice.value = productPrice;
+    }
     
     // Reset brand dropdown and specs
     const brandSelect = document.getElementById('swapCustomerBrandId');
@@ -3164,8 +3185,11 @@ function openSwapModal(productId, productName, productPrice) {
     if (brandNameInput) {
         brandNameInput.value = '';
     }
-    document.getElementById('swapCustomerSpecsContainer').classList.add('hidden');
-    document.getElementById('swapCustomerDynamicSpecs').innerHTML = '';
+    
+    const swapCustomerSpecsContainer = document.getElementById('swapCustomerSpecsContainer');
+    const swapCustomerDynamicSpecs = document.getElementById('swapCustomerDynamicSpecs');
+    if (swapCustomerSpecsContainer) swapCustomerSpecsContainer.classList.add('hidden');
+    if (swapCustomerDynamicSpecs) swapCustomerDynamicSpecs.innerHTML = '';
     
     // Ensure brands are loaded (only if not already populated)
     if (brandSelect && (brandSelect.options.length <= 1 || brandSelect.dataset.loaded !== 'true')) {
@@ -3173,13 +3197,16 @@ function openSwapModal(productId, productName, productPrice) {
     }
     
     // Update balance calculation
-    updateSwapBalance();
+    if (typeof updateSwapBalance === 'function') {
+        updateSwapBalance();
+    }
     
     // Populate customer dropdown
-    populateSwapCustomerDropdown();
+    if (typeof populateSwapCustomerDropdown === 'function') {
+        populateSwapCustomerDropdown();
+    }
     
     // Show modal
-    const modal = document.getElementById('swapModal');
     modal.classList.remove('hidden');
     
     // Prevent body scrolling when modal is open
@@ -3387,14 +3414,25 @@ function updateSwapBalance() {
 
 // Add event listeners for swap modal
 document.addEventListener('DOMContentLoaded', function() {
-    // Swap button click handlers
+    // Swap button click handlers - use event delegation to handle clicks on button or child elements
     document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('open-swap-btn')) {
+        // Check if the clicked element or its parent has the open-swap-btn class
+        const swapButton = e.target.closest('.open-swap-btn');
+        if (swapButton) {
+            e.preventDefault();
             e.stopPropagation(); // Prevent product selection
-            const productId = e.target.getAttribute('data-product-id');
-            const productName = e.target.getAttribute('data-product-name');
-            const productPrice = e.target.getAttribute('data-product-price');
-            openSwapModal(productId, productName, productPrice);
+            const productId = swapButton.getAttribute('data-product-id');
+            const productName = swapButton.getAttribute('data-product-name');
+            const productPrice = swapButton.getAttribute('data-product-price');
+            
+            // Debug logging
+            console.log('Swap button clicked:', { productId, productName, productPrice });
+            
+            if (productId && productName && productPrice) {
+                openSwapModal(productId, productName, productPrice);
+            } else {
+                console.error('Missing swap button data:', { productId, productName, productPrice });
+            }
         }
     });
     
