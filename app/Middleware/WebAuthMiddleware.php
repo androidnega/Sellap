@@ -33,8 +33,17 @@ class WebAuthMiddleware {
             unset($_SESSION['_auth_attempt']);
             unset($_SESSION['_auth_retry_count']);
             
-            // If _auth parameter exists, just ignore it - session is valid, no need to redirect
-            // The JavaScript in the page will clean it up client-side if needed
+            // If _auth parameter exists in URL, remove it by redirecting to clean URL
+            if (isset($_GET['_auth'])) {
+                $cleanUrl = strtok($_SERVER['REQUEST_URI'], '?');
+                $queryParams = $_GET;
+                unset($queryParams['_auth']);
+                if (!empty($queryParams)) {
+                    $cleanUrl .= '?' . http_build_query($queryParams);
+                }
+                header('Location: ' . $cleanUrl);
+                exit;
+            }
             
             if (!empty($allowedRoles) && !in_array($userData['role'], $allowedRoles)) {
                 self::redirectToLogin('You do not have permission to access this page');
@@ -89,11 +98,10 @@ class WebAuthMiddleware {
                     unset($queryParams['_auth']);
                     if (!empty($queryParams)) {
                         $cleanUrl .= '?' . http_build_query($queryParams);
-                    } else {
-                        // No other params, just remove _auth
-                        header('Location: ' . $cleanUrl);
-                        exit;
                     }
+                    // Redirect to clean URL (without _auth parameter)
+                    header('Location: ' . $cleanUrl);
+                    exit;
                     
                     if (!empty($allowedRoles) && !in_array($userData['role'], $allowedRoles)) {
                         self::redirectToLogin('You do not have permission to access this page');
@@ -224,15 +232,9 @@ class WebAuthMiddleware {
                             const newParams = urlParams.toString();
                             let cleanUrl = fullUrl + (newParams ? "?" + newParams : "");
                             
-                            // Only add _auth if URL doesn't already contain it (prevent loops)
-                            var hasAuth = cleanUrl.indexOf("_auth=") !== -1;
-                            if (!hasAuth) {
-                                var separator = cleanUrl.indexOf("?") === -1 ? "?" : "&";
-                                window.location.replace(cleanUrl + separator + "_auth=" + Date.now());
-                            } else {
-                                // Already has _auth, just reload clean URL
-                                window.location.replace(cleanUrl);
-                            }
+                            // Just redirect to clean URL without _auth parameter
+                            // The server will handle the session properly
+                            window.location.replace(cleanUrl);
                         }, 500);
                     } else {
                         // Token is invalid, redirect to login with current URL as redirect param
