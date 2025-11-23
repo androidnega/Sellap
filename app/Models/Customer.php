@@ -33,19 +33,7 @@ class Customer {
             'created_by_user_id' => isset($data['created_by_user_id']) && $data['created_by_user_id'] !== null ? (int)$data['created_by_user_id'] : null
         ];
         
-        // Debug logging
-        error_log("Customer::create - Attempting to create customer: " . print_r($params, true));
-        
         $result = $stmt->execute($params);
-        
-        // Log if there's an issue
-        if (!$result) {
-            error_log("Customer creation FAILED: " . print_r($stmt->errorInfo(), true));
-            error_log("Attempted data: " . print_r($params, true));
-        } else {
-            $newId = $this->conn->lastInsertId();
-            error_log("Customer created successfully with ID: $newId, unique_id: {$params['unique_id']}, name: {$params['full_name']}");
-        }
         
         return $result;
     }
@@ -343,25 +331,6 @@ class Customer {
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Debug logging (can be removed after fixing)
-        error_log("Customer::getPaginated - Page: $page, Limit: $limit, Offset: $offset, Company: $companyId, Results: " . count($results));
-        
-        // Log actual customer IDs and names returned
-        if (!empty($results)) {
-            $resultDetails = [];
-            foreach ($results as $r) {
-                $resultDetails[] = "ID:{$r['id']}, Name:{$r['full_name']}";
-            }
-            error_log("Customer::getPaginated - Customer details: " . implode(' | ', $resultDetails));
-        } else {
-            error_log("Customer::getPaginated - WARNING: Query returned NO results!");
-            // Double-check with a direct query
-            $checkStmt = $this->conn->prepare("SELECT COUNT(*) as total FROM {$this->table} WHERE company_id = :company_id");
-            $checkStmt->execute([':company_id' => (int)$companyId]);
-            $checkResult = $checkStmt->fetch(PDO::FETCH_ASSOC);
-            error_log("Customer::getPaginated - Direct count check: " . ($checkResult['total'] ?? 0) . " customers in database for company $companyId");
-        }
         
         return $results;
     }

@@ -21,14 +21,7 @@
             </div>
             
             <!-- Show Duplicates Toggle -->
-            <div class="md:w-48 flex items-end">
-                <label class="flex items-center cursor-pointer">
-                    <input type="checkbox" id="showDuplicatesOnly" 
-                           class="mr-2 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                           onchange="toggleDuplicatesFilter()">
-                    <span class="text-sm text-gray-700">Show duplicates only</span>
-                </label>
-            </div>
+            <!-- Duplicate filter removed - duplicates are not allowed during customer creation -->
             
             <!-- Date Filter -->
             <div class="md:w-48">
@@ -80,23 +73,8 @@
                 </tr>
             </thead>
             <tbody id="customersTableBody" class="bg-white divide-y divide-gray-200">
-                <?php 
-                // Debug: Log customer count and details (remove after fixing)
-                error_log("Customers View: Total customers to display: " . count($customers ?? []));
-                if (!empty($customers)) {
-                    $customerDetails = [];
-                    foreach ($customers as $c) {
-                        $customerDetails[] = "ID:{$c['id']}, Name:{$c['full_name']}, Phone:{$c['phone_number']}";
-                    }
-                    error_log("Customers View: Customer details: " . implode(' | ', $customerDetails));
-                }
-                if (!empty($customers)): ?>
-                    <?php 
-                    // REMOVED: Duplicate checking logic - display ALL customers from controller
-                    $displayedCount = 0;
-                    foreach ($customers as $customer): 
-                        $displayedCount++;
-                        error_log("Customers View: Displaying customer ID: " . ($customer['id'] ?? 'N/A') . ", Name: " . ($customer['full_name'] ?? 'N/A') . ", Count: $displayedCount");
+                <?php if (!empty($customers)): ?>
+                    <?php foreach ($customers as $customer):
                         
                         $isDuplicate = $customer['is_duplicate'] ?? false;
                         $duplicateCount = $customer['duplicate_count'] ?? 1;
@@ -620,13 +598,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Clear form
                 form.reset();
                 
-                // IMPORTANT: Reload the page to show the new customer
-                // Use a simple redirect to page 1 to ensure all customers are displayed
+                // Reload current page to show the new customer (newest first, so always on page 1)
                 const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
                 
-                // Add a small delay to allow the database to commit
                 setTimeout(() => {
-                    // Use href for a clean reload
+                    // Stay on current page or go to page 1 if we're on a high page number
                     window.location.href = base + '/dashboard/customers?page=1';
                 }, 500);
             } else {
@@ -1491,41 +1467,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 })();
 
-// Duplicate customers functionality
-function toggleDuplicatesFilter() {
-    const showDuplicates = document.getElementById('showDuplicatesOnly').checked;
-    const rows = document.querySelectorAll('#customersTableBody tr[data-customer-id]');
-    
-    rows.forEach(row => {
-        const hasDuplicateBadge = row.querySelector('.bg-yellow-100');
-        if (showDuplicates) {
-            // Show only rows with duplicates
-            if (hasDuplicateBadge) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        } else {
-            // Show all rows
-            row.style.display = '';
-        }
-    });
-    
-    // Update filter info
-    const visibleRows = Array.from(rows).filter(r => r.style.display !== 'none').length;
-    const totalRows = rows.length;
-    const info = document.getElementById('customerFilterInfo');
-    const filteredCountEl = document.getElementById('customerFilteredCount');
-    const totalCountEl = document.getElementById('customerTotalCount');
-    
-    if (showDuplicates && visibleRows > 0) {
-        filteredCountEl.textContent = visibleRows;
-        totalCountEl.textContent = totalRows;
-        info.classList.remove('hidden');
-    } else if (!showDuplicates) {
-        info.classList.add('hidden');
-    }
-}
+// Duplicate filter removed - not needed since duplicates are prevented at creation
 
 async function showDuplicateCustomers(phoneNumber) {
     try {
