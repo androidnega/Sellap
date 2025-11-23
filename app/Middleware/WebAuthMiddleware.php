@@ -39,17 +39,10 @@ class WebAuthMiddleware {
             unset($_SESSION['_auth_attempt']);
             unset($_SESSION['_auth_retry_count']);
             
-            // If _auth parameter exists in URL, remove it by redirecting to clean URL
+            // Don't redirect if _auth parameter exists - let JavaScript clean it up
+            // Server-side redirects were causing refresh loops
             if (isset($_GET['_auth'])) {
-                error_log("WebAuthMiddleware: Cleaning _auth parameter from URL");
-                $cleanUrl = strtok($_SERVER['REQUEST_URI'], '?');
-                $queryParams = $_GET;
-                unset($queryParams['_auth']);
-                if (!empty($queryParams)) {
-                    $cleanUrl .= '?' . http_build_query($queryParams);
-                }
-                header('Location: ' . $cleanUrl);
-                exit;
+                error_log("WebAuthMiddleware: _auth parameter present but user authenticated - allowing page load");
             }
             
             if (!empty($allowedRoles) && !in_array($userData['role'], $allowedRoles)) {
