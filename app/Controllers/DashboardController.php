@@ -723,6 +723,8 @@ class DashboardController {
         $GLOBALS['completedCount'] = $completedCount;
         $GLOBALS['pendingCount'] = $pendingCount;
         $GLOBALS['deliveredCount'] = $deliveredCount;
+        $GLOBALS['pendingRepairs'] = $pendingRepairs;
+        $GLOBALS['inProgressRepairs'] = $inProgressRepairs;
         
         $title = 'Technician Dashboard';
         
