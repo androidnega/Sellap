@@ -390,7 +390,8 @@ print_info("Creating a test technician session for manual testing...");
 try {
     // Get database connection
     require_once __DIR__ . '/config/database.php';
-    $db = getDBConnection();
+    $dbInstance = Database::getInstance();
+    $db = $dbInstance->getConnection();
     $stmt = $db->prepare("SELECT * FROM users WHERE role = 'technician' LIMIT 1");
     $stmt->execute();
     $technician = $stmt->fetch(PDO::FETCH_ASSOC);

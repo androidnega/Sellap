@@ -3,6 +3,12 @@
 if (!defined('BASE_URL_PATH')) {
     require_once __DIR__ . '/../../config/app.php';
 }
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+$initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -49,6 +55,10 @@ if (!defined('BASE_URL_PATH')) {
                 originalWarn.apply(console, args);
             };
         })();
+    </script>
+    <script>
+        window.SERVER_SESSION_ACTIVE = <?php echo $initialUserData ? 'true' : 'false'; ?>;
+        window.SERVER_USER = <?php echo json_encode($initialUserData ?? null); ?>;
     </script>
     
     <!-- Preconnect to CDN for faster loading -->

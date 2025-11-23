@@ -16,9 +16,18 @@ function getToken() {
     return localStorage.getItem('sellapp_token') || localStorage.getItem('token');
 }
 
+function hasServerSession() {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+    return Boolean(window.SERVER_SESSION_ACTIVE);
+}
+
 function checkAuth() {
     const token = getToken();
-    if (!token && window.location.pathname.includes('dashboard')) {
+    const serverSessionActive = hasServerSession();
+    
+    if (!token && !serverSessionActive && window.location.pathname.includes('dashboard')) {
         // Only redirect if we're not already on the login page
         if (!window.location.pathname.includes('/login') && !window.location.pathname.endsWith('/')) {
             window.location.href = `${basePath}/`;
@@ -172,9 +181,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (isMainDashboard) {
         // Only check auth on main dashboard, let server-side handle other pages
         const token = checkAuth();
+        const serverSessionActive = hasServerSession();
         
         // Only load stats if we have a token to prevent unnecessary API calls
-        if (token) {
+        if (token || serverSessionActive) {
             // Load stats with error handling to prevent redirect loops
             loadDashboardStats().catch(err => {
                 console.error('Error loading dashboard stats:', err);
