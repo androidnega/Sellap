@@ -3179,9 +3179,20 @@ function openSwapModal(productId, productName, productPrice) {
     populateSwapCustomerDropdown();
     
     // Show modal
-    document.getElementById('swapModal').classList.remove('hidden');
+    const modal = document.getElementById('swapModal');
+    modal.classList.remove('hidden');
+    
     // Prevent body scrolling when modal is open
     document.body.style.overflow = 'hidden';
+    
+    // Scroll modal container to top to ensure modal is visible
+    modal.scrollTop = 0;
+    
+    // Also scroll the modal content to top
+    const modalContent = modal.querySelector('div > div');
+    if (modalContent) {
+        modalContent.scrollTop = 0;
+    }
 }
 
 // New Customer Modal Functions
