@@ -74,7 +74,10 @@
             </thead>
             <tbody id="customersTableBody" class="bg-white divide-y divide-gray-200">
                 <?php if (!empty($customers)): ?>
-                    <?php foreach ($customers as $customer):
+                    <?php 
+                    $displayedCount = 0;
+                    foreach ($customers as $customer): 
+                        $displayedCount++;
                         
                         $isDuplicate = $customer['is_duplicate'] ?? false;
                         $duplicateCount = $customer['duplicate_count'] ?? 1;
@@ -133,10 +136,7 @@
                                 </div>
                             </td>
                         </tr>
-                    <?php 
-                    endforeach; 
-                    error_log("Customers View: Total customers displayed in table: $displayedCount");
-                    ?>
+                    <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
                         <td colspan="6" class="px-6 py-4 text-center text-gray-500">
