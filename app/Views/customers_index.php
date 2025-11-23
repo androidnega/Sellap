@@ -73,42 +73,13 @@
                 </tr>
             </thead>
             <tbody id="customersTableBody" class="bg-white divide-y divide-gray-200">
-                <script>
-                // IMMEDIATE CHECK: How many rows are in the HTML right now?
-                document.addEventListener('DOMContentLoaded', function() {
-                    const tbody = document.getElementById('customersTableBody');
-                    if (tbody) {
-                        const rows = tbody.querySelectorAll('tr[data-customer-id]');
-                        console.log('DOM LOADED: Found', rows.length, 'customer rows in tbody');
-                        rows.forEach((row, i) => {
-                            console.log(`  Row ${i+1}: ID ${row.dataset.customerId}`);
-                        });
-                    }
-                });
-                </script>
-                <!-- DEBUG: About to render <?= count($customers) ?> customers -->
-                <?php 
-                error_log("VIEW: Received " . count($customers) . " customers");
-                error_log("VIEW: Customer IDs in array: " . implode(',', array_column($customers, 'id')));
-                ?>
                 <?php if (!empty($customers)): ?>
                     <?php 
-                    $displayedCount = 0;
-                    $renderedIds = []; // Track rendered IDs to prevent duplicates
+                    // Simple rendering - no filters, no checks, just render all customers
                     foreach ($customers as $customer):
-                        // Skip if already rendered (safety check)
-                        if (isset($renderedIds[$customer['id']])) {
-                            echo "<!-- SKIPPED: Duplicate customer ID {$customer['id']} -->";
-                            continue;
-                        }
-                        $renderedIds[$customer['id']] = true;
-                        $displayedCount++;
-                        
-                        echo "<!-- Rendering customer ID: {$customer['id']}, Name: {$customer['full_name']} -->";
-                        
-                        $isDuplicate = $customer['is_duplicate'] ?? false;
-                        $duplicateCount = $customer['duplicate_count'] ?? 1;
-                        $rowClass = $isDuplicate ? 'bg-yellow-50 hover:bg-yellow-100 border-l-4 border-yellow-400' : '';
+                        $isDuplicate = false;
+                        $duplicateCount = 1;
+                        $rowClass = '';
                     ?>
                         <tr data-customer-id="<?= $customer['id'] ?>" class="<?= $rowClass ?>" data-phone="<?= htmlspecialchars($customer['phone_number'] ?? '') ?>">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -165,12 +136,9 @@
                         </tr>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <tr>
-                        <td colspan="6" class="px-6 py-4 text-center text-gray-500">
-                            No customers found
-                        </td>
-                    </tr>
+                    <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No customers found</td></tr>
                 <?php endif; ?>
+                <!-- Total customers rendered: <?= isset($customers) ? count($customers) : 0 ?> -->
             </tbody>
         </table>
     </div>
@@ -1262,8 +1230,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Search and Filter Functionality
+// Search and Filter Functionality - DISABLED FOR DEBUGGING
 (function(){
+    console.log('Search/filter functionality temporarily disabled');
+    return; // EXIT EARLY - DON'T RUN ANY FILTER CODE
+    
     const searchInput = document.getElementById('customerSearch');
     const dateFilter = document.getElementById('dateFilter');
     const tbody = document.getElementById('customersTableBody');
