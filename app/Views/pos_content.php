@@ -4046,8 +4046,8 @@ function printReceipt() {
 </style>
 
 <!-- Receipt Modal -->
-<div id="receiptModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-start justify-center p-4 overflow-y-auto">
-    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full mt-8 mb-4 max-h-[85vh] overflow-y-auto">
+<div id="receiptModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full my-4 max-h-[90vh] overflow-y-auto">
             <div class="p-4">
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="text-base font-semibold text-gray-800">Receipt</h3>
@@ -4073,8 +4073,8 @@ function printReceipt() {
 </div>
 
 <!-- New Customer Modal -->
-<div id="newCustomerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
-    <div class="flex items-center justify-center min-h-screen p-4">
+<div id="newCustomerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="my-4">
         <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
             <div class="p-6">
                 <div class="flex justify-between items-center mb-6">
@@ -4118,8 +4118,8 @@ function printReceipt() {
 </div>
 
 <!-- Swap Modal -->
-<div id="swapModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-start justify-center p-4 overflow-y-auto">
-    <div class="bg-white rounded-lg shadow-xl max-w-xl w-full mt-8 mb-4 max-h-[85vh] overflow-y-auto">
+<div id="swapModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-lg shadow-xl max-w-xl w-full my-4 max-h-[90vh] overflow-y-auto">
             <div class="p-4">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-semibold text-gray-800">Process Swap</h3>
