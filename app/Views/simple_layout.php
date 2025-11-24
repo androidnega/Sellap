@@ -97,8 +97,10 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
                     if (window.tailwind && typeof window.tailwind.refresh === 'function') {
                         window.tailwind.refresh();
                     }
-                    // Show body once Tailwind is loaded
-                    document.body.classList.add('tailwind-loaded');
+                    // Show body once Tailwind is loaded (only if body exists)
+                    if (document.body) {
+                        document.body.classList.add('tailwind-loaded');
+                    }
                     // Dispatch custom event for other scripts
                     window.dispatchEvent(new CustomEvent('tailwindLoaded'));
                 };
@@ -143,37 +145,67 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
             
             // Fallback: Show body after 5 seconds even if Tailwind hasn't loaded
             setTimeout(function() {
-                if (!tailwindLoaded) {
+                if (!tailwindLoaded && document.body) {
                     document.body.classList.add('tailwind-loaded');
                 }
             }, 5000);
+            
+            // Ensure body is shown once DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    if (document.body && !document.body.classList.contains('tailwind-loaded')) {
+                        // Give Tailwind a bit more time
+                        setTimeout(function() {
+                            if (document.body) {
+                                document.body.classList.add('tailwind-loaded');
+                            }
+                        }, 1000);
+                    }
+                });
+            } else if (document.body && !document.body.classList.contains('tailwind-loaded')) {
+                // DOM already loaded but Tailwind not loaded yet
+                setTimeout(function() {
+                    if (document.body) {
+                        document.body.classList.add('tailwind-loaded');
+                    }
+                }, 1000);
+            }
         })();
     </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script>
-        // Load Alpine.js with multiple fallbacks
+        // Load Alpine.js with multiple fallbacks - wait for DOM to be ready
         (function() {
-            const alpineScript = document.createElement('script');
-            alpineScript.defer = true;
-            alpineScript.onerror = function() {
-                // First fallback
-                const fallback1 = document.createElement('script');
-                fallback1.src = 'https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js';
-                fallback1.defer = true;
-                fallback1.onerror = function() {
-                    // Second fallback - use jsDelivr
-                    const fallback2 = document.createElement('script');
-                    fallback2.src = 'https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js';
-                    fallback2.defer = true;
-                    fallback2.onerror = function() {
-                        console.warn('Alpine.js failed to load from all CDNs. Some interactive features may not work.');
+            function loadAlpine() {
+                const alpineScript = document.createElement('script');
+                alpineScript.defer = true;
+                alpineScript.onerror = function() {
+                    // First fallback
+                    const fallback1 = document.createElement('script');
+                    fallback1.src = 'https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js';
+                    fallback1.defer = true;
+                    fallback1.onerror = function() {
+                        // Second fallback - use jsDelivr
+                        const fallback2 = document.createElement('script');
+                        fallback2.src = 'https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js';
+                        fallback2.defer = true;
+                        fallback2.onerror = function() {
+                            // Silently fail - don't warn user unnecessarily
+                        };
+                        document.head.appendChild(fallback2);
                     };
-                    document.head.appendChild(fallback2);
+                    document.head.appendChild(fallback1);
                 };
-                document.head.appendChild(fallback1);
-            };
-            alpineScript.src = 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js';
-            document.head.appendChild(alpineScript);
+                alpineScript.src = 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js';
+                document.head.appendChild(alpineScript);
+            }
+            
+            // Wait for DOM to be ready before loading Alpine
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', loadAlpine);
+            } else {
+                loadAlpine();
+            }
         })();
     </script>
     
