@@ -12,17 +12,39 @@
         <h2 class="text-xl font-semibold text-gray-800 mb-4">Available Migrations</h2>
         
         <div class="space-y-4">
+            <!-- Backup Columns Migration -->
+            <div class="border border-purple-200 rounded-lg p-4 hover:bg-purple-50 transition bg-purple-25">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center">
+                            <h3 class="text-lg font-medium text-gray-900">Backup Columns Migration</h3>
+                            <span class="ml-2 px-2 py-1 text-xs font-semibold bg-purple-100 text-purple-800 rounded">RECOMMENDED</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">
+                            Adds backup_type and description columns to backups table. Required for backup statistics to work properly.
+                        </p>
+                        <p class="text-xs text-purple-700 mt-1 font-medium">
+                            ⚠️ Run this if backup statistics show all zeros
+                        </p>
+                    </div>
+                    <a href="<?= BASE_URL_PATH ?>/dashboard/tools/run-backup-columns-migration" 
+                       class="ml-4 px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition flex-shrink-0">
+                        Run Migration
+                    </a>
+                </div>
+            </div>
+
             <!-- Laptop Category Migration -->
             <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
                 <div class="flex items-center justify-between">
                     <div class="flex-1">
                         <h3 class="text-lg font-medium text-gray-900">Laptop Category & Brands</h3>
                         <p class="text-sm text-gray-600 mt-1">
-                            Creates the "Laptops" category and seeds default laptop brands (Dell, HP, Lenovo, Apple)
+                            Creates the "Laptops" category and seeds default laptop brands (Dell, HP, Lenovo, Apple, and more)
                         </p>
                     </div>
                     <a href="<?= BASE_URL_PATH ?>/dashboard/tools/run-laptop-migration" 
-                       class="ml-4 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                       class="ml-4 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition flex-shrink-0">
                         Run Migration
                     </a>
                 </div>

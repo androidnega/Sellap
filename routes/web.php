@@ -762,6 +762,23 @@ $router->get('api/products/subcategories/{categoryId}', function($categoryId) {
     }
 });
 
+// Alternative endpoint for subcategories by category ID
+$router->get('api/subcategories/by-category/{categoryId}', function($categoryId) {
+    header('Content-Type: application/json');
+    try {
+        \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson', 'technician']);
+        $controller = new \App\Controllers\ProductController();
+        $controller->apiGetSubcategoriesByCategory($categoryId);
+    } catch (\Exception $e) {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'data' => []
+        ]);
+    }
+});
+
 // Get brand specifications
 $router->get('api/products/brand-specs/{brandId}', function($brandId) {
     header('Content-Type: application/json');
@@ -3443,6 +3460,12 @@ $router->get('dashboard/tools', function() {
 $router->get('dashboard/tools/run-laptop-migration', function() {
     $controller = new \App\Controllers\MigrationController();
     $controller->runLaptopCategoryMigration();
+});
+
+// Run backup columns migration
+$router->get('dashboard/tools/run-backup-columns-migration', function() {
+    $controller = new \App\Controllers\MigrationController();
+    $controller->runBackupColumnsMigration();
 });
 
 // ========================================
