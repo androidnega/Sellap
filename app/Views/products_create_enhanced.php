@@ -99,12 +99,11 @@ $prefillData = $GLOBALS['prefill_product_data'] ?? null;
                         <!-- Brand (Dynamic) -->
                         <div id="brandWrapper" style="display:none;">
                             <label for="brand_id" class="block text-sm font-medium text-gray-700 mb-2">
-                                Brand <span class="text-red-500">*</span>
+                                Brand <span id="brandRequiredIndicator" class="text-red-500" style="display:none;">*</span>
                             </label>
                             <select id="brandSelect" 
                                     name="brand_id" 
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    required>
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                                 <option value="">Select brand</option>
                                 <?php if (isset($product) && !empty($product['brand_id'])): ?>
                                     <option value="<?= $product['brand_id'] ?>" selected><?= htmlspecialchars($product['brand_name'] ?? 'Selected Brand') ?></option>
@@ -343,6 +342,7 @@ document.addEventListener('DOMContentLoaded', function(){
   const subcategorySelect = document.getElementById('subcategorySelect');
   const brandWrapper = document.getElementById('brandWrapper');
   const brandSelect = document.getElementById('brandSelect');
+  const brandRequiredIndicator = document.getElementById('brandRequiredIndicator');
   const swapWrapper = document.getElementById('swapWrapper');
   const specsContainer = document.getElementById('specsContainer');
   const specsWrapper = document.getElementById('specsWrapper');
@@ -416,6 +416,38 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 
+  function updateBrandFieldVisibility(hasBrands, requireBrand = false) {
+    if (hasBrands) {
+      brandWrapper.style.display = 'block';
+      brandSelect.disabled = false;
+      if (requireBrand) {
+        brandSelect.required = true;
+        brandSelect.setAttribute('required', 'required');
+        brandSelect.setAttribute('aria-required', 'true');
+      } else {
+        brandSelect.required = false;
+        brandSelect.removeAttribute('required');
+        brandSelect.removeAttribute('aria-required');
+      }
+      if (brandRequiredIndicator) {
+        brandRequiredIndicator.style.display = requireBrand ? 'inline' : 'none';
+      }
+    } else {
+      brandWrapper.style.display = 'none';
+      brandSelect.disabled = true;
+      brandSelect.required = false;
+      brandSelect.removeAttribute('required');
+      brandSelect.removeAttribute('aria-required');
+      brandSelect.value = '';
+      if (brandRequiredIndicator) {
+        brandRequiredIndicator.style.display = 'none';
+      }
+    }
+  }
+
+  // Ensure the brand field starts disabled until we know the category context
+  updateBrandFieldVisibility(false);
+
   async function onCategoryChange(){
     const catId = categorySelect.value;
     console.log('Category changed to:', catId);
@@ -432,7 +464,8 @@ document.addEventListener('DOMContentLoaded', function(){
     
     if(!catId){
       subcategoryWrapper.style.display = 'none';
-      brandWrapper.style.display = 'none';
+      resetSelect(subcategorySelect);
+      updateBrandFieldVisibility(false);
       swapWrapper.style.display = 'none';
       specsContainer.innerHTML = '';
       if (specsWrapper) specsWrapper.style.display = 'none';
@@ -458,12 +491,13 @@ document.addEventListener('DOMContentLoaded', function(){
     console.log('Brands loaded:', brands);
     console.log('Brands length:', brands ? brands.length : 'null/undefined');
     
+    const requiresBrand = isPhoneCategory(catName);
     if(brands && brands.length > 0){ 
       console.log('Showing brand wrapper and populating brands');
       console.log('Brand wrapper element:', brandWrapper);
       console.log('Brand wrapper current display:', brandWrapper.style.display);
       populateSelect(brandSelect, brands, 'Select brand'); 
-      brandWrapper.style.display = 'block'; 
+      updateBrandFieldVisibility(true, requiresBrand);
       console.log('Brand wrapper display set to:', brandWrapper.style.display);
       
       // Set the selected brand value if editing
@@ -478,8 +512,8 @@ document.addEventListener('DOMContentLoaded', function(){
       <?php endif; ?>
     } else { 
       console.log('Hiding brand wrapper - no brands found');
-      brandWrapper.style.display = 'none'; 
       resetSelect(brandSelect); 
+      updateBrandFieldVisibility(false);
     }
 
     // Swap toggle: show only for phone-like categories
@@ -534,7 +568,8 @@ document.addEventListener('DOMContentLoaded', function(){
 
   async function onBrandChange(){
     const brandId = brandSelect.value;
-    const brandName = brandSelect.options[brandSelect.selectedIndex].text;
+    const selectedOption = brandSelect.selectedIndex >= 0 ? brandSelect.options[brandSelect.selectedIndex] : null;
+    const brandName = selectedOption ? selectedOption.text : '';
     console.log('Brand changed to:', brandId, 'Name:', brandName);
     
     const specsWrapper = document.getElementById('specsWrapper');
