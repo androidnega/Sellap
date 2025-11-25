@@ -406,8 +406,8 @@ class AnalyticsService {
                     COUNT(*) as count,
                     COALESCE(SUM(
                         CASE 
-                            WHEN total_value > 0 THEN total_value
-                            WHEN added_cash > 0 THEN added_cash
+                            WHEN s.total_value > 0 THEN s.total_value
+                            WHEN s.added_cash > 0 THEN s.added_cash
                             ELSE 0
                         END
                     ), 0) as revenue
@@ -735,8 +735,8 @@ class AnalyticsService {
                             COUNT(*) as count,
                             COALESCE(SUM(
                                 CASE 
-                                    WHEN total_value > 0 THEN total_value
-                                    WHEN added_cash > 0 THEN added_cash
+                                    WHEN s.total_value > 0 THEN s.total_value
+                                    WHEN s.added_cash > 0 THEN s.added_cash
                                     ELSE 0
                                 END
                             ), 0) as revenue
