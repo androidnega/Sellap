@@ -3612,10 +3612,8 @@ class DashboardController {
                             $profitLink = $profitLinkQuery->fetch(\PDO::FETCH_ASSOC);
                             if ($profitLink) {
                                 $profitFinal = isset($profitLink['final_profit']) && $profitLink['final_profit'] !== null ? floatval($profitLink['final_profit']) : null;
-                                // If no final_profit but have profit_estimate, use it (matches view logic)
-                                if ($profitFinal === null && isset($profitLink['profit_estimate']) && $profitLink['profit_estimate'] !== null) {
-                                    $profitFinal = floatval($profitLink['profit_estimate']);
-                                }
+                                // Do NOT use profit_estimate as final_profit - keep them separate
+                                // Estimated profit should NOT show in profit section until totally resold
                                 if ($profitStatus === null && isset($profitLink['profit_status'])) {
                                     $profitStatus = $profitLink['profit_status'];
                                 }
@@ -3665,24 +3663,22 @@ class DashboardController {
                         }
                     }
                     
-                    // If we have final profit (from swaps table, swap_profit_links, calculated, or estimate), count it
-                    // Matches view logic: if resold and (profitFinal OR profitEstimate), show as realized
-                    if ($profitFinal !== null) {
+                    // Only count finalized profit - DO NOT use estimates as realized profit
+                    // Estimated profit should NOT show in profit section until totally resold
+                    if ($profitFinal !== null && $profitStatus === 'finalized') {
                         $profitToUse = $profitFinal;
                         $calculatedFinalProfit += $profitToUse;
                         $calculatedFinalCount++;
                         if ($profitToUse < 0) {
                             $calculatedLoss += abs($profitToUse);
                         }
+                        error_log("DashboardController getSwapStatistics: Using finalized profit ₵{$profitFinal} for resold swap #{$s['id']}");
                     } elseif ($profitEstimate !== null) {
-                        // If no final profit but have estimate and item is resold, use estimate (matches view logic)
-                        $profitToUse = $profitEstimate;
-                        $calculatedFinalProfit += $profitToUse;
-                        $calculatedFinalCount++;
-                        if ($profitToUse < 0) {
-                            $calculatedLoss += abs($profitToUse);
-                        }
-                        error_log("DashboardController getSwapStatistics: Using profit_estimate ₵{$profitEstimate} for resold swap #{$s['id']} (matches view logic)");
+                        // Item is resold but profit not finalized - keep as estimated
+                        // Estimated profit should NOT be counted as realized until fully finalized
+                        $calculatedEstimatedProfit += $profitEstimate;
+                        $calculatedEstimatedCount++;
+                        error_log("DashboardController getSwapStatistics: Keeping profit_estimate ₵{$profitEstimate} for resold swap #{$s['id']} as estimated (not finalized)");
                     }
                 } elseif ($profitStatus === 'finalized' && $hasCustomerSaleId) {
                     // Profit is finalized and customer item has been resold

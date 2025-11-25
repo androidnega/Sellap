@@ -2115,13 +2115,15 @@ class AdminController {
             $swapsRecords = [];
             if ($recordType === 'all' || $recordType === 'swaps') {
                 try {
+                    // Use added_cash as the amount for swaps (cash top-up from customer)
+                    // Don't include estimated profit - only cash received during swap
                     $swapsQuery = $db->prepare("
                         SELECT 
                             s.id,
                             s.company_id,
                             c.name as company_name,
                             'swap' as record_type,
-                            COALESCE(s.total_amount, 0) as amount,
+                            COALESCE(s.added_cash, 0) as amount,
                             s.created_at as record_date,
                             s.status as swap_status,
                             u.full_name as created_by
