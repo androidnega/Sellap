@@ -251,19 +251,21 @@
                                 $bothItemsSold = $hasCompanySaleId && $hasCustomerSaleId;
                                 $isResold = ($swap['resale_status'] ?? null) === 'sold' || ($swap['status'] ?? null) === 'resold';
                                 
-                                // CORE RULE: If both items are sold → profit is REALIZED (always)
-                                if ($bothItemsSold || $profitStatus === 'finalized' || ($isResold && ($profitFinal !== null || $profitEstimate !== null))) {
-                                    // Both items sold = Realized profit
-                                    $profit = $profitFinal !== null ? $profitFinal : $profitEstimate;
-                                    if ($profit !== null) {
-                                        $profitColor = $profit >= 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-red-700 bg-red-50 border-red-200';
-                                        $profitLabel = 'Realized';
-                                    }
+                                // Only mark as realized when an actual final profit value exists
+                                if ($profitFinal !== null) {
+                                    $profit = $profitFinal;
+                                    $profitColor = $profit >= 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-red-700 bg-red-50 border-red-200';
+                                    $profitLabel = 'Realized';
                                 } elseif ($profitEstimate !== null) {
-                                    // Only estimated profit available and both items NOT sold = Estimated
                                     $profit = $profitEstimate;
-                                    $profitColor = $profit >= 0 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-orange-700 bg-orange-50 border-orange-200';
-                                    $profitLabel = 'Est.';
+                                    if ($isResold || $bothItemsSold || $profitStatus === 'finalized') {
+                                        // Swap is marked resold but we still only have an estimate
+                                        $profitColor = $profit >= 0 ? 'text-blue-700 bg-blue-50 border-blue-200' : 'text-blue-800 bg-blue-100 border-blue-200';
+                                        $profitLabel = 'Pending';
+                                    } else {
+                                        $profitColor = $profit >= 0 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-orange-700 bg-orange-50 border-orange-200';
+                                        $profitLabel = 'Est.';
+                                    }
                                 }
                                 
                                 if ($profit !== null):

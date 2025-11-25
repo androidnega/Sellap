@@ -645,14 +645,7 @@ class AnalyticsService {
                         SELECT COALESCE(
                             SUM(
                                 CASE 
-                                    -- Use actual finalized profit values only
                                     WHEN spl.final_profit IS NOT NULL THEN spl.final_profit
-                                    -- If we have the company sale but final_profit wasn't stored, derive it from cost/price
-                                    WHEN spl.company_item_sale_id IS NOT NULL AND spl.company_product_cost IS NOT NULL THEN
-                                        COALESCE(
-                                            (SELECT ps.final_amount FROM pos_sales ps WHERE ps.id = spl.company_item_sale_id LIMIT 1),
-                                            0
-                                        ) - COALESCE(spl.company_product_cost, 0)
                                     ELSE 0
                                 END
                             ), 0
@@ -661,7 +654,7 @@ class AnalyticsService {
                         INNER JOIN swaps s ON spl.swap_id = s.id
                         LEFT JOIN swapped_items si ON si.swap_id = s.id
                         WHERE s.company_id = :company_id
-                        AND (si.status = 'sold' OR spl.customer_item_sale_id IS NOT NULL OR spl.company_item_sale_id IS NOT NULL)
+                        AND (si.status = 'sold' OR spl.customer_item_sale_id IS NOT NULL)
                     ");
                     $profitQuery->execute(['company_id' => $company_id]);
                     $profitResult = $profitQuery->fetch(\PDO::FETCH_ASSOC);
@@ -866,7 +859,7 @@ class AnalyticsService {
                         // If item is resold (swapped_items.status = 'sold'), profit is realized
                         // Use profit_estimate if final_profit is NULL (matches view logic)
                         $periodProfitWhere = "s.company_id = :company_id
-                            AND (si.status = 'sold' OR spl.customer_item_sale_id IS NOT NULL OR spl.company_item_sale_id IS NOT NULL)
+                            AND (si.status = 'sold' OR spl.customer_item_sale_id IS NOT NULL)
                             AND (
                                 (customer_sale.id IS NOT NULL AND DATE(customer_sale.created_at) >= :date_from AND DATE(customer_sale.created_at) <= :date_to)
                                 OR (customer_sale.id IS NULL AND DATE(s.created_at) >= :date_from AND DATE(s.created_at) <= :date_to)
@@ -884,11 +877,6 @@ class AnalyticsService {
                                 SUM(
                                     CASE 
                                         WHEN spl.final_profit IS NOT NULL THEN spl.final_profit
-                                        WHEN spl.company_item_sale_id IS NOT NULL AND spl.company_product_cost IS NOT NULL THEN
-                                            COALESCE(
-                                                (SELECT ps.final_amount FROM pos_sales ps WHERE ps.id = spl.company_item_sale_id LIMIT 1),
-                                                0
-                                            ) - COALESCE(spl.company_product_cost, 0)
                                         ELSE 0
                                     END
                                 ), 0
