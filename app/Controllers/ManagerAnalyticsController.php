@@ -2401,24 +2401,38 @@ class ManagerAnalyticsController {
                 
                 if ($swapModuleEnabled) {
                     try {
-                        $swapStats = $this->analyticsService->getSwapStats($companyId, $dateFrom, $dateTo, $staffId);
-                        error_log("fetchLiveData: Raw swap stats from service: " . json_encode($swapStats));
+                        // Use getSwapStatistics for consistency with swap page and dashboard
+                        // This ensures the audit trail shows the same values as other pages
+                        $dashboardController = new \App\Controllers\DashboardController();
+                        $reflection = new \ReflectionClass($dashboardController);
+                        $method = $reflection->getMethod('getSwapStatistics');
+                        $method->setAccessible(true);
+                        $swapStatsFromDashboard = $method->invoke($dashboardController, $companyId, $dateFrom, $dateTo);
                         
-                        // Ensure all required fields are present
+                        error_log("fetchLiveData: Swap stats from getSwapStatistics (matches swap page): " . json_encode($swapStatsFromDashboard));
+                        
+                        // Use the values from getSwapStatistics which matches swap page
+                        $totalSwaps = (int)($swapStatsFromDashboard['total_swaps'] ?? 0);
+                        $totalValue = (float)($swapStatsFromDashboard['total_value'] ?? 0);
+                        $totalProfit = (float)($swapStatsFromDashboard['total_profit'] ?? 0);
+                        $pendingSwaps = (int)($swapStatsFromDashboard['pending'] ?? 0);
+                        
+                        // Ensure all required fields are present - use getSwapStatistics values for consistency
                         $response['swaps'] = [
-                            'pending' => $swapStats['pending'] ?? 0,
+                            'pending' => $pendingSwaps,
                             'monthly' => [
-                                'count' => $swapStats['monthly']['count'] ?? 0,
-                                'revenue' => $swapStats['monthly']['revenue'] ?? 0,
-                                'profit' => $swapStats['monthly']['profit'] ?? 0
+                                'count' => $totalSwaps,
+                                'revenue' => $totalValue,
+                                'profit' => $totalProfit
                             ],
-                            'profit' => $swapStats['profit'] ?? 0,
-                            'period' => $swapStats['period'] ?? [
-                                'count' => $swapStats['monthly']['count'] ?? 0,
-                                'revenue' => $swapStats['monthly']['revenue'] ?? 0,
-                                'profit' => $swapStats['monthly']['profit'] ?? $swapStats['profit'] ?? 0
+                            'profit' => $totalProfit,
+                            'period' => [
+                                'count' => $totalSwaps,
+                                'revenue' => $totalValue,
+                                'profit' => $totalProfit
                             ],
-                            'filtered' => $swapStats['filtered'] ?? null
+                            'filtered' => null,
+                            'total_value' => $totalValue  // Add explicit total_value for dashboard consistency
                         ];
                         error_log("fetchLiveData: Swap stats formatted successfully for company {$companyId}: " . json_encode($response['swaps']));
                     } catch (\Exception $e) {
