@@ -415,9 +415,9 @@ class SwapController {
                     }
                 }
                 
-                // Only count finalized profit - DO NOT use estimates as realized profit
-                // Estimated profit should NOT show in profit section until totally resold
-                if ($profitFinal !== null && $profitStatus === 'finalized') {
+                // Count realized profit as soon as we have an actual final profit amount
+                // Do NOT pull in profit_estimate as realized profit
+                if ($profitFinal !== null) {
                     $profitToUse = $profitFinal;
                     $swapStats['_calculated_final_profit'] += $profitToUse;
                     $swapStats['_calculated_final_count']++;
@@ -427,13 +427,13 @@ class SwapController {
                         }
                         $swapStats['_calculated_loss'] += abs($profitToUse);
                     }
-                    error_log("SwapController: Using finalized profit ₵{$profitFinal} for resold swap #{$s['id']}");
+                    error_log("SwapController: Using final profit ₵{$profitFinal} for resold swap #{$s['id']}");
                 } elseif ($profitEstimate !== null) {
-                    // Item is resold but profit not finalized - keep as estimated
-                    // Estimated profit should NOT be counted as realized until fully finalized
+                    // Item is resold but we still don't have the actual profit value
+                    // Keep it in the estimated bucket so dashboards can flag it
                     $swapStats['_calculated_estimated_profit'] += $profitEstimate;
                     $swapStats['_calculated_estimated_count']++;
-                    error_log("SwapController: Keeping profit_estimate ₵{$profitEstimate} for resold swap #{$s['id']} as estimated (not finalized)");
+                    error_log("SwapController: Resold swap #{$s['id']} missing final profit, keeping estimate ₵{$profitEstimate} as pending");
                 }
             } elseif ($profitStatus === 'finalized' && $hasCustomerSaleId) {
                 // Profit is finalized and customer item has been resold

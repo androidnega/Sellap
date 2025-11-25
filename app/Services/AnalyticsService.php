@@ -536,7 +536,6 @@ class AnalyticsService {
                     SELECT COALESCE(
                         SUM(CASE 
                             WHEN spl.customer_item_sale_id IS NOT NULL
-                            AND spl.status = 'finalized' 
                             AND spl.final_profit IS NOT NULL 
                             THEN spl.final_profit 
                             ELSE 0 
@@ -646,13 +645,10 @@ class AnalyticsService {
                         SELECT COALESCE(
                             SUM(
                                 CASE 
-                                    -- Only count finalized profit - DO NOT use estimates
-                                    -- Estimated profit should NOT show in profit section until totally resold
-                                    WHEN spl.final_profit IS NOT NULL AND spl.status = 'finalized' THEN spl.final_profit
-                                    -- If customer_item_sale_id exists and final_profit exists and finalized, use it
-                                    WHEN spl.customer_item_sale_id IS NOT NULL AND spl.final_profit IS NOT NULL AND spl.status = 'finalized' THEN spl.final_profit
-                                    -- If company_item_sale_id exists, calculate profit from sale only if finalized
-                                    WHEN spl.company_item_sale_id IS NOT NULL AND spl.company_product_cost IS NOT NULL AND spl.status = 'finalized' THEN
+                                    -- Use actual finalized profit values only
+                                    WHEN spl.final_profit IS NOT NULL THEN spl.final_profit
+                                    -- If we have the company sale but final_profit wasn't stored, derive it from cost/price
+                                    WHEN spl.company_item_sale_id IS NOT NULL AND spl.company_product_cost IS NOT NULL THEN
                                         COALESCE(
                                             (SELECT ps.final_amount FROM pos_sales ps WHERE ps.id = spl.company_item_sale_id LIMIT 1),
                                             0
@@ -665,7 +661,6 @@ class AnalyticsService {
                         INNER JOIN swaps s ON spl.swap_id = s.id
                         LEFT JOIN swapped_items si ON si.swap_id = s.id
                         WHERE s.company_id = :company_id
-                        AND spl.status = 'finalized'
                         AND (si.status = 'sold' OR spl.customer_item_sale_id IS NOT NULL OR spl.company_item_sale_id IS NOT NULL)
                     ");
                     $profitQuery->execute(['company_id' => $company_id]);
@@ -677,10 +672,6 @@ class AnalyticsService {
                     $profitQuery = $this->db->prepare("
                         SELECT COALESCE(
                             SUM(CASE 
-                                WHEN spl.customer_item_sale_id IS NOT NULL 
-                                AND spl.status = 'finalized' 
-                                AND spl.final_profit IS NOT NULL 
-                                THEN spl.final_profit 
                                 WHEN spl.customer_item_sale_id IS NOT NULL 
                                 AND spl.final_profit IS NOT NULL 
                                 THEN spl.final_profit
@@ -892,13 +883,8 @@ class AnalyticsService {
                             SELECT COALESCE(
                                 SUM(
                                     CASE 
-                                        -- Only count finalized profit - DO NOT use estimates
-                                        -- Estimated profit should NOT show in profit section until totally resold
-                                        WHEN spl.final_profit IS NOT NULL AND spl.status = 'finalized' THEN spl.final_profit
-                                        -- If customer_item_sale_id exists and final_profit exists and finalized, use it
-                                        WHEN spl.customer_item_sale_id IS NOT NULL AND spl.final_profit IS NOT NULL AND spl.status = 'finalized' THEN spl.final_profit
-                                        -- If company_item_sale_id exists, calculate profit from sale only if finalized
-                                        WHEN spl.company_item_sale_id IS NOT NULL AND spl.company_product_cost IS NOT NULL AND spl.status = 'finalized' THEN
+                                        WHEN spl.final_profit IS NOT NULL THEN spl.final_profit
+                                        WHEN spl.company_item_sale_id IS NOT NULL AND spl.company_product_cost IS NOT NULL THEN
                                             COALESCE(
                                                 (SELECT ps.final_amount FROM pos_sales ps WHERE ps.id = spl.company_item_sale_id LIMIT 1),
                                                 0
@@ -912,7 +898,6 @@ class AnalyticsService {
                             LEFT JOIN swapped_items si ON si.swap_id = s.id
                             LEFT JOIN pos_sales customer_sale ON spl.customer_item_sale_id = customer_sale.id
                             WHERE {$periodProfitWhere}
-                            AND spl.status = 'finalized'
                         ");
                         $periodProfitQuery->execute($periodProfitParams);
                         $periodProfitResult = $periodProfitQuery->fetch(\PDO::FETCH_ASSOC);
@@ -937,10 +922,6 @@ class AnalyticsService {
                         $periodProfitQuery = $this->db->prepare("
                             SELECT COALESCE(
                                 SUM(CASE 
-                                    WHEN spl.customer_item_sale_id IS NOT NULL 
-                                    AND spl.status = 'finalized' 
-                                    AND spl.final_profit IS NOT NULL 
-                                    THEN spl.final_profit 
                                     WHEN spl.customer_item_sale_id IS NOT NULL 
                                     AND spl.final_profit IS NOT NULL 
                                     THEN spl.final_profit

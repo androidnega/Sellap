@@ -3663,22 +3663,22 @@ class DashboardController {
                         }
                     }
                     
-                    // Only count finalized profit - DO NOT use estimates as realized profit
-                    // Estimated profit should NOT show in profit section until totally resold
-                    if ($profitFinal !== null && $profitStatus === 'finalized') {
+                    // Count realized profit as soon as we have an actual final profit amount
+                    // Never use profit_estimate as realized profit
+                    if ($profitFinal !== null) {
                         $profitToUse = $profitFinal;
                         $calculatedFinalProfit += $profitToUse;
                         $calculatedFinalCount++;
                         if ($profitToUse < 0) {
                             $calculatedLoss += abs($profitToUse);
                         }
-                        error_log("DashboardController getSwapStatistics: Using finalized profit ₵{$profitFinal} for resold swap #{$s['id']}");
+                        error_log("DashboardController getSwapStatistics: Using final profit ₵{$profitFinal} for resold swap #{$s['id']}");
                     } elseif ($profitEstimate !== null) {
-                        // Item is resold but profit not finalized - keep as estimated
-                        // Estimated profit should NOT be counted as realized until fully finalized
+                        // Item is resold but we still don't have the actual profit value
+                        // Keep it in the estimated bucket so analytics can flag it
                         $calculatedEstimatedProfit += $profitEstimate;
                         $calculatedEstimatedCount++;
-                        error_log("DashboardController getSwapStatistics: Keeping profit_estimate ₵{$profitEstimate} for resold swap #{$s['id']} as estimated (not finalized)");
+                        error_log("DashboardController getSwapStatistics: Resold swap #{$s['id']} missing final profit, keeping estimate ₵{$profitEstimate} as pending");
                     }
                 } elseif ($profitStatus === 'finalized' && $hasCustomerSaleId) {
                     // Profit is finalized and customer item has been resold
@@ -4393,8 +4393,19 @@ class DashboardController {
         $swapRevenue = 0;
         $swapProfit = 0;
         
+        $swapRevenueFromStats = false;
+        if ($swapStats && (isset($swapStats['total_value']) || isset($swapStats['total_cash_received']))) {
+            // Use the exact same revenue number the swap page shows
+            $swapRevenue = floatval($swapStats['total_value'] ?? 0);
+            if ($swapRevenue <= 0 && isset($swapStats['total_cash_received'])) {
+                $swapRevenue = floatval($swapStats['total_cash_received']);
+            }
+            $swapRevenueFromStats = true;
+        }
+        
         // Get swap revenue - cash top-up for non-resold, total_value (top-up + resale) for resold swaps
-        try {
+        if (!$swapRevenueFromStats) {
+            try {
             // Check which columns exist
             $checkAddedCash = $db->query("SHOW COLUMNS FROM swaps LIKE 'added_cash'");
             $hasAddedCash = $checkAddedCash->rowCount() > 0;
@@ -4604,9 +4615,10 @@ class DashboardController {
             } else {
                 $swapRevenue = 0;
             }
-        } catch (\Exception $e) {
-            error_log("Error getting swap revenue: " . $e->getMessage());
-            $swapRevenue = 0;
+            } catch (\Exception $e) {
+                error_log("Error getting swap revenue: " . $e->getMessage());
+                $swapRevenue = 0;
+            }
         }
         
         // Get swap profit - use from swapStats if provided (already calculated correctly)
