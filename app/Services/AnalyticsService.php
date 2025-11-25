@@ -535,9 +535,10 @@ class AnalyticsService {
                 $monthlyProfitQuery = $this->db->prepare("
                     SELECT COALESCE(
                         SUM(CASE 
-                            WHEN spl.customer_item_sale_id IS NOT NULL
-                            AND spl.final_profit IS NOT NULL 
-                            THEN spl.final_profit 
+                            WHEN spl.customer_item_sale_id IS NOT NULL AND spl.final_profit IS NOT NULL 
+                            THEN spl.final_profit
+                            WHEN spl.customer_item_sale_id IS NOT NULL AND spl.profit_estimate IS NOT NULL 
+                            THEN spl.profit_estimate
                             ELSE 0 
                         END), 0
                     ) as profit
@@ -645,7 +646,9 @@ class AnalyticsService {
                         SELECT COALESCE(
                             SUM(
                                 CASE 
+                                    -- Use final_profit if available, otherwise use profit_estimate for resold items
                                     WHEN spl.final_profit IS NOT NULL THEN spl.final_profit
+                                    WHEN spl.profit_estimate IS NOT NULL THEN spl.profit_estimate
                                     ELSE 0
                                 END
                             ), 0
@@ -665,9 +668,10 @@ class AnalyticsService {
                     $profitQuery = $this->db->prepare("
                         SELECT COALESCE(
                             SUM(CASE 
-                                WHEN spl.customer_item_sale_id IS NOT NULL 
-                                AND spl.final_profit IS NOT NULL 
+                                WHEN spl.customer_item_sale_id IS NOT NULL AND spl.final_profit IS NOT NULL 
                                 THEN spl.final_profit
+                                WHEN spl.customer_item_sale_id IS NOT NULL AND spl.profit_estimate IS NOT NULL 
+                                THEN spl.profit_estimate
                                 ELSE 0 
                             END), 0
                         ) as profit
@@ -877,6 +881,7 @@ class AnalyticsService {
                                 SUM(
                                     CASE 
                                         WHEN spl.final_profit IS NOT NULL THEN spl.final_profit
+                                        WHEN spl.profit_estimate IS NOT NULL THEN spl.profit_estimate
                                         ELSE 0
                                     END
                                 ), 0
@@ -910,9 +915,10 @@ class AnalyticsService {
                         $periodProfitQuery = $this->db->prepare("
                             SELECT COALESCE(
                                 SUM(CASE 
-                                    WHEN spl.customer_item_sale_id IS NOT NULL 
-                                    AND spl.final_profit IS NOT NULL 
+                                    WHEN spl.customer_item_sale_id IS NOT NULL AND spl.final_profit IS NOT NULL 
                                     THEN spl.final_profit
+                                    WHEN spl.customer_item_sale_id IS NOT NULL AND spl.profit_estimate IS NOT NULL 
+                                    THEN spl.profit_estimate
                                     ELSE 0 
                                 END), 0
                             ) as profit

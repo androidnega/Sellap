@@ -415,10 +415,9 @@ class SwapController {
                     }
                 }
                 
-                // Count realized profit as soon as we have an actual final profit amount
-                // Do NOT pull in profit_estimate as realized profit
-                if ($profitFinal !== null) {
-                    $profitToUse = $profitFinal;
+                // Item is resold - profit is REALIZED (use final_profit if available, otherwise estimate)
+                $profitToUse = $profitFinal !== null ? $profitFinal : $profitEstimate;
+                if ($profitToUse !== null) {
                     $swapStats['_calculated_final_profit'] += $profitToUse;
                     $swapStats['_calculated_final_count']++;
                     if ($profitToUse < 0) {
@@ -427,13 +426,7 @@ class SwapController {
                         }
                         $swapStats['_calculated_loss'] += abs($profitToUse);
                     }
-                    error_log("SwapController: Using final profit ₵{$profitFinal} for resold swap #{$s['id']}");
-                } elseif ($profitEstimate !== null) {
-                    // Item is resold but we still don't have the actual profit value
-                    // Keep it in the estimated bucket so dashboards can flag it
-                    $swapStats['_calculated_estimated_profit'] += $profitEstimate;
-                    $swapStats['_calculated_estimated_count']++;
-                    error_log("SwapController: Resold swap #{$s['id']} missing final profit, keeping estimate ₵{$profitEstimate} as pending");
+                    error_log("SwapController: Resold swap #{$s['id']} - realized profit ₵{$profitToUse}" . ($profitFinal !== null ? " (final)" : " (estimate)"));
                 }
             } elseif ($profitStatus === 'finalized' && $hasCustomerSaleId) {
                 // Profit is finalized and customer item has been resold
