@@ -400,10 +400,17 @@ class AnalyticsService {
         if ($hasTotalValue) {
             // Use total_value which should contain Cash Top-up + Resold Price
             // total_value is calculated as: Cash Top-up (final_price - given_phone_value or added_cash) + Resold Price
+            // For swaps where total_value is 0 or NULL, fallback to added_cash to ensure cash top-ups are counted immediately
             $monthlyQuery = $this->db->prepare("
                 SELECT 
                     COUNT(*) as count,
-                    COALESCE(SUM(total_value), 0) as revenue
+                    COALESCE(SUM(
+                        CASE 
+                            WHEN total_value > 0 THEN total_value
+                            WHEN added_cash > 0 THEN added_cash
+                            ELSE 0
+                        END
+                    ), 0) as revenue
                 FROM swaps s
                 WHERE {$monthlyWhere}
             ");
@@ -722,10 +729,17 @@ class AnalyticsService {
                 if ($hasTotalValue) {
                     // Use total_value which should contain Cash Top-up + Resold Price
                     // total_value is calculated as: Cash Top-up (final_price - given_phone_value or added_cash) + Resold Price
+                    // For swaps where total_value is 0 or NULL, fallback to added_cash to ensure cash top-ups are counted immediately
                     $filteredQuery = $this->db->prepare("
                         SELECT 
                             COUNT(*) as count,
-                            COALESCE(SUM(total_value), 0) as revenue
+                            COALESCE(SUM(
+                                CASE 
+                                    WHEN total_value > 0 THEN total_value
+                                    WHEN added_cash > 0 THEN added_cash
+                                    ELSE 0
+                                END
+                            ), 0) as revenue
                         FROM swaps s
                         WHERE {$where}
                     ");
