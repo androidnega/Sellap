@@ -51,11 +51,31 @@ $smsConfigured = $smsConfigured ?? false;
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">API Key</label>
-                        <input type="text" id="cloudinary-api-key" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="your-api-key" value="<?= htmlspecialchars($settings['cloudinary_api_key'] ?? '') ?>">
+                                <div class="relative">
+                                    <input type="password" id="cloudinary-api-key" class="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="your-api-key" value="<?= htmlspecialchars($settings['cloudinary_api_key'] ?? '') ?>">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-2">
+                                        <button type="button" onclick="togglePasswordVisibility('cloudinary-api-key', this)" class="text-gray-500 hover:text-gray-700 p-1" title="Show/Hide">
+                                            <i class="fas fa-eye" id="cloudinary-api-key-eye"></i>
+                                        </button>
+                                        <button type="button" onclick="copyToClipboard('cloudinary-api-key', 'Cloudinary API Key')" class="text-gray-500 hover:text-blue-600 p-1 ml-1" title="Copy">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">API Secret</label>
-                        <input type="password" id="cloudinary-api-secret" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="your-api-secret" value="<?= htmlspecialchars($settings['cloudinary_api_secret'] ?? '') ?>">
+                                <div class="relative">
+                                    <input type="password" id="cloudinary-api-secret" class="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="your-api-secret" value="<?= htmlspecialchars($settings['cloudinary_api_secret'] ?? '') ?>">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-2">
+                                        <button type="button" onclick="togglePasswordVisibility('cloudinary-api-secret', this)" class="text-gray-500 hover:text-gray-700 p-1" title="Show/Hide">
+                                            <i class="fas fa-eye" id="cloudinary-api-secret-eye"></i>
+                                        </button>
+                                        <button type="button" onclick="copyToClipboard('cloudinary-api-secret', 'Cloudinary API Secret')" class="text-gray-500 hover:text-blue-600 p-1 ml-1" title="Copy">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
@@ -126,7 +146,17 @@ $smsConfigured = $smsConfigured ?? false;
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Arkasel API Key</label>
-                        <input type="text" id="sms-api-key" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="your-arkasel-api-key (leave empty for simulation mode)" value="<?= htmlspecialchars($settings['sms_api_key'] ?? '') ?>">
+                                <div class="relative">
+                                    <input type="password" id="sms-api-key" class="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="your-arkasel-api-key (leave empty for simulation mode)" value="<?= htmlspecialchars($settings['sms_api_key'] ?? '') ?>">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-2">
+                                        <button type="button" onclick="togglePasswordVisibility('sms-api-key', this)" class="text-gray-500 hover:text-gray-700 p-1" title="Show/Hide">
+                                            <i class="fas fa-eye" id="sms-api-key-eye"></i>
+                                        </button>
+                                        <button type="button" onclick="copyToClipboard('sms-api-key', 'Arkasel API Key')" class="text-gray-500 hover:text-blue-600 p-1 ml-1" title="Copy">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Sender ID</label>
@@ -200,12 +230,32 @@ $smsConfigured = $smsConfigured ?? false;
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Secret Key</label>
-                                <input type="password" id="paystack-secret-key" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="sk_test_xxxxxxxxxxxxx" value="<?= htmlspecialchars($settings['paystack_secret_key'] ?? '') ?>">
+                                <div class="relative">
+                                    <input type="password" id="paystack-secret-key" class="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="sk_test_xxxxxxxxxxxxx" value="<?= htmlspecialchars($settings['paystack_secret_key'] ?? '') ?>">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-2">
+                                        <button type="button" onclick="togglePasswordVisibility('paystack-secret-key', this)" class="text-gray-500 hover:text-gray-700 p-1" title="Show/Hide">
+                                            <i class="fas fa-eye" id="paystack-secret-key-eye"></i>
+                                        </button>
+                                        <button type="button" onclick="copyToClipboard('paystack-secret-key', 'Paystack Secret Key')" class="text-gray-500 hover:text-blue-600 p-1 ml-1" title="Copy">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
                                 <p class="text-xs text-gray-500 mt-1">Your Paystack secret key (starts with sk_test_ or sk_live_)</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Public Key</label>
-                                <input type="text" id="paystack-public-key" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="pk_test_xxxxxxxxxxxxx" value="<?= htmlspecialchars($settings['paystack_public_key'] ?? '') ?>">
+                                <div class="relative">
+                                    <input type="password" id="paystack-public-key" class="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="pk_test_xxxxxxxxxxxxx" value="<?= htmlspecialchars($settings['paystack_public_key'] ?? '') ?>">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-2">
+                                        <button type="button" onclick="togglePasswordVisibility('paystack-public-key', this)" class="text-gray-500 hover:text-gray-700 p-1" title="Show/Hide">
+                                            <i class="fas fa-eye" id="paystack-public-key-eye"></i>
+                                        </button>
+                                        <button type="button" onclick="copyToClipboard('paystack-public-key', 'Paystack Public Key')" class="text-gray-500 hover:text-blue-600 p-1 ml-1" title="Copy">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
                                 <p class="text-xs text-gray-500 mt-1">Your Paystack public key (starts with pk_test_ or pk_live_)</p>
                             </div>
                             <div>
@@ -297,7 +347,17 @@ $smsConfigured = $smsConfigured ?? false;
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-700 mb-1">Password</label>
-                                <input type="password" id="mail-password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter email password" value="<?= htmlspecialchars($settings['mail_password'] ?? '') ?>">
+                                <div class="relative">
+                                    <input type="password" id="mail-password" class="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter email password" value="<?= htmlspecialchars($settings['mail_password'] ?? '') ?>">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-2">
+                                        <button type="button" onclick="togglePasswordVisibility('mail-password', this)" class="text-gray-500 hover:text-gray-700 p-1" title="Show/Hide">
+                                            <i class="fas fa-eye" id="mail-password-eye"></i>
+                                        </button>
+                                        <button type="button" onclick="copyToClipboard('mail-password', 'Email Password')" class="text-gray-500 hover:text-blue-600 p-1 ml-1" title="Copy">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
                                 <p class="text-xs text-gray-500 mt-1">Email account password</p>
                             </div>
                             <div>
@@ -597,6 +657,122 @@ function testEmail() {
         testButton.innerHTML = originalText;
         console.error('Error:', error);
         alert('Error testing email configuration');
+    });
+}
+
+// Password visibility toggle
+function togglePasswordVisibility(inputId, button) {
+    const input = document.getElementById(inputId);
+    const icon = button.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+// Copy to clipboard with modal
+function copyToClipboard(inputId, fieldName) {
+    const input = document.getElementById(inputId);
+    const value = input.value;
+    
+    if (!value) {
+        showCopyModal('No value to copy', 'error');
+        return;
+    }
+    
+    // Try to copy to clipboard
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(value).then(function() {
+            showCopyModal(fieldName + ' copied to clipboard!', 'success');
+        }).catch(function(err) {
+            // Fallback for older browsers
+            fallbackCopyToClipboard(value, fieldName);
+        });
+    } else {
+        // Fallback for older browsers
+        fallbackCopyToClipboard(value, fieldName);
+    }
+}
+
+// Fallback copy method
+function fallbackCopyToClipboard(text, fieldName) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showCopyModal(fieldName + ' copied to clipboard!', 'success');
+        } else {
+            showCopyModal('Failed to copy. Please select and copy manually.', 'error');
+        }
+    } catch (err) {
+        showCopyModal('Failed to copy. Please select and copy manually.', 'error');
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+// Show copy confirmation modal
+function showCopyModal(message, type) {
+    // Remove existing modal if any
+    const existingModal = document.getElementById('copy-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Create modal
+    const modal = document.createElement('div');
+    modal.id = 'copy-modal';
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    
+    const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+    const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+    
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4 transform transition-all">
+            <div class="flex items-center ${bgColor} text-white rounded-lg p-4 mb-4">
+                <i class="fas ${icon} text-2xl mr-3"></i>
+                <div>
+                    <h3 class="font-semibold text-lg">${type === 'success' ? 'Copied!' : 'Error'}</h3>
+                </div>
+            </div>
+            <p class="text-gray-700 mb-4">${message}</p>
+            <button onclick="this.closest('#copy-modal').remove()" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">
+                Close
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Auto-close after 3 seconds for success
+    if (type === 'success') {
+        setTimeout(function() {
+            if (modal.parentNode) {
+                modal.remove();
+            }
+        }, 3000);
+    }
+    
+    // Close on outside click
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
     });
 }
 

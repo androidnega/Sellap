@@ -1009,12 +1009,25 @@ $router->get('dashboard/email-logs', function() {
     try {
         \App\Middleware\WebAuthMiddleware::handle(['system_admin']);
         $GLOBALS['currentPage'] = 'email-logs';
+        
+        // Ensure BASE_URL_PATH is defined
+        if (!defined('BASE_URL_PATH')) {
+            require_once __DIR__ . '/../config/app.php';
+        }
+        
         $controller = new \App\Controllers\EmailLogsController();
         $controller->index();
     } catch (\Exception $e) {
         error_log("Email logs route error: " . $e->getMessage());
+        error_log("Email logs route trace: " . $e->getTraceAsString());
         http_response_code(500);
-        echo "Error loading email logs page.";
+        echo "Error loading email logs page: " . htmlspecialchars($e->getMessage());
+        exit;
+    } catch (\Error $e) {
+        error_log("Email logs route fatal error: " . $e->getMessage());
+        error_log("Email logs route fatal trace: " . $e->getTraceAsString());
+        http_response_code(500);
+        echo "Fatal error loading email logs page: " . htmlspecialchars($e->getMessage());
         exit;
     }
 });
