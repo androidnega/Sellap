@@ -236,6 +236,49 @@ class CloudinaryService {
     }
     
     /**
+     * Upload raw file (e.g., zip, pdf, etc.) to Cloudinary
+     * 
+     * @param string $filePath Path to the file to upload
+     * @param string $folder Folder name in Cloudinary (optional)
+     * @param array $options Additional upload options
+     * @return array Upload result with public_id and secure_url
+     */
+    public function uploadRawFile($filePath, $folder = 'sellapp/backups', $options = []) {
+        try {
+            if (!file_exists($filePath)) {
+                return [
+                    'success' => false,
+                    'error' => 'File not found: ' . $filePath
+                ];
+            }
+            
+            $defaultOptions = [
+                'folder' => $folder,
+                'resource_type' => 'raw',
+                'use_filename' => true,
+                'unique_filename' => true
+            ];
+            
+            $uploadOptions = array_merge($defaultOptions, $options);
+            
+            $result = $this->uploadApi->upload($filePath, $uploadOptions);
+            
+            return [
+                'success' => true,
+                'public_id' => $result['public_id'],
+                'secure_url' => $result['secure_url'],
+                'bytes' => $result['bytes'] ?? null,
+                'format' => $result['format'] ?? null
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+    
+    /**
      * Check if Cloudinary is properly configured
      * 
      * @return bool

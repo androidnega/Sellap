@@ -106,41 +106,99 @@
     }
   </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 via-white to-gray-50 min-h-screen flex items-center justify-center px-4 py-8">
-  <div class="w-full max-w-xs">
+<?php
+// Get login page image URL from system settings or Cloudinary
+$loginImageUrl = null;
+$backgroundImageStyle = '';
+
+try {
+    require_once __DIR__ . '/../../config/database.php';
+    $db = \Database::getInstance()->getConnection();
+    
+    // Try to get image URL from system settings
+    $stmt = $db->query("SELECT setting_value FROM system_settings WHERE setting_key = 'login_page_image_url' LIMIT 1");
+    $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+    
+    if ($result && !empty($result['setting_value'])) {
+        $loginImageUrl = $result['setting_value'];
+    } else {
+        // Try to upload image if Cloudinary is configured
+        if (class_exists('\App\Services\CloudinaryService')) {
+            $settingsQuery = $db->query("SELECT setting_key, setting_value FROM system_settings");
+            $settings = $settingsQuery->fetchAll(\PDO::FETCH_KEY_PAIR);
+            
+            if (!empty($settings['cloudinary_cloud_name'])) {
+                $cloudinaryService = new \App\Services\CloudinaryService();
+                $cloudinaryService->loadFromSettings($settings);
+                
+                if ($cloudinaryService->isConfigured()) {
+                    $imagePath = __DIR__ . '/../../assets/images/login page.png';
+                    if (file_exists($imagePath)) {
+                        $uploadResult = $cloudinaryService->uploadImage($imagePath, 'sellapp/login', [
+                            'public_id' => 'login_page_background',
+                            'overwrite' => true
+                        ]);
+                        
+                        if ($uploadResult['success']) {
+                            $loginImageUrl = $uploadResult['secure_url'];
+                            // Save to settings
+                            $saveStmt = $db->prepare("
+                                INSERT INTO system_settings (setting_key, setting_value) 
+                                VALUES ('login_page_image_url', ?)
+                                ON DUPLICATE KEY UPDATE setting_value = ?
+                            ");
+                            $saveStmt->execute([$loginImageUrl, $loginImageUrl]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if ($loginImageUrl) {
+        $backgroundImageStyle = "background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('{$loginImageUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;";
+    }
+} catch (\Exception $e) {
+    error_log("Login page image error: " . $e->getMessage());
+    // Fallback to gradient background
+    $backgroundImageStyle = '';
+}
+?>
+<body class="min-h-screen flex items-center justify-center px-4 py-8" style="<?php echo $backgroundImageStyle; ?> <?php echo empty($backgroundImageStyle) ? 'bg-gradient-to-br from-blue-50 via-white to-gray-50' : ''; ?>">
+  <div class="w-full max-w-md">
     <!-- Logo and Branding -->
-    <div class="mb-4">
-      <div class="flex items-center justify-center gap-3 mb-2">
-        <div class="inline-flex items-center justify-center w-12 h-12 bg-blue-600 rounded-xl shadow-md">
-          <span class="text-2xl">📱</span>
+    <div class="mb-6 text-center">
+      <div class="flex items-center justify-center gap-3 mb-3">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl">
+          <span class="text-3xl">📱</span>
         </div>
-        <h1 class="text-xl font-bold text-gray-900">SellApp</h1>
+        <h1 class="text-3xl font-bold <?php echo $loginImageUrl ? 'text-white drop-shadow-lg' : 'text-gray-900'; ?>">SellApp</h1>
       </div>
-      <p class="text-gray-600 text-xs text-center">Multi-Tenant Phone Management System</p>
+      <p class="<?php echo $loginImageUrl ? 'text-white/90 drop-shadow' : 'text-gray-600'; ?> text-sm font-medium">Multi-Tenant Phone Management System</p>
     </div>
     
     <!-- Login Card -->
-    <div class="bg-white rounded-xl shadow-lg p-4 border border-gray-100">
-      <h2 class="text-lg font-bold text-gray-900 mb-4 text-center">Welcome Back</h2>
+    <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-6 border border-white/20">
+      <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">Welcome Back</h2>
       
       <?php
       // Display error message if present
       $error = $_GET['error'] ?? '';
       if (!empty($error)):
       ?>
-      <div class="mb-3 p-2 bg-red-50 border-2 border-red-200 text-red-700 rounded-lg text-xs">
+      <div class="mb-4 p-3 bg-red-50 border-2 border-red-300 text-red-700 rounded-lg text-sm font-medium">
         <?php echo htmlspecialchars(urldecode($error)); ?>
       </div>
       <?php endif; ?>
       
       <form method="post" action="<?php echo htmlspecialchars(BASE_URL_PATH . '/login' . (!empty($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '')); ?>" style="display: block;">
-        <div style="margin-bottom: 12px;">
-          <label class="block text-gray-700 text-xs font-semibold mb-1">Username or Email</label>
+        <div style="margin-bottom: 16px;">
+          <label class="block text-gray-700 text-sm font-semibold mb-2">Username or Email</label>
           <input 
             type="text" 
             name="username"
             id="username" 
-            class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
+            class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white" 
             placeholder="Enter username or email"
             required
             autocomplete="username"
@@ -148,13 +206,13 @@
             style="display: block; width: 100%;">
         </div>
         
-        <div style="margin-bottom: 12px;">
-          <label class="block text-gray-700 text-xs font-semibold mb-1">Password</label>
+        <div style="margin-bottom: 20px;">
+          <label class="block text-gray-700 text-sm font-semibold mb-2">Password</label>
           <input 
             type="password" 
             name="password"
             id="password" 
-            class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
+            class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white" 
             placeholder="Enter your password"
             required
             autocomplete="current-password"
@@ -164,7 +222,7 @@
         <button 
           type="submit" 
           id="loginSubmitBtn"
-          class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white py-2 rounded-lg font-semibold text-sm transition-all duration-200 shadow-md hover:shadow-lg"
+          class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white py-3 rounded-xl font-semibold text-base transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
           style="display: block; width: 100%; cursor: pointer;">
           Sign In
         </button>
@@ -199,7 +257,7 @@
     </div>
     
     <!-- Footer -->
-    <p class="text-center text-xs text-gray-500 mt-4">
+    <p class="text-center text-sm <?php echo $loginImageUrl ? 'text-white/80 drop-shadow' : 'text-gray-500'; ?> mt-6 font-medium">
       © 2025 SellApp. All rights reserved.
     </p>
   </div>

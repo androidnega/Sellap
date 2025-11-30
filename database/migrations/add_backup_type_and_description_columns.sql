@@ -25,3 +25,4 @@ SET backup_type = 'automatic'
 WHERE description LIKE '%[AUTOMATIC DAILY BACKUP]%'
 AND backup_type = 'manual';
 
+

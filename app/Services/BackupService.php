@@ -5,6 +5,7 @@ namespace App\Services;
 use PDO;
 use ZipArchive;
 use App\Models\Backup;
+use App\Services\CloudinaryService;
 
 require_once __DIR__ . '/../../config/database.php';
 
@@ -172,13 +173,27 @@ class BackupService {
                 
                 $backupRecordId = $this->backupModel->create($backupData);
                 
+                // Upload to Cloudinary automatically
+                $cloudinaryUrl = null;
+                try {
+                    $cloudinaryUrl = $this->uploadBackupToCloudinary($zipPath, $zipFilename, $companyId, $backupRecordId);
+                    if ($cloudinaryUrl) {
+                        // Update backup record with Cloudinary URL
+                        $this->updateBackupCloudinaryUrl($backupRecordId, $cloudinaryUrl);
+                    }
+                } catch (\Exception $e) {
+                    error_log("Failed to upload backup to Cloudinary: " . $e->getMessage());
+                    // Don't fail the backup if Cloudinary upload fails
+                }
+                
                 return [
                     'success' => true,
                     'filepath' => $zipPath,
                     'filename' => $zipFilename,
                     'size' => $fileSize,
                     'record_count' => $recordCount,
-                    'backup_id' => $backupRecordId
+                    'backup_id' => $backupRecordId,
+                    'cloudinary_url' => $cloudinaryUrl
                 ];
             } else {
                 throw new \Exception('Failed to create zip archive');
@@ -881,6 +896,18 @@ class BackupService {
                 
                 $backupRecordId = $this->backupModel->create($backupData);
                 
+                // Upload to Cloudinary automatically
+                try {
+                    $cloudinaryUrl = $this->uploadBackupToCloudinary($zipPath, $zipFilename, null, $backupRecordId, 'system');
+                    if ($cloudinaryUrl) {
+                        // Update backup record with Cloudinary URL
+                        $this->updateBackupCloudinaryUrl($backupRecordId, $cloudinaryUrl);
+                    }
+                } catch (\Exception $e) {
+                    error_log("Failed to upload system backup to Cloudinary: " . $e->getMessage());
+                    // Don't fail the backup if Cloudinary upload fails
+                }
+                
                 return $backupRecordId;
             } else {
                 throw new \Exception('Failed to create zip archive');
@@ -1265,6 +1292,94 @@ class BackupService {
         return $count;
     }
 
+    /**
+     * Upload backup to Cloudinary
+     * 
+     * @param string $zipPath Path to the zip file
+     * @param string $zipFilename Name of the zip file
+     * @param int|null $companyId Company ID (null for system backups)
+     * @param int $backupId Backup record ID
+     * @param string $type 'company' or 'system'
+     * @return string|null Cloudinary URL or null if upload fails
+     */
+    private function uploadBackupToCloudinary($zipPath, $zipFilename, $companyId = null, $backupId = null, $type = 'company') {
+        try {
+            // Check if Cloudinary is configured
+            if (!class_exists('\App\Services\CloudinaryService')) {
+                return null;
+            }
+            
+            // Get Cloudinary settings from database
+            $settingsQuery = $this->db->query("SELECT setting_key, setting_value FROM system_settings");
+            $settings = $settingsQuery->fetchAll(\PDO::FETCH_KEY_PAIR);
+            
+            if (empty($settings) || empty($settings['cloudinary_cloud_name'])) {
+                return null;
+            }
+            
+            $cloudinaryService = new CloudinaryService();
+            $cloudinaryService->loadFromSettings($settings);
+            
+            if (!$cloudinaryService->isConfigured()) {
+                return null;
+            }
+            
+            // Determine folder based on backup type
+            $folder = $type === 'system' ? 'sellapp/backups/system' : "sellapp/backups/company_{$companyId}";
+            
+            // Generate unique public_id
+            $publicId = $type === 'system' 
+                ? "backup_system_{$backupId}_{$zipFilename}"
+                : "backup_company_{$companyId}_{$backupId}_{$zipFilename}";
+            
+            // Remove .zip extension from public_id
+            $publicId = preg_replace('/\.zip$/', '', $publicId);
+            
+            // Upload to Cloudinary
+            $result = $cloudinaryService->uploadRawFile($zipPath, $folder, [
+                'public_id' => $publicId,
+                'use_filename' => false,
+                'unique_filename' => false,
+                'overwrite' => true
+            ]);
+            
+            if ($result['success'] && !empty($result['secure_url'])) {
+                error_log("Backup uploaded to Cloudinary: {$result['secure_url']}");
+                return $result['secure_url'];
+            } else {
+                error_log("Cloudinary upload failed: " . ($result['error'] ?? 'Unknown error'));
+                return null;
+            }
+        } catch (\Exception $e) {
+            error_log("Error uploading backup to Cloudinary: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Update backup record with Cloudinary URL
+     * 
+     * @param int $backupId Backup record ID
+     * @param string $cloudinaryUrl Cloudinary URL
+     */
+    private function updateBackupCloudinaryUrl($backupId, $cloudinaryUrl) {
+        try {
+            // Check if cloudinary_url column exists, if not, add it
+            $checkColumn = $this->db->query("SHOW COLUMNS FROM backups LIKE 'cloudinary_url'");
+            if ($checkColumn->rowCount() == 0) {
+                // Add column if it doesn't exist
+                $this->db->exec("ALTER TABLE backups ADD COLUMN cloudinary_url TEXT NULL AFTER file_path");
+            }
+            
+            // Update backup record
+            $stmt = $this->db->prepare("UPDATE backups SET cloudinary_url = ? WHERE id = ?");
+            $stmt->execute([$cloudinaryUrl, $backupId]);
+        } catch (\Exception $e) {
+            error_log("Error updating backup Cloudinary URL: " . $e->getMessage());
+            // Don't throw - this is not critical
+        }
+    }
+    
     /**
      * Remove directory recursively
      */
