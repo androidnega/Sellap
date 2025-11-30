@@ -157,28 +157,32 @@ try {
     error_log("Login page image error: " . $e->getMessage());
 }
 ?>
-<body class="min-h-screen flex flex-col" style="<?php if ($loginImageUrl): ?>background-image: url('<?php echo htmlspecialchars($loginImageUrl); ?>'); background-size: cover; background-position: center; background-repeat: no-repeat; background-attachment: fixed;<?php endif; ?>">
+<body class="min-h-screen flex flex-col bg-gray-900">
+  <!-- Background with blur effect -->
+  <?php if ($loginImageUrl): ?>
+  <div class="fixed inset-0 z-0" style="background-image: url('<?php echo htmlspecialchars($loginImageUrl); ?>'); background-size: cover; background-position: center; background-repeat: no-repeat; background-attachment: fixed; filter: blur(10px); transform: scale(1.1);"></div>
+  <?php endif; ?>
   <!-- Dark Overlay -->
   <div class="fixed inset-0 bg-black bg-opacity-60 z-0"></div>
   
   <!-- Content -->
   <div class="relative z-10 flex-1 flex items-center justify-center px-4 py-8 min-h-screen">
-      <div class="w-full max-w-md">
+      <div class="w-full max-w-sm">
         <!-- Logo and Branding -->
-        <div class="mb-6 text-center">
-          <div class="flex items-center justify-center gap-3 mb-3">
-            <div class="inline-flex items-center justify-center w-16 h-16 bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl">
-              <span class="text-3xl">📱</span>
+        <div class="mb-5 text-center">
+          <div class="flex items-center justify-center gap-2 mb-2">
+            <div class="inline-flex items-center justify-center w-12 h-12 bg-white/90 backdrop-blur-sm rounded-xl shadow-xl">
+              <span class="text-2xl">📱</span>
             </div>
-            <h1 class="text-3xl font-bold text-white drop-shadow-lg">SellApp</h1>
+            <h1 class="text-2xl font-bold text-white drop-shadow-lg">SellApp</h1>
           </div>
-          <p class="text-white/90 text-sm font-medium drop-shadow">Multi-Tenant Phone Management System</p>
+          <p class="text-white/90 text-xs font-medium drop-shadow">Multi-Tenant Phone Management System</p>
         </div>
         
         <!-- Login Card -->
-        <div class="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-6 md:p-8 border border-white/20">
-          <h2 class="text-2xl font-bold text-gray-900 mb-2 text-center">Welcome Back</h2>
-          <p class="text-gray-600 text-sm text-center mb-6">Sign in to continue to your account</p>
+        <div class="bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl p-5 md:p-6 border border-white/20">
+          <h2 class="text-xl font-bold text-gray-900 mb-1 text-center">Welcome Back</h2>
+          <p class="text-gray-600 text-xs text-center mb-5">Sign in to continue to your account</p>
           <?php
           // Display error message if present
           $error = $_GET['error'] ?? '';
@@ -190,13 +194,13 @@ try {
           <?php endif; ?>
           
           <form method="post" action="<?php echo htmlspecialchars(BASE_URL_PATH . '/login' . (!empty($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '')); ?>" style="display: block;">
-            <div style="margin-bottom: 20px;">
-              <label class="block text-gray-700 text-sm font-semibold mb-2">Username or Email</label>
+            <div style="margin-bottom: 16px;">
+              <label class="block text-gray-700 text-xs font-semibold mb-1.5">Username or Email</label>
               <input 
                 type="text" 
                 name="username"
                 id="username" 
-                class="w-full border-2 border-gray-200 rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white" 
+                class="w-full border-2 border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white" 
                 placeholder="Enter username or email"
                 required
                 autocomplete="username"
@@ -204,13 +208,13 @@ try {
                 style="display: block; width: 100%;">
             </div>
             
-            <div style="margin-bottom: 24px;">
-              <label class="block text-gray-700 text-sm font-semibold mb-2">Password</label>
+            <div style="margin-bottom: 18px;">
+              <label class="block text-gray-700 text-xs font-semibold mb-1.5">Password</label>
               <input 
                 type="password" 
                 name="password"
                 id="password" 
-                class="w-full border-2 border-gray-200 rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white" 
+                class="w-full border-2 border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white" 
                 placeholder="Enter your password"
                 required
                 autocomplete="current-password"
@@ -220,7 +224,7 @@ try {
             <button 
               type="submit" 
               id="loginSubmitBtn"
-              class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white py-3.5 rounded-xl font-semibold text-base transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+              class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white py-2.5 rounded-lg font-semibold text-sm transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.01]"
               style="display: block; width: 100%; cursor: pointer;">
               Sign In
             </button>
@@ -254,12 +258,6 @@ try {
       });
       </script>
     
-    <!-- Footer -->
-    <div class="mt-6 text-center">
-      <p class="text-sm text-white/80 font-medium drop-shadow">
-        © 2025 SellApp. All rights reserved.
-      </p>
-    </div>
   </div>
 
 </body>

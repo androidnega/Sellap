@@ -569,6 +569,15 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
 
         <?= $content ?? '' ?>
         </main>
+        
+        <!-- Footer -->
+        <footer class="bg-white border-t border-gray-200 py-4 px-6 mt-auto">
+            <div class="text-center">
+                <p class="text-xs text-gray-600">
+                    © 2025 SellApp. All rights reserved.
+                </p>
+            </div>
+        </footer>
         </div>
     </div>
     
