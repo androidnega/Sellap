@@ -6,9 +6,12 @@ Write-Host "Setting up Cursor Agent PowerShell compatibility..." -ForegroundColo
 # Get the profile path
 $profilePath = $PROFILE
 
+Write-Host "Profile location: $profilePath" -ForegroundColor Cyan
+Write-Host ""
+
 # Check if profile exists
 if (-not (Test-Path $profilePath)) {
-    Write-Host "Creating PowerShell profile at: $profilePath" -ForegroundColor Yellow
+    Write-Host "Creating PowerShell profile..." -ForegroundColor Yellow
     $profileDir = Split-Path $profilePath -Parent
     if (-not (Test-Path $profileDir)) {
         New-Item -ItemType Directory -Path $profileDir -Force | Out-Null
@@ -21,6 +24,9 @@ $profileContent = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
 if ($profileContent -and $profileContent -match "CURSOR_AGENT") {
     Write-Host "Cursor Agent configuration already exists in profile." -ForegroundColor Yellow
     Write-Host "Skipping installation. If you want to reinstall, remove the CURSOR_AGENT section from your profile first." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Press any key to exit..."
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     exit
 }
 
@@ -47,7 +53,9 @@ if (`$env:CURSOR_AGENT) {
 Add-Content -Path $profilePath -Value $config
 
 Write-Host "Successfully added Cursor Agent configuration to your PowerShell profile!" -ForegroundColor Green
-Write-Host "Profile location: $profilePath" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Please restart Cursor for the changes to take effect." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Press any key to exit..."
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 

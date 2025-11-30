@@ -71,6 +71,19 @@ class AuthMiddleware {
         if (isset($_SESSION['user']) && !empty($_SESSION['user'])) {
             $userData = $_SESSION['user'];
             
+            // Check if session is expired (but allow re-authentication endpoint)
+            $isReauthEndpoint = strpos($_SERVER['REQUEST_URI'] ?? '', '/api/auth/reauthenticate') !== false;
+            if (isset($_SESSION['session_expired']) && $_SESSION['session_expired'] && !$isReauthEndpoint) {
+                // Session expired - return 401 for API endpoints
+                http_response_code(401);
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'error' => 'Session expired',
+                    'message' => 'Your session has expired due to inactivity. Please re-authenticate.'
+                ]);
+                exit;
+            }
+            
             // Update last activity time for session timeout tracking
             self::updateLastActivity();
             
@@ -124,7 +137,7 @@ class AuthMiddleware {
     
     /**
      * Check if session has expired due to inactivity
-     * Logs out user if inactive for more than 30 minutes
+     * Sets a flag for re-authentication instead of logging out
      */
     private static function checkSessionTimeout() {
         // Only check if user is logged in
@@ -142,35 +155,17 @@ class AuthMiddleware {
             // Calculate time since last activity
             $timeSinceActivity = time() - $lastActivity;
             
-            // If inactive for more than timeout period, log out user
+            // If inactive for more than timeout period, set re-authentication flag
             if ($timeSinceActivity > $timeout) {
-                // Clear session data
-                $_SESSION = array();
-                
-                // Destroy session cookie
-                if (ini_get("session.use_cookies")) {
-                    $params = session_get_cookie_params();
-                    setcookie(session_name(), '', time() - 42000,
-                        $params["path"], $params["domain"],
-                        $params["secure"], $params["httponly"]
-                    );
-                }
-                
-                // Destroy the session
-                session_destroy();
-                
-                // Clear authentication cookies
-                setcookie('sellapp_token', '', time() - 3600, '/', '', false, true);
-                setcookie('token', '', time() - 3600, '/', '', false, true);
-                
-                // Return 401 for API endpoints
-                http_response_code(401);
-                header('Content-Type: application/json');
-                echo json_encode([
-                    'error' => 'Session expired',
-                    'message' => 'Your session has expired due to inactivity. Please login again.'
-                ]);
-                exit;
+                // Set flag to indicate session needs re-authentication
+                $_SESSION['session_expired'] = true;
+                $_SESSION['session_expired_at'] = time();
+                // Keep user data for re-authentication
+                // Don't destroy session - just mark it as expired
+            } else {
+                // Clear expiration flag if user is active
+                unset($_SESSION['session_expired']);
+                unset($_SESSION['session_expired_at']);
             }
         }
     }
@@ -180,7 +175,10 @@ class AuthMiddleware {
      */
     private static function updateLastActivity() {
         if (isset($_SESSION['user']) && !empty($_SESSION['user'])) {
-            $_SESSION['last_activity'] = time();
+            // Only update if session is not expired
+            if (!isset($_SESSION['session_expired']) || !$_SESSION['session_expired']) {
+                $_SESSION['last_activity'] = time();
+            }
         }
     }
 }

@@ -32,8 +32,10 @@ class WebAuthMiddleware {
         
         if ($userData && !empty($userData['role'])) {
             // User is already logged in via session
-            // Update last activity time
-            self::updateLastActivity();
+            // Only update last activity if session is not expired
+            if (!isset($_SESSION['session_expired']) || !$_SESSION['session_expired']) {
+                self::updateLastActivity();
+            }
             
             // Clear any auth attempt flags since we're authenticated
             unset($_SESSION['_auth_attempt']);
@@ -98,7 +100,10 @@ class WebAuthMiddleware {
             unset($_SESSION['_auth_retry_count']);
             
             // Update last activity time after successful authentication
-            self::updateLastActivity();
+            // Only update if session is not expired
+            if (!isset($_SESSION['session_expired']) || !$_SESSION['session_expired']) {
+                self::updateLastActivity();
+            }
             
             return $payload;
             
@@ -284,7 +289,7 @@ HTML;
     
     /**
      * Check if session has expired due to inactivity
-     * Logs out user if inactive for more than 30 minutes
+     * Sets a flag for re-authentication instead of logging out
      */
     private static function checkSessionTimeout() {
         // Only check if user is logged in
@@ -302,29 +307,18 @@ HTML;
             // Calculate time since last activity
             $timeSinceActivity = time() - $lastActivity;
             
-            // If inactive for more than timeout period, log out user
+            // If inactive for more than timeout period, set re-authentication flag
+            // Don't log out - let JavaScript handle showing the modal
             if ($timeSinceActivity > $timeout) {
-                // Clear session data
-                $_SESSION = array();
-                
-                // Destroy session cookie
-                if (ini_get("session.use_cookies")) {
-                    $params = session_get_cookie_params();
-                    setcookie(session_name(), '', time() - 42000,
-                        $params["path"], $params["domain"],
-                        $params["secure"], $params["httponly"]
-                    );
-                }
-                
-                // Destroy the session
-                session_destroy();
-                
-                // Clear authentication cookies
-                setcookie('sellapp_token', '', time() - 3600, '/', '', false, true);
-                setcookie('token', '', time() - 3600, '/', '', false, true);
-                
-                // Redirect to login with timeout message
-                self::redirectToLogin('Your session has expired due to inactivity. Please login again.');
+                // Set flag to indicate session needs re-authentication
+                $_SESSION['session_expired'] = true;
+                $_SESSION['session_expired_at'] = time();
+                // Keep user data for re-authentication
+                // Don't destroy session - just mark it as expired
+            } else {
+                // Clear expiration flag if user is active
+                unset($_SESSION['session_expired']);
+                unset($_SESSION['session_expired_at']);
             }
         }
     }

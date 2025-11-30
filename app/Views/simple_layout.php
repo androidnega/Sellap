@@ -1003,6 +1003,289 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
         }
     </script>
     
+    <!-- Session Expiration Modal -->
+    <div id="sessionExpiredModal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center">
+        <!-- Blurred Background Overlay -->
+        <div id="sessionExpiredBackdrop" class="absolute inset-0 bg-black bg-opacity-60 backdrop-blur-sm transition-opacity duration-300"></div>
+        
+        <!-- Modal Content -->
+        <div class="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 scale-95" id="sessionExpiredModalContent">
+            <div class="p-6">
+                <!-- Icon -->
+                <div class="flex justify-center mb-4">
+                    <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-lock text-yellow-600 text-2xl"></i>
+                    </div>
+                </div>
+                
+                <!-- Title -->
+                <h3 class="text-xl font-semibold text-gray-900 text-center mb-2">Session Expired</h3>
+                <p class="text-sm text-gray-600 text-center mb-6">Your session has expired due to inactivity. Please enter your password to continue.</p>
+                
+                <!-- Error Message -->
+                <div id="sessionExpiredError" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p class="text-sm text-red-600" id="sessionExpiredErrorText"></p>
+                </div>
+                
+                <!-- Password Form -->
+                <form id="sessionExpiredForm" onsubmit="handleReauthenticate(event)">
+                    <div class="mb-4">
+                        <label for="sessionExpiredPassword" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                        <div class="relative">
+                            <input 
+                                type="password" 
+                                id="sessionExpiredPassword" 
+                                name="password" 
+                                required 
+                                autofocus
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                placeholder="Enter your password"
+                            />
+                            <button 
+                                type="button" 
+                                onclick="togglePasswordVisibility('sessionExpiredPassword')"
+                                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                            >
+                                <i class="fas fa-eye" id="sessionExpiredPasswordToggle"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Buttons -->
+                    <div class="flex space-x-3">
+                        <button 
+                            type="button" 
+                            onclick="handleSessionExpiredLogout()"
+                            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                        >
+                            Logout
+                        </button>
+                        <button 
+                            type="submit" 
+                            id="sessionExpiredSubmitBtn"
+                            class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <span id="sessionExpiredSubmitText">Continue</span>
+                            <span id="sessionExpiredSubmitSpinner" class="hidden">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Session Monitoring Script -->
+    <script>
+        // Session timeout in milliseconds (30 minutes)
+        const SESSION_TIMEOUT_MS = <?php echo defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT * 1000 : 30 * 60 * 1000; ?>;
+        let lastActivityTime = Date.now();
+        let sessionCheckInterval = null;
+        let isModalShown = false;
+        
+        // Track user activity
+        const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+        activityEvents.forEach(event => {
+            document.addEventListener(event, updateLastActivity, { passive: true });
+        });
+        
+        function updateLastActivity() {
+            lastActivityTime = Date.now();
+            // Send activity ping to server every 5 minutes
+            if (!sessionCheckInterval) {
+                sessionCheckInterval = setInterval(checkSessionStatus, 5 * 60 * 1000); // Check every 5 minutes
+            }
+        }
+        
+        // Check session status with server
+        async function checkSessionStatus() {
+            try {
+                const response = await fetch(BASE + '/api/auth/validate', {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    // Check if it's a session expired response
+                    if (response.status === 401) {
+                        const data = await response.json().catch(() => ({}));
+                        if (data.error && data.error.includes('expired')) {
+                            showSessionExpiredModal();
+                        }
+                    }
+                } else {
+                    // Session is valid, check if modal should be shown based on inactivity
+                    const timeSinceActivity = Date.now() - lastActivityTime;
+                    if (timeSinceActivity >= SESSION_TIMEOUT_MS && !isModalShown) {
+                        showSessionExpiredModal();
+                    }
+                }
+            } catch (error) {
+                // Network error - don't show modal, just log
+                console.error('Session check error:', error);
+            }
+        }
+        
+        // Show session expired modal
+        function showSessionExpiredModal() {
+            if (isModalShown) return;
+            
+            isModalShown = true;
+            const modal = document.getElementById('sessionExpiredModal');
+            const backdrop = document.getElementById('sessionExpiredBackdrop');
+            const content = document.getElementById('sessionExpiredModalContent');
+            const body = document.body;
+            
+            // Blur the page background
+            body.style.filter = 'blur(5px)';
+            body.style.pointerEvents = 'none';
+            
+            // Show modal
+            modal.classList.remove('hidden');
+            backdrop.classList.add('opacity-100');
+            content.classList.remove('scale-95');
+            content.classList.add('scale-100');
+            
+            // Focus password input
+            setTimeout(() => {
+                const passwordInput = document.getElementById('sessionExpiredPassword');
+                if (passwordInput) {
+                    passwordInput.focus();
+                }
+            }, 100);
+        }
+        
+        // Hide session expired modal
+        function hideSessionExpiredModal() {
+            const modal = document.getElementById('sessionExpiredModal');
+            const backdrop = document.getElementById('sessionExpiredBackdrop');
+            const content = document.getElementById('sessionExpiredModalContent');
+            const body = document.body;
+            
+            // Remove blur from page
+            body.style.filter = '';
+            body.style.pointerEvents = '';
+            
+            // Hide modal
+            backdrop.classList.remove('opacity-100');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                isModalShown = false;
+                
+                // Clear form
+                document.getElementById('sessionExpiredForm').reset();
+                document.getElementById('sessionExpiredError').classList.add('hidden');
+            }, 300);
+        }
+        
+        // Handle re-authentication
+        async function handleReauthenticate(event) {
+            event.preventDefault();
+            
+            const password = document.getElementById('sessionExpiredPassword').value;
+            const submitBtn = document.getElementById('sessionExpiredSubmitBtn');
+            const submitText = document.getElementById('sessionExpiredSubmitText');
+            const submitSpinner = document.getElementById('sessionExpiredSubmitSpinner');
+            const errorDiv = document.getElementById('sessionExpiredError');
+            const errorText = document.getElementById('sessionExpiredErrorText');
+            
+            // Disable button and show spinner
+            submitBtn.disabled = true;
+            submitText.classList.add('hidden');
+            submitSpinner.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+            
+            try {
+                const response = await fetch(BASE + '/api/auth/reauthenticate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ password: password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Re-authentication successful
+                    lastActivityTime = Date.now();
+                    hideSessionExpiredModal();
+                    
+                    // Reload page to refresh session
+                    window.location.reload();
+                } else {
+                    // Show error
+                    errorText.textContent = data.error || 'Invalid password. Please try again.';
+                    errorDiv.classList.remove('hidden');
+                    
+                    // Clear password field
+                    document.getElementById('sessionExpiredPassword').value = '';
+                    document.getElementById('sessionExpiredPassword').focus();
+                }
+            } catch (error) {
+                errorText.textContent = 'An error occurred. Please try again.';
+                errorDiv.classList.remove('hidden');
+            } finally {
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitText.classList.remove('hidden');
+                submitSpinner.classList.add('hidden');
+            }
+        }
+        
+        // Handle logout from modal
+        async function handleSessionExpiredLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                try {
+                    await fetch(BASE + '/api/auth/logout', {
+                        method: 'POST',
+                        credentials: 'same-origin'
+                    });
+                } catch (error) {
+                    console.error('Logout error:', error);
+                }
+                
+                // Clear storage and redirect
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = BASE + '/';
+            }
+        }
+        
+        // Toggle password visibility
+        function togglePasswordVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            const toggle = document.getElementById(inputId + 'Toggle');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                toggle.classList.remove('fa-eye');
+                toggle.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                toggle.classList.remove('fa-eye-slash');
+                toggle.classList.add('fa-eye');
+            }
+        }
+        
+        // Start checking session status periodically
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initial check after 1 minute
+            setTimeout(checkSessionStatus, 60000);
+            
+            // Then check every 5 minutes
+            setInterval(checkSessionStatus, 5 * 60 * 1000);
+        });
+    </script>
+    
     <!-- Hide Tailwind CSS production warning -->
     <script>
         const originalWarn = console.warn;

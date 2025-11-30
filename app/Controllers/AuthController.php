@@ -520,6 +520,92 @@ class AuthController {
     }
 
     /**
+     * Re-authenticate with password when session expires
+     * POST /api/auth/reauthenticate
+     */
+    public function reauthenticate() {
+        header('Content-Type: application/json');
+        
+        // Start session if not already started
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
+        // Check if session is expired
+        if (!isset($_SESSION['session_expired']) || !$_SESSION['session_expired']) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Session is not expired'
+            ]);
+            return;
+        }
+        
+        // Get password from request
+        $data = json_decode(file_get_contents('php://input'), true);
+        
+        if (!isset($data['password']) || empty($data['password'])) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Password is required'
+            ]);
+            return;
+        }
+        
+        // Get user from session
+        $user = $_SESSION['user'] ?? null;
+        if (!$user || !isset($user['username'])) {
+            http_response_code(401);
+            echo json_encode([
+                'success' => false,
+                'error' => 'User session not found'
+            ]);
+            return;
+        }
+        
+        try {
+            // Verify password
+            $result = $this->auth->login($user['username'], $data['password']);
+            
+            // Update session with new token
+            $_SESSION['token'] = $result['token'];
+            $_SESSION['user'] = [
+                'id' => $result['user']['id'],
+                'username' => $result['user']['username'],
+                'email' => $result['user']['email'] ?? null,
+                'full_name' => $result['user']['full_name'] ?? null,
+                'role' => $result['user']['role'],
+                'company_id' => $result['user']['company_id'] ?? null,
+                'company_name' => $result['user']['company_name'] ?? null
+            ];
+            
+            // Clear expiration flags
+            unset($_SESSION['session_expired']);
+            unset($_SESSION['session_expired_at']);
+            
+            // Update last activity time
+            $_SESSION['last_activity'] = time();
+            
+            // Update cookies
+            $cookieExpire = time() + (24 * 60 * 60);
+            setcookie('sellapp_token', $result['token'], $cookieExpire, '/', '', false, true);
+            setcookie('token', $result['token'], $cookieExpire, '/', '', false, true);
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Re-authentication successful'
+            ]);
+        } catch (\Exception $e) {
+            http_response_code(401);
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
      * Sync audit trail data on login (Phase 6.1 - Optional Enhancement)
      * Non-blocking background sync
      */

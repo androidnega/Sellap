@@ -122,6 +122,12 @@ $router->get('api/auth/logout', function() {
     $controller->logout();
 });
 
+// Re-authenticate endpoint (for session expiration)
+$router->post('api/auth/reauthenticate', function() {
+    $controller = new \App\Controllers\AuthController();
+    $controller->reauthenticate();
+});
+
 // ========================================
 // NOTIFICATIONS ROUTES
 // ========================================
