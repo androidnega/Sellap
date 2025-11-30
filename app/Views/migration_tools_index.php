@@ -56,6 +56,28 @@
                 </div>
             </div>
 
+            <!-- Email Logs Migration -->
+            <div class="border border-green-200 rounded-lg p-4 hover:bg-green-50 transition bg-green-25">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center">
+                            <h3 class="text-lg font-medium text-gray-900">Email Logs Migration</h3>
+                            <span class="ml-2 px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 rounded">REQUIRED</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">
+                            Creates the email_logs table to track all emails sent by the system (automatic and manual).
+                        </p>
+                        <p class="text-xs text-green-700 mt-1 font-medium">
+                            ⚠️ Required for Email Logs page to work
+                        </p>
+                    </div>
+                    <a href="<?= BASE_URL_PATH ?>/dashboard/tools/run-email-logs-migration" 
+                       class="ml-4 px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex-shrink-0">
+                        Run Migration
+                    </a>
+                </div>
+            </div>
+
             <!-- Laptop Category Migration -->
             <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
                 <div class="flex items-center justify-between">

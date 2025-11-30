@@ -3522,6 +3522,12 @@ $router->get('dashboard/tools/run-cloudinary-url-migration', function() {
     $controller->runCloudinaryUrlMigration();
 });
 
+// Run email logs migration
+$router->get('dashboard/tools/run-email-logs-migration', function() {
+    $controller = new \App\Controllers\MigrationController();
+    $controller->runEmailLogsMigration();
+});
+
 // ========================================
 // NOTE: Other application routes should be added here
 // This file was restored with reset, backup, auth, and notification routes

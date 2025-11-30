@@ -17,6 +17,11 @@ class EmailLogsController {
      * GET /dashboard/email-logs
      */
     public function index() {
+        // Ensure BASE_URL_PATH is defined
+        if (!defined('BASE_URL_PATH')) {
+            require_once __DIR__ . '/../../config/app.php';
+        }
+        
         WebAuthMiddleware::handle(['system_admin']);
         
         if (session_status() === PHP_SESSION_NONE) {
@@ -40,6 +45,7 @@ class EmailLogsController {
                 $GLOBALS['content'] = $this->getMigrationRequiredView();
                 $GLOBALS['title'] = $title;
                 $GLOBALS['user_data'] = $_SESSION['user'];
+                $GLOBALS['currentPage'] = 'email-logs';
                 require __DIR__ . '/../Views/simple_layout.php';
                 return;
             }
@@ -153,9 +159,10 @@ class EmailLogsController {
         
         $title = 'Email Logs';
         $GLOBALS['pageTitle'] = $title;
-        $GLOBALS['emailLogs'] = $emailLogs;
-        $GLOBALS['companies'] = $companies;
-        $GLOBALS['stats'] = $stats;
+        $GLOBALS['currentPage'] = 'email-logs';
+        $GLOBALS['emailLogs'] = $emailLogs ?? [];
+        $GLOBALS['companies'] = $companies ?? [];
+        $GLOBALS['stats'] = $stats ?? ['total' => 0, 'sent' => 0, 'failed' => 0, 'monthly_reports' => 0, 'backups' => 0];
         $GLOBALS['filters'] = [
             'email_type' => $emailType,
             'status' => $status,
@@ -167,12 +174,17 @@ class EmailLogsController {
         $GLOBALS['pagination'] = [
             'page' => $page,
             'limit' => $limit,
-            'total' => $total,
-            'total_pages' => ceil($total / $limit)
+            'total' => $total ?? 0,
+            'total_pages' => ceil(($total ?? 0) / $limit)
         ];
         
         // Capture the view content
         ob_start();
+        $emailLogs = $GLOBALS['emailLogs'];
+        $companies = $GLOBALS['companies'];
+        $stats = $GLOBALS['stats'];
+        $filters = $GLOBALS['filters'];
+        $pagination = $GLOBALS['pagination'];
         include __DIR__ . '/../Views/email_logs.php';
         $content = ob_get_clean();
         
