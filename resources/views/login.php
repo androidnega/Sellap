@@ -157,41 +157,26 @@ try {
     error_log("Login page image error: " . $e->getMessage());
 }
 ?>
-<body class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-gray-50 flex flex-col">
-  <div class="flex-1 flex flex-col">
-    <!-- Top Section - Image -->
-    <?php if ($loginImageUrl): ?>
-    <div class="w-full h-64 md:h-80 lg:h-96 relative overflow-hidden">
-      <img src="<?php echo htmlspecialchars($loginImageUrl); ?>" alt="SellApp" class="w-full h-full object-cover">
-    </div>
-    <?php else: ?>
-    <div class="w-full h-48 md:h-64 bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center">
-      <div class="text-center text-white">
-        <div class="inline-flex items-center justify-center w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl shadow-xl mb-4">
-          <span class="text-3xl">📱</span>
-        </div>
-        <h1 class="text-3xl md:text-4xl font-bold mb-2">SellApp</h1>
-        <p class="text-lg text-white/90">Multi-Tenant Phone Management System</p>
-      </div>
-    </div>
-    <?php endif; ?>
-    
-    <!-- Bottom Section - Login Form -->
-    <div class="flex-1 flex items-center justify-center px-4 py-8">
+<body class="min-h-screen flex flex-col" style="<?php if ($loginImageUrl): ?>background-image: url('<?php echo htmlspecialchars($loginImageUrl); ?>'); background-size: cover; background-position: center; background-repeat: no-repeat; background-attachment: fixed;<?php endif; ?>">
+  <!-- Dark Overlay -->
+  <div class="fixed inset-0 bg-black bg-opacity-60 z-0"></div>
+  
+  <!-- Content -->
+  <div class="relative z-10 flex-1 flex items-center justify-center px-4 py-8 min-h-screen">
       <div class="w-full max-w-md">
         <!-- Logo and Branding -->
         <div class="mb-6 text-center">
           <div class="flex items-center justify-center gap-3 mb-3">
-            <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl shadow-xl">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl">
               <span class="text-3xl">📱</span>
             </div>
-            <h1 class="text-3xl font-bold text-gray-900">SellApp</h1>
+            <h1 class="text-3xl font-bold text-white drop-shadow-lg">SellApp</h1>
           </div>
-          <p class="text-gray-600 text-sm font-medium">Multi-Tenant Phone Management System</p>
+          <p class="text-white/90 text-sm font-medium drop-shadow">Multi-Tenant Phone Management System</p>
         </div>
         
         <!-- Login Card -->
-        <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-8 border border-gray-100">
+        <div class="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-6 md:p-8 border border-white/20">
           <h2 class="text-2xl font-bold text-gray-900 mb-2 text-center">Welcome Back</h2>
           <p class="text-gray-600 text-sm text-center mb-6">Sign in to continue to your account</p>
           <?php
@@ -271,11 +256,10 @@ try {
     
     <!-- Footer -->
     <div class="mt-6 text-center">
-      <p class="text-sm text-gray-500 font-medium">
+      <p class="text-sm text-white/80 font-medium drop-shadow">
         © 2025 SellApp. All rights reserved.
       </p>
     </div>
-  </div>
   </div>
 
 </body>

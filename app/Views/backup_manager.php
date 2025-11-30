@@ -420,6 +420,7 @@ $companyId = $user['company_id'] ?? null;
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created By</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cloudinary</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
                     </thead>
@@ -455,12 +456,33 @@ $companyId = $user['company_id'] ?? null;
                                     }">${backup.status}</span>
                                 </td>
                                 <td class="px-4 py-3 text-sm">
+                                    ${backup.cloudinary_url ? `
+                                        <a href="${backup.cloudinary_url}" target="_blank" 
+                                           class="text-green-600 hover:text-green-800 inline-flex items-center" 
+                                           title="View on Cloudinary">
+                                            <i class="fas fa-cloud mr-1"></i>
+                                            <span class="text-xs">Uploaded</span>
+                                        </a>
+                                    ` : `
+                                        <span class="text-gray-400 text-xs" title="Not uploaded to Cloudinary">
+                                            <i class="fas fa-cloud-slash mr-1"></i>Not uploaded
+                                        </span>
+                                    `}
+                                </td>
+                                <td class="px-4 py-3 text-sm">
                                     <div class="flex items-center gap-2">
                                         ${backup.file_exists !== false ? `
                                             <a href="${BASE}/dashboard/backup/download/${backup.id}" class="text-blue-600 hover:text-blue-800 inline-flex items-center" title="Download">
                                                 <i class="fas fa-download"></i>
                                             </a>
                                         ` : '<span class="text-gray-400" title="File missing">-</span>'}
+                                        ${backup.cloudinary_url ? `
+                                            <a href="${backup.cloudinary_url}" target="_blank" 
+                                               class="text-green-600 hover:text-green-800 inline-flex items-center" 
+                                               title="View on Cloudinary">
+                                                <i class="fas fa-cloud"></i>
+                                            </a>
+                                        ` : ''}
                                         <button onclick="deleteBackup(${backup.id}, '${backup.file_name}')" 
                                                 class="text-red-600 hover:text-red-800 inline-flex items-center" title="Delete">
                                             <i class="fas fa-trash"></i>

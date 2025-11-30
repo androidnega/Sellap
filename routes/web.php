@@ -1004,6 +1004,21 @@ $router->get('api/profile/download-guide', function() {
     }
 });
 
+// Email Logs Page (System Admin only)
+$router->get('dashboard/email-logs', function() {
+    try {
+        \App\Middleware\WebAuthMiddleware::handle(['system_admin']);
+        $GLOBALS['currentPage'] = 'email-logs';
+        $controller = new \App\Controllers\EmailLogsController();
+        $controller->index();
+    } catch (\Exception $e) {
+        error_log("Email logs route error: " . $e->getMessage());
+        http_response_code(500);
+        echo "Error loading email logs page.";
+        exit;
+    }
+});
+
 // System Settings Page (System Admin only - restrict all other roles)
 $router->get('dashboard/system-settings', function() {
     try {

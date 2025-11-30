@@ -301,7 +301,11 @@ class BackupScheduler {
                     $subject,
                     $message,
                     $backupFile['path'],
-                    $backupFile['name']
+                    $backupFile['name'],
+                    'backup',
+                    $backupFile['type'] === 'company' ? $backupFile['company_id'] : null,
+                    null,
+                    null
                 );
                 
                 if ($emailResult['success']) {

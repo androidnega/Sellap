@@ -91,7 +91,7 @@ class MonthlyReportService {
                     
                     // Send email
                     $subject = "Monthly Performance Report - {$monthName} - {$companyName}";
-                    $result = $this->emailService->sendEmail($user['email'], $subject, $reportHtml);
+                    $result = $this->emailService->sendEmail($user['email'], $subject, $reportHtml, null, null, 'monthly_report', $companyId, $user['id'], $user['role']);
                     
                     if ($result['success']) {
                         error_log("Monthly report sent to user {$user['id']} ({$user['email']}) - Role: {$user['role']}");
@@ -139,9 +139,9 @@ class MonthlyReportService {
         // Generate report HTML
         $reportHtml = $this->generateReportHtml($companyName, $monthName, $salesData, $lastMonthStart, $lastMonthEnd);
         
-        // Send email
-        $subject = "Monthly Sales Report - {$monthName} - {$companyName}";
-        $result = $this->emailService->sendEmail($companyEmail, $subject, $reportHtml);
+            // Send email
+            $subject = "Monthly Sales Report - {$monthName} - {$companyName}";
+            $result = $this->emailService->sendEmail($companyEmail, $subject, $reportHtml, null, null, 'monthly_report', $companyId, null, null);
         
         if (!$result['success']) {
             throw new \Exception($result['message'] ?? 'Failed to send email');

@@ -933,7 +933,7 @@ class SettingsController {
                 </html>
             ";
             
-            $result = $emailService->sendEmail($testEmail, $subject, $message);
+            $result = $emailService->sendEmail($testEmail, $subject, $message, null, null, 'test', null, null, null);
             
             if ($result['success']) {
                 echo json_encode([
