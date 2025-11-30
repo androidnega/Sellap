@@ -640,21 +640,42 @@ class AdminController {
             // SMS Usage Trend (last 30 days)
             $smsTrendData = [];
             try {
-                $tableCheck = $db->query("SHOW TABLES LIKE 'notification_logs'");
-                if ($tableCheck && $tableCheck->rowCount() > 0) {
+                // First try sms_logs table (primary source for SMS tracking)
+                $smsLogsCheck = $db->query("SHOW TABLES LIKE 'sms_logs'");
+                if ($smsLogsCheck && $smsLogsCheck->rowCount() > 0) {
                     $smsTrendResult = $db->query("
                         SELECT 
-                            DATE(created_at) as date,
+                            DATE(sent_at) as date,
                             COUNT(*) as count
-                        FROM notification_logs
-                        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-                        GROUP BY DATE(created_at)
+                        FROM sms_logs
+                        WHERE sent_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                        AND status = 'sent'
+                        GROUP BY DATE(sent_at)
                         ORDER BY date ASC
                     ");
                     $smsTrendData = $smsTrendResult ? $smsTrendResult->fetchAll(\PDO::FETCH_ASSOC) : [];
+                    error_log("SMS trend data from sms_logs: " . count($smsTrendData) . " records");
+                } else {
+                    // Fallback to notification_logs if sms_logs doesn't exist
+                    $tableCheck = $db->query("SHOW TABLES LIKE 'notification_logs'");
+                    if ($tableCheck && $tableCheck->rowCount() > 0) {
+                        $smsTrendResult = $db->query("
+                            SELECT 
+                                DATE(created_at) as date,
+                                COUNT(*) as count
+                            FROM notification_logs
+                            WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                            AND success = 1
+                            GROUP BY DATE(created_at)
+                            ORDER BY date ASC
+                        ");
+                        $smsTrendData = $smsTrendResult ? $smsTrendResult->fetchAll(\PDO::FETCH_ASSOC) : [];
+                        error_log("SMS trend data from notification_logs (fallback): " . count($smsTrendData) . " records");
+                    }
                 }
             } catch (\Exception $e) {
                 error_log("SMS trend query error: " . $e->getMessage());
+                error_log("SMS trend query trace: " . $e->getTraceAsString());
             }
             $smsChart = [
                 'labels' => is_array($smsTrendData) ? array_map(function($item) {

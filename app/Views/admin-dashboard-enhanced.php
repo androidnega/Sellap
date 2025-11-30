@@ -857,20 +857,37 @@ ob_start();
             
             // SMS Usage Chart
             const smsUsageCtx = document.getElementById('smsUsageChart');
-            if (!smsUsageCtx) return;
+            if (!smsUsageCtx) {
+                console.warn('SMS Usage Chart canvas element not found');
+                return;
+            }
+            
+            // Ensure we have valid data
+            const smsLabels = data.sms_chart?.labels || [];
+            const smsValues = data.sms_chart?.values || [];
+            
+            console.log('SMS Chart Data:', { labels: smsLabels, values: smsValues });
+            
+            // If no data, show empty chart with message
+            if (smsLabels.length === 0 || smsValues.length === 0) {
+                console.warn('SMS chart has no data');
+                // Still create chart but with empty data
+            }
             
             if (smsUsageChart) smsUsageChart.destroy();
             smsUsageChart = new Chart(smsUsageCtx.getContext('2d'), {
                 type: 'line',
                 data: {
-                    labels: data.sms_chart?.labels || [],
+                    labels: smsLabels,
                     datasets: [{
                         label: 'SMS Sent',
-                        data: data.sms_chart?.values || [],
+                        data: smsValues,
                         borderColor: 'rgba(20, 184, 166, 1)',
                         backgroundColor: 'rgba(20, 184, 166, 0.1)',
                         tension: 0.4,
-                        fill: true
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
                     }]
                 },
                 options: {
@@ -879,13 +896,27 @@ ob_start();
                     aspectRatio: 2,
                     scales: {
                         y: {
-                            beginAtZero: true
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
                         }
                     },
                     plugins: {
                         legend: {
-                            display: true
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            enabled: true,
+                            mode: 'index',
+                            intersect: false
                         }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
                     }
                 }
             });
