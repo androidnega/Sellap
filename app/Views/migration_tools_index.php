@@ -34,6 +34,28 @@
                 </div>
             </div>
 
+            <!-- Cloudinary URL Migration -->
+            <div class="border border-blue-200 rounded-lg p-4 hover:bg-blue-50 transition bg-blue-25">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center">
+                            <h3 class="text-lg font-medium text-gray-900">Cloudinary URL Migration</h3>
+                            <span class="ml-2 px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded">NEW</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">
+                            Adds cloudinary_url column to backups table. Required for automatic backup uploads to Cloudinary.
+                        </p>
+                        <p class="text-xs text-blue-700 mt-1 font-medium">
+                            ⚠️ Run this to enable Cloudinary backup storage
+                        </p>
+                    </div>
+                    <a href="<?= BASE_URL_PATH ?>/dashboard/tools/run-cloudinary-url-migration" 
+                       class="ml-4 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition flex-shrink-0">
+                        Run Migration
+                    </a>
+                </div>
+            </div>
+
             <!-- Laptop Category Migration -->
             <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
                 <div class="flex items-center justify-between">

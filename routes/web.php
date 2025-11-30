@@ -3468,6 +3468,12 @@ $router->get('dashboard/tools/run-backup-columns-migration', function() {
     $controller->runBackupColumnsMigration();
 });
 
+// Run cloudinary URL migration
+$router->get('dashboard/tools/run-cloudinary-url-migration', function() {
+    $controller = new \App\Controllers\MigrationController();
+    $controller->runCloudinaryUrlMigration();
+});
+
 // ========================================
 // NOTE: Other application routes should be added here
 // This file was restored with reset, backup, auth, and notification routes

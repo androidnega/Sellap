@@ -109,7 +109,6 @@
 <?php
 // Get login page image URL from system settings or Cloudinary
 $loginImageUrl = null;
-$backgroundImageStyle = '';
 
 try {
     require_once __DIR__ . '/../../config/database.php';
@@ -154,79 +153,106 @@ try {
             }
         }
     }
-    
-    if ($loginImageUrl) {
-        $backgroundImageStyle = "background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('{$loginImageUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;";
-    }
 } catch (\Exception $e) {
     error_log("Login page image error: " . $e->getMessage());
-    // Fallback to gradient background
-    $backgroundImageStyle = '';
 }
 ?>
-<body class="min-h-screen flex items-center justify-center px-4 py-8" style="<?php echo $backgroundImageStyle; ?> <?php echo empty($backgroundImageStyle) ? 'bg-gradient-to-br from-blue-50 via-white to-gray-50' : ''; ?>">
-  <div class="w-full max-w-md">
-    <!-- Logo and Branding -->
-    <div class="mb-6 text-center">
-      <div class="flex items-center justify-center gap-3 mb-3">
-        <div class="inline-flex items-center justify-center w-16 h-16 bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl">
-          <span class="text-3xl">📱</span>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-gray-50 flex items-center justify-center px-4 py-8">
+  <div class="w-full max-w-5xl">
+    <div class="grid md:grid-cols-2 gap-0 bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <!-- Left Side - Image (Desktop) / Hidden (Mobile) -->
+      <?php if ($loginImageUrl): ?>
+      <div class="hidden md:block relative bg-gradient-to-br from-blue-600 to-blue-800">
+        <div class="absolute inset-0 bg-black/20"></div>
+        <img src="<?php echo htmlspecialchars($loginImageUrl); ?>" alt="SellApp" class="w-full h-full object-cover opacity-90">
+        <div class="absolute inset-0 flex flex-col items-center justify-center p-8 text-white">
+          <div class="text-center">
+            <div class="inline-flex items-center justify-center w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl shadow-xl mb-4">
+              <span class="text-4xl">📱</span>
+            </div>
+            <h1 class="text-4xl font-bold mb-3 drop-shadow-lg">SellApp</h1>
+            <p class="text-lg text-white/90 drop-shadow">Multi-Tenant Phone Management System</p>
+            <p class="text-sm text-white/80 mt-4 drop-shadow">Streamline your phone business operations</p>
+          </div>
         </div>
-        <h1 class="text-3xl font-bold <?php echo $loginImageUrl ? 'text-white drop-shadow-lg' : 'text-gray-900'; ?>">SellApp</h1>
       </div>
-      <p class="<?php echo $loginImageUrl ? 'text-white/90 drop-shadow' : 'text-gray-600'; ?> text-sm font-medium">Multi-Tenant Phone Management System</p>
-    </div>
-    
-    <!-- Login Card -->
-    <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-6 border border-white/20">
-      <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">Welcome Back</h2>
-      
-      <?php
-      // Display error message if present
-      $error = $_GET['error'] ?? '';
-      if (!empty($error)):
-      ?>
-      <div class="mb-4 p-3 bg-red-50 border-2 border-red-300 text-red-700 rounded-lg text-sm font-medium">
-        <?php echo htmlspecialchars(urldecode($error)); ?>
+      <?php else: ?>
+      <div class="hidden md:flex relative bg-gradient-to-br from-blue-600 to-blue-800 items-center justify-center p-8">
+        <div class="text-center text-white">
+          <div class="inline-flex items-center justify-center w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl shadow-xl mb-4">
+            <span class="text-4xl">📱</span>
+          </div>
+          <h1 class="text-4xl font-bold mb-3 drop-shadow-lg">SellApp</h1>
+          <p class="text-lg text-white/90 drop-shadow">Multi-Tenant Phone Management System</p>
+        </div>
       </div>
       <?php endif; ?>
       
-      <form method="post" action="<?php echo htmlspecialchars(BASE_URL_PATH . '/login' . (!empty($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '')); ?>" style="display: block;">
-        <div style="margin-bottom: 16px;">
-          <label class="block text-gray-700 text-sm font-semibold mb-2">Username or Email</label>
-          <input 
-            type="text" 
-            name="username"
-            id="username" 
-            class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white" 
-            placeholder="Enter username or email"
-            required
-            autocomplete="username"
-            value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>"
-            style="display: block; width: 100%;">
+      <!-- Right Side - Login Form -->
+      <div class="p-8 md:p-12 flex flex-col justify-center">
+        <!-- Logo and Branding (Mobile) -->
+        <div class="mb-6 text-center md:hidden">
+          <div class="flex items-center justify-center gap-3 mb-3">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl shadow-xl">
+              <span class="text-3xl">📱</span>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-900">SellApp</h1>
+          </div>
+          <p class="text-gray-600 text-sm font-medium">Multi-Tenant Phone Management System</p>
         </div>
         
-        <div style="margin-bottom: 20px;">
-          <label class="block text-gray-700 text-sm font-semibold mb-2">Password</label>
-          <input 
-            type="password" 
-            name="password"
-            id="password" 
-            class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white" 
-            placeholder="Enter your password"
-            required
-            autocomplete="current-password"
-            style="display: block; width: 100%;">
+        <div class="max-w-md mx-auto w-full">
+          <h2 class="text-3xl font-bold text-gray-900 mb-2 text-center">Welcome Back</h2>
+          <p class="text-gray-600 text-sm text-center mb-8">Sign in to continue to your account</p>
+          <?php
+          // Display error message if present
+          $error = $_GET['error'] ?? '';
+          if (!empty($error)):
+          ?>
+          <div class="mb-6 p-4 bg-red-50 border-2 border-red-300 text-red-700 rounded-xl text-sm font-medium">
+            <?php echo htmlspecialchars(urldecode($error)); ?>
+          </div>
+          <?php endif; ?>
+          
+          <form method="post" action="<?php echo htmlspecialchars(BASE_URL_PATH . '/login' . (!empty($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '')); ?>" style="display: block;">
+            <div style="margin-bottom: 20px;">
+              <label class="block text-gray-700 text-sm font-semibold mb-2">Username or Email</label>
+              <input 
+                type="text" 
+                name="username"
+                id="username" 
+                class="w-full border-2 border-gray-200 rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white" 
+                placeholder="Enter username or email"
+                required
+                autocomplete="username"
+                value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>"
+                style="display: block; width: 100%;">
+            </div>
+            
+            <div style="margin-bottom: 24px;">
+              <label class="block text-gray-700 text-sm font-semibold mb-2">Password</label>
+              <input 
+                type="password" 
+                name="password"
+                id="password" 
+                class="w-full border-2 border-gray-200 rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white" 
+                placeholder="Enter your password"
+                required
+                autocomplete="current-password"
+                style="display: block; width: 100%;">
+            </div>
+            
+            <button 
+              type="submit" 
+              id="loginSubmitBtn"
+              class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white py-3.5 rounded-xl font-semibold text-base transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+              style="display: block; width: 100%; cursor: pointer;">
+              Sign In
+            </button>
+          </form>
         </div>
-        
-        <button 
-          type="submit" 
-          id="loginSubmitBtn"
-          class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white py-3 rounded-xl font-semibold text-base transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
-          style="display: block; width: 100%; cursor: pointer;">
-          Sign In
-        </button>
-      </form>
+      </div>
+    </div>
       
       <script>
       // Simple form submission test - ensure form works
@@ -253,11 +279,9 @@ try {
         }
       });
       </script>
-      
-    </div>
     
     <!-- Footer -->
-    <p class="text-center text-sm <?php echo $loginImageUrl ? 'text-white/80 drop-shadow' : 'text-gray-500'; ?> mt-6 font-medium">
+    <p class="text-center text-sm text-gray-500 mt-8 font-medium">
       © 2025 SellApp. All rights reserved.
     </p>
   </div>
