@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Services\BackupService;
+use App\Services\EmailService;
+use App\Services\CloudinaryService;
 use App\Models\Backup;
 
 require_once __DIR__ . '/../../config/database.php';
@@ -86,6 +88,12 @@ class BackupScheduler {
 
             // Cleanup old automatic backups (keep last 30 days)
             $this->cleanupOldBackups(30);
+            
+            // Send backups via email
+            $this->sendBackupsViaEmail($results);
+            
+            // Sync backups from Cloudinary
+            $this->syncBackupsFromCloudinary();
 
             return $results;
         } catch (\Exception $e) {
@@ -214,6 +222,192 @@ class BackupScheduler {
         } catch (\Exception $e) {
             error_log("Error getting backup stats: " . $e->getMessage());
             return [];
+        }
+    }
+    
+    /**
+     * Send backups via email to backup@sellapp.store
+     */
+    private function sendBackupsViaEmail($results) {
+        try {
+            $emailService = new EmailService();
+            $backupService = $this->backupService;
+            $backupEmail = 'backup@sellapp.store';
+            
+            $backupFiles = [];
+            
+            // Collect all backup files
+            foreach ($results['companies'] as $companyBackup) {
+                if (!empty($companyBackup['success']) && !empty($companyBackup['backup_id'])) {
+                    $backup = $backupService->getBackupById($companyBackup['backup_id']);
+                    if ($backup && !empty($backup['file_path']) && file_exists($backup['file_path'])) {
+                        $backupFiles[] = [
+                            'path' => $backup['file_path'],
+                            'name' => $backup['file_name'],
+                            'type' => 'company',
+                            'company_id' => $companyBackup['company_id'] ?? null,
+                            'company_name' => $companyBackup['company_name'] ?? 'Unknown'
+                        ];
+                    }
+                }
+            }
+            
+            // Add system backup
+            if (!empty($results['system']['success']) && !empty($results['system']['backup_id'])) {
+                $backup = $backupService->getBackupById($results['system']['backup_id']);
+                if ($backup && !empty($backup['file_path']) && file_exists($backup['file_path'])) {
+                    $backupFiles[] = [
+                        'path' => $backup['file_path'],
+                        'name' => $backup['file_name'],
+                        'type' => 'system'
+                    ];
+                }
+            }
+            
+            // Send each backup as separate email
+            foreach ($backupFiles as $backupFile) {
+                $subject = "Daily Backup - " . ($backupFile['type'] === 'system' ? 'System' : $backupFile['company_name']) . " - " . date('Y-m-d');
+                $message = "
+                    <html>
+                    <head>
+                        <style>
+                            body { font-family: Arial, sans-serif; }
+                            .header { background-color: #3b82f6; color: white; padding: 20px; }
+                            .content { padding: 20px; }
+                            .footer { background-color: #f3f4f6; padding: 10px; text-align: center; font-size: 12px; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class='header'>
+                            <h2>SellApp Daily Backup</h2>
+                        </div>
+                        <div class='content'>
+                            <p>This is an automated daily backup from SellApp.</p>
+                            <p><strong>Backup Type:</strong> " . htmlspecialchars($backupFile['type']) . "</p>
+                            " . ($backupFile['type'] === 'company' ? "<p><strong>Company:</strong> " . htmlspecialchars($backupFile['company_name']) . " (ID: " . htmlspecialchars($backupFile['company_id']) . ")</p>" : "") . "
+                            <p><strong>Backup File:</strong> " . htmlspecialchars($backupFile['name']) . "</p>
+                            <p><strong>Date:</strong> " . date('Y-m-d H:i:s') . "</p>
+                            <p>The backup file is attached to this email.</p>
+                        </div>
+                        <div class='footer'>
+                            <p>This is an automated message from SellApp Backup System.</p>
+                        </div>
+                    </body>
+                    </html>
+                ";
+                
+                $emailResult = $emailService->sendEmail(
+                    $backupEmail,
+                    $subject,
+                    $message,
+                    $backupFile['path'],
+                    $backupFile['name']
+                );
+                
+                if ($emailResult['success']) {
+                    error_log("Backup email sent successfully: {$backupFile['name']} to {$backupEmail}");
+                } else {
+                    error_log("Failed to send backup email: {$backupFile['name']} - " . $emailResult['message']);
+                }
+            }
+        } catch (\Exception $e) {
+            error_log("Error sending backup emails: " . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Sync backups from Cloudinary to local system
+     */
+    private function syncBackupsFromCloudinary() {
+        try {
+            // Get Cloudinary settings
+            $settingsQuery = $this->db->query("SELECT setting_key, setting_value FROM system_settings");
+            $settings = $settingsQuery->fetchAll(\PDO::FETCH_KEY_PAIR);
+            
+            if (empty($settings['cloudinary_cloud_name'])) {
+                return; // Cloudinary not configured
+            }
+            
+            $cloudinaryService = new CloudinaryService();
+            $cloudinaryService->loadFromSettings($settings);
+            
+            if (!$cloudinaryService->isConfigured()) {
+                return;
+            }
+            
+            // List all backups from Cloudinary
+            $cloudinaryBackups = $cloudinaryService->listBackups('sellapp/backups', 200);
+            
+            if (!$cloudinaryBackups['success'] || empty($cloudinaryBackups['backups'])) {
+                return;
+            }
+            
+            $backupDir = __DIR__ . '/../../storage/backups/cloudinary_sync';
+            if (!is_dir($backupDir)) {
+                mkdir($backupDir, 0755, true);
+            }
+            
+            $syncedCount = 0;
+            
+            foreach ($cloudinaryBackups['backups'] as $cloudinaryBackup) {
+                try {
+                    // Check if backup already exists in database
+                    $stmt = $this->db->prepare("
+                        SELECT id FROM backups 
+                        WHERE cloudinary_url = ? OR file_name = ?
+                        LIMIT 1
+                    ");
+                    $stmt->execute([
+                        $cloudinaryBackup['secure_url'],
+                        $cloudinaryBackup['filename']
+                    ]);
+                    
+                    if ($stmt->fetch()) {
+                        continue; // Already synced
+                    }
+                    
+                    // Download backup from Cloudinary
+                    $localPath = $backupDir . '/' . $cloudinaryBackup['filename'];
+                    $downloadResult = $cloudinaryService->downloadBackup(
+                        $cloudinaryBackup['public_id'],
+                        $localPath
+                    );
+                    
+                    if (!$downloadResult['success']) {
+                        error_log("Failed to download backup from Cloudinary: {$cloudinaryBackup['public_id']}");
+                        continue;
+                    }
+                    
+                    // Create backup record in database
+                    $backupData = [
+                        'company_id' => null, // Will be determined from backup content if possible
+                        'file_name' => $cloudinaryBackup['filename'],
+                        'file_path' => $localPath,
+                        'file_size' => $cloudinaryBackup['bytes'],
+                        'status' => 'completed',
+                        'format' => 'zip',
+                        'cloudinary_url' => $cloudinaryBackup['secure_url'],
+                        'backup_type' => 'automatic',
+                        'description' => '[SYNCED FROM CLOUDINARY]'
+                    ];
+                    
+                    $backupModel = new Backup();
+                    $backupModel->create($backupData);
+                    
+                    $syncedCount++;
+                    error_log("Synced backup from Cloudinary: {$cloudinaryBackup['filename']}");
+                    
+                } catch (\Exception $e) {
+                    error_log("Error syncing backup from Cloudinary: " . $e->getMessage());
+                }
+            }
+            
+            if ($syncedCount > 0) {
+                error_log("Synced {$syncedCount} backups from Cloudinary");
+            }
+            
+        } catch (\Exception $e) {
+            error_log("Error syncing backups from Cloudinary: " . $e->getMessage());
         }
     }
 }

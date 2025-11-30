@@ -165,6 +165,7 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/companies/modules', 'fas fa-puzzle-piece', 'Company Modules', $currentPage, 'company-modules') ?>
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/analytics', 'fas fa-chart-line', 'Analytics', $currentPage, 'analytics') ?>
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/backup', 'fas fa-database', 'Backups', $currentPage, 'backup') ?>
+            <?= sidebarLink(BASE_URL_PATH . '/dashboard/tools', 'fas fa-tools', 'Tools', $currentPage, 'tools') ?>
             <div class="border-t border-white border-opacity-20 my-2"></div>
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/reset/history', 'fas fa-history', 'Reset History', $currentPage, 'reset-history') ?>
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/reset', 'fas fa-skull', 'System Reset', $currentPage, 'system-reset') ?>

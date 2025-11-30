@@ -27,6 +27,9 @@ $smsConfigured = $smsConfigured ?? false;
                         <button onclick="showTab('paystack')" id="paystack-tab" class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-xs text-gray-500 hover:text-gray-700 hover:border-gray-300">
                             <i class="fas fa-credit-card mr-1"></i>Paystack Payment
                         </button>
+                        <button onclick="showTab('email')" id="email-tab" class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-xs text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                            <i class="fas fa-envelope mr-1"></i>Email Configuration
+                        </button>
                         <button onclick="showTab('general')" id="general-tab" class="tab-button py-2 px-1 border-b-2 border-transparent font-medium text-xs text-gray-500 hover:text-gray-700 hover:border-gray-300">
                             <i class="fas fa-cog mr-1"></i>General Settings
                         </button>
@@ -257,6 +260,102 @@ $smsConfigured = $smsConfigured ?? false;
                     </div>
                 </div>
                 
+                <!-- Email Settings Tab -->
+                <div id="email-content" class="tab-content p-4 hidden">
+                    <div class="mb-4">
+                        <h3 class="text-base font-semibold text-gray-800 mb-1">Email Configuration</h3>
+                        <p class="text-sm text-gray-600">Configure SMTP settings for sending emails to clients</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">SMTP Host</label>
+                                <input type="text" id="mail-host" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="mail.sellapp.store" value="<?= htmlspecialchars($settings['mail_host'] ?? 'mail.sellapp.store') ?>">
+                                <p class="text-xs text-gray-500 mt-1">Outgoing mail server</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">SMTP Port</label>
+                                <select id="mail-port" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="updateMailEncryption()">
+                                    <option value="465" <?= ($settings['mail_port'] ?? '465') == '465' ? 'selected' : '' ?>>465 (SSL/TLS - Recommended)</option>
+                                    <option value="587" <?= ($settings['mail_port'] ?? '') == '587' ? 'selected' : '' ?>>587 (TLS)</option>
+                                    <option value="25" <?= ($settings['mail_port'] ?? '') == '25' ? 'selected' : '' ?>>25 (Not Recommended)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Encryption</label>
+                                <select id="mail-encryption" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="ssl" <?= ($settings['mail_encryption'] ?? 'ssl') === 'ssl' ? 'selected' : '' ?>>SSL (for port 465)</option>
+                                    <option value="tls" <?= ($settings['mail_encryption'] ?? '') === 'tls' ? 'selected' : '' ?>>TLS (for port 587)</option>
+                                    <option value="none" <?= ($settings['mail_encryption'] ?? '') === 'none' ? 'selected' : '' ?>>None (Not Recommended)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Username</label>
+                                <input type="text" id="mail-username" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="noreply@sellapp.store" value="<?= htmlspecialchars($settings['mail_username'] ?? 'noreply@sellapp.store') ?>">
+                                <p class="text-xs text-gray-500 mt-1">Email account username</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Password</label>
+                                <input type="password" id="mail-password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter email password" value="<?= htmlspecialchars($settings['mail_password'] ?? '') ?>">
+                                <p class="text-xs text-gray-500 mt-1">Email account password</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">From Email Address</label>
+                                <input type="email" id="mail-from-address" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="noreply@sellapp.store" value="<?= htmlspecialchars($settings['mail_from_address'] ?? 'noreply@sellapp.store') ?>">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">From Name</label>
+                                <input type="text" id="mail-from-name" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="SellApp System" value="<?= htmlspecialchars($settings['mail_from_name'] ?? 'SellApp System') ?>">
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="font-medium text-gray-800 mb-2">Configuration Status</h4>
+                                <div id="email-status" class="flex items-center">
+                                    <?php 
+                                    $emailConfigured = !empty($settings['mail_host'] ?? '') && !empty($settings['mail_username'] ?? '') && !empty($settings['mail_password'] ?? '');
+                                    ?>
+                                    <?php if ($emailConfigured): ?>
+                                        <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                                        <span class="text-sm text-green-600">Configured</span>
+                                    <?php else: ?>
+                                        <i class="fas fa-circle text-gray-400 mr-2"></i>
+                                        <span class="text-sm text-gray-600">Not configured</span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="mt-3 text-xs text-gray-600">
+                                    <p><strong>Server:</strong> <span id="mail-server-display"><?= htmlspecialchars($settings['mail_host'] ?? 'mail.sellapp.store') ?></span></p>
+                                    <p><strong>Port:</strong> <span id="mail-port-display"><?= htmlspecialchars($settings['mail_port'] ?? '465') ?></span></p>
+                                    <p><strong>Encryption:</strong> <span id="mail-encryption-display"><?= strtoupper($settings['mail_encryption'] ?? 'SSL') ?></span></p>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-2">
+                                <button onclick="testEmail()" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">
+                                    <i class="fas fa-vial mr-2"></i>Test Email Configuration
+                                </button>
+                                <button onclick="saveEmailSettings()" class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition">
+                                    <i class="fas fa-save mr-2"></i>Save Settings
+                                </button>
+                            </div>
+                            
+                            <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
+                                <h4 class="text-sm font-medium text-blue-800 mb-2">
+                                    <i class="fas fa-info-circle mr-1"></i>Email Features
+                                </h4>
+                                <ul class="text-xs text-blue-700 space-y-1 list-disc list-inside">
+                                    <li>Automatic monthly sales reports to clients</li>
+                                    <li>Daily backup emails to backup@sellapp.store</li>
+                                    <li>System notifications and updates</li>
+                                    <li>Client performance reports</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- General Settings Tab -->
                 <div id="general-content" class="tab-content p-4 hidden">
                     <div class="mb-4">
@@ -349,9 +448,119 @@ function showTab(tabName) {
 // Restore active tab from localStorage
 function restoreActiveTab() {
     const savedTab = localStorage.getItem('settings_active_tab');
-    if (savedTab && ['cloudinary', 'sms', 'paystack', 'general'].includes(savedTab)) {
+    if (savedTab && ['cloudinary', 'sms', 'paystack', 'email', 'general'].includes(savedTab)) {
         showTab(savedTab);
     }
+}
+
+function updateMailEncryption() {
+    const port = document.getElementById('mail-port').value;
+    const encryption = document.getElementById('mail-encryption');
+    if (port == '465') {
+        encryption.value = 'ssl';
+    } else if (port == '587') {
+        encryption.value = 'tls';
+    }
+    updateEmailStatusDisplay();
+}
+
+function updateEmailStatusDisplay() {
+    const host = document.getElementById('mail-host').value;
+    const port = document.getElementById('mail-port').value;
+    const encryption = document.getElementById('mail-encryption').value;
+    
+    const serverDisplay = document.getElementById('mail-server-display');
+    const portDisplay = document.getElementById('mail-port-display');
+    const encryptionDisplay = document.getElementById('mail-encryption-display');
+    
+    if (serverDisplay) serverDisplay.textContent = host || 'mail.sellapp.store';
+    if (portDisplay) portDisplay.textContent = port || '465';
+    if (encryptionDisplay) encryptionDisplay.textContent = encryption.toUpperCase() || 'SSL';
+    
+    // Update status indicator
+    const emailStatus = document.getElementById('email-status');
+    const username = document.getElementById('mail-username').value;
+    const password = document.getElementById('mail-password').value;
+    
+    if (host && username && password) {
+        if (emailStatus) {
+            emailStatus.innerHTML = '<i class="fas fa-check-circle text-green-500 mr-2"></i><span class="text-sm text-green-600">Configured</span>';
+        }
+    } else {
+        if (emailStatus) {
+            emailStatus.innerHTML = '<i class="fas fa-circle text-gray-400 mr-2"></i><span class="text-sm text-gray-600">Not configured</span>';
+        }
+    }
+}
+
+function saveEmailSettings() {
+    const token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
+    
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+    }
+    
+    const settings = {
+        mail_host: document.getElementById('mail-host').value,
+        mail_port: document.getElementById('mail-port').value,
+        mail_encryption: document.getElementById('mail-encryption').value,
+        mail_username: document.getElementById('mail-username').value,
+        mail_password: document.getElementById('mail-password').value,
+        mail_from_address: document.getElementById('mail-from-address').value,
+        mail_from_name: document.getElementById('mail-from-name').value
+    };
+    
+    fetch(BASE + '/api/system-settings/update', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Email settings saved successfully!');
+            updateEmailStatusDisplay();
+        } else {
+            alert('Failed to save email settings: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving email settings');
+    });
+}
+
+function testEmail() {
+    const token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
+    
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+    }
+    
+    fetch(BASE + '/api/system-settings/test-email', {
+        method: 'POST',
+        headers: headers
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Email test successful! Check your inbox for the test email.');
+        } else {
+            alert('Email test failed: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error testing email configuration');
+    });
 }
 
 // Load settings on page load
@@ -383,6 +592,19 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Payment SMS toggle changed:', this.checked);
         });
     }
+    
+    // Add event listeners for email fields
+    const emailFields = ['mail-host', 'mail-username', 'mail-password', 'mail-port', 'mail-encryption'];
+    emailFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', updateEmailStatusDisplay);
+            field.addEventListener('change', updateEmailStatusDisplay);
+        }
+    });
+    
+    // Initial email status update
+    updateEmailStatusDisplay();
 });
         
         function loadSettings() {
@@ -439,6 +661,32 @@ document.addEventListener('DOMContentLoaded', function() {
                         document.getElementById('paystack-mode').value = settings['paystack_mode'];
                         document.getElementById('paystack-mode-display').textContent = settings['paystack_mode'].toUpperCase();
                     }
+                    
+            // Update Email fields
+                    if (settings['mail_host']) {
+                        document.getElementById('mail-host').value = settings['mail_host'];
+                    }
+                    if (settings['mail_port']) {
+                        document.getElementById('mail-port').value = settings['mail_port'];
+                    }
+                    if (settings['mail_encryption']) {
+                        document.getElementById('mail-encryption').value = settings['mail_encryption'];
+                    }
+                    if (settings['mail_username']) {
+                        document.getElementById('mail-username').value = settings['mail_username'];
+                    }
+                    if (settings['mail_password']) {
+                        document.getElementById('mail-password').value = settings['mail_password'];
+                    }
+                    if (settings['mail_from_address']) {
+                        document.getElementById('mail-from-address').value = settings['mail_from_address'];
+                    }
+                    if (settings['mail_from_name']) {
+                        document.getElementById('mail-from-name').value = settings['mail_from_name'];
+                    }
+                    
+                    // Update email status display after loading
+                    updateEmailStatusDisplay();
                     
             // Update general settings
                     if (settings['default_image_quality']) {

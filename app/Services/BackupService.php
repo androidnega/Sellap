@@ -715,6 +715,22 @@ class BackupService {
     }
     
     /**
+     * Get backup by ID
+     * 
+     * @param int $backupId Backup ID
+     * @return array|null Backup data or null if not found
+     */
+    public function getBackupById($backupId) {
+        try {
+            $backupModel = new Backup();
+            return $backupModel->find($backupId);
+        } catch (\Exception $e) {
+            error_log("Error getting backup by ID: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
      * Delete backup by ID
      */
     public function deleteBackup($backupId, $companyId = null) {

@@ -157,41 +157,30 @@ try {
     error_log("Login page image error: " . $e->getMessage());
 }
 ?>
-<body class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-gray-50 flex items-center justify-center px-4 py-8">
-  <div class="w-full max-w-5xl">
-    <div class="grid md:grid-cols-2 gap-0 bg-white rounded-2xl shadow-2xl overflow-hidden">
-      <!-- Left Side - Image (Desktop) / Hidden (Mobile) -->
-      <?php if ($loginImageUrl): ?>
-      <div class="hidden md:block relative bg-gradient-to-br from-blue-600 to-blue-800">
-        <div class="absolute inset-0 bg-black/20"></div>
-        <img src="<?php echo htmlspecialchars($loginImageUrl); ?>" alt="SellApp" class="w-full h-full object-cover opacity-90">
-        <div class="absolute inset-0 flex flex-col items-center justify-center p-8 text-white">
-          <div class="text-center">
-            <div class="inline-flex items-center justify-center w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl shadow-xl mb-4">
-              <span class="text-4xl">📱</span>
-            </div>
-            <h1 class="text-4xl font-bold mb-3 drop-shadow-lg">SellApp</h1>
-            <p class="text-lg text-white/90 drop-shadow">Multi-Tenant Phone Management System</p>
-            <p class="text-sm text-white/80 mt-4 drop-shadow">Streamline your phone business operations</p>
-          </div>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-gray-50 flex flex-col">
+  <div class="flex-1 flex flex-col">
+    <!-- Top Section - Image -->
+    <?php if ($loginImageUrl): ?>
+    <div class="w-full h-64 md:h-80 lg:h-96 relative overflow-hidden">
+      <img src="<?php echo htmlspecialchars($loginImageUrl); ?>" alt="SellApp" class="w-full h-full object-cover">
+    </div>
+    <?php else: ?>
+    <div class="w-full h-48 md:h-64 bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center">
+      <div class="text-center text-white">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl shadow-xl mb-4">
+          <span class="text-3xl">📱</span>
         </div>
+        <h1 class="text-3xl md:text-4xl font-bold mb-2">SellApp</h1>
+        <p class="text-lg text-white/90">Multi-Tenant Phone Management System</p>
       </div>
-      <?php else: ?>
-      <div class="hidden md:flex relative bg-gradient-to-br from-blue-600 to-blue-800 items-center justify-center p-8">
-        <div class="text-center text-white">
-          <div class="inline-flex items-center justify-center w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl shadow-xl mb-4">
-            <span class="text-4xl">📱</span>
-          </div>
-          <h1 class="text-4xl font-bold mb-3 drop-shadow-lg">SellApp</h1>
-          <p class="text-lg text-white/90 drop-shadow">Multi-Tenant Phone Management System</p>
-        </div>
-      </div>
-      <?php endif; ?>
-      
-      <!-- Right Side - Login Form -->
-      <div class="p-8 md:p-12 flex flex-col justify-center">
-        <!-- Logo and Branding (Mobile) -->
-        <div class="mb-6 text-center md:hidden">
+    </div>
+    <?php endif; ?>
+    
+    <!-- Bottom Section - Login Form -->
+    <div class="flex-1 flex items-center justify-center px-4 py-8">
+      <div class="w-full max-w-md">
+        <!-- Logo and Branding -->
+        <div class="mb-6 text-center">
           <div class="flex items-center justify-center gap-3 mb-3">
             <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl shadow-xl">
               <span class="text-3xl">📱</span>
@@ -201,9 +190,10 @@ try {
           <p class="text-gray-600 text-sm font-medium">Multi-Tenant Phone Management System</p>
         </div>
         
-        <div class="max-w-md mx-auto w-full">
-          <h2 class="text-3xl font-bold text-gray-900 mb-2 text-center">Welcome Back</h2>
-          <p class="text-gray-600 text-sm text-center mb-8">Sign in to continue to your account</p>
+        <!-- Login Card -->
+        <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-8 border border-gray-100">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2 text-center">Welcome Back</h2>
+          <p class="text-gray-600 text-sm text-center mb-6">Sign in to continue to your account</p>
           <?php
           // Display error message if present
           $error = $_GET['error'] ?? '';
@@ -252,7 +242,6 @@ try {
           </form>
         </div>
       </div>
-    </div>
       
       <script>
       // Simple form submission test - ensure form works
@@ -281,9 +270,12 @@ try {
       </script>
     
     <!-- Footer -->
-    <p class="text-center text-sm text-gray-500 mt-8 font-medium">
-      © 2025 SellApp. All rights reserved.
-    </p>
+    <div class="mt-6 text-center">
+      <p class="text-sm text-gray-500 font-medium">
+        © 2025 SellApp. All rights reserved.
+      </p>
+    </div>
+  </div>
   </div>
 
 </body>

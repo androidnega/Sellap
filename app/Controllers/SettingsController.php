@@ -852,4 +852,70 @@ class SettingsController {
             ]);
         }
     }
+    
+    /**
+     * Test email configuration
+     */
+    public function testEmail() {
+        if (!$this->authenticate()) {
+            return;
+        }
+        
+        header('Content-Type: application/json');
+        
+        try {
+            // Load email settings
+            $query = $this->db->query("SELECT setting_key, setting_value FROM system_settings");
+            $settings = $query->fetchAll(\PDO::FETCH_KEY_PAIR);
+            
+            $emailService = new \App\Services\EmailService();
+            
+            // Get admin email for test
+            $user = $_SESSION['user'] ?? null;
+            $testEmail = $user['email'] ?? 'admin@sellapp.store';
+            
+            $subject = "SellApp Email Configuration Test";
+            $message = "
+                <html>
+                <head>
+                    <style>
+                        body { font-family: Arial, sans-serif; }
+                        .header { background-color: #3b82f6; color: white; padding: 20px; }
+                        .content { padding: 20px; }
+                    </style>
+                </head>
+                <body>
+                    <div class='header'>
+                        <h2>Email Test Successful!</h2>
+                    </div>
+                    <div class='content'>
+                        <p>This is a test email from SellApp to verify your email configuration.</p>
+                        <p>If you received this email, your SMTP settings are working correctly.</p>
+                        <p><strong>Test Date:</strong> " . date('Y-m-d H:i:s') . "</p>
+                    </div>
+                </body>
+                </html>
+            ";
+            
+            $result = $emailService->sendEmail($testEmail, $subject, $message);
+            
+            if ($result['success']) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Test email sent successfully to ' . $testEmail
+                ]);
+            } else {
+                echo json_encode([
+                    'success' => false,
+                    'error' => $result['message'] ?? 'Failed to send test email'
+                ]);
+            }
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Failed to test email configuration: ' . $e->getMessage()
+            ]);
+        }
+    }
 }

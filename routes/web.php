@@ -2635,6 +2635,23 @@ $router->post('api/system-settings/test-paystack', function() use ($ensureJsonOu
     }
 });
 
+// Test email configuration
+$router->post('api/system-settings/test-email', function() use ($ensureJsonOutput) {
+    $ensureJsonOutput();
+    try {
+        $controller = new \App\Controllers\SettingsController();
+        $controller->testEmail();
+    } catch (\Exception $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    } catch (\Error $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Internal server error']);
+    }
+});
+
 // Upload image
 $router->post('api/system-settings/upload-image', function() use ($ensureJsonOutput) {
     $ensureJsonOutput();
@@ -3444,6 +3461,9 @@ $router->get('dashboard/tools', function() {
     
     // User is system_admin, show tools page
     $title = 'Migration Tools';
+    
+    // Set current page for sidebar
+    $GLOBALS['currentPage'] = 'tools';
     
     ob_start();
     include __DIR__ . '/../app/Views/migration_tools_index.php';

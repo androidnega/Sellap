@@ -21,6 +21,7 @@ class Backup {
         // Check if backup_type column exists
         $hasBackupType = $this->columnExists('backup_type');
         $hasDescription = $this->columnExists('description');
+        $hasCloudinaryUrl = $this->columnExists('cloudinary_url');
         
         $columns = ['company_id', 'file_name', 'file_path', 'file_size', 'status', 'record_count', 'format', 'created_by'];
         $values = [':company_id', ':file_name', ':file_path', ':file_size', ':status', ':record_count', ':format', ':created_by'];
@@ -33,6 +34,11 @@ class Backup {
         if ($hasDescription) {
             $columns[] = 'description';
             $values[] = ':description';
+        }
+        
+        if ($hasCloudinaryUrl) {
+            $columns[] = 'cloudinary_url';
+            $values[] = ':cloudinary_url';
         }
         
         $columns[] = 'created_at';
@@ -58,6 +64,10 @@ class Backup {
         
         if ($hasDescription) {
             $params['description'] = $data['description'] ?? null;
+        }
+        
+        if ($hasCloudinaryUrl) {
+            $params['cloudinary_url'] = $data['cloudinary_url'] ?? null;
         }
         
         $stmt->execute($params);

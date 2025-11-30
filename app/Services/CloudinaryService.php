@@ -279,6 +279,119 @@ class CloudinaryService {
     }
     
     /**
+     * List all backups from Cloudinary
+     * 
+     * @param string $folder Folder to search in (default: sellapp/backups)
+     * @param int $maxResults Maximum number of results to return
+     * @return array List of backup files
+     */
+    public function listBackups($folder = 'sellapp/backups', $maxResults = 100) {
+        try {
+            if (!$this->isConfigured()) {
+                return [
+                    'success' => false,
+                    'error' => 'Cloudinary not configured',
+                    'backups' => []
+                ];
+            }
+            
+            $adminApi = $this->cloudinary->adminApi();
+            
+            // Search for raw files in the backups folder
+            $result = $adminApi->assets([
+                'resource_type' => 'raw',
+                'type' => 'upload',
+                'prefix' => $folder,
+                'max_results' => $maxResults
+            ]);
+            
+            $backups = [];
+            if (isset($result['resources'])) {
+                foreach ($result['resources'] as $resource) {
+                    $backups[] = [
+                        'public_id' => $resource['public_id'],
+                        'secure_url' => $resource['secure_url'],
+                        'bytes' => $resource['bytes'] ?? 0,
+                        'format' => $resource['format'] ?? 'zip',
+                        'created_at' => $resource['created_at'] ?? null,
+                        'filename' => basename($resource['public_id'])
+                    ];
+                }
+            }
+            
+            return [
+                'success' => true,
+                'backups' => $backups,
+                'total' => count($backups)
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'backups' => []
+            ];
+        }
+    }
+    
+    /**
+     * Download backup from Cloudinary
+     * 
+     * @param string $publicId Public ID of the backup
+     * @param string $savePath Path to save the downloaded file
+     * @return array Download result
+     */
+    public function downloadBackup($publicId, $savePath) {
+        try {
+            if (!$this->isConfigured()) {
+                return [
+                    'success' => false,
+                    'error' => 'Cloudinary not configured'
+                ];
+            }
+            
+            // Get the secure URL
+            $url = $this->cloudinary->raw($publicId)->toUrl();
+            
+            // Download the file
+            $fileContent = file_get_contents($url);
+            
+            if ($fileContent === false) {
+                return [
+                    'success' => false,
+                    'error' => 'Failed to download file from Cloudinary'
+                ];
+            }
+            
+            // Ensure directory exists
+            $dir = dirname($savePath);
+            if (!is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+            
+            // Save file
+            $written = file_put_contents($savePath, $fileContent);
+            
+            if ($written === false) {
+                return [
+                    'success' => false,
+                    'error' => 'Failed to save downloaded file'
+                ];
+            }
+            
+            return [
+                'success' => true,
+                'path' => $savePath,
+                'size' => $written
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+    
+    /**
      * Check if Cloudinary is properly configured
      * 
      * @return bool
