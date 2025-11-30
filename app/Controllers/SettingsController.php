@@ -864,34 +864,70 @@ class SettingsController {
         header('Content-Type: application/json');
         
         try {
+            // Get test email from request body
+            $input = json_decode(file_get_contents('php://input'), true);
+            $testEmail = $input['test_email'] ?? null;
+            
+            if (empty($testEmail)) {
+                // Fallback to admin email
+                $user = $_SESSION['user'] ?? null;
+                $testEmail = $user['email'] ?? 'admin@sellapp.store';
+            }
+            
+            // Validate email format
+            if (!filter_var($testEmail, FILTER_VALIDATE_EMAIL)) {
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Invalid email address format'
+                ]);
+                return;
+            }
+            
             // Load email settings
             $query = $this->db->query("SELECT setting_key, setting_value FROM system_settings");
             $settings = $query->fetchAll(\PDO::FETCH_KEY_PAIR);
             
             $emailService = new \App\Services\EmailService();
             
-            // Get admin email for test
-            $user = $_SESSION['user'] ?? null;
-            $testEmail = $user['email'] ?? 'admin@sellapp.store';
-            
             $subject = "SellApp Email Configuration Test";
             $message = "
                 <html>
                 <head>
                     <style>
-                        body { font-family: Arial, sans-serif; }
-                        .header { background-color: #3b82f6; color: white; padding: 20px; }
-                        .content { padding: 20px; }
+                        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                        .header { background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; }
+                        .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+                        .success-box { background: #d1fae5; border: 2px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0; }
+                        .footer { text-align: center; margin-top: 20px; padding: 20px; color: #6b7280; font-size: 12px; }
                     </style>
                 </head>
                 <body>
-                    <div class='header'>
-                        <h2>Email Test Successful!</h2>
-                    </div>
-                    <div class='content'>
-                        <p>This is a test email from SellApp to verify your email configuration.</p>
-                        <p>If you received this email, your SMTP settings are working correctly.</p>
-                        <p><strong>Test Date:</strong> " . date('Y-m-d H:i:s') . "</p>
+                    <div class='container'>
+                        <div class='header'>
+                            <h2 style='margin: 0;'>Email Test Successful!</h2>
+                        </div>
+                        <div class='content'>
+                            <div class='success-box'>
+                                <h3 style='margin: 0 0 10px 0; color: #065f46;'>✓ Email Configuration Working</h3>
+                                <p style='margin: 0; color: #047857;'>Your SMTP settings are configured correctly and emails can be sent successfully.</p>
+                            </div>
+                            <p>This is a test email from SellApp to verify your email configuration.</p>
+                            <p>If you received this email, your SMTP settings are working correctly.</p>
+                            <p><strong>Test Date:</strong> " . date('Y-m-d H:i:s') . "</p>
+                            <p><strong>Test Email:</strong> " . htmlspecialchars($testEmail) . "</p>
+                            <p>You can now use this email configuration to send:</p>
+                            <ul>
+                                <li>Monthly sales reports to clients</li>
+                                <li>Daily backup emails</li>
+                                <li>System notifications</li>
+                                <li>Performance reports to users</li>
+                            </ul>
+                        </div>
+                        <div class='footer'>
+                            <p>This is an automated test email from SellApp.</p>
+                            <p>&copy; " . date('Y') . " SellApp. All rights reserved.</p>
+                        </div>
                     </div>
                 </body>
                 </html>

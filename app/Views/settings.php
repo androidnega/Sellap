@@ -332,13 +332,20 @@ $smsConfigured = $smsConfigured ?? false;
                                 </div>
                             </div>
                             
-                            <div class="space-y-2">
-                                <button onclick="testEmail()" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">
-                                    <i class="fas fa-vial mr-2"></i>Test Email Configuration
-                                </button>
-                                <button onclick="saveEmailSettings()" class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition">
-                                    <i class="fas fa-save mr-2"></i>Save Settings
-                                </button>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Test Email Address</label>
+                                    <input type="email" id="test-email-address" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="your-email@example.com" value="">
+                                    <p class="text-xs text-gray-500 mt-1">Enter your email address to test the configuration</p>
+                                </div>
+                                <div class="space-y-2">
+                                    <button onclick="testEmail()" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">
+                                        <i class="fas fa-vial mr-2"></i>Test Email Configuration
+                                    </button>
+                                    <button onclick="saveEmailSettings()" class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition">
+                                        <i class="fas fa-save mr-2"></i>Save Settings
+                                    </button>
+                                </div>
                             </div>
                             
                             <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
@@ -535,6 +542,22 @@ function saveEmailSettings() {
 }
 
 function testEmail() {
+    const testEmailAddress = document.getElementById('test-email-address').value.trim();
+    
+    if (!testEmailAddress) {
+        alert('Please enter a test email address');
+        document.getElementById('test-email-address').focus();
+        return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(testEmailAddress)) {
+        alert('Please enter a valid email address');
+        document.getElementById('test-email-address').focus();
+        return;
+    }
+    
     const token = localStorage.getItem('token') || localStorage.getItem('sellapp_token');
     
     const headers = {
@@ -545,19 +568,33 @@ function testEmail() {
         headers['Authorization'] = 'Bearer ' + token;
     }
     
+    // Show loading state
+    const testButton = event.target;
+    const originalText = testButton.innerHTML;
+    testButton.disabled = true;
+    testButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+    
     fetch(BASE + '/api/system-settings/test-email', {
         method: 'POST',
-        headers: headers
+        headers: headers,
+        body: JSON.stringify({
+            test_email: testEmailAddress
+        })
     })
     .then(response => response.json())
     .then(data => {
+        testButton.disabled = false;
+        testButton.innerHTML = originalText;
+        
         if (data.success) {
-            alert('Email test successful! Check your inbox for the test email.');
+            alert('Email test successful! Check ' + testEmailAddress + ' for the test email.');
         } else {
             alert('Email test failed: ' + (data.error || 'Unknown error'));
         }
     })
     .catch(error => {
+        testButton.disabled = false;
+        testButton.innerHTML = originalText;
         console.error('Error:', error);
         alert('Error testing email configuration');
     });
