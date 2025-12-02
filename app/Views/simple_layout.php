@@ -221,6 +221,32 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
     
     <!-- Custom Styles for Layout Fix -->
     <style>
+        <?php if ($isToolsPage): ?>
+        /* Styles for tools page (Bulma CSS) - no Tailwind needed */
+        body {
+            visibility: visible;
+            opacity: 1;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .main-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .main-content-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        main {
+            flex: 1;
+            padding: 1.5rem;
+        }
+        <?php else: ?>
         /* Hide body until Tailwind is loaded to prevent FOUC */
         body {
             visibility: hidden;
@@ -232,6 +258,7 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
             visibility: visible;
             opacity: 1;
         }
+        <?php endif; ?>
         
         /* Reset any conflicting styles */
         * {
@@ -448,7 +475,7 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
         }
     </style>
 </head>
-<body class="bg-gray-100">
+<body class="<?php echo $isToolsPage ? '' : 'bg-gray-100'; ?>" <?php echo $isToolsPage ? 'style="background-color: #f5f5f5;"' : ''; ?>>
     <div class="main-layout">
         <!-- Sidebar -->
         <?php
@@ -540,12 +567,12 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
         <!-- Main Content Area -->
         <div class="main-content-container">
         <!-- Top Navigation Bar - Sticky -->
-        <div class="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-200" style="position: -webkit-sticky; position: sticky; top: 0;">
+        <div class="<?php echo $isToolsPage ? '' : 'sticky top-0 z-50 bg-white shadow-sm border-b border-gray-200'; ?>" style="<?php echo $isToolsPage ? 'position: sticky; top: 0; z-index: 50; background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-bottom: 1px solid #e5e7eb;' : 'position: -webkit-sticky; position: sticky; top: 0;'; ?>">
             <?php include __DIR__ . '/components/top-navbar.php'; ?>
         </div>
         
         <!-- Page Content -->
-        <main class="flex-1 p-4 md:p-6">
+        <main class="<?php echo $isToolsPage ? '' : 'flex-1 p-4 md:p-6'; ?>" style="<?php echo $isToolsPage ? 'flex: 1; padding: 1.5rem;' : ''; ?>">
         <!-- Flash Messages -->
         <?php if (!empty($_SESSION['flash_success'])): ?>
             <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded">
