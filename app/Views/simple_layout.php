@@ -61,6 +61,15 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
         window.SERVER_USER = <?php echo json_encode($initialUserData ?? null); ?>;
     </script>
     
+    <?php
+    // Check if we're on the tools page (which uses Bulma CSS)
+    $currentPath = $_SERVER['REQUEST_URI'] ?? '';
+    $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+    $currentPath = str_replace($basePath, '', $currentPath);
+    $isToolsPage = strpos($currentPath, '/dashboard/tools') !== false;
+    ?>
+    
+    <?php if (!$isToolsPage): ?>
     <!-- Preconnect to CDN for faster loading -->
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
     <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
@@ -172,6 +181,7 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
             }
         })();
     </script>
+    <?php endif; ?>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script>
         // Load Alpine.js with multiple fallbacks - wait for DOM to be ready
@@ -1286,6 +1296,7 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
         });
     </script>
     
+    <?php if (!$isToolsPage): ?>
     <!-- Hide Tailwind CSS production warning -->
     <script>
         const originalWarn = console.warn;
@@ -1297,5 +1308,6 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
             originalWarn.apply(console, args);
         };
     </script>
+    <?php endif; ?>
 </body>
 </html>
