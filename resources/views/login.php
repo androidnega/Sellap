@@ -9,100 +9,90 @@
   <link rel="shortcut icon" type="image/svg+xml" href="<?php echo defined('BASE_URL_PATH') ? BASE_URL_PATH : ''; ?>/assets/images/favicon.svg">
   <link rel="apple-touch-icon" href="<?php echo defined('BASE_URL_PATH') ? BASE_URL_PATH : ''; ?>/assets/images/favicon.svg">
   
-  <!-- Preconnect to CDN for faster loading -->
-  <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+  <!-- Bulma CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
   
-  <!-- Robust Tailwind CSS loader with online/offline detection and retry mechanism -->
-  <script>
-      (function() {
-          let tailwindLoaded = false;
-          let retryCount = 0;
-          const maxRetries = 10;
-          const retryDelay = 1000; // 1 second
-          
-          function loadTailwind() {
-              // Check if already loaded
-              if (tailwindLoaded || window.tailwind) {
-                  return;
-              }
-              
-              // Check if script already exists
-              const existingScript = document.querySelector('script[data-tailwind-loader]');
-              if (existingScript) {
-                  return;
-              }
-              
-              const script = document.createElement('script');
-              script.src = 'https://cdn.tailwindcss.com';
-              script.async = true;
-              script.setAttribute('data-tailwind-loader', 'true');
-              
-              script.onload = function() {
-                  tailwindLoaded = true;
-                  retryCount = 0;
-                  // Trigger a re-render to apply styles
-                  if (window.tailwind && typeof window.tailwind.refresh === 'function') {
-                      window.tailwind.refresh();
-                  }
-                  // Show body once Tailwind is loaded
-                  document.body.classList.add('tailwind-loaded');
-                  // Dispatch custom event for other scripts
-                  window.dispatchEvent(new CustomEvent('tailwindLoaded'));
-              };
-              
-              script.onerror = function() {
-                  // Script failed to load
-                  if (retryCount < maxRetries) {
-                      retryCount++;
-                      setTimeout(loadTailwind, retryDelay);
-                  }
-              };
-              
-              document.head.appendChild(script);
-          }
-          
-          // Try loading immediately
-          loadTailwind();
-          
-          // Listen for online event and retry
-          window.addEventListener('online', function() {
-              if (!tailwindLoaded) {
-                  retryCount = 0; // Reset retry count when back online
-                  loadTailwind();
-              }
-          });
-          
-          // Periodic check when offline (in case online event doesn't fire)
-          let offlineCheckInterval = setInterval(function() {
-              if (navigator.onLine && !tailwindLoaded) {
-                  retryCount = 0;
-                  loadTailwind();
-              }
-          }, 2000); // Check every 2 seconds
-          
-          // Clear interval when Tailwind is loaded
-          const checkLoaded = setInterval(function() {
-              if (tailwindLoaded) {
-                  clearInterval(offlineCheckInterval);
-                  clearInterval(checkLoaded);
-              }
-          }, 500);
-          
-          // Fallback: Show body after 5 seconds even if Tailwind hasn't loaded
-          setTimeout(function() {
-              if (!tailwindLoaded) {
-                  document.body.classList.add('tailwind-loaded');
-              }
-          }, 5000);
-      })();
-  </script>
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  
   <link rel="stylesheet" href="<?php echo defined('BASE_URL_PATH') ? BASE_URL_PATH : ''; ?>/assets/css/styles.css">
   <style>
-    /* Show body immediately - don't hide it */
+    /* Custom styles for login page */
     body {
-      visibility: visible;
-      opacity: 1;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+    
+    .login-background {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      filter: blur(10px);
+      transform: scale(1.1);
+    }
+    
+    .login-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.6);
+      z-index: 1;
+    }
+    
+    .login-container {
+      position: relative;
+      z-index: 10;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+    
+    .login-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      width: 100%;
+      max-width: 400px;
+    }
+    
+    .logo-container {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      font-size: 1.5rem;
+    }
+    
+    .brand-title {
+      color: white;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      font-weight: 700;
+    }
+    
+    .brand-subtitle {
+      color: rgba(255, 255, 255, 0.9);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     }
   </style>
 </head>
@@ -157,108 +147,133 @@ try {
     error_log("Login page image error: " . $e->getMessage());
 }
 ?>
-<body class="min-h-screen flex flex-col bg-gray-900">
+<body>
   <!-- Background with blur effect -->
   <?php if ($loginImageUrl): ?>
-  <div class="fixed inset-0 z-0" style="background-image: url('<?php echo htmlspecialchars($loginImageUrl); ?>'); background-size: cover; background-position: center; background-repeat: no-repeat; background-attachment: fixed; filter: blur(10px); transform: scale(1.1);"></div>
+  <div class="login-background" style="background-image: url('<?php echo htmlspecialchars($loginImageUrl); ?>');"></div>
   <?php endif; ?>
+  
   <!-- Dark Overlay -->
-  <div class="fixed inset-0 bg-black bg-opacity-60 z-0"></div>
+  <div class="login-overlay"></div>
   
   <!-- Content -->
-  <div class="relative z-10 flex-1 flex items-center justify-center px-4 py-8 min-h-screen">
-      <div class="w-full max-w-sm">
-        <!-- Logo and Branding -->
-        <div class="mb-5 text-center">
-          <div class="flex items-center justify-center gap-2 mb-2">
-            <div class="inline-flex items-center justify-center w-12 h-12 bg-white/90 backdrop-blur-sm rounded-xl shadow-xl">
-              <span class="text-2xl">📱</span>
-            </div>
-            <h1 class="text-2xl font-bold text-white drop-shadow-lg">SellApp</h1>
+  <div class="login-container">
+    <div style="width: 100%; max-width: 400px;">
+      <!-- Logo and Branding (Above Card) -->
+      <div class="has-text-centered mb-5">
+        <div class="is-flex is-justify-content-center is-align-items-center mb-3" style="gap: 0.5rem;">
+          <div class="logo-container">
+            <span>📱</span>
           </div>
-          <p class="text-white/90 text-xs font-medium drop-shadow">Multi-Tenant Phone Management System</p>
+          <h1 class="brand-title title is-3 mb-0">SellApp</h1>
         </div>
-        
-        <!-- Login Card -->
-        <div class="bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl p-5 md:p-6 border border-white/20">
-          <h2 class="text-xl font-bold text-gray-900 mb-1 text-center">Welcome Back</h2>
-          <p class="text-gray-600 text-xs text-center mb-5">Sign in to continue to your account</p>
+        <p class="brand-subtitle is-size-7 has-text-weight-medium">Multi-Tenant Phone Management System</p>
+      </div>
+      
+      <!-- Login Card -->
+      <div class="login-card">
+        <div class="card-content">
+          <!-- Login Form -->
+          <div class="content">
+            <h2 class="title is-4 has-text-centered mb-2">Welcome Back</h2>
+            <p class="has-text-centered has-text-grey is-size-7 mb-5">Sign in to continue to your account</p>
+          
           <?php
           // Display error message if present
           $error = $_GET['error'] ?? '';
           if (!empty($error)):
           ?>
-          <div class="mb-6 p-4 bg-red-50 border-2 border-red-300 text-red-700 rounded-xl text-sm font-medium">
+          <div class="notification is-danger is-light mb-5">
+            <button class="delete"></button>
             <?php echo htmlspecialchars(urldecode($error)); ?>
           </div>
           <?php endif; ?>
           
-          <form method="post" action="<?php echo htmlspecialchars(BASE_URL_PATH . '/login' . (!empty($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '')); ?>" style="display: block;">
-            <div style="margin-bottom: 16px;">
-              <label class="block text-gray-700 text-xs font-semibold mb-1.5">Username or Email</label>
-              <input 
-                type="text" 
-                name="username"
-                id="username" 
-                class="w-full border-2 border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white" 
-                placeholder="Enter username or email"
-                required
-                autocomplete="username"
-                value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>"
-                style="display: block; width: 100%;">
+          <form method="post" action="<?php echo htmlspecialchars(BASE_URL_PATH . '/login' . (!empty($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '')); ?>">
+            <!-- Username Field -->
+            <div class="field mb-4">
+              <label class="label is-size-7 has-text-weight-semibold">Username or Email</label>
+              <div class="control has-icons-left">
+                <input 
+                  class="input" 
+                  type="text" 
+                  name="username"
+                  id="username" 
+                  placeholder="Enter username or email"
+                  required
+                  autocomplete="username"
+                  value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>"
+                >
+                <span class="icon is-small is-left">
+                  <i class="fas fa-user"></i>
+                </span>
+              </div>
             </div>
             
-            <div style="margin-bottom: 18px;">
-              <label class="block text-gray-700 text-xs font-semibold mb-1.5">Password</label>
-              <input 
-                type="password" 
-                name="password"
-                id="password" 
-                class="w-full border-2 border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white" 
-                placeholder="Enter your password"
-                required
-                autocomplete="current-password"
-                style="display: block; width: 100%;">
+            <!-- Password Field -->
+            <div class="field mb-5">
+              <label class="label is-size-7 has-text-weight-semibold">Password</label>
+              <div class="control has-icons-left">
+                <input 
+                  class="input" 
+                  type="password" 
+                  name="password"
+                  id="password" 
+                  placeholder="Enter your password"
+                  required
+                  autocomplete="current-password"
+                >
+                <span class="icon is-small is-left">
+                  <i class="fas fa-lock"></i>
+                </span>
+              </div>
             </div>
             
-            <button 
-              type="submit" 
-              id="loginSubmitBtn"
-              class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white py-2.5 rounded-lg font-semibold text-sm transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.01]"
-              style="display: block; width: 100%; cursor: pointer;">
-              Sign In
-            </button>
+            <!-- Submit Button -->
+            <div class="field">
+              <div class="control">
+                <button 
+                  type="submit" 
+                  id="loginSubmitBtn"
+                  class="button is-primary is-fullwidth is-medium"
+                >
+                  <span class="icon">
+                    <i class="fas fa-sign-in-alt"></i>
+                  </span>
+                  <span>Sign In</span>
+                </button>
+              </div>
+            </div>
           </form>
         </div>
       </div>
-      
-      <script>
-      // Simple form submission test - ensure form works
-      document.addEventListener('DOMContentLoaded', function() {
-        const form = document.querySelector('form[method="post"]');
-        const submitBtn = document.getElementById('loginSubmitBtn');
-        
-        if (form && submitBtn) {
-          // Ensure button is clickable
-          submitBtn.style.pointerEvents = 'auto';
-          submitBtn.style.cursor = 'pointer';
-          
-          // Test click
-          submitBtn.addEventListener('click', function(e) {
-            console.log('Login button clicked!');
-            // Don't prevent default - let form submit naturally
-          });
-          
-          // Test form submit
-          form.addEventListener('submit', function(e) {
-            console.log('Form submitting!');
-            // Don't prevent default - let form submit naturally
-          });
-        }
-      });
-      </script>
-    
+    </div>
   </div>
+  
+  <script>
+    // Handle notification dismiss
+    document.addEventListener('DOMContentLoaded', function() {
+      // Close notification on delete button click
+      (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
+        const $notification = $delete.parentNode;
+        $delete.addEventListener('click', () => {
+          $notification.parentNode.removeChild($notification);
+        });
+      });
+      
+      // Form submission handling
+      const form = document.querySelector('form[method="post"]');
+      const submitBtn = document.getElementById('loginSubmitBtn');
+      
+      if (form && submitBtn) {
+        form.addEventListener('submit', function(e) {
+          // Disable button during submission
+          submitBtn.classList.add('is-loading');
+          submitBtn.disabled = true;
+        });
+      }
+    });
+  </script>
 
 </body>
 </html>
