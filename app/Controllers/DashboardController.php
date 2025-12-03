@@ -3400,10 +3400,18 @@ class DashboardController {
             $swapModel = new \App\Models\Swap();
             $allSwapsRaw = $swapModel->findByCompany($companyId, 1000, null);
             
-            // Note: We don't filter by date range for swap statistics
-            // Swap profit is calculated based on when both items are sold (realized)
-            // The date range filtering is applied only for display purposes, not for profit calculation
-            // This ensures we capture all realized profits regardless of swap creation date
+            // Filter by date range if provided
+            // When dates are provided, only include swaps created within that range
+            $allSwapsFiltered = [];
+            if ($dateFrom && $dateTo) {
+                foreach ($allSwapsRaw as $swap) {
+                    $swapDate = isset($swap['created_at']) ? date('Y-m-d', strtotime($swap['created_at'])) : null;
+                    if ($swapDate && $swapDate >= $dateFrom && $swapDate <= $dateTo) {
+                        $allSwapsFiltered[] = $swap;
+                    }
+                }
+                $allSwapsRaw = $allSwapsFiltered;
+            }
             
             // Deduplicate swaps by ID (same logic as SwapController)
             $allSwaps = [];
