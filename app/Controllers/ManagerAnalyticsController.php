@@ -2826,16 +2826,43 @@ class ManagerAnalyticsController {
                 $response['inventory'] = $this->getEnhancedInventoryStats($companyId);
             }
 
+            // Ensure no output before JSON
             ob_end_clean();
-            echo json_encode($response);
+            
+            // Set proper headers
+            header('Content-Type: application/json; charset=utf-8');
+            
+            // Encode response with error handling
+            $jsonResponse = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            
+            if ($jsonResponse === false) {
+                // JSON encoding failed
+                http_response_code(500);
+                $errorResponse = [
+                    'success' => false,
+                    'error' => 'Failed to encode response',
+                    'json_error' => json_last_error_msg()
+                ];
+                echo json_encode($errorResponse);
+            } else {
+                echo $jsonResponse;
+            }
+            exit;
         } catch (\Exception $e) {
+            // Ensure no output before JSON
             ob_end_clean();
+            
             http_response_code(500);
             error_log("Fetch live data error: " . $e->getMessage());
+            
+            // Set proper headers
+            header('Content-Type: application/json; charset=utf-8');
+            
             echo json_encode([
                 'success' => false,
                 'error' => $e->getMessage()
-            ]);
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit;
         }
     }
 

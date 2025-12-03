@@ -854,7 +854,30 @@ $userRole = $user['role'] ?? 'manager';
                 headers: getAuthHeaders(),
                 credentials: 'same-origin' // Include session cookies for fallback auth
             });
-            const data = await response.json();
+            
+            // Get response text first to handle errors properly
+            const responseText = await response.text();
+            
+            if (!response.ok) {
+                // Try to parse error as JSON, but don't display raw JSON
+                try {
+                    const errorData = JSON.parse(responseText);
+                    const errorMessage = errorData.error || errorData.message || 'Failed to load analytics';
+                    throw new Error(errorMessage);
+                } catch (parseError) {
+                    throw new Error('Failed to load analytics');
+                }
+            }
+            
+            // Parse JSON response
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Invalid JSON response from audit-trail API:', parseError);
+                console.error('Response text:', responseText.substring(0, 500));
+                throw new Error('Invalid response from server');
+            }
 
             debugLog('loadLiveData response:', {
                 success: data.success,
