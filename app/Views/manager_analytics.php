@@ -998,6 +998,50 @@ $userRole = $user['role'] ?? 'manager';
         return 'this_month'; // Default
     }
 
+    function getSelectedDateBounds() {
+        const dateFromInput = document.getElementById('filterDateFrom');
+        const dateToInput = document.getElementById('filterDateTo');
+        const from = dateFromInput?.value;
+        const to = dateToInput?.value;
+        if (!from || !to) {
+            return null;
+        }
+        const fromDate = new Date(from + 'T00:00:00');
+        const toDate = new Date(to + 'T23:59:59');
+        if (isNaN(fromDate) || isNaN(toDate)) {
+            return null;
+        }
+        return {
+            from,
+            to,
+            fromDate,
+            toDate
+        };
+    }
+
+    function isDateWithinBounds(bounds, dateValue) {
+        if (!bounds || !dateValue) {
+            return true;
+        }
+        const dateObject = dateValue instanceof Date ? dateValue : new Date(dateValue);
+        if (isNaN(dateObject)) {
+            return false;
+        }
+        return dateObject >= bounds.fromDate && dateObject <= bounds.toDate;
+    }
+
+    function doesRangeOverlap(bounds, startDate, endDate) {
+        if (!bounds) {
+            return true;
+        }
+        const start = startDate instanceof Date ? startDate : new Date(startDate);
+        const end = endDate instanceof Date ? endDate : new Date(endDate);
+        if (isNaN(start) || isNaN(end)) {
+            return false;
+        }
+        return start <= bounds.toDate && end >= bounds.fromDate;
+    }
+
     // Update metrics with live data - comprehensive update
     function updateLiveMetrics(data) {
         // Debug: Log swaps data received
@@ -1020,53 +1064,86 @@ $userRole = $user['role'] ?? 'manager';
                 filtered: null
             };
         }
+        const selectedBounds = getSelectedDateBounds();
+        const hasExplicitRange = !!selectedBounds;
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayWithinRange = !selectedBounds || (todayStr >= selectedBounds.from && todayStr <= selectedBounds.to);
+
+        const salesPeriodData = data.sales ? (
+            data.sales.period ||
+            (!hasExplicitRange ? data.sales.filtered : null) ||
+            (!hasExplicitRange ? data.sales.monthly : null) ||
+            { revenue: 0, count: 0 }
+        ) : null;
+
+        const repairsPeriodData = data.repairs ? (
+            data.repairs.period ||
+            data.repairs.filtered ||
+            { revenue: 0, count: 0 }
+        ) : null;
+
+        const swapPeriodData = data.swaps ? (
+            data.swaps.period ||
+            (!hasExplicitRange ? data.swaps.filtered : null) ||
+            (!hasExplicitRange ? data.swaps.monthly : null) ||
+            { count: 0, revenue: 0, profit: 0 }
+        ) : null;
         
-        // Convert to metrics format and update all metrics
         const metrics = {
             sales: data.sales ? {
-                today: data.sales.today || { revenue: 0, count: 0 },
-                monthly: data.sales.monthly || { revenue: 0, count: 0 },
-                period: data.sales.period || data.sales.filtered || { revenue: 0, count: 0 }
+                today: todayWithinRange ? (data.sales.today || { revenue: 0, count: 0 }) : { revenue: 0, count: 0 },
+                monthly: hasExplicitRange ? (salesPeriodData || { revenue: 0, count: 0 }) : (data.sales.monthly || salesPeriodData || { revenue: 0, count: 0 }),
+                period: salesPeriodData || { revenue: 0, count: 0 }
             } : null,
             profit: data.profit || { revenue: 0, cost: 0, profit: 0, margin: 0 },
             repairs: data.repairs ? {
                 active: data.repairs.active || 0,
-                monthly: {
+                monthly: hasExplicitRange ? (repairsPeriodData || { revenue: 0, count: 0 }) : {
                     count: data.repairs.monthly?.count || 0,
                     revenue: data.repairs.monthly?.revenue || 0
                 },
+                period: repairsPeriodData || { revenue: 0, count: 0 },
                 filtered: {
-                    revenue: data.repairs.monthly?.revenue || 0
+                    revenue: repairsPeriodData?.revenue || data.repairs.monthly?.revenue || 0
                 }
             } : null,
             swaps: data.swaps ? {
                 pending: data.swaps.pending ?? 0,
-                monthly: {
-                    count: data.swaps.monthly?.count ?? 0,
-                    revenue: data.swaps.monthly?.revenue ?? 0,
-                    profit: data.swaps.monthly?.profit ?? 0
+                monthly: hasExplicitRange ? {
+                    count: swapPeriodData?.count ?? 0,
+                    revenue: swapPeriodData?.revenue ?? 0,
+                    profit: swapPeriodData?.profit ?? 0
+                } : {
+                    count: data.swaps.monthly?.count ?? swapPeriodData?.count ?? 0,
+                    revenue: data.swaps.monthly?.revenue ?? swapPeriodData?.revenue ?? 0,
+                    profit: data.swaps.monthly?.profit ?? swapPeriodData?.profit ?? data.swaps.profit ?? 0
                 },
                 profit: data.swaps.profit ?? 0,
-                period: data.swaps.period ? {
-                    count: data.swaps.period.count ?? 0,
-                    revenue: data.swaps.period.revenue ?? 0,
-                    profit: data.swaps.period.profit ?? data.swaps.monthly?.profit ?? data.swaps.profit ?? 0
-                } : (data.swaps.filtered ? {
-                    count: data.swaps.filtered.count ?? 0,
-                    revenue: data.swaps.filtered.revenue ?? 0,
-                    profit: data.swaps.monthly?.profit ?? data.swaps.profit ?? 0
-                } : {
-                    count: data.swaps.monthly?.count ?? 0,
-                    revenue: data.swaps.monthly?.revenue ?? 0,
-                    profit: data.swaps.monthly?.profit ?? data.swaps.profit ?? 0
-                }),
+                period: {
+                    count: swapPeriodData?.count ?? 0,
+                    revenue: swapPeriodData?.revenue ?? 0,
+                    profit: swapPeriodData?.profit ?? 0
+                },
                 filtered: {
-                    revenue: data.swaps.monthly?.revenue ?? 0
+                    revenue: swapPeriodData?.revenue ?? 0
                 }
             } : null,
             inventory: data.inventory || null
         };
         
+        const hasRevenueInRange = (
+            (metrics.sales?.period?.revenue || 0) > 0 ||
+            (metrics.repairs?.period?.revenue || 0) > 0 ||
+            (metrics.swaps?.period?.revenue || 0) > 0
+        );
+
+        if (metrics.profit && !hasRevenueInRange) {
+            metrics.profit.revenue = 0;
+            metrics.profit.cost = 0;
+            metrics.profit.profit = 0;
+            metrics.profit.margin = 0;
+        }
+
         // Debug: Log constructed metrics
         debugLog('updateLiveMetrics - Constructed metrics:', {
             hasSwaps: !!metrics.swaps,
@@ -2374,6 +2451,7 @@ $userRole = $user['role'] ?? 'manager';
             if (data.success) {
                 // Get transactions from activity_logs
                 let transactions = [];
+                const bounds = getSelectedDateBounds();
                 
                 // Always ensure activity_logs is an array
                 const activityLogs = Array.isArray(data.activity_logs) ? data.activity_logs : [];
@@ -2407,6 +2485,10 @@ $userRole = $user['role'] ?? 'manager';
                     // Convert activity logs to transaction format
                     transactions = activityLogs
                         .filter(log => {
+                            const logDateValue = log.timestamp || log.date || log.created_at;
+                            if (!isDateWithinBounds(bounds, logDateValue)) {
+                                return false;
+                            }
                             // Filter by type if needed
                             if (typeFilter === 'all') return true;
                             const logType = (log.activity_type || log.type || log.sale_type || '').toLowerCase().trim();
@@ -2515,9 +2597,14 @@ $userRole = $user['role'] ?? 'manager';
             console.log('loadTransactionsFromData: Activity types found:', uniqueTypes);
             console.log('loadTransactionsFromData: Filter type:', typeFilter);
             console.log('loadTransactionsFromData: Total activity logs:', data.activity_logs.length);
+            const bounds = getSelectedDateBounds();
             
             transactions = data.activity_logs
                 .filter(log => {
+                    const logDateValue = log.timestamp || log.date || log.created_at;
+                    if (!isDateWithinBounds(bounds, logDateValue)) {
+                        return false;
+                    }
                     // Filter by type if needed
                     if (typeFilter === 'all') return true;
                     const logType = (log.sale_type || log.activity_type || log.type || '').toLowerCase().trim();
@@ -3092,8 +3179,11 @@ $userRole = $user['role'] ?? 'manager';
     
     // Update All Staff Summary with data
     function updateAllStaffSummary(data) {
+        const bounds = getSelectedDateBounds();
+        const todayDateObj = new Date();
         // Get today's date
-        const today = new Date().toISOString().split('T')[0];
+        const today = todayDateObj.toISOString().split('T')[0];
+        const todayWithinRange = doesRangeOverlap(bounds, todayDateObj, todayDateObj);
         
         // Get today's profit from daily breakdown
         let todaySales = 0;
@@ -3118,6 +3208,12 @@ $userRole = $user['role'] ?? 'manager';
             todayRevenue = parseFloat(data.sales.today.revenue || 0);
         }
         
+        if (!todayWithinRange) {
+            todaySales = 0;
+            todayRevenue = 0;
+            todayProfit = 0;
+        }
+        
         // Get week profit from weekly breakdown
         let weekSales = 0;
         let weekRevenue = 0;
@@ -3139,6 +3235,17 @@ $userRole = $user['role'] ?? 'manager';
             weekRevenue = parseFloat(weekRevenueData || 0);
         }
         
+        const weekStart = new Date(todayDateObj);
+        weekStart.setDate(todayDateObj.getDate() - todayDateObj.getDay());
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        const weekWithinRange = doesRangeOverlap(bounds, weekStart, weekEnd);
+        if (!weekWithinRange) {
+            weekSales = 0;
+            weekRevenue = 0;
+            weekProfit = 0;
+        }
+        
         // Get month profit from monthly breakdown
         let monthSales = 0;
         let monthRevenue = 0;
@@ -3156,6 +3263,15 @@ $userRole = $user['role'] ?? 'manager';
         if (monthSales === 0 && monthRevenue === 0 && data.sales) {
             monthSales = parseInt(data.sales.monthly?.count || 0);
             monthRevenue = parseFloat(data.sales.monthly?.revenue || 0);
+        }
+        
+        const monthStart = new Date(todayDateObj.getFullYear(), todayDateObj.getMonth(), 1);
+        const monthEnd = new Date(todayDateObj.getFullYear(), todayDateObj.getMonth() + 1, 0);
+        const monthWithinRange = doesRangeOverlap(bounds, monthStart, monthEnd);
+        if (!monthWithinRange) {
+            monthSales = 0;
+            monthRevenue = 0;
+            monthProfit = 0;
         }
         
         // Add swap profit to totals (swap profit is realized when customer item is resold)
