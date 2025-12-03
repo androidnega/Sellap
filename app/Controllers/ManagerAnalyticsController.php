@@ -2291,22 +2291,25 @@ class ManagerAnalyticsController {
             error_log("fetchLiveData: staff_id=" . ($staffId ?? 'null') . ", customer_id=" . ($customerId ?? 'null') . ", product_id=" . ($productId ?? 'null') . ", imei=" . ($imei ?? 'null'));
 
             // Prioritize explicit date_from and date_to over date_range
-            $dateFrom = $_GET['date_from'] ?? null;
-            $dateTo = $_GET['date_to'] ?? null;
+            $dateFrom = !empty($_GET['date_from']) ? trim($_GET['date_from']) : null;
+            $dateTo = !empty($_GET['date_to']) ? trim($_GET['date_to']) : null;
             $today = date('Y-m-d');
             
-            // Only calculate from date_range if explicit dates not provided
-            if (!$dateFrom || !$dateTo) {
+            // Check if user wants ALL-TIME data (empty dates)
+            $isAllTime = empty($dateFrom) && empty($dateTo);
+            
+            // Only calculate from date_range if explicit dates not provided and not all-time
+            if (!$isAllTime && (!$dateFrom || !$dateTo)) {
                 // Calculate date range from label
                 list($dateFrom, $dateTo) = $this->calculateDateRange($dateRange);
             }
             
             // IMPORTANT: Do NOT override explicit dates - respect what the user selected
+            // If dates are empty, treat as ALL-TIME (no date filtering)
             // Only apply defaults if dates were calculated from a range label
-            // If explicit dates were provided, use them exactly as specified
             
-            // Ensure we have valid dates (only if they weren't explicitly provided)
-            if (!$dateFrom || !$dateTo) {
+            // Ensure we have valid dates (only if they weren't explicitly provided and not all-time)
+            if (!$isAllTime && (!$dateFrom || !$dateTo)) {
                 // Default to last 90 days if still no dates
                 $dateTo = $today;
                 $dateFrom = date('Y-m-d', strtotime('-90 days'));
@@ -2356,12 +2359,22 @@ class ManagerAnalyticsController {
                             $hasIsSwapMode = $checkIsSwapMode->rowCount() > 0;
                             $excludeSwapSales = $hasIsSwapMode ? " AND (is_swap_mode = 0 OR is_swap_mode IS NULL)" : "";
                             
-                            $paymentStatsSql = "SELECT payment_status, COUNT(*) as count 
-                                               FROM pos_sales 
-                                               WHERE company_id = ? AND DATE(created_at) BETWEEN ? AND ?{$excludeSwapSales}
-                                               GROUP BY payment_status";
-                            $paymentStatsQuery = $db->prepare($paymentStatsSql);
-                            $paymentStatsQuery->execute([$companyId, $dateFrom, $dateTo]);
+                            // Handle all-time (null dates) vs date range
+                            if ($isAllTime) {
+                                $paymentStatsSql = "SELECT payment_status, COUNT(*) as count 
+                                                   FROM pos_sales 
+                                                   WHERE company_id = ?{$excludeSwapSales}
+                                                   GROUP BY payment_status";
+                                $paymentStatsQuery = $db->prepare($paymentStatsSql);
+                                $paymentStatsQuery->execute([$companyId]);
+                            } else {
+                                $paymentStatsSql = "SELECT payment_status, COUNT(*) as count 
+                                                   FROM pos_sales 
+                                                   WHERE company_id = ? AND DATE(created_at) BETWEEN ? AND ?{$excludeSwapSales}
+                                                   GROUP BY payment_status";
+                                $paymentStatsQuery = $db->prepare($paymentStatsSql);
+                                $paymentStatsQuery->execute([$companyId, $dateFrom, $dateTo]);
+                            }
                             $paymentResults = $paymentStatsQuery->fetchAll(\PDO::FETCH_ASSOC);
                             
                             $fullyPaid = 0;
@@ -3410,17 +3423,22 @@ class ManagerAnalyticsController {
             $db = \Database::getInstance()->getConnection();
             $logs = [];
             
-            // Validate date range
-            if (!$dateFrom || !$dateTo) {
-                error_log("getActivityLogs: Invalid date range - dateFrom: {$dateFrom}, dateTo: {$dateTo}");
-                // Default to last 90 days if invalid
-                $dateTo = date('Y-m-d');
-                $dateFrom = date('Y-m-d', strtotime('-90 days'));
-            }
+            // Handle date range - if null/empty, treat as ALL-TIME (no date filtering)
+            $isAllTime = empty($dateFrom) && empty($dateTo);
             
-            // Ensure dateTo includes the full day (add time component to include all of today)
-            $dateToEnd = $dateTo . ' 23:59:59';
-            $dateFromStart = $dateFrom . ' 00:00:00';
+            if (!$isAllTime) {
+                // Validate date range if provided
+                if (!$dateFrom || !$dateTo) {
+                    error_log("getActivityLogs: Invalid date range - dateFrom: {$dateFrom}, dateTo: {$dateTo}");
+                    // Default to last 90 days if invalid
+                    $dateTo = date('Y-m-d');
+                    $dateFrom = date('Y-m-d', strtotime('-90 days'));
+                }
+                
+                // Ensure dateTo includes the full day (add time component to include all of today)
+                $dateToEnd = $dateTo . ' 23:59:59';
+                $dateFromStart = $dateFrom . ' 00:00:00';
+            }
 
             // First, check if there are any sales for this company at all (for debugging)
             $checkSalesQuery = $db->prepare("SELECT COUNT(*) as cnt FROM pos_sales WHERE company_id = :company_id");
@@ -3429,20 +3447,31 @@ class ManagerAnalyticsController {
             error_log("getActivityLogs: Total sales for company {$companyId}: {$totalSales}");
             
             // Check sales in date range using both DATE() and datetime comparison
-            $checkDateRangeQuery = $db->prepare("
-                SELECT COUNT(*) as cnt 
-                FROM pos_sales 
-                WHERE company_id = :company_id 
-                AND created_at >= :date_from_start 
-                AND created_at <= :date_to_end
-            ");
-            $checkDateRangeQuery->execute([
-                'company_id' => $companyId,
-                'date_from_start' => $dateFromStart,
-                'date_to_end' => $dateToEnd
-            ]);
-            $salesInRange = $checkDateRangeQuery->fetch(\PDO::FETCH_ASSOC)['cnt'] ?? 0;
-            error_log("getActivityLogs: Sales in date range {$dateFrom} to {$dateTo}: {$salesInRange}");
+            if ($isAllTime) {
+                $checkDateRangeQuery = $db->prepare("
+                    SELECT COUNT(*) as cnt 
+                    FROM pos_sales 
+                    WHERE company_id = :company_id
+                ");
+                $checkDateRangeQuery->execute(['company_id' => $companyId]);
+                $salesInRange = $checkDateRangeQuery->fetch(\PDO::FETCH_ASSOC)['cnt'] ?? 0;
+                error_log("getActivityLogs: Sales (ALL-TIME): {$salesInRange}");
+            } else {
+                $checkDateRangeQuery = $db->prepare("
+                    SELECT COUNT(*) as cnt 
+                    FROM pos_sales 
+                    WHERE company_id = :company_id 
+                    AND created_at >= :date_from_start 
+                    AND created_at <= :date_to_end
+                ");
+                $checkDateRangeQuery->execute([
+                    'company_id' => $companyId,
+                    'date_from_start' => $dateFromStart,
+                    'date_to_end' => $dateToEnd
+                ]);
+                $salesInRange = $checkDateRangeQuery->fetch(\PDO::FETCH_ASSOC)['cnt'] ?? 0;
+                error_log("getActivityLogs: Sales in date range {$dateFrom} to {$dateTo}: {$salesInRange}");
+            }
             
             // Check today's sales specifically
             $today = date('Y-m-d');
@@ -3455,12 +3484,18 @@ class ManagerAnalyticsController {
             error_log("getActivityLogs: Sales today ({$today}): {$todaySales}");
 
             // Sales activities - use datetime comparison to be more accurate
-            $salesWhere = "ps.company_id = :company_id AND ps.created_at >= :date_from_start AND ps.created_at <= :date_to_end";
-            $salesParams = [
-                'company_id' => $companyId,
-                'date_from_start' => $dateFromStart,
-                'date_to_end' => $dateToEnd
-            ];
+            // Handle all-time vs date range
+            if ($isAllTime) {
+                $salesWhere = "ps.company_id = :company_id";
+                $salesParams = ['company_id' => $companyId];
+            } else {
+                $salesWhere = "ps.company_id = :company_id AND ps.created_at >= :date_from_start AND ps.created_at <= :date_to_end";
+                $salesParams = [
+                    'company_id' => $companyId,
+                    'date_from_start' => $dateFromStart,
+                    'date_to_end' => $dateToEnd
+                ];
+            }
             
             if ($staffId) {
                 $salesWhere .= " AND ps.created_by_user_id = :staff_id";
@@ -3538,12 +3573,17 @@ class ManagerAnalyticsController {
             // Repair activities
             $checkRepairsTable = $db->query("SHOW TABLES LIKE 'repairs_new'");
             if ($checkRepairsTable->rowCount() > 0) {
-                $repairsWhere = "r.company_id = :company_id AND r.created_at >= :date_from_start AND r.created_at <= :date_to_end";
-                $repairsParams = [
-                    'company_id' => $companyId,
-                    'date_from_start' => $dateFromStart,
-                    'date_to_end' => $dateToEnd
-                ];
+                if ($isAllTime) {
+                    $repairsWhere = "r.company_id = :company_id";
+                    $repairsParams = ['company_id' => $companyId];
+                } else {
+                    $repairsWhere = "r.company_id = :company_id AND r.created_at >= :date_from_start AND r.created_at <= :date_to_end";
+                    $repairsParams = [
+                        'company_id' => $companyId,
+                        'date_from_start' => $dateFromStart,
+                        'date_to_end' => $dateToEnd
+                    ];
+                }
                 
                 if ($staffId) {
                     $repairsWhere .= " AND r.assigned_technician_id = :staff_id";
@@ -3606,12 +3646,17 @@ class ManagerAnalyticsController {
                 $totalSwaps = $checkSwapsCount->fetch(\PDO::FETCH_ASSOC)['cnt'] ?? 0;
                 error_log("getActivityLogs: Total swaps in database for company {$companyId}: {$totalSwaps}");
                 
-                $swapsWhere = "s.company_id = :company_id AND s.created_at >= :date_from_start AND s.created_at <= :date_to_end";
-                $swapsParams = [
-                    'company_id' => $companyId,
-                    'date_from_start' => $dateFromStart,
-                    'date_to_end' => $dateToEnd
-                ];
+                if ($isAllTime) {
+                    $swapsWhere = "s.company_id = :company_id";
+                    $swapsParams = ['company_id' => $companyId];
+                } else {
+                    $swapsWhere = "s.company_id = :company_id AND s.created_at >= :date_from_start AND s.created_at <= :date_to_end";
+                    $swapsParams = [
+                        'company_id' => $companyId,
+                        'date_from_start' => $dateFromStart,
+                        'date_to_end' => $dateToEnd
+                    ];
+                }
                 
                 if ($staffId) {
                     // Check if column is salesperson_id or handled_by

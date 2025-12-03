@@ -80,9 +80,32 @@ class AnalyticsService {
         $monthlyQuery->execute($monthlyParams);
         $monthly = $monthlyQuery->fetch(PDO::FETCH_ASSOC);
 
-        // Filtered stats (for selected date range) - ALWAYS calculate if dates provided
+        // Filtered stats (for selected date range) or ALL-TIME if no dates
         $filtered = null;
-        if ($date_from || $date_to) {
+        // If both dates are null/empty, calculate ALL-TIME stats
+        // If at least one date is provided, calculate filtered stats for that range
+        if (empty($date_from) && empty($date_to)) {
+            // ALL-TIME: No date filtering
+            $where = "company_id = :company_id{$excludeSwapSales}{$excludeRepairSales}";
+            $params = ['company_id' => $company_id];
+            
+            if ($staff_id) {
+                $where .= " AND created_by_user_id = :staff_id";
+                $params['staff_id'] = $staff_id;
+            }
+            
+            $filteredQuery = $this->db->prepare("
+                SELECT 
+                    COUNT(*) as count,
+                    COALESCE(SUM(final_amount), 0) as revenue,
+                    COALESCE(AVG(final_amount), 0) as avg_sale
+                FROM pos_sales 
+                WHERE {$where}
+            ");
+            $filteredQuery->execute($params);
+            $filtered = $filteredQuery->fetch(PDO::FETCH_ASSOC);
+        } elseif ($date_from || $date_to) {
+            // Date range filtering
             $where = "company_id = :company_id{$excludeSwapSales}{$excludeRepairSales}";
             $params = ['company_id' => $company_id];
 
@@ -1169,9 +1192,11 @@ class AnalyticsService {
         $where = "ps.company_id = :company_id";
         $params = ['company_id' => $company_id];
 
-        // If no date range provided, use current month (matching getSalesStats monthly behavior)
-        if (!$date_from && !$date_to) {
-            $where .= " AND MONTH(ps.created_at) = MONTH(CURDATE()) AND YEAR(ps.created_at) = YEAR(CURDATE())";
+        // If no date range provided, calculate ALL-TIME stats (no date filtering)
+        // If dates are provided, filter by date range
+        if (empty($date_from) && empty($date_to)) {
+            // ALL-TIME: No date filtering - include all sales
+            // Don't add any date conditions
         } else {
             // Use datetime comparison to match audit trail (includes full day)
             if ($date_from) {

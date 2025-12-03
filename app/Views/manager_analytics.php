@@ -1636,21 +1636,26 @@ $userRole = $user['role'] ?? 'manager';
         // Month selector change handler
         document.getElementById('monthSelector').addEventListener('change', async function() {
             const selectedMonth = this.value;
-            if (!selectedMonth) return;
             
             // Update active button - remove active from all buttons
             document.querySelectorAll('.date-filter-btn').forEach(btn => btn.classList.remove('active'));
             
-            // Parse the selected month (format: YYYY-MM)
-            const [year, month] = selectedMonth.split('-');
-            const monthStart = new Date(parseInt(year), parseInt(month) - 1, 1);
-            const monthEnd = new Date(parseInt(year), parseInt(month), 0); // Last day of the month
-            
-            const monthStartStr = monthStart.toISOString().split('T')[0];
-            const monthEndStr = monthEnd.toISOString().split('T')[0];
-            
-            document.getElementById('filterDateFrom').value = monthStartStr;
-            document.getElementById('filterDateTo').value = monthEndStr;
+            if (!selectedMonth) {
+                // Month selector cleared - show ALL-TIME data (no date filter)
+                document.getElementById('filterDateFrom').value = '';
+                document.getElementById('filterDateTo').value = '';
+            } else {
+                // Month selected - set date range for that specific month
+                const [year, month] = selectedMonth.split('-');
+                const monthStart = new Date(parseInt(year), parseInt(month) - 1, 1);
+                const monthEnd = new Date(parseInt(year), parseInt(month), 0); // Last day of the month
+                
+                const monthStartStr = monthStart.toISOString().split('T')[0];
+                const monthEndStr = monthEnd.toISOString().split('T')[0];
+                
+                document.getElementById('filterDateFrom').value = monthStartStr;
+                document.getElementById('filterDateTo').value = monthEndStr;
+            }
             
             await refreshDashboardData();
         });
