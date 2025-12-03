@@ -1439,8 +1439,30 @@ $userRole = $user['role'] ?? 'manager';
 
     // Setup event listeners
     function setupEventListeners() {
+        async function refreshDashboardData(options = {}) {
+            const { reloadAuditLogs = true } = options;
+            const staffSelect = document.getElementById('filterStaff');
+            const staffId = staffSelect ? staffSelect.value : '';
+            
+            try {
+                await loadLiveData();
+            } catch (error) {
+                console.error('Error refreshing live data:', error);
+            }
+            
+            if (!staffId) {
+                loadAnalytics();
+            }
+            
+            loadCharts();
+            loadTransactions();
+            
+            if (reloadAuditLogs) {
+                loadAuditLogs(1);
+            }
+        }
         // Date quick filters
-        document.getElementById('btnToday').addEventListener('click', function() {
+        document.getElementById('btnToday').addEventListener('click', async function() {
             // Update active button
             document.querySelectorAll('.date-filter-btn').forEach(btn => btn.classList.remove('active'));
             this.classList.add('active');
@@ -1448,10 +1470,11 @@ $userRole = $user['role'] ?? 'manager';
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('filterDateFrom').value = today;
             document.getElementById('filterDateTo').value = today;
-            loadAnalytics();
+            
+            await refreshDashboardData();
         });
 
-        document.getElementById('btnThisWeek').addEventListener('click', function() {
+        document.getElementById('btnThisWeek').addEventListener('click', async function() {
             // Update active button
             document.querySelectorAll('.date-filter-btn').forEach(btn => btn.classList.remove('active'));
             this.classList.add('active');
@@ -1464,10 +1487,11 @@ $userRole = $user['role'] ?? 'manager';
             
             document.getElementById('filterDateFrom').value = weekStart.toISOString().split('T')[0];
             document.getElementById('filterDateTo').value = weekEnd.toISOString().split('T')[0];
-            loadAnalytics();
+            
+            await refreshDashboardData();
         });
 
-        document.getElementById('btnThisMonth').addEventListener('click', function() {
+        document.getElementById('btnThisMonth').addEventListener('click', async function() {
             // Update active button
             document.querySelectorAll('.date-filter-btn').forEach(btn => btn.classList.remove('active'));
             this.classList.add('active');
@@ -1483,12 +1507,12 @@ $userRole = $user['role'] ?? 'manager';
             const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
             monthInput.value = currentMonth;
             
-            loadAnalytics();
+            await refreshDashboardData();
         });
 
         const btnThisYear = document.getElementById('btnThisYear');
         if (btnThisYear) {
-            btnThisYear.addEventListener('click', function() {
+            btnThisYear.addEventListener('click', async function() {
                 // Update active button
                 document.querySelectorAll('.date-filter-btn').forEach(btn => btn.classList.remove('active'));
                 this.classList.add('active');
@@ -1505,34 +1529,35 @@ $userRole = $user['role'] ?? 'manager';
                     monthSelector.value = '';
                 }
                 
-                loadAnalytics();
+                await refreshDashboardData();
             });
         }
 
         // Staff filter change handler
         const staffFilter = document.getElementById('filterStaff');
         if (staffFilter) {
-            staffFilter.addEventListener('change', function() {
+            staffFilter.addEventListener('change', async function() {
                 const staffId = this.value;
                 if (staffId) {
                     // Show staff detail section and load details
                     document.getElementById('staffDetailSection').classList.remove('hidden');
                     document.getElementById('allStaffSummarySection').classList.add('hidden');
+                    
+                    await refreshDashboardData();
                     loadStaffDetails(staffId);
-                    loadAnalytics(); // Reload analytics with staff filter
                 } else {
                     // Hide staff detail section and show all data
                     document.getElementById('staffDetailSection').classList.add('hidden');
                     document.getElementById('allStaffSummarySection').classList.remove('hidden');
                     // Hide repairer parts section when viewing all staff
                     document.getElementById('repairerPartsSection').classList.add('hidden');
-                    loadAnalytics(); // Reload analytics without staff filter
+                    await refreshDashboardData();
                 }
             });
         }
 
         // Month selector change handler
-        document.getElementById('monthSelector').addEventListener('change', function() {
+        document.getElementById('monthSelector').addEventListener('change', async function() {
             const selectedMonth = this.value;
             if (!selectedMonth) return;
             
@@ -1550,43 +1575,12 @@ $userRole = $user['role'] ?? 'manager';
             document.getElementById('filterDateFrom').value = monthStartStr;
             document.getElementById('filterDateTo').value = monthEndStr;
             
-            // Reload all data with new date range
-            loadAnalytics();
-            loadCharts();
-            loadTransactions();
-            loadAuditLogs(1);
+            await refreshDashboardData();
         });
 
         document.getElementById('btnApplyFilters').addEventListener('click', async function() {
-            const staffId = document.getElementById('filterStaff').value;
-            
-            // Load live data first (includes profit/loss breakdown)
-            await loadLiveData();
-            
-            // Only call loadAnalytics() if no staff is selected
-            // (loadAnalytics() doesn't support staff filtering and would overwrite breakdown)
-            if (!staffId) {
-                loadAnalytics();
-            }
-            
-            // Then load other data
-            loadCharts();
-            loadTransactions();
+            await refreshDashboardData();
         });
-
-        // Staff filter change - reload data when staff is selected
-        const filterStaff = document.getElementById('filterStaff');
-        if (filterStaff) {
-            filterStaff.addEventListener('change', async function() {
-                // Load live data first (includes profit/loss breakdown with staff filter)
-                await loadLiveData();
-                // Then load other data (charts and transactions)
-                // Don't call loadAnalytics() when staff is selected - it doesn't support staff filter
-                // and would overwrite the breakdown with empty data
-                loadCharts();
-                loadTransactions();
-            });
-        }
 
         // Trace modal
         document.getElementById('btnOpenTraceModal').addEventListener('click', function() {
