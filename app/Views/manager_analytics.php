@@ -532,6 +532,14 @@ $userRole = $user['role'] ?? 'manager';
                 </table>
             </div>
         </div>
+        <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="text-sm text-gray-600" id="transactionsPaginationInfo">
+                Showing 0 of 0 transactions
+            </div>
+            <div class="flex items-center gap-2" id="transactionsPagination">
+                <!-- Pagination buttons will be inserted here -->
+            </div>
+        </div>
     </div>
 
     <!-- Audit Logs Live Feed -->
@@ -1633,6 +1641,10 @@ $userRole = $user['role'] ?? 'manager';
         // Customer/product filters removed
     }
 
+    let transactionsData = [];
+    let transactionsTotal = 0;
+    let transactionsCurrentPage = 1;
+    const transactionsPerPage = 10;
     let auditLogsCurrentPage = 1;
     const auditLogsLimit = 10;
     let auditLogsTotal = 0;
@@ -2573,8 +2585,102 @@ $userRole = $user['role'] ?? 'manager';
         displayTransactions(transactions);
     }
 
-    // Display transactions in table
-    function displayTransactions(transactions) {
+    function renderTransactionsPage(page = 1) {
+        const totalPages = transactionsTotal > 0 ? Math.ceil(transactionsTotal / transactionsPerPage) : 0;
+        if (transactionsTotal === 0) {
+            renderTransactionsTableRows([]);
+            updateTransactionsInfo();
+            updateTransactionsPagination(0);
+            return;
+        }
+        
+        if (page < 1) page = 1;
+        if (totalPages && page > totalPages) page = totalPages;
+        transactionsCurrentPage = page;
+        
+        const startIndex = (transactionsCurrentPage - 1) * transactionsPerPage;
+        const pageTransactions = transactionsData.slice(startIndex, startIndex + transactionsPerPage);
+        
+        renderTransactionsTableRows(pageTransactions);
+        updateTransactionsInfo();
+        updateTransactionsPagination(totalPages);
+    }
+
+    function updateTransactionsInfo() {
+        const infoEl = document.getElementById('transactionsPaginationInfo');
+        if (!infoEl) return;
+        
+        if (transactionsTotal === 0) {
+            infoEl.textContent = 'No transactions found';
+            return;
+        }
+        
+        const start = ((transactionsCurrentPage - 1) * transactionsPerPage) + 1;
+        const end = Math.min(transactionsCurrentPage * transactionsPerPage, transactionsTotal);
+        infoEl.textContent = `Showing ${start}-${end} of ${transactionsTotal} transactions`;
+    }
+
+    function updateTransactionsPagination(totalPages) {
+        const paginationEl = document.getElementById('transactionsPagination');
+        if (!paginationEl) return;
+        
+        if (!totalPages || transactionsTotal <= transactionsPerPage) {
+            paginationEl.innerHTML = '';
+            return;
+        }
+        
+        let paginationHTML = '';
+        
+        if (transactionsCurrentPage > 1) {
+            paginationHTML += `<button onclick="changeTransactionsPage(${transactionsCurrentPage - 1})" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100">Previous</button>`;
+        } else {
+            paginationHTML += `<button disabled class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-400 cursor-not-allowed">Previous</button>`;
+        }
+        
+        const maxPagesToShow = 5;
+        let startPage = Math.max(1, transactionsCurrentPage - Math.floor(maxPagesToShow / 2));
+        let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+        
+        if (endPage - startPage < maxPagesToShow - 1) {
+            startPage = Math.max(1, endPage - maxPagesToShow + 1);
+        }
+        
+        if (startPage > 1) {
+            paginationHTML += `<button onclick="changeTransactionsPage(1)" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100">1</button>`;
+            if (startPage > 2) {
+                paginationHTML += `<span class="px-2 text-gray-500">...</span>`;
+            }
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            if (i === transactionsCurrentPage) {
+                paginationHTML += `<button class="px-3 py-1 border border-blue-500 bg-blue-500 text-white rounded text-sm font-medium">${i}</button>`;
+            } else {
+                paginationHTML += `<button onclick="changeTransactionsPage(${i})" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100">${i}</button>`;
+            }
+        }
+        
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                paginationHTML += `<span class="px-2 text-gray-500">...</span>`;
+            }
+            paginationHTML += `<button onclick="changeTransactionsPage(${totalPages})" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100">${totalPages}</button>`;
+        }
+        
+        if (transactionsCurrentPage < totalPages) {
+            paginationHTML += `<button onclick="changeTransactionsPage(${transactionsCurrentPage + 1})" class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100">Next</button>`;
+        } else {
+            paginationHTML += `<button disabled class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-400 cursor-not-allowed">Next</button>`;
+        }
+        
+        paginationEl.innerHTML = paginationHTML;
+    }
+
+    window.changeTransactionsPage = function(page) {
+        renderTransactionsPage(page);
+    };
+
+    function renderTransactionsTableRows(transactions) {
         const tbody = document.getElementById('transactionsTableBody');
         if (!tbody) {
             debugWarn('transactionsTableBody element not found');
@@ -2587,15 +2693,6 @@ $userRole = $user['role'] ?? 'manager';
             tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-3 text-center text-gray-500">No transactions found</td></tr>';
             return;
         }
-
-        // Sort by date (newest first)
-        transactions.sort((a, b) => {
-            try {
-                return new Date(b.date) - new Date(a.date);
-            } catch (e) {
-                return 0;
-            }
-        });
 
         transactions.forEach(transaction => {
             const row = document.createElement('tr');
@@ -2650,6 +2747,27 @@ $userRole = $user['role'] ?? 'manager';
             `;
             tbody.appendChild(row);
         });
+    }
+
+    // Display transactions in table
+    function displayTransactions(transactions) {
+        if (Array.isArray(transactions)) {
+            transactionsData = [...transactions];
+        } else {
+            transactionsData = [];
+        }
+        
+        transactionsData.sort((a, b) => {
+            try {
+                return new Date(b.date) - new Date(a.date);
+            } catch (e) {
+                return 0;
+            }
+        });
+        
+        transactionsTotal = transactionsData.length;
+        transactionsCurrentPage = 1;
+        renderTransactionsPage();
     }
 
     // Load staff details when staff is selected
