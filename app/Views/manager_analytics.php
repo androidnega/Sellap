@@ -1631,6 +1631,7 @@ $userRole = $user['role'] ?? 'manager';
         window.loadAuditLogs = loadAuditLogs;
         
         // Customer/product filters removed
+    }
 
     let auditLogsCurrentPage = 1;
     const auditLogsLimit = 10;
