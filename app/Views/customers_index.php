@@ -191,8 +191,9 @@
 </div>
 
 <!-- Customer Creation Modal -->
-<div id="customerModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+<div id="customerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 overflow-hidden" style="z-index: 9999;">
+    <div class="h-full w-full flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" style="scroll-behavior: smooth;">
         <div class="px-6 py-4 border-b border-gray-200">
             <div class="flex justify-between items-center">
                 <h3 class="text-lg font-semibold text-gray-800">Create New Customer</h3>
@@ -244,6 +245,7 @@
                 </button>
             </div>
         </form>
+        </div>
     </div>
 </div>
 
@@ -555,10 +557,23 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
+    // Ensure modal is in body to avoid clipping issues
+    function ensureModalInBody(modalEl) {
+        if (modalEl && modalEl.parentNode !== document.body) {
+            console.log(`Moving modal #${modalEl.id} to document.body to avoid clipping issues`);
+            document.body.appendChild(modalEl);
+        }
+    }
+    
+    // Ensure modal is in body
+    ensureModalInBody(modal);
+    
     // Open modal
     if (openBtn) {
         openBtn.addEventListener('click', function() {
+            ensureModalInBody(modal);
             modal.classList.remove('hidden');
+            modal.style.display = 'block';
             document.body.style.overflow = 'hidden';
         });
     }
@@ -566,6 +581,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Close modal
     function closeModal() {
         modal.classList.add('hidden');
+        modal.style.display = '';
         document.body.style.overflow = 'auto';
         if (form) form.reset();
     }
@@ -577,8 +593,9 @@ document.addEventListener('DOMContentLoaded', function() {
         cancelBtn.addEventListener('click', closeModal);
     }
 
-    // Close modal when clicking outside
+    // Close modal when clicking outside (on the backdrop)
     modal.addEventListener('click', function(e) {
+        // Check if click is on the backdrop (the outer container)
         if (e.target === modal) {
             closeModal();
         }
