@@ -209,33 +209,33 @@ ob_start();
                     safeUpdate('today-sales', metrics.sales || 0);
                     safeUpdate('today-revenue', '₵' + parseFloat(metrics.revenue || 0).toFixed(2));
                 
-                // Update partial payments section if available
-                if (metrics.payment_stats) {
-                    const partialSection = document.getElementById('partial-payments-section');
-                    const partialCount = metrics.payment_stats.total_partial_payments || 0;
-                    const pendingAmount = metrics.payment_stats.pending_amount || 0;
-                    
-                    if (partialSection) {
-                        if (partialCount > 0 || pendingAmount > 0) {
-                            partialSection.style.display = 'block';
-                            const countEl = document.getElementById('partial-payments-count');
-                            const badgeEl = document.getElementById('partial-payments-badge');
-                            const amountEl = document.getElementById('pending-amount');
-                            if (countEl) countEl.textContent = partialCount;
-                            if (badgeEl) badgeEl.textContent = partialCount;
-                            if (amountEl) amountEl.textContent = '₵' + parseFloat(pendingAmount).toFixed(2);
-                        } else {
-                            partialSection.style.display = 'none';
+                    // Update partial payments section if available
+                    if (metrics.payment_stats) {
+                        const partialSection = document.getElementById('partial-payments-section');
+                        const partialCount = metrics.payment_stats.total_partial_payments || 0;
+                        const pendingAmount = metrics.payment_stats.pending_amount || 0;
+                        
+                        if (partialSection) {
+                            if (partialCount > 0 || pendingAmount > 0) {
+                                partialSection.style.display = 'block';
+                                const countEl = document.getElementById('partial-payments-count');
+                                const badgeEl = document.getElementById('partial-payments-badge');
+                                const amountEl = document.getElementById('pending-amount');
+                                if (countEl) countEl.textContent = partialCount;
+                                if (badgeEl) badgeEl.textContent = partialCount;
+                                if (amountEl) amountEl.textContent = '₵' + parseFloat(pendingAmount).toFixed(2);
+                            } else {
+                                partialSection.style.display = 'none';
+                            }
                         }
+                    } else {
+                        // Hide partial payments section if not enabled
+                        const partialSection = document.getElementById('partial-payments-section');
+                        if (partialSection) partialSection.style.display = 'none';
                     }
-                } else {
-                    // Hide partial payments section if not enabled
-                    const partialSection = document.getElementById('partial-payments-section');
-                    if (partialSection) partialSection.style.display = 'none';
                 }
-                } catch (error) {
-                    console.error('Error processing sales metrics:', error);
-                }
+            } catch (error) {
+                console.error('Error processing sales metrics:', error);
             }
         })
         .catch(error => {
