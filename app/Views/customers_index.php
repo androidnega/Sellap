@@ -19,7 +19,7 @@
     </div>
     
     <!-- Search and Filters - Sticky -->
-    <div class="bg-white rounded-lg shadow p-4 mb-4 sticky top-0 z-40 border-b border-gray-200 backdrop-blur-sm bg-opacity-95">
+    <div class="bg-white rounded-lg shadow p-4 mb-4 sticky top-0 z-40 border-b border-gray-200" style="position: -webkit-sticky; position: sticky; top: 0; background-color: white; z-index: 40;">
         <div class="flex flex-col md:flex-row gap-4">
             <!-- Search Input -->
             <div class="flex-1">
@@ -91,17 +91,77 @@
         </div>
     </div>
     
-    <div class="overflow-x-auto bg-white rounded-lg shadow">
+    <!-- Mobile Card View (hidden on larger screens) -->
+    <div class="block sm:hidden space-y-3 mb-4">
+        <?php if (!empty($customers)): ?>
+            <?php 
+            $renderedCustomerIds = [];
+            $rowNumber = (($currentPage - 1) * $itemsPerPage) + 1;
+            
+            foreach ($customers as $customer):
+                $customerId = $customer['id'];
+                if (in_array($customerId, $renderedCustomerIds)) {
+                    continue;
+                }
+                $renderedCustomerIds[] = $customerId;
+            ?>
+                <div class="bg-white rounded-lg shadow-sm border p-3">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex-1">
+                            <div class="text-xs text-gray-500 mb-0.5">#<?= number_format($rowNumber++) ?></div>
+                            <h3 class="text-sm font-semibold text-gray-900"><?= htmlspecialchars($customer['full_name']) ?></h3>
+                            <p class="text-xs text-gray-600 mt-0.5"><?= htmlspecialchars($customer['unique_id']) ?></p>
+                        </div>
+                    </div>
+                    <div class="space-y-1.5 text-xs text-gray-600 mb-2">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-phone text-gray-400 text-xs w-4"></i>
+                            <span><?= htmlspecialchars($customer['phone_number'] ?? 'N/A') ?></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-envelope text-gray-400 text-xs w-4"></i>
+                            <span class="truncate"><?= htmlspecialchars($customer['email'] ?? 'N/A') ?></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-calendar text-gray-400 text-xs w-4"></i>
+                            <span><?= date('M j, Y', strtotime($customer['created_at'])) ?></span>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 pt-2 border-t border-gray-100">
+                        <button onclick="viewCustomer(<?= $customer['id'] ?>)" class="flex-1 px-2 py-1.5 bg-blue-50 text-blue-700 rounded text-xs font-medium text-center hover:bg-blue-100 transition-colors">
+                            <i class="fas fa-eye mr-1"></i> View
+                        </button>
+                        <button onclick="viewCustomerHistory(<?= $customer['id'] ?>, '<?= htmlspecialchars($customer['full_name']) ?>')" class="flex-1 px-2 py-1.5 bg-purple-50 text-purple-700 rounded text-xs font-medium text-center hover:bg-purple-100 transition-colors">
+                            <i class="fas fa-history mr-1"></i> History
+                        </button>
+                        <button onclick="editCustomer(<?= $customer['id'] ?>)" class="flex-1 px-2 py-1.5 bg-green-50 text-green-700 rounded text-xs font-medium text-center hover:bg-green-100 transition-colors">
+                            <i class="fas fa-edit mr-1"></i> Edit
+                        </button>
+                        <button onclick="deleteCustomer(<?= $customer['id'] ?>, '<?= htmlspecialchars($customer['full_name']) ?>')" class="flex-1 px-2 py-1.5 bg-red-50 text-red-700 rounded text-xs font-medium text-center hover:bg-red-100 transition-colors">
+                            <i class="fas fa-trash mr-1"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <div class="bg-white rounded-lg shadow-sm border p-4 text-center">
+                <p class="text-xs text-gray-500">No customers found</p>
+            </div>
+        <?php endif; ?>
+    </div>
+    
+    <!-- Desktop Table View (hidden on mobile) -->
+    <div class="hidden sm:block overflow-x-auto bg-white rounded-lg shadow">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer ID</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Number</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer ID</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Number</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
             </thead>
             <tbody id="customersTableBody" class="bg-white divide-y divide-gray-200">
@@ -124,64 +184,64 @@
                         $rowClass = '';
                     ?>
                         <tr data-customer-id="<?= $customer['id'] ?>" class="<?= $rowClass ?>" data-phone="<?= htmlspecialchars($customer['phone_number'] ?? '') ?>">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-500">
+                            <td class="px-4 py-2 whitespace-nowrap text-xs font-medium text-gray-500">
                                 <?= number_format($rowNumber++) ?>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <td class="px-4 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
                                 <?= htmlspecialchars($customer['unique_id']) ?>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-900">
                                 <div class="flex items-center gap-2">
                                     <?= htmlspecialchars($customer['full_name']) ?>
                                     <?php if ($isDuplicate): ?>
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800" title="Duplicate phone number">
-                                            <i class="fas fa-exclamation-triangle mr-1"></i>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800" title="Duplicate phone number">
+                                            <i class="fas fa-exclamation-triangle mr-0.5 text-xs"></i>
                                             Duplicate (<?= $duplicateCount ?>)
                                         </span>
                                     <?php endif; ?>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-900">
                                 <div class="flex items-center gap-2">
                                     <?= htmlspecialchars($customer['phone_number'] ?? 'N/A') ?>
                                     <?php if ($isDuplicate && !empty($customer['phone_number'])): ?>
                                         <button onclick="showDuplicateCustomers('<?= htmlspecialchars($customer['phone_number']) ?>')" 
                                                 class="text-blue-600 hover:text-blue-800 text-xs underline" 
                                                 title="View all customers with this phone number">
-                                            <i class="fas fa-search"></i> Find All
+                                            <i class="fas fa-search text-xs"></i> Find All
                                         </button>
                                     <?php endif; ?>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-900">
                                 <?= htmlspecialchars($customer['email'] ?? 'N/A') ?>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-900">
                                 <?= date('M j, Y', strtotime($customer['created_at'])) ?>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div class="flex items-center gap-2">
+                            <td class="px-4 py-2 whitespace-nowrap text-xs font-medium">
+                                <div class="flex items-center gap-1.5">
                                     <button onclick="viewCustomer(<?= $customer['id'] ?>)" class="text-blue-600 hover:text-blue-900 transition-colors" title="View Details">
-                                        <i class="fas fa-eye"></i>
+                                        <i class="fas fa-eye text-sm"></i>
                                     </button>
                                     <button onclick="viewCustomerHistory(<?= $customer['id'] ?>, '<?= htmlspecialchars($customer['full_name']) ?>')" class="text-purple-600 hover:text-purple-900 transition-colors relative group" title="Purchase History">
-                                        <i class="fas fa-history"></i>
+                                        <i class="fas fa-history text-sm"></i>
                                         <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                                             Purchase History
                                         </span>
                                     </button>
                                     <button onclick="editCustomer(<?= $customer['id'] ?>)" class="text-green-600 hover:text-green-900 transition-colors" title="Edit">
-                                        <i class="fas fa-edit"></i>
+                                        <i class="fas fa-edit text-sm"></i>
                                     </button>
                                     <button onclick="deleteCustomer(<?= $customer['id'] ?>, '<?= htmlspecialchars($customer['full_name']) ?>')" class="text-red-600 hover:text-red-900 transition-colors" title="Delete">
-                                        <i class="fas fa-trash"></i>
+                                        <i class="fas fa-trash text-sm"></i>
                                     </button>
                                 </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No customers found</td></tr>
+                    <tr><td colspan="7" class="px-4 py-2 text-center text-xs text-gray-500">No customers found</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -1301,6 +1361,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const filteredCountEl = document.getElementById('customerFilteredCount');
     const totalCountEl = document.getElementById('customerTotalCount');
     
+    // Get mobile cards container
+    let mobileCardsContainer = document.querySelector('.block.sm\\:hidden.space-y-3');
+    
     if (!searchInput || !dateFilter || !tbody) return;
     
     // CRITICAL: On page load, ensure no filters are active if URL has no search/date_filter params
@@ -1408,32 +1471,82 @@ document.addEventListener('DOMContentLoaded', function() {
         
         return `
             <tr data-customer-id="${id}">
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-500">${rowNum}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${uniqueId}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${name}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${phone}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${email}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${created}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div class="flex items-center gap-2">
+                <td class="px-4 py-2 whitespace-nowrap text-xs font-medium text-gray-500">${rowNum}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-xs font-medium text-gray-900">${uniqueId}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-900">${name}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-900">${phone}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-900">${email}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-900">${created}</td>
+                <td class="px-4 py-2 whitespace-nowrap text-xs font-medium">
+                    <div class="flex items-center gap-1.5">
                         <button onclick="viewCustomer(${id})" class="text-blue-600 hover:text-blue-900 transition-colors" title="View Details">
-                            <i class="fas fa-eye"></i>
+                            <i class="fas fa-eye text-sm"></i>
                         </button>
                         <button onclick="viewCustomerHistory(${id}, '${name.replace(/'/g, "\\'")}')" class="text-purple-600 hover:text-purple-900 transition-colors relative group" title="Purchase History">
-                            <i class="fas fa-history"></i>
+                            <i class="fas fa-history text-sm"></i>
                             <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                                 Purchase History
                             </span>
                         </button>
                         <button onclick="editCustomer(${id})" class="text-green-600 hover:text-green-900 transition-colors" title="Edit">
-                            <i class="fas fa-edit"></i>
+                            <i class="fas fa-edit text-sm"></i>
                         </button>
                         <button onclick="deleteCustomer(${id}, '${name.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-900 transition-colors" title="Delete">
-                            <i class="fas fa-trash"></i>
+                            <i class="fas fa-trash text-sm"></i>
                         </button>
                     </div>
                 </td>
             </tr>
+        `;
+    }
+    
+    function customerCardHTML(customer, index = null) {
+        const id = customer.id || 0;
+        const name = escapeHtml(customer.full_name || '');
+        const phone = escapeHtml(customer.phone_number || '');
+        const email = escapeHtml(customer.email || 'N/A');
+        const uniqueId = escapeHtml(customer.unique_id || '');
+        const created = formatDate(customer.created_at);
+        const rowNum = index !== null ? index + 1 : searchRowCounter++;
+        
+        return `
+            <div class="bg-white rounded-lg shadow-sm border p-3">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex-1">
+                        <div class="text-xs text-gray-500 mb-0.5">#${rowNum}</div>
+                        <h3 class="text-sm font-semibold text-gray-900">${name}</h3>
+                        <p class="text-xs text-gray-600 mt-0.5">${uniqueId}</p>
+                    </div>
+                </div>
+                <div class="space-y-1.5 text-xs text-gray-600 mb-2">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-phone text-gray-400 text-xs w-4"></i>
+                        <span>${phone}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-envelope text-gray-400 text-xs w-4"></i>
+                        <span class="truncate">${email}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-calendar text-gray-400 text-xs w-4"></i>
+                        <span>${created}</span>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-1.5 pt-2 border-t border-gray-100">
+                    <button onclick="viewCustomer(${id})" class="flex-1 px-2 py-1.5 bg-blue-50 text-blue-700 rounded text-xs font-medium text-center hover:bg-blue-100 transition-colors">
+                        <i class="fas fa-eye mr-1"></i> View
+                    </button>
+                    <button onclick="viewCustomerHistory(${id}, '${name.replace(/'/g, "\\'")}')" class="flex-1 px-2 py-1.5 bg-purple-50 text-purple-700 rounded text-xs font-medium text-center hover:bg-purple-100 transition-colors">
+                        <i class="fas fa-history mr-1"></i> History
+                    </button>
+                    <button onclick="editCustomer(${id})" class="flex-1 px-2 py-1.5 bg-green-50 text-green-700 rounded text-xs font-medium text-center hover:bg-green-100 transition-colors">
+                        <i class="fas fa-edit mr-1"></i> Edit
+                    </button>
+                    <button onclick="deleteCustomer(${id}, '${name.replace(/'/g, "\\'")}')" class="flex-1 px-2 py-1.5 bg-red-50 text-red-700 rounded text-xs font-medium text-center hover:bg-red-100 transition-colors">
+                        <i class="fas fa-trash mr-1"></i> Delete
+                    </button>
+                </div>
+            </div>
         `;
     }
     
@@ -1518,12 +1631,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (!filteredResults || filteredResults.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No matching customers</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-2 text-center text-xs text-gray-500">No matching customers</td></tr>';
+                if (mobileCardsContainer) {
+                    mobileCardsContainer.innerHTML = '<div class="bg-white rounded-lg shadow-sm border p-4 text-center"><p class="text-xs text-gray-500">No matching customers</p></div>';
+                }
                 filteredCountEl.textContent = 0;
                 totalCountEl.textContent = results.length || 0;
             } else {
                 searchRowCounter = 1; // Reset counter for search results
                 tbody.innerHTML = filteredResults.map((customer, index) => customerRowHTML(customer, index)).join('');
+                if (mobileCardsContainer) {
+                    mobileCardsContainer.innerHTML = filteredResults.map((customer, index) => customerCardHTML(customer, index)).join('');
+                }
                 filteredCountEl.textContent = filteredResults.length;
                 totalCountEl.textContent = results.length || filteredResults.length;
             }
@@ -1531,7 +1650,10 @@ document.addEventListener('DOMContentLoaded', function() {
             info.classList.remove('hidden');
         } catch (error) {
             console.error('Search error:', error);
-            tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Error performing search</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-2 text-center text-xs text-red-500">Error performing search</td></tr>';
+            if (mobileCardsContainer) {
+                mobileCardsContainer.innerHTML = '<div class="bg-white rounded-lg shadow-sm border p-4 text-center"><p class="text-xs text-red-500">Error performing search</p></div>';
+            }
             info.classList.add('hidden');
         }
     }
