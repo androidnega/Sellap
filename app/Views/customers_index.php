@@ -1,7 +1,21 @@
 <div class="p-6">
     <div class="mb-6">
-        <h2 class="text-3xl font-bold text-gray-800">Customer Management</h2>
-        <p class="text-gray-600">Manage all customers in the system</p>
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 class="text-3xl font-bold text-gray-800">Customer Management</h2>
+                <p class="text-gray-600">Manage all customers in the system</p>
+            </div>
+            <!-- Customer Stats -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg px-6 py-4">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-users text-blue-600 text-2xl"></i>
+                    <div>
+                        <div class="text-sm text-blue-600 font-medium">Total Customers</div>
+                        <div class="text-2xl font-bold text-blue-800"><?= number_format($totalItems) ?></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     
     <!-- Search and Filters -->
@@ -81,6 +95,7 @@
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer ID</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Number</th>
@@ -94,6 +109,8 @@
                     <?php 
                     // Track rendered IDs to prevent duplicates
                     $renderedCustomerIds = [];
+                    // Calculate starting row number based on current page and items per page
+                    $rowNumber = (($currentPage - 1) * $itemsPerPage) + 1;
                     
                     foreach ($customers as $customer):
                         // Skip if already rendered (safety check)
@@ -107,6 +124,9 @@
                         $rowClass = '';
                     ?>
                         <tr data-customer-id="<?= $customer['id'] ?>" class="<?= $rowClass ?>" data-phone="<?= htmlspecialchars($customer['phone_number'] ?? '') ?>">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-500">
+                                <?= number_format($rowNumber++) ?>
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 <?= htmlspecialchars($customer['unique_id']) ?>
                             </td>
@@ -161,7 +181,7 @@
                         </tr>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No customers found</td></tr>
+                    <tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No customers found</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -1358,16 +1378,20 @@ document.addEventListener('DOMContentLoaded', function() {
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
     
-    function customerRowHTML(customer) {
+    let searchRowCounter = 1;
+    
+    function customerRowHTML(customer, index = null) {
         const id = customer.id || 0;
         const name = escapeHtml(customer.full_name || '');
         const phone = escapeHtml(customer.phone_number || '');
         const email = escapeHtml(customer.email || 'N/A');
         const uniqueId = escapeHtml(customer.unique_id || '');
         const created = formatDate(customer.created_at);
+        const rowNum = index !== null ? index + 1 : searchRowCounter++;
         
         return `
             <tr data-customer-id="${id}">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-500">${rowNum}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${uniqueId}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${name}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${phone}</td>
@@ -1477,11 +1501,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (!filteredResults || filteredResults.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No matching customers</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No matching customers</td></tr>';
                 filteredCountEl.textContent = 0;
                 totalCountEl.textContent = results.length || 0;
             } else {
-                tbody.innerHTML = filteredResults.map(customerRowHTML).join('');
+                searchRowCounter = 1; // Reset counter for search results
+                tbody.innerHTML = filteredResults.map((customer, index) => customerRowHTML(customer, index)).join('');
                 filteredCountEl.textContent = filteredResults.length;
                 totalCountEl.textContent = results.length || filteredResults.length;
             }
@@ -1489,7 +1514,7 @@ document.addEventListener('DOMContentLoaded', function() {
             info.classList.remove('hidden');
         } catch (error) {
             console.error('Search error:', error);
-            tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Error performing search</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Error performing search</td></tr>';
             info.classList.add('hidden');
         }
     }

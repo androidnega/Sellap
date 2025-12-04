@@ -1408,7 +1408,7 @@ $router->get('dashboard/customers', function() {
         );
     }
     
-    \App\Middleware\WebAuthMiddleware::handle(['manager', 'salesperson', 'system_admin']);
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'salesperson', 'technician', 'system_admin']);
     $GLOBALS['currentPage'] = 'customers';
     $controller = new \App\Controllers\CustomerController();
     $controller->webIndex();

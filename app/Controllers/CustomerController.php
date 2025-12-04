@@ -18,7 +18,7 @@ class CustomerController {
     public function webIndex() {
         // BLOCK ADMIN IMMEDIATELY - Must be first thing in method
         \App\Helpers\AdminBlockHelper::blockAdmin(
-            ['manager', 'salesperson', 'system_admin'],
+            ['manager', 'salesperson', 'technician', 'system_admin'],
             "You do not have permission to access customer pages.",
             BASE_URL_PATH . '/dashboard'
         );
