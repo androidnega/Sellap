@@ -2,9 +2,9 @@
 // Repair list view for managers and technicians
 ?>
 
-<div class="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+<div class="w-full px-2 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 md:py-6">
     <!-- Header Section -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-3 sm:gap-4">
         <div class="flex items-center flex-wrap gap-3">
             <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Repairs</h1>
             <span class="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full whitespace-nowrap" id="total-count">
@@ -34,7 +34,7 @@
     </div>
 
     <!-- Search Section -->
-    <div class="mb-6 bg-white rounded-lg shadow-sm border p-4">
+    <div class="mb-4 sm:mb-6 bg-white rounded-lg shadow-sm border p-3 sm:p-4">
         <div class="flex flex-col sm:flex-row gap-3 items-end">
             <div class="flex-1">
                 <label for="search-input" class="block text-sm font-medium text-gray-700 mb-2">Search Repairs</label>
@@ -66,7 +66,7 @@
     </div>
 
     <!-- Filters Section -->
-    <div class="mb-6 bg-white rounded-lg shadow-sm border p-4 sm:p-6">
+    <div class="mb-4 sm:mb-6 bg-white rounded-lg shadow-sm border p-3 sm:p-4 md:p-6">
         <!-- Date Range Filter -->
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
@@ -314,7 +314,105 @@
                 <?php endif; ?>
             </div>
         <?php else: ?>
-            <div class="overflow-x-auto -mx-4 sm:mx-0">
+            <!-- Mobile Card View (hidden on larger screens) -->
+            <div class="block sm:hidden space-y-4">
+                <?php foreach ($repairs as $repair): ?>
+                    <div class="bg-white rounded-lg shadow-sm border p-4">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-900">
+                                    <?= !empty($repair['customer_name']) ? htmlspecialchars($repair['customer_name']) : '<span class="text-gray-400 italic">Unknown Customer</span>' ?>
+                                </h3>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <?= !empty($repair['customer_contact']) ? htmlspecialchars($repair['customer_contact']) : '<span class="text-gray-400 italic">No contact</span>' ?>
+                                </p>
+                            </div>
+                            <?php
+                            $statusColors = [
+                                'pending' => 'bg-yellow-100 text-yellow-800',
+                                'in_progress' => 'bg-orange-100 text-orange-800',
+                                'completed' => 'bg-green-100 text-green-800',
+                                'delivered' => 'bg-blue-100 text-blue-800',
+                                'cancelled' => 'bg-red-100 text-red-800',
+                                'failed' => 'bg-red-100 text-red-800'
+                            ];
+                            $statusColor = $statusColors[$repair['status'] ?? 'pending'] ?? 'bg-gray-100 text-gray-800';
+                            ?>
+                            <span class="px-2 py-1 text-xs font-medium rounded-full <?= $statusColor ?> ml-2">
+                                <?= ucfirst(str_replace('_', ' ', $repair['status'] ?? 'pending')) ?>
+                            </span>
+                        </div>
+                        
+                        <div class="space-y-2 text-xs text-gray-600 mb-3">
+                            <div>
+                                <span class="font-medium">Device:</span> 
+                                <?php if ($repair['product_name']): ?>
+                                    <?= htmlspecialchars($repair['product_name']) ?>
+                                <?php else: ?>
+                                    <span class="text-gray-500">Customer's device</span>
+                                <?php endif; ?>
+                            </div>
+                            <div>
+                                <span class="font-medium">Issue:</span> 
+                                <?= !empty($repair['issue_description']) ? htmlspecialchars($repair['issue_description']) : '<span class="text-gray-400 italic">No description</span>' ?>
+                            </div>
+                            <div class="flex justify-between items-center pt-2 border-t border-gray-100">
+                                <div>
+                                    <span class="font-medium text-gray-700">Cost:</span>
+                                    <?php
+                                    $displayCost = floatval($repair['total_cost'] ?? 0);
+                                    if ($displayCost == 0) {
+                                        $repairCost = floatval($repair['repair_cost'] ?? 0);
+                                        $partsCost = floatval($repair['parts_cost'] ?? 0);
+                                        $accessoryCost = floatval($repair['accessory_cost'] ?? 0);
+                                        $displayCost = $repairCost + $partsCost + $accessoryCost;
+                                    }
+                                    ?>
+                                    <span class="text-sm font-semibold text-gray-900">₵<?= number_format($displayCost, 2) ?></span>
+                                </div>
+                                <div class="text-gray-500">
+                                    <?= date('M j, Y', strtotime($repair['created_at'])) ?>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
+                            <a href="<?= BASE_URL_PATH ?>/dashboard/repairs/<?= $repair['id'] ?>" class="flex-1 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium text-center hover:bg-blue-100 transition-colors">
+                                <i class="fas fa-eye mr-1"></i> View
+                            </a>
+                            <?php 
+                            $userRole = $GLOBALS['user_role'] ?? '';
+                            if ($userRole === 'technician'): 
+                                if ($repair['status'] === 'pending'): ?>
+                                    <form method="POST" action="<?= BASE_URL_PATH ?>/dashboard/repairs/update-status/<?= $repair['id'] ?>" class="flex-1" onsubmit="return confirm('Start this repair?');">
+                                        <input type="hidden" name="status" value="in_progress">
+                                        <button type="submit" class="w-full px-3 py-2 bg-green-50 text-green-700 rounded-lg text-xs font-medium hover:bg-green-100 transition-colors">
+                                            <i class="fas fa-play-circle mr-1"></i> Start
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
+                                <?php if ($repair['status'] !== 'delivered' && $repair['status'] !== 'cancelled' && $repair['status'] !== 'failed'): ?>
+                                    <a href="<?= BASE_URL_PATH ?>/dashboard/repairs/<?= $repair['id'] ?>/edit" class="flex-1 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium text-center hover:bg-indigo-100 transition-colors">
+                                        <i class="fas fa-edit mr-1"></i> Edit
+                                    </a>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                            <?php 
+                            if ($userRole === 'manager' || $userRole === 'system_admin'): 
+                            ?>
+                                <form method="POST" action="<?= BASE_URL_PATH ?>/dashboard/repairs/delete/<?= $repair['id'] ?>" class="flex-1" onsubmit="return confirm('Delete this repair?');">
+                                    <button type="submit" class="w-full px-3 py-2 bg-red-50 text-red-700 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors">
+                                        <i class="fas fa-trash mr-1"></i> Delete
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            
+            <!-- Desktop Table View (hidden on mobile) -->
+            <div class="hidden sm:block overflow-x-auto -mx-4 sm:mx-0">
                 <div class="inline-block min-w-full align-middle">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
@@ -667,8 +765,12 @@
                 </div>
             `;
         } else {
-            tableHtml = `
-                <div class="overflow-x-auto -mx-4 sm:mx-0">
+            // Mobile Card View
+            let mobileCardsHtml = '<div class="block sm:hidden space-y-4">';
+            
+            // Desktop Table View
+            let desktopTableHtml = `
+                <div class="hidden sm:block overflow-x-auto -mx-4 sm:mx-0">
                     <div class="inline-block min-w-full align-middle">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
@@ -713,20 +815,39 @@
                 const issueDescription = repair.issue_description || 'No description';
                 const createdDate = repair.created_at ? new Date(repair.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
                 
-                tableHtml += `
+                // Mobile card HTML
+                mobileCardsHtml += `
+                    <div class="bg-white rounded-lg shadow-sm border p-4">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-900">${escapeHtml(customerName)}</h3>
+                                <p class="text-xs text-gray-500 mt-1">${escapeHtml(customerContact)}</p>
+                            </div>
+                            <span class="px-2 py-1 text-xs font-medium rounded-full ${statusColor} ml-2">${statusText}</span>
+                        </div>
+                        <div class="space-y-2 text-xs text-gray-600 mb-3">
+                            <div><span class="font-medium">Device:</span> ${productName ? escapeHtml(productName) : '<span class="text-gray-500">Customer\'s device</span>'}</div>
+                            <div><span class="font-medium">Issue:</span> ${escapeHtml(issueDescription)}</div>
+                            <div class="flex justify-between items-center pt-2 border-t border-gray-100">
+                                <div><span class="font-medium text-gray-700">Cost:</span> <span class="text-sm font-semibold text-gray-900">₵${displayCost.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span></div>
+                                <div class="text-gray-500">${createdDate}</div>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
+                            <a href="<?= BASE_URL_PATH ?>/dashboard/repairs/${repair.id}" class="flex-1 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium text-center hover:bg-blue-100 transition-colors">
+                                <i class="fas fa-eye mr-1"></i> View
+                            </a>
+                        </div>
+                    </div>
+                `;
+                
+                // Desktop table row HTML
+                desktopTableHtml += `
                     <tr class="hover:bg-gray-50">
                         <td class="px-3 sm:px-6 py-4">
                             <div>
                                 <div class="text-sm font-medium text-gray-900">${escapeHtml(customerName)}</div>
                                 <div class="text-xs sm:text-sm text-gray-500 mt-1">${escapeHtml(customerContact)}</div>
-                                <div class="sm:hidden mt-2 space-y-1">
-                                    <div class="text-xs text-gray-600">
-                                        <span class="font-medium">Device:</span> ${productName ? escapeHtml(productName) : '<span class="text-gray-500">Customer\'s device</span>'}
-                                    </div>
-                                    <div class="text-xs text-gray-600 truncate">
-                                        <span class="font-medium">Issue:</span> ${escapeHtml(issueDescription)}
-                                    </div>
-                                </div>
                             </div>
                         </td>
                         <td class="px-3 sm:px-6 py-4 whitespace-nowrap hidden sm:table-cell">
@@ -759,12 +880,15 @@
                 `;
             });
             
-            tableHtml += `
+            mobileCardsHtml += '</div>';
+            desktopTableHtml += `
                             </tbody>
                         </table>
                     </div>
                 </div>
             `;
+            
+            tableHtml = mobileCardsHtml + desktopTableHtml;
         }
         
         repairsTableContainer.innerHTML = tableHtml;
