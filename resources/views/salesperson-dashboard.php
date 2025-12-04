@@ -341,9 +341,19 @@
                     'Authorization': 'Bearer ' + token
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch dashboard stats: ' + response.status);
+                }
+                return response.json();
+            })
             .then(response => {
                 // Handle response structure: {success: true, data: {...}}
+                if (!response.success) {
+                    console.error('API returned error:', response.error || response.message);
+                    return;
+                }
+                
                 const data = response.data || response;
                 
                 // Safely update elements with null checks

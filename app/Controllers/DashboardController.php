@@ -2687,6 +2687,7 @@ class DashboardController {
         // Initialize default values
         $todayStats = ['count' => 0, 'revenue' => 0];
         $weekStats = ['count' => 0, 'revenue' => 0];
+        $monthlySalesStats = ['count' => 0, 'revenue' => 0];
         $allTimeSalesStats = ['count' => 0, 'revenue' => 0];
         $swapStats = ['count' => 0, 'revenue' => 0];
         
@@ -2852,7 +2853,7 @@ class DashboardController {
                 $swapQuery->execute([$companyId, $userId]);
                 $swapStats = $swapQuery->fetch(\PDO::FETCH_ASSOC);
             }
-        }
+            }
         } catch (\Exception $e) {
             error_log("DashboardController::getSalespersonStats - Error: " . $e->getMessage());
             error_log("DashboardController::getSalespersonStats - Trace: " . $e->getTraceAsString());
