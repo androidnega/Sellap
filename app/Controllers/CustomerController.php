@@ -37,18 +37,18 @@ class CustomerController {
         }
         
         $currentPage = max(1, intval($_GET['page'] ?? 1));
-        $itemsPerPage = 10; // Ensure this is always 10, not 1
+        // Allow users to select items per page: 10, 30, 50, or 100 (default: 30)
+        $itemsPerPage = intval($_GET['per_page'] ?? 30);
+        $allowedPerPage = [10, 30, 50, 100];
+        if (!in_array($itemsPerPage, $allowedPerPage)) {
+            $itemsPerPage = 30; // Default to 30 if invalid value
+        }
         $search = trim($_GET['search'] ?? '');
         $dateFilter = $_GET['date_filter'] ?? null;
         
         // Ensure empty strings are treated as null for proper filtering
         if ($search === '') $search = null;
         if ($dateFilter === '') $dateFilter = null;
-        
-        // Verify itemsPerPage is correct (safety check)
-        if ($itemsPerPage < 1 || $itemsPerPage > 100) {
-            $itemsPerPage = 10;
-        }
         
         // Get customers with pagination, search and filters (FILTERED BY COMPANY)
         // Ensure companyId is always provided and is an integer
@@ -122,6 +122,10 @@ class CustomerController {
         }
         if (!empty($dateFilter)) {
             $queryParams[] = 'date_filter=' . urlencode($dateFilter);
+        }
+        // Include per_page in pagination URL
+        if ($itemsPerPage != 30) { // Only include if not default
+            $queryParams[] = 'per_page=' . $itemsPerPage;
         }
         $paginationUrl = $paginationBaseUrl . (!empty($queryParams) ? '?' . implode('&', $queryParams) . '&' : '?') . 'page=';
         

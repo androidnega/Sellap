@@ -36,6 +36,23 @@
                 </select>
             </div>
             
+            <!-- Items Per Page -->
+            <div class="md:w-40">
+                <label for="perPageSelect" class="block text-sm font-medium text-gray-700 mb-1">Per Page</label>
+                <select id="perPageSelect" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <?php 
+                    $currentPerPage = intval($_GET['per_page'] ?? 30);
+                    $perPageOptions = [10, 30, 50, 100];
+                    foreach ($perPageOptions as $option): 
+                    ?>
+                        <option value="<?= $option ?>" <?= $currentPerPage == $option ? 'selected' : '' ?>>
+                            <?= $option ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            
             <!-- New Customer Button - Only for salesperson and technician (repairer) -->
             <?php
             // Get user role from session
@@ -1241,6 +1258,7 @@ document.addEventListener('DOMContentLoaded', function() {
 (function(){
     const searchInput = document.getElementById('customerSearch');
     const dateFilter = document.getElementById('dateFilter');
+    const perPageSelect = document.getElementById('perPageSelect');
     const tbody = document.getElementById('customersTableBody');
     const info = document.getElementById('customerFilterInfo');
     const filteredCountEl = document.getElementById('customerFilteredCount');
@@ -1401,15 +1419,22 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!searchTerm && !dateValue) {
             // Reload page to get fresh data from server (ensures all customers are shown)
             const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
-            window.location.href = base + '/dashboard/customers?page=1';
+            const perPage = perPageSelect ? perPageSelect.value : '30';
+            const params = new URLSearchParams();
+            if (perPage !== '30') params.set('per_page', perPage);
+            params.set('page', '1');
+            window.location.href = `${base}/dashboard/customers?${params.toString()}`;
             return;
         }
         
         // If only date filter is set, reload page with filter
         if (!searchTerm && dateValue) {
             const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
-            const url = `${base}/dashboard/customers?date_filter=${encodeURIComponent(dateValue)}`;
-            window.location.href = url;
+            const perPage = perPageSelect ? perPageSelect.value : '30';
+            const params = new URLSearchParams();
+            params.set('date_filter', dateValue);
+            if (perPage !== '30') params.set('per_page', perPage);
+            window.location.href = `${base}/dashboard/customers?${params.toString()}`;
             return;
         }
         
@@ -1489,16 +1514,36 @@ document.addEventListener('DOMContentLoaded', function() {
             // If no search term, reload page with date filter
             const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
             const dateValue = dateFilter.value || '';
-            if (dateValue) {
-                window.location.href = `${base}/dashboard/customers?date_filter=${encodeURIComponent(dateValue)}`;
-            } else {
-                window.location.href = `${base}/dashboard/customers`;
-            }
+            const perPage = perPageSelect.value || '30';
+            const params = new URLSearchParams();
+            if (dateValue) params.set('date_filter', dateValue);
+            if (perPage !== '30') params.set('per_page', perPage);
+            const queryString = params.toString();
+            window.location.href = `${base}/dashboard/customers${queryString ? '?' + queryString : ''}`;
         } else {
             // If search term exists, apply filter to current results
             applyFilters();
         }
     });
+    
+    // Per page selector change listener
+    if (perPageSelect) {
+        perPageSelect.addEventListener('change', () => {
+            const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
+            const searchTerm = (searchInput.value || '').trim();
+            const dateValue = dateFilter.value || '';
+            const perPage = perPageSelect.value || '30';
+            
+            // Build URL with all current parameters
+            const params = new URLSearchParams();
+            if (searchTerm) params.set('search', searchTerm);
+            if (dateValue) params.set('date_filter', dateValue);
+            if (perPage !== '30') params.set('per_page', perPage);
+            params.set('page', '1'); // Reset to page 1 when changing per page
+            
+            window.location.href = `${base}/dashboard/customers?${params.toString()}`;
+        });
+    }
 })();
 
 // Duplicate filter removed - not needed since duplicates are prevented at creation

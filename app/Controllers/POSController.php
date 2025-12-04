@@ -2536,7 +2536,8 @@ class POSController {
             // Debug user data
             error_log("POSController apiCustomers: User data: " . json_encode($user));
             
-            $customers = $this->customer->findByCompany($companyId, 100);
+            // Load all customers without limit to ensure all customers are available for search
+            $customers = $this->customer->allByCompany($companyId);
             
             // Clean output buffer and send JSON response
             ob_clean();

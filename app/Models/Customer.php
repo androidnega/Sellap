@@ -418,8 +418,9 @@ class Customer {
 
     /**
      * Search customers by name or phone (Multi-tenant)
+     * Increased limit to 200,000 to ensure all matching customers are returned
      */
-    public function search($searchTerm, $companyId, $limit = 20) {
+    public function search($searchTerm, $companyId, $limit = 200000) {
         $sql = "SELECT id, full_name, phone_number, email, address 
                 FROM {$this->table} 
                 WHERE company_id = :company_id 
