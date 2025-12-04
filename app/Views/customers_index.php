@@ -1,27 +1,25 @@
 <div class="p-6">
-    <!-- Sticky Header Section - Not scrollable -->
-    <div class="sticky top-0 z-50 bg-white pb-4 mb-4" style="position: -webkit-sticky; position: sticky; top: 0; z-index: 50;">
-        <div class="mb-6">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h2 class="text-3xl font-bold text-gray-800">Customer Management</h2>
-                    <p class="text-gray-600">Manage all customers in the system</p>
-                </div>
-                <!-- Customer Stats -->
-                <div class="bg-blue-50 border border-blue-200 rounded-lg px-6 py-4">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-users text-blue-600 text-2xl"></i>
-                        <div>
-                            <div class="text-sm text-blue-600 font-medium">Total Customers</div>
-                            <div class="text-2xl font-bold text-blue-800"><?= number_format($totalItems) ?></div>
-                        </div>
+    <div class="mb-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 class="text-3xl font-bold text-gray-800">Customer Management</h2>
+                <p class="text-gray-600">Manage all customers in the system</p>
+            </div>
+            <!-- Customer Stats -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg px-6 py-4">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-users text-blue-600 text-2xl"></i>
+                    <div>
+                        <div class="text-sm text-blue-600 font-medium">Total Customers</div>
+                        <div class="text-2xl font-bold text-blue-800"><?= number_format($totalItems) ?></div>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <!-- Search and Filters -->
-        <div class="bg-white rounded-lg shadow p-4 border-b border-gray-200">
+    </div>
+    
+    <!-- Search and Filters -->
+    <div class="bg-white rounded-lg shadow p-4 mb-4">
         <div class="flex flex-col md:flex-row gap-4">
             <!-- Search Input -->
             <div class="flex-1">
@@ -91,11 +89,7 @@
         <div id="customerFilterInfo" class="text-xs text-gray-500 mt-2 hidden">
             Filtered: <span id="customerFilteredCount">0</span> of <span id="customerTotalCount">0</span> customers
         </div>
-        </div>
     </div>
-    
-    <!-- Scrollable Content Section -->
-    <div class="relative">
     <!-- Mobile Card View (hidden on larger screens) -->
     <div class="block sm:hidden space-y-3 mb-4">
         <?php if (!empty($customers)): ?>
@@ -253,7 +247,6 @@
     </div>
     
     <?= \App\Helpers\PaginationHelper::render($pagination) ?>
-    </div>
 </div>
 
 <!-- Customer Creation Modal -->
