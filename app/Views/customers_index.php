@@ -1,17 +1,17 @@
 <div class="p-6">
-    <div class="mb-6">
-        <div class="flex justify-between items-center">
+    <div class="mb-4 sm:mb-6">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-                <h2 class="text-3xl font-bold text-gray-800">Customer Management</h2>
-                <p class="text-gray-600">Manage all customers in the system</p>
+                <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">Customer Management</h2>
+                <p class="text-sm sm:text-base text-gray-600">Manage all customers in the system</p>
             </div>
             <!-- Customer Stats -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg px-6 py-4">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 sm:px-6 py-3 sm:py-4 w-full sm:w-auto">
                 <div class="flex items-center gap-2">
-                    <i class="fas fa-users text-blue-600 text-2xl"></i>
+                    <i class="fas fa-users text-blue-600 text-xl sm:text-2xl"></i>
                     <div>
-                        <div class="text-sm text-blue-600 font-medium">Total Customers</div>
-                        <div class="text-2xl font-bold text-blue-800"><?= number_format($totalItems) ?></div>
+                        <div class="text-xs sm:text-sm text-blue-600 font-medium">Total Customers</div>
+                        <div class="text-xl sm:text-2xl font-bold text-blue-800"><?= number_format($totalItems) ?></div>
                     </div>
                 </div>
             </div>
