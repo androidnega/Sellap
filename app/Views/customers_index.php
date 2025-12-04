@@ -18,8 +18,8 @@
         </div>
     </div>
     
-    <!-- Search and Filters -->
-    <div class="bg-white rounded-lg shadow p-4 mb-4">
+    <!-- Search and Filters - Sticky -->
+    <div class="bg-white rounded-lg shadow p-4 mb-4 sticky top-0 z-40 border-b border-gray-200 backdrop-blur-sm bg-opacity-95">
         <div class="flex flex-col md:flex-row gap-4">
             <!-- Search Input -->
             <div class="flex-1">
