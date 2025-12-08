@@ -147,8 +147,9 @@ class UserActivityLog {
             $params[] = $filters['date_to'];
         }
         
-        $limit = $filters['limit'] ?? 100;
-        $offset = $filters['offset'] ?? 0;
+        // LIMIT and OFFSET must be integers, not bound parameters
+        $limit = intval($filters['limit'] ?? 100);
+        $offset = intval($filters['offset'] ?? 0);
         
         $sql = "
             SELECT 
@@ -158,11 +159,8 @@ class UserActivityLog {
             LEFT JOIN companies c ON ual.company_id = c.id
             WHERE " . implode(' AND ', $where) . "
             ORDER BY ual.created_at DESC
-            LIMIT ? OFFSET ?
+            LIMIT {$limit} OFFSET {$offset}
         ";
-        
-        $params[] = $limit;
-        $params[] = $offset;
         
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
