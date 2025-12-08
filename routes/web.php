@@ -1039,6 +1039,14 @@ $router->get('dashboard/email-logs', function() {
 });
 
 // System Settings Page (System Admin only - restrict all other roles)
+// User Activity Logs (System Admin only)
+$router->get('dashboard/user-logs', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin']);
+    $GLOBALS['currentPage'] = 'user-logs';
+    $controller = new \App\Controllers\UserActivityLogController();
+    $controller->index();
+});
+
 $router->get('dashboard/system-settings', function() {
     try {
         \App\Middleware\WebAuthMiddleware::handle(['system_admin']);

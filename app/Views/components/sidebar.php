@@ -281,6 +281,7 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
         <?= sidebarLink(BASE_URL_PATH . '/dashboard/profile', 'fas fa-user', 'Profile', $currentPage, 'profile') ?>
         
         <?php if ($userRole === 'system_admin'): ?>
+            <?= sidebarLink(BASE_URL_PATH . '/dashboard/user-logs', 'fas fa-user-clock', 'User Activity Logs', $currentPage, 'user-logs') ?>
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/system-settings', 'fas fa-cog', 'System Settings', $currentPage, 'settings') ?>
         <?php endif; ?>
         <!-- Managers and Admins should NOT have access to settings - removed for security -->

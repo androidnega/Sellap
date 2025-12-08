@@ -62,6 +62,7 @@ class AuthController {
             
             // Set initial last activity time for session timeout tracking
             $_SESSION['last_activity'] = time();
+            $_SESSION['login_time'] = time(); // Store login time for session duration calculation
             
             // Set JWT token in cookie for web page authentication
             // Use same path as session cookie
@@ -90,6 +91,23 @@ class AuthController {
             } catch (\Exception $auditError) {
                 // Don't fail login if audit logging fails
                 error_log("Audit logging error (non-fatal): " . $auditError->getMessage());
+            }
+            
+            // Log user activity for login
+            try {
+                $activityLog = new \App\Models\UserActivityLog();
+                $activityLog->logLogin(
+                    $result['user']['id'],
+                    $result['user']['company_id'] ?? null,
+                    $result['user']['role'],
+                    $result['user']['username'],
+                    $result['user']['full_name'] ?? null,
+                    $_SERVER['REMOTE_ADDR'] ?? null,
+                    $_SERVER['HTTP_USER_AGENT'] ?? null
+                );
+            } catch (\Exception $activityError) {
+                // Don't fail login if activity logging fails
+                error_log("User activity logging error (non-fatal): " . $activityError->getMessage());
             }
             
             // Write session data before redirect
@@ -207,6 +225,7 @@ class AuthController {
             
             // Set initial last activity time for session timeout tracking
             $_SESSION['last_activity'] = time();
+            $_SESSION['login_time'] = time(); // Store login time for session duration calculation
             
             // Set JWT token in cookie for web page authentication
             // Cookie expires in 24 hours (same as JWT)
@@ -234,6 +253,23 @@ class AuthController {
             } catch (\Exception $auditError) {
                 // Don't fail login if audit logging fails
                 error_log("Audit logging error (non-fatal): " . $auditError->getMessage());
+            }
+            
+            // Log user activity for login
+            try {
+                $activityLog = new \App\Models\UserActivityLog();
+                $activityLog->logLogin(
+                    $result['user']['id'],
+                    $result['user']['company_id'] ?? null,
+                    $result['user']['role'],
+                    $result['user']['username'],
+                    $result['user']['full_name'] ?? null,
+                    $_SERVER['REMOTE_ADDR'] ?? null,
+                    $_SERVER['HTTP_USER_AGENT'] ?? null
+                );
+            } catch (\Exception $activityError) {
+                // Don't fail login if activity logging fails
+                error_log("User activity logging error (non-fatal): " . $activityError->getMessage());
             }
             
             $response = json_encode([
@@ -355,6 +391,20 @@ class AuthController {
         // Start session if not already started
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
+        }
+        
+        // Log user activity for logout before clearing session
+        try {
+            $userId = $_SESSION['user']['id'] ?? null;
+            $loginTime = $_SESSION['login_time'] ?? null;
+            
+            if ($userId) {
+                $activityLog = new \App\Models\UserActivityLog();
+                $activityLog->logLogout($userId, $loginTime);
+            }
+        } catch (\Exception $activityError) {
+            // Don't fail logout if activity logging fails
+            error_log("User activity logging error on logout (non-fatal): " . $activityError->getMessage());
         }
         
         // Clear all session data
