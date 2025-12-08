@@ -159,51 +159,30 @@ class StaffController {
             exit;
         }
 
+        // Capture plain password BEFORE hashing (trim to remove whitespace)
+        $plainPassword = trim($_POST['password'] ?? 'password123');
+        if (empty($plainPassword)) {
+            $plainPassword = 'password123';
+        }
+
         $data = [
             'full_name' => $fullName,
             'email' => $email,
             'username' => $username,
             'phone_number' => $_POST['phone_number'] ?? null,
             'role' => $role,
-            'password' => password_hash($_POST['password'] ?? 'password123', PASSWORD_BCRYPT),
+            'password' => password_hash($plainPassword, PASSWORD_BCRYPT),
             'company_id' => $companyId,
             'status' => $_POST['status'] ?? 'active'
         ];
 
         // Debug the data being created
         error_log("StaffController store: Creating staff with data: " . json_encode($data));
+        error_log("StaffController store: Plain password captured: " . $plainPassword);
 
         try {
             $staffId = $this->staff->create($data);
             error_log("StaffController store: Staff created successfully with ID: {$staffId}");
-            
-            // Send SMS notification to worker with account details
-            if (!empty($data['phone_number'])) {
-                try {
-                    $notificationService = new \App\Services\NotificationService();
-                    $plainPassword = $_POST['password'] ?? 'password123'; // Get plain password before hashing
-                    
-                    $accountData = [
-                        'phone_number' => $data['phone_number'],
-                        'username' => $data['username'],
-                        'password' => $plainPassword,
-                        'company_id' => $companyId
-                    ];
-                    
-                    $smsResult = $notificationService->sendWorkerAccountNotification($accountData);
-                    if ($smsResult['success']) {
-                        error_log("StaffController store: SMS sent successfully to worker {$data['phone_number']}");
-                    } else {
-                        error_log("StaffController store: SMS failed - " . ($smsResult['error'] ?? 'Unknown error'));
-                        // Don't fail account creation if SMS fails
-                    }
-                } catch (\Exception $smsException) {
-                    error_log("StaffController store: Error sending SMS notification: " . $smsException->getMessage());
-                    // Don't fail account creation if SMS fails
-                }
-            } else {
-                error_log("StaffController store: No phone number provided, skipping SMS notification");
-            }
             
             // Get company name for the success message
             $companyName = 'Unknown Company';
@@ -219,7 +198,49 @@ class StaffController {
                 error_log("StaffController store: Error fetching company name: " . $e->getMessage());
             }
             
-            $_SESSION['success_message'] = "Staff member '{$fullName}' has been created successfully and assigned to {$companyName}.";
+            // Send SMS notification to worker with account details
+            $smsSent = false;
+            if (!empty($data['phone_number'])) {
+                try {
+                    $notificationService = new \App\Services\NotificationService();
+                    
+                    $accountData = [
+                        'phone_number' => $data['phone_number'],
+                        'username' => $data['username'],
+                        'password' => $plainPassword,
+                        'company_id' => $companyId
+                    ];
+                    
+                    $smsResult = $notificationService->sendWorkerAccountNotification($accountData);
+                    if ($smsResult['success']) {
+                        $smsSent = true;
+                        error_log("StaffController store: SMS sent successfully to worker {$data['phone_number']} with password: {$plainPassword}");
+                    } else {
+                        error_log("StaffController store: SMS failed - " . ($smsResult['error'] ?? 'Unknown error'));
+                        // Don't fail account creation if SMS fails
+                    }
+                } catch (\Exception $smsException) {
+                    error_log("StaffController store: Error sending SMS notification: " . $smsException->getMessage());
+                    // Don't fail account creation if SMS fails
+                }
+            } else {
+                error_log("StaffController store: No phone number provided, skipping SMS notification");
+            }
+            
+            // Build success message with password included
+            $successMessage = "Staff member '{$fullName}' has been created successfully and assigned to {$companyName}.";
+            if ($smsSent) {
+                $successMessage .= " Account details (Username: {$username}, Password: {$plainPassword}) have been sent via SMS to {$data['phone_number']}.";
+            } else {
+                $successMessage .= " Account details - Username: {$username}, Password: {$plainPassword}.";
+                if (empty($data['phone_number'])) {
+                    $successMessage .= " (No phone number provided, SMS not sent)";
+                } else {
+                    $successMessage .= " (SMS delivery failed, please share credentials manually)";
+                }
+            }
+            
+            $_SESSION['success_message'] = $successMessage;
             header('Location: ' . BASE_URL_PATH . '/dashboard/staff');
             exit;
         } catch (\Exception $e) {

@@ -28,9 +28,9 @@ class AuthController {
             session_start();
         }
         
-        // Get form data
-        $username = $_POST['username'] ?? '';
-        $password = $_POST['password'] ?? '';
+        // Get form data and trim to remove whitespace
+        $username = trim($_POST['username'] ?? '');
+        $password = trim($_POST['password'] ?? '');
         $redirectUrl = $_GET['redirect'] ?? '/dashboard';
         
         // Validate inputs
@@ -182,7 +182,11 @@ class AuthController {
                 throw new \Exception('Authentication service not available');
             }
             
-            $result = $this->auth->login($data['username'], $data['password']);
+            // Trim username and password to remove whitespace
+            $username = trim($data['username']);
+            $password = trim($data['password']);
+            
+            $result = $this->auth->login($username, $password);
             
             // Start session if not already started
             if (session_status() === PHP_SESSION_NONE) {
