@@ -135,20 +135,71 @@
                                     <?php echo htmlspecialchars($log['company_name'] ?? 'N/A'); ?>
                                 </td>
                                 <td class="p-3">
+                                    <?php 
+                                    $isActiveSession = ($log['event_type'] === 'login' && empty($log['logout_time']));
+                                    ?>
                                     <span class="px-2 py-1 rounded text-xs font-medium
-                                        <?php echo $log['event_type'] === 'login' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'; ?>">
-                                        <?php echo ucfirst($log['event_type']); ?>
+                                        <?php 
+                                        if ($isActiveSession) {
+                                            echo 'bg-blue-100 text-blue-700';
+                                        } elseif ($log['event_type'] === 'login') {
+                                            echo 'bg-green-100 text-green-700';
+                                        } else {
+                                            echo 'bg-orange-100 text-orange-700';
+                                        }
+                                        ?>">
+                                        <?php 
+                                        if ($isActiveSession) {
+                                            echo 'Active Session';
+                                        } else {
+                                            echo ucfirst($log['event_type']);
+                                        }
+                                        ?>
                                     </span>
                                 </td>
                                 <td class="p-3 text-gray-600 text-xs">
-                                    <?php echo $log['login_time'] ? date('M d, Y H:i:s', strtotime($log['login_time'])) : 'N/A'; ?>
+                                    <?php 
+                                    if ($log['login_time']) {
+                                        echo date('M d, Y H:i:s', strtotime($log['login_time']));
+                                    } elseif ($log['event_type'] === 'login' && $log['created_at']) {
+                                        // Fallback to created_at if login_time is not set
+                                        echo date('M d, Y H:i:s', strtotime($log['created_at']));
+                                    } else {
+                                        echo 'N/A';
+                                    }
+                                    ?>
                                 </td>
                                 <td class="p-3 text-gray-600 text-xs">
-                                    <?php echo $log['logout_time'] ? date('M d, Y H:i:s', strtotime($log['logout_time'])) : 'N/A'; ?>
+                                    <?php 
+                                    if ($log['logout_time']) {
+                                        echo date('M d, Y H:i:s', strtotime($log['logout_time']));
+                                    } elseif ($isActiveSession) {
+                                        echo '<span class="text-blue-600 font-medium">Active</span>';
+                                    } else {
+                                        echo 'N/A';
+                                    }
+                                    ?>
                                 </td>
                                 <td class="p-3 text-gray-600">
                                     <?php 
-                                    if ($log['session_duration_seconds'] > 0) {
+                                    if ($isActiveSession && $log['login_time']) {
+                                        // Calculate current session duration for active sessions
+                                        $loginTime = strtotime($log['login_time']);
+                                        $currentTime = time();
+                                        $sessionDuration = max(0, $currentTime - $loginTime);
+                                        
+                                        $hours = floor($sessionDuration / 3600);
+                                        $minutes = floor(($sessionDuration % 3600) / 60);
+                                        $seconds = $sessionDuration % 60;
+                                        
+                                        if ($hours > 0) {
+                                            echo '<span class="text-blue-600 font-medium">' . $hours . 'h ' . $minutes . 'm</span>';
+                                        } elseif ($minutes > 0) {
+                                            echo '<span class="text-blue-600 font-medium">' . $minutes . 'm ' . $seconds . 's</span>';
+                                        } else {
+                                            echo '<span class="text-blue-600 font-medium">' . $seconds . 's</span>';
+                                        }
+                                    } elseif ($log['session_duration_seconds'] > 0) {
                                         $hours = floor($log['session_duration_seconds'] / 3600);
                                         $minutes = floor(($log['session_duration_seconds'] % 3600) / 60);
                                         $seconds = $log['session_duration_seconds'] % 60;
