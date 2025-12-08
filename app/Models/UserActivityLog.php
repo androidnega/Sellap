@@ -280,6 +280,55 @@ class UserActivityLog {
     }
 
     /**
+     * Get total count of activity logs matching filters
+     */
+    public function getCount($filters = []) {
+        $where = ["1=1"];
+        $params = [];
+        
+        if (!empty($filters['user_id'])) {
+            $where[] = "ual.user_id = ?";
+            $params[] = $filters['user_id'];
+        }
+        
+        if (!empty($filters['company_id'])) {
+            $where[] = "ual.company_id = ?";
+            $params[] = $filters['company_id'];
+        }
+        
+        if (!empty($filters['user_role'])) {
+            $where[] = "ual.user_role = ?";
+            $params[] = $filters['user_role'];
+        }
+        
+        if (!empty($filters['event_type'])) {
+            $where[] = "ual.event_type = ?";
+            $params[] = $filters['event_type'];
+        }
+        
+        if (!empty($filters['date_from'])) {
+            $where[] = "DATE(ual.created_at) >= ?";
+            $params[] = $filters['date_from'];
+        }
+        
+        if (!empty($filters['date_to'])) {
+            $where[] = "DATE(ual.created_at) <= ?";
+            $params[] = $filters['date_to'];
+        }
+        
+        $sql = "
+            SELECT COUNT(*) as total
+            FROM user_activity_logs ual
+            WHERE " . implode(' AND ', $where) . "
+        ";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return (int)($result['total'] ?? 0);
+    }
+
+    /**
      * Get activity statistics
      */
     public function getStatistics($filters = []) {

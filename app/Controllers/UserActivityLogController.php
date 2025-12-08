@@ -23,6 +23,11 @@ class UserActivityLogController {
         // Only system admin can access
         WebAuthMiddleware::handle(['system_admin']);
         
+        // Get pagination parameters
+        $page = max(1, intval($_GET['page'] ?? 1));
+        $limit = max(10, min(100, intval($_GET['limit'] ?? 50))); // Default 50 per page, max 100
+        $offset = ($page - 1) * $limit;
+        
         // Get filters from query parameters
         $filters = [
             'user_id' => $_GET['user_id'] ?? null,
@@ -30,21 +35,39 @@ class UserActivityLogController {
             'user_role' => $_GET['user_role'] ?? null,
             'event_type' => $_GET['event_type'] ?? null,
             'date_from' => $_GET['date_from'] ?? date('Y-m-d', strtotime('-30 days')),
-            'date_to' => $_GET['date_to'] ?? date('Y-m-d'),
-            'limit' => intval($_GET['limit'] ?? 100),
-            'offset' => intval($_GET['offset'] ?? 0)
+            'date_to' => $_GET['date_to'] ?? date('Y-m-d')
         ];
         
-        // Remove null filters
+        // Remove null filters (but keep empty strings for date filters)
         $filters = array_filter($filters, function($value) {
-            return $value !== null && $value !== '';
+            return $value !== null;
         });
+        
+        // Add pagination to filters
+        $filters['limit'] = $limit;
+        $filters['offset'] = $offset;
+        
+        // Get total count for pagination
+        $totalLogs = $this->activityLog->getCount($filters);
+        $totalPages = ceil($totalLogs / $limit);
         
         // Get activity logs
         $logs = $this->activityLog->getAll($filters);
         
-        // Get statistics
-        $stats = $this->activityLog->getStatistics($filters);
+        // Get statistics (without pagination)
+        $statsFilters = $filters;
+        unset($statsFilters['limit'], $statsFilters['offset']);
+        $stats = $this->activityLog->getStatistics($statsFilters);
+        
+        // Pagination data
+        $pagination = [
+            'page' => $page,
+            'limit' => $limit,
+            'total' => $totalLogs,
+            'total_pages' => $totalPages,
+            'has_previous' => $page > 1,
+            'has_next' => $page < $totalPages
+        ];
         
         // Get all companies for filter dropdown
         $db = \Database::getInstance()->getConnection();

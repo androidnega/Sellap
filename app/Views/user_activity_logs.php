@@ -239,5 +239,135 @@
             </table>
         </div>
     </div>
+
+    <!-- Pagination -->
+    <?php if ($pagination['total_pages'] > 1): ?>
+        <div class="mt-6 bg-white rounded-lg shadow p-4">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="text-sm text-gray-700">
+                    Showing <span class="font-medium"><?= (($pagination['page'] - 1) * $pagination['limit']) + 1 ?></span> to 
+                    <span class="font-medium"><?= min($pagination['page'] * $pagination['limit'], $pagination['total']) ?></span> of 
+                    <span class="font-medium"><?= number_format($pagination['total']) ?></span> results
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <!-- Items per page selector -->
+                    <label class="text-sm text-gray-600">Per page:</label>
+                    <select onchange="changeLimit(this.value)" class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500">
+                        <option value="25" <?= $pagination['limit'] == 25 ? 'selected' : '' ?>>25</option>
+                        <option value="50" <?= $pagination['limit'] == 50 ? 'selected' : '' ?>>50</option>
+                        <option value="100" <?= $pagination['limit'] == 100 ? 'selected' : '' ?>>100</option>
+                    </select>
+                    
+                    <!-- Previous Button -->
+                    <?php if ($pagination['has_previous']): ?>
+                        <?php
+                        $prevParams = $_GET;
+                        $prevParams['page'] = $pagination['page'] - 1;
+                        $prevUrl = BASE_URL_PATH . '/dashboard/user-logs?' . http_build_query($prevParams);
+                        ?>
+                        <a href="<?= htmlspecialchars($prevUrl) ?>" 
+                           class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                    <?php else: ?>
+                        <span class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-400 bg-gray-50 cursor-not-allowed">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </span>
+                    <?php endif; ?>
+                    
+                    <!-- Page Numbers -->
+                    <div class="flex items-center gap-1">
+                        <?php
+                        $maxPagesToShow = 5;
+                        $startPage = max(1, $pagination['page'] - floor($maxPagesToShow / 2));
+                        $endPage = min($pagination['total_pages'], $startPage + $maxPagesToShow - 1);
+                        $startPage = max(1, $endPage - $maxPagesToShow + 1);
+                        
+                        // First page
+                        if ($startPage > 1): 
+                            $firstParams = $_GET;
+                            $firstParams['page'] = 1;
+                            $firstUrl = BASE_URL_PATH . '/dashboard/user-logs?' . http_build_query($firstParams);
+                        ?>
+                            <a href="<?= htmlspecialchars($firstUrl) ?>" 
+                               class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                1
+                            </a>
+                            <?php if ($startPage > 2): ?>
+                                <span class="px-2 text-gray-500">...</span>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                        
+                        <!-- Page range -->
+                        <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
+                            <?php
+                            $pageParams = $_GET;
+                            $pageParams['page'] = $i;
+                            $pageUrl = BASE_URL_PATH . '/dashboard/user-logs?' . http_build_query($pageParams);
+                            ?>
+                            <?php if ($i == $pagination['page']): ?>
+                                <span class="px-3 py-2 border border-blue-500 rounded-md text-sm font-medium text-blue-700 bg-blue-50">
+                                    <?= $i ?>
+                                </span>
+                            <?php else: ?>
+                                <a href="<?= htmlspecialchars($pageUrl) ?>" 
+                                   class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                    <?= $i ?>
+                                </a>
+                            <?php endif; ?>
+                        <?php endfor; ?>
+                        
+                        <!-- Last page -->
+                        <?php if ($endPage < $pagination['total_pages']): 
+                            $lastParams = $_GET;
+                            $lastParams['page'] = $pagination['total_pages'];
+                            $lastUrl = BASE_URL_PATH . '/dashboard/user-logs?' . http_build_query($lastParams);
+                        ?>
+                            <?php if ($endPage < $pagination['total_pages'] - 1): ?>
+                                <span class="px-2 text-gray-500">...</span>
+                            <?php endif; ?>
+                            <a href="<?= htmlspecialchars($lastUrl) ?>" 
+                               class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                <?= $pagination['total_pages'] ?>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <!-- Next Button -->
+                    <?php if ($pagination['has_next']): ?>
+                        <?php
+                        $nextParams = $_GET;
+                        $nextParams['page'] = $pagination['page'] + 1;
+                        $nextUrl = BASE_URL_PATH . '/dashboard/user-logs?' . http_build_query($nextParams);
+                        ?>
+                        <a href="<?= htmlspecialchars($nextUrl) ?>" 
+                           class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                    <?php else: ?>
+                        <span class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-400 bg-gray-50 cursor-not-allowed">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </span>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    <?php elseif ($pagination['total'] > 0): ?>
+        <div class="mt-6 bg-white rounded-lg shadow p-4">
+            <div class="text-sm text-gray-700">
+                Showing all <span class="font-medium"><?= number_format($pagination['total']) ?></span> results
+            </div>
+        </div>
+    <?php endif; ?>
 </div>
+
+<script>
+function changeLimit(limit) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('limit', limit);
+    url.searchParams.set('page', '1'); // Reset to first page when changing limit
+    window.location.href = url.toString();
+}
+</script>
 
