@@ -592,7 +592,7 @@ class CompanyWebController {
 
                 if ($smsResult['success'] && !($smsResult['simulated'] ?? false)) {
                     $phoneSource = !empty($manager['phone_number']) ? 'manager phone' : 'company phone';
-                    $_SESSION['success_message'] = "Password reset successfully! The new password has been sent to {$phoneNumberToUse} via SMS.";
+                    $_SESSION['success_message'] = "Password reset successfully! The new password has been sent to {$phoneNumberToUse} via SMS. Password: {$newPassword}";
                     error_log("CompanyWebController: Password reset SMS sent successfully to {$phoneNumberToUse} ({$phoneSource}) for company {$companyId}");
                 } else {
                     // Password was reset but SMS failed - show detailed error
@@ -629,15 +629,14 @@ class CompanyWebController {
                 }
             } catch (\Exception $smsException) {
                 // Password was reset but SMS failed - still show success but log error
-                $_SESSION['success_message'] = "Password reset successfully, but SMS delivery failed. Please contact the manager manually.";
+                $_SESSION['success_message'] = "Password reset successfully, but SMS delivery failed. Please contact the manager manually. Password: {$newPassword}";
                 $_SESSION['warning_message'] = "SMS Error: " . $smsException->getMessage();
                 error_log("CompanyWebController: Password reset succeeded but SMS exception for company {$companyId}: " . $smsException->getMessage());
             }
         } else {
             // No phone number - password reset but can't send SMS
-            // Do NOT show password to admin - they must contact manager directly
-            $_SESSION['success_message'] = "Password reset successfully, but manager phone number not found. Please contact the manager directly to share the new password securely.";
-            error_log("CompanyWebController: Password reset succeeded but no phone number for manager of company {$companyId}. Password: {$newPassword} (logged for admin reference only)");
+            $_SESSION['success_message'] = "Password reset successfully, but manager phone number not found. Please contact the manager directly to share the new password securely. Password: {$newPassword}";
+            error_log("CompanyWebController: Password reset succeeded but no phone number for manager of company {$companyId}. Password: {$newPassword}");
         }
 
         // Redirect back to companies list

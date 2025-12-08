@@ -453,7 +453,7 @@ class StaffController {
                         $smsResult = $smsService->sendAdministrativeSMS($phoneNumberToUse, $message);
                         
                         if ($smsResult['success'] && !($smsResult['simulated'] ?? false)) {
-                            $_SESSION['success_message'] = "Password reset successfully for {$staffMember['full_name']}. The new password has been sent to {$phoneNumberToUse} via SMS.";
+                            $_SESSION['success_message'] = "Password reset successfully for {$staffMember['full_name']}. The new password has been sent to {$phoneNumberToUse} via SMS. Password: {$newPassword}";
                             error_log("StaffController: Password reset SMS sent successfully to {$phoneNumberToUse} for staff member {$id} (company {$companyId})");
                         } else {
                             // Password was reset but SMS failed
