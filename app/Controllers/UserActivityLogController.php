@@ -29,11 +29,12 @@ class UserActivityLogController {
         $offset = ($page - 1) * $limit;
         
         // Get filters from query parameters
+        // Note: We only show login records (logout is indicated by logout_time being set)
         $filters = [
             'user_id' => $_GET['user_id'] ?? null,
             'company_id' => $_GET['company_id'] ?? null,
             'user_role' => $_GET['user_role'] ?? null,
-            'event_type' => $_GET['event_type'] ?? null,
+            'status' => $_GET['status'] ?? null, // 'active' or 'completed'
             'date_from' => $_GET['date_from'] ?? date('Y-m-d', strtotime('-30 days')),
             'date_to' => $_GET['date_to'] ?? date('Y-m-d')
         ];

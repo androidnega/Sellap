@@ -112,12 +112,12 @@ class UserActivityLog {
     public function logLogout($userId, $sessionStartTime = null) {
         try {
             // Get the most recent login for this user that doesn't have a logout yet
-            // Check both event_type = 'login' OR (event_type = 'logout' but logout_time is NULL - shouldn't happen but handle it)
+            // Only get records with event_type = 'login' and no logout_time
             $loginStmt = $this->db->prepare("
                 SELECT id, login_time, created_at, event_type
                 FROM user_activity_logs
                 WHERE user_id = ? 
-                AND (event_type = 'login' OR event_type = 'logout')
+                AND event_type = 'login'
                 AND (logout_time IS NULL OR logout_time = '')
                 ORDER BY login_time DESC, created_at DESC
                 LIMIT 1
@@ -136,6 +136,7 @@ class UserActivityLog {
                 
                 // Update the login record with logout information
                 // Keep event_type as 'login' but add logout_time and duration
+                // The view will show it as red/logout based on logout_time being set
                 $stmt = $this->db->prepare("
                     UPDATE user_activity_logs
                     SET logout_time = NOW(),
@@ -149,39 +150,6 @@ class UserActivityLog {
                     error_log("UserActivityLog::logLogout - Updated login record {$loginRecord['id']} with logout time. Duration: {$sessionDuration}s");
                 } else {
                     error_log("UserActivityLog::logLogout - Failed to update login record {$loginRecord['id']}. Rows affected: " . $stmt->rowCount());
-                }
-                
-                // Also create a separate logout event record for tracking
-                $userStmt = $this->db->prepare("
-                    SELECT company_id, role, username, full_name
-                    FROM users
-                    WHERE id = ?
-                ");
-                $userStmt->execute([$userId]);
-                $user = $userStmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($user) {
-                    try {
-                        $logoutStmt = $this->db->prepare("
-                            INSERT INTO user_activity_logs 
-                            (user_id, company_id, user_role, username, full_name, event_type, login_time, logout_time, session_duration_seconds, ip_address)
-                            VALUES (?, ?, ?, ?, ?, 'logout', ?, NOW(), ?, ?)
-                        ");
-                        $logoutStmt->execute([
-                            $userId,
-                            $user['company_id'],
-                            $user['role'],
-                            $user['username'],
-                            $user['full_name'],
-                            $loginRecord['login_time'] ?? date('Y-m-d H:i:s', $loginTime),
-                            $sessionDuration,
-                            $_SERVER['REMOTE_ADDR'] ?? null
-                        ]);
-                        error_log("UserActivityLog::logLogout - Created separate logout event record for user {$userId}");
-                    } catch (\Exception $e) {
-                        // Don't fail if we can't create the separate logout record
-                        error_log("UserActivityLog::logLogout - Could not create separate logout record: " . $e->getMessage());
-                    }
                 }
                 
                 return $result;
@@ -244,10 +212,18 @@ class UserActivityLog {
             $params[] = $filters['user_role'];
         }
         
-        if (!empty($filters['event_type'])) {
-            $where[] = "ual.event_type = ?";
-            $params[] = $filters['event_type'];
+        // Filter by status (active/completed) instead of event_type
+        if (!empty($filters['status'])) {
+            if ($filters['status'] === 'active') {
+                $where[] = "(ual.logout_time IS NULL OR ual.logout_time = '')";
+            } elseif ($filters['status'] === 'completed') {
+                $where[] = "ual.logout_time IS NOT NULL AND ual.logout_time != ''";
+            }
         }
+        
+        // Only show login records (logout records are just updated login records)
+        // This prevents showing duplicates - we only display login records
+        $where[] = "ual.event_type = 'login'";
         
         if (!empty($filters['date_from'])) {
             $where[] = "DATE(ual.created_at) >= ?";
@@ -262,6 +238,10 @@ class UserActivityLog {
         // LIMIT and OFFSET must be integers, not bound parameters
         $limit = intval($filters['limit'] ?? 100);
         $offset = intval($filters['offset'] ?? 0);
+        
+        // Only show login records (logout records are just updated login records)
+        // This prevents showing duplicates - we only display login records
+        $where[] = "ual.event_type = 'login'";
         
         $sql = "
             SELECT 
@@ -316,6 +296,13 @@ class UserActivityLog {
             $params[] = $filters['date_to'];
         }
         
+        // Only count login records (logout records are just updated login records)
+        // Remove event_type filter if it exists, then add login-only filter
+        $where = array_filter($where, function($w) {
+            return strpos($w, 'event_type') === false;
+        });
+        $where[] = "ual.event_type = 'login'";
+        
         $sql = "
             SELECT COUNT(*) as total
             FROM user_activity_logs ual
@@ -350,12 +337,15 @@ class UserActivityLog {
             $params[] = $filters['date_to'];
         }
         
+        // Only count login records (logout records are just updated login records)
+        $where[] = "ual.event_type = 'login'";
+        
         $sql = "
             SELECT 
                 COUNT(*) as total_logs,
                 COUNT(DISTINCT ual.user_id) as unique_users,
-                SUM(CASE WHEN ual.event_type = 'login' THEN 1 ELSE 0 END) as total_logins,
-                SUM(CASE WHEN ual.event_type = 'logout' THEN 1 ELSE 0 END) as total_logouts,
+                COUNT(*) as total_logins,
+                SUM(CASE WHEN ual.logout_time IS NOT NULL AND ual.logout_time != '' THEN 1 ELSE 0 END) as total_logouts,
                 AVG(ual.session_duration_seconds) as avg_session_duration,
                 SUM(ual.session_duration_seconds) as total_session_time
             FROM user_activity_logs ual

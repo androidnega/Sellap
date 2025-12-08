@@ -52,11 +52,11 @@
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
-                <select name="event_type" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
-                    <option value="">All Events</option>
-                    <option value="login" <?php echo (($_GET['event_type'] ?? '') === 'login') ? 'selected' : ''; ?>>Login</option>
-                    <option value="logout" <?php echo (($_GET['event_type'] ?? '') === 'logout') ? 'selected' : ''; ?>>Logout</option>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select name="status" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                    <option value="">All Sessions</option>
+                    <option value="active" <?php echo (($_GET['status'] ?? '') === 'active') ? 'selected' : ''; ?>>Active Sessions</option>
+                    <option value="completed" <?php echo (($_GET['status'] ?? '') === 'completed') ? 'selected' : ''; ?>>Completed Sessions</option>
                 </select>
             </div>
             <div>
@@ -136,21 +136,29 @@
                                 </td>
                                 <td class="p-3">
                                     <?php 
+                                    // Determine if this is an active session (login without logout_time)
                                     $isActiveSession = ($log['event_type'] === 'login' && empty($log['logout_time']));
+                                    // Determine if this is a completed session (has logout_time)
+                                    $isCompletedSession = !empty($log['logout_time']);
                                     ?>
                                     <span class="px-2 py-1 rounded text-xs font-medium
                                         <?php 
                                         if ($isActiveSession) {
-                                            echo 'bg-blue-100 text-blue-700';
-                                        } elseif ($log['event_type'] === 'login') {
+                                            // Active session - green badge
                                             echo 'bg-green-100 text-green-700';
+                                        } elseif ($isCompletedSession) {
+                                            // Completed session - red badge
+                                            echo 'bg-red-100 text-red-700';
                                         } else {
-                                            echo 'bg-orange-100 text-orange-700';
+                                            // Fallback
+                                            echo 'bg-gray-100 text-gray-700';
                                         }
                                         ?>">
                                         <?php 
                                         if ($isActiveSession) {
-                                            echo 'Active Session';
+                                            echo '<i class="fas fa-sign-in-alt mr-1"></i> Login';
+                                        } elseif ($isCompletedSession) {
+                                            echo '<i class="fas fa-sign-out-alt mr-1"></i> Logout';
                                         } else {
                                             echo ucfirst($log['event_type']);
                                         }
