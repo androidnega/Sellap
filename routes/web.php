@@ -1113,6 +1113,14 @@ $router->get('dashboard/staff', function() {
     $controller->index();
 });
 
+// Staff View/Profile
+$router->get('dashboard/staff/view/{id}', function($id) {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+    $GLOBALS['currentPage'] = 'staff';
+    $controller = new \App\Controllers\StaffController();
+    $controller->show($id);
+});
+
 // Staff Create Form
 $router->get('dashboard/staff/create', function() {
     \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);

@@ -54,6 +54,8 @@
                     <th class="p-3 text-left">Email</th>
                     <th class="p-3 text-left">Phone</th>
                     <th class="p-3 text-left">Role</th>
+                    <th class="p-3 text-left">Total Sales</th>
+                    <th class="p-3 text-left">Avg. Sale</th>
                     <th class="p-3 text-left">Status</th>
                     <th class="p-3 text-left">Created</th>
                     <th class="p-3 text-right">Actions</th>
@@ -81,6 +83,13 @@
                                     <?php echo ucfirst($s['role']); ?>
                                 </span>
                             </td>
+                            <td class="p-3 text-gray-900">
+                                <div class="font-medium">₵<?php echo number_format($s['total_revenue'] ?? 0, 2); ?></div>
+                                <div class="text-xs text-gray-500"><?php echo $s['sales_count'] ?? 0; ?> sales</div>
+                            </td>
+                            <td class="p-3 text-gray-900">
+                                ₵<?php echo number_format($s['average_sale'] ?? 0, 2); ?>
+                            </td>
                             <td class="p-3">
                                 <span class="px-2 py-1 rounded text-xs font-medium
                                     <?php echo $s['status'] == 1 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'; ?>">
@@ -91,6 +100,13 @@
                                 <?php echo date('M d, Y', strtotime($s['created_at'])); ?>
                             </td>
                             <td class="p-3 text-right space-x-2">
+                                <a 
+                                    href="<?php echo BASE_URL_PATH; ?>/dashboard/staff/view/<?php echo $s['id']; ?>" 
+                                    class="text-green-600 hover:text-green-800 font-medium"
+                                    title="View Profile"
+                                >
+                                    View
+                                </a>
                                 <a 
                                     href="<?php echo BASE_URL_PATH; ?>/dashboard/staff/edit/<?php echo $s['id']; ?>" 
                                     class="text-blue-600 hover:text-blue-800 font-medium"
@@ -117,7 +133,7 @@
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="7" class="p-8 text-center text-gray-500">
+                        <td colspan="9" class="p-8 text-center text-gray-500">
                             <svg class="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                             </svg>

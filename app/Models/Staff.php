@@ -295,5 +295,76 @@ class Staff {
         $stmt->execute($params);
         return $stmt->fetch() !== false;
     }
+
+    /**
+     * Get sales statistics for a staff member
+     * @param int $userId Staff member user ID
+     * @param int $companyId Company ID
+     * @return array Sales statistics (total_sales, total_revenue, average_sale, sales_count)
+     */
+    public function getSalesStatistics($userId, $companyId) {
+        // Exclude repair-related sales and swap transactions
+        $excludeRepairSales = " AND (ps.notes IS NULL OR (ps.notes NOT LIKE '%Repair #%' AND ps.notes NOT LIKE '%Products sold by repairer%'))";
+        $excludeSwapSales = " AND ps.swap_id IS NULL";
+        
+        $stmt = $this->db->prepare("
+            SELECT 
+                COUNT(DISTINCT ps.id) as sales_count,
+                COALESCE(SUM(ps.final_amount), 0) as total_revenue,
+                COALESCE(AVG(ps.final_amount), 0) as average_sale
+            FROM pos_sales ps
+            WHERE ps.company_id = ? 
+            AND ps.created_by_user_id = ?
+            {$excludeRepairSales}
+            {$excludeSwapSales}
+        ");
+        $stmt->execute([$companyId, $userId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return [
+            'sales_count' => (int)($result['sales_count'] ?? 0),
+            'total_revenue' => (float)($result['total_revenue'] ?? 0),
+            'average_sale' => (float)($result['average_sale'] ?? 0)
+        ];
+    }
+
+    /**
+     * Get all staff with sales statistics
+     * @param int $companyId Company ID
+     * @return array Staff members with sales statistics
+     */
+    public function allByCompanyWithSales($company_id) {
+        // Exclude repair-related sales and swap transactions
+        $excludeRepairSales = " AND (ps.notes IS NULL OR (ps.notes NOT LIKE '%Repair #%' AND ps.notes NOT LIKE '%Products sold by repairer%'))";
+        $excludeSwapSales = " AND ps.swap_id IS NULL";
+        
+        $stmt = $this->db->prepare("
+            SELECT 
+                u.id,
+                u.unique_id,
+                u.username,
+                u.email,
+                u.phone_number,
+                u.full_name,
+                u.role,
+                u.is_active as status,
+                u.created_at,
+                u.updated_at,
+                COUNT(DISTINCT ps.id) as sales_count,
+                COALESCE(SUM(ps.final_amount), 0) as total_revenue,
+                COALESCE(AVG(ps.final_amount), 0) as average_sale
+            FROM users u
+            LEFT JOIN pos_sales ps ON ps.created_by_user_id = u.id 
+                AND ps.company_id = u.company_id
+                {$excludeRepairSales}
+                {$excludeSwapSales}
+            WHERE u.company_id = ? 
+            AND u.role IN ('salesperson', 'technician')
+            GROUP BY u.id, u.unique_id, u.username, u.email, u.phone_number, u.full_name, u.role, u.is_active, u.created_at, u.updated_at
+            ORDER BY total_revenue DESC, u.created_at DESC
+        ");
+        $stmt->execute([$company_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
 

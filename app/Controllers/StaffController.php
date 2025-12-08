@@ -41,8 +41,8 @@ class StaffController {
         $title = 'Staff Management';
         $page = 'staff';
 
-        // Get all staff for this company (MANDATORY company isolation)
-        $staffList = $this->staff->allByCompany($companyId);
+        // Get all staff for this company with sales statistics (MANDATORY company isolation)
+        $staffList = $this->staff->allByCompanyWithSales($companyId);
 
         // Pass to view
         $staff = $staffList; // For compatibility with view
@@ -249,6 +249,61 @@ class StaffController {
             header('Location: ' . BASE_URL_PATH . '/dashboard/staff/create');
             exit;
         }
+    }
+
+    /**
+     * Show staff member profile/view
+     */
+    public function show($id) {
+        // Handle web authentication
+        try {
+            WebAuthMiddleware::handle(['system_admin', 'admin', 'manager']);
+        } catch (\Exception $e) {
+            error_log("StaffController show: Authentication failed: " . $e->getMessage());
+        }
+        
+        // Get company_id from session (MANDATORY for multi-tenant isolation)
+        $companyId = $_SESSION['user']['company_id'] ?? null;
+        if (!$companyId) {
+            $_SESSION['error_message'] = 'Access denied: Company ID not found';
+            header('Location: ' . BASE_URL_PATH . '/dashboard/staff');
+            exit;
+        }
+        
+        // Find staff member (company-scoped - MANDATORY for isolation)
+        $staff = $this->staff->find($id, $companyId);
+        
+        if (!$staff) {
+            http_response_code(404);
+            $_SESSION['error_message'] = 'Staff member not found or access denied';
+            header('Location: ' . BASE_URL_PATH . '/dashboard/staff');
+            exit;
+        }
+
+        // Get sales statistics
+        $salesStats = $this->staff->getSalesStatistics($id, $companyId);
+        
+        $title = 'Staff Profile - ' . $staff['full_name'];
+        $page = 'staff';
+        
+        // Capture the view content
+        ob_start();
+        include __DIR__ . '/../Views/staff_profile.php';
+        $content = ob_get_clean();
+        
+        // Set content variable for layout
+        $GLOBALS['content'] = $content;
+        $GLOBALS['title'] = $title;
+        
+        // Pass user data to layout for sidebar role detection
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        if (isset($_SESSION['user'])) {
+            $GLOBALS['user_data'] = $_SESSION['user'];
+        }
+        
+        require __DIR__ . '/../Views/simple_layout.php';
     }
 
     /**
