@@ -8,19 +8,31 @@
     <!-- Statistics Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div class="bg-blue-50 rounded-lg p-4">
-            <div class="text-sm font-medium text-blue-600 mb-1">Total Logs</div>
+            <div class="flex items-center justify-between mb-2">
+                <div class="text-sm font-medium text-blue-600">Total Logs</div>
+                <i class="fas fa-list-alt text-blue-500 text-xl"></i>
+            </div>
             <div class="text-2xl font-bold text-blue-900"><?php echo number_format($stats['total_logs'] ?? 0); ?></div>
         </div>
         <div class="bg-green-50 rounded-lg p-4">
-            <div class="text-sm font-medium text-green-600 mb-1">Total Logins</div>
+            <div class="flex items-center justify-between mb-2">
+                <div class="text-sm font-medium text-green-600">Total Logins</div>
+                <i class="fas fa-sign-in-alt text-green-500 text-xl"></i>
+            </div>
             <div class="text-2xl font-bold text-green-900"><?php echo number_format($stats['total_logins'] ?? 0); ?></div>
         </div>
         <div class="bg-orange-50 rounded-lg p-4">
-            <div class="text-sm font-medium text-orange-600 mb-1">Total Logouts</div>
+            <div class="flex items-center justify-between mb-2">
+                <div class="text-sm font-medium text-orange-600">Total Logouts</div>
+                <i class="fas fa-sign-out-alt text-orange-500 text-xl"></i>
+            </div>
             <div class="text-2xl font-bold text-orange-900"><?php echo number_format($stats['total_logouts'] ?? 0); ?></div>
         </div>
         <div class="bg-purple-50 rounded-lg p-4">
-            <div class="text-sm font-medium text-purple-600 mb-1">Unique Users</div>
+            <div class="flex items-center justify-between mb-2">
+                <div class="text-sm font-medium text-purple-600">Unique Users</div>
+                <i class="fas fa-users text-purple-500 text-xl"></i>
+            </div>
             <div class="text-2xl font-bold text-purple-900"><?php echo number_format($stats['unique_users'] ?? 0); ?></div>
         </div>
     </div>
