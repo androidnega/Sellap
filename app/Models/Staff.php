@@ -303,9 +303,24 @@ class Staff {
      * @return array Sales statistics (total_sales, total_revenue, average_sale, sales_count)
      */
     public function getSalesStatistics($userId, $companyId) {
-        // Exclude repair-related sales and swap transactions
-        $excludeRepairSales = " AND (ps.notes IS NULL OR (ps.notes NOT LIKE '%Repair #%' AND ps.notes NOT LIKE '%Products sold by repairer%'))";
-        $excludeSwapSales = " AND ps.swap_id IS NULL";
+        // First, get the user's role to determine if we should include repair sales
+        $userStmt = $this->db->prepare("SELECT role FROM users WHERE id = ? AND company_id = ? LIMIT 1");
+        $userStmt->execute([$userId, $companyId]);
+        $user = $userStmt->fetch(PDO::FETCH_ASSOC);
+        $userRole = $user['role'] ?? '';
+        
+        // For technicians: Include ALL sales (including repair sales)
+        // For salespersons: Exclude repair sales (only regular POS sales)
+        // Always exclude swap transactions
+        $excludeSwapSales = " AND (ps.swap_id IS NULL OR ps.swap_id = 0)";
+        
+        if ($userRole === 'technician') {
+            // Technicians: Include all sales including repair sales
+            $excludeRepairSales = "";
+        } else {
+            // Salespersons: Exclude repair-related sales
+            $excludeRepairSales = " AND (ps.notes IS NULL OR (ps.notes NOT LIKE '%Repair #%' AND ps.notes NOT LIKE '%Products sold by repairer%'))";
+        }
         
         $stmt = $this->db->prepare("
             SELECT 
@@ -334,10 +349,12 @@ class Staff {
      * @return array Staff members with sales statistics
      */
     public function allByCompanyWithSales($company_id) {
-        // Exclude repair-related sales and swap transactions
-        $excludeRepairSales = " AND (ps.notes IS NULL OR (ps.notes NOT LIKE '%Repair #%' AND ps.notes NOT LIKE '%Products sold by repairer%'))";
-        $excludeSwapSales = " AND ps.swap_id IS NULL";
+        // Always exclude swap transactions
+        $excludeSwapSales = " AND (ps.swap_id IS NULL OR ps.swap_id = 0)";
         
+        // Use conditional JOIN to filter sales based on role:
+        // - Technicians: Include ALL sales (including repair sales)
+        // - Salespersons: Exclude repair sales (only regular POS sales)
         $stmt = $this->db->prepare("
             SELECT 
                 u.id,
@@ -356,8 +373,11 @@ class Staff {
             FROM users u
             LEFT JOIN pos_sales ps ON ps.created_by_user_id = u.id 
                 AND ps.company_id = u.company_id
-                {$excludeRepairSales}
                 {$excludeSwapSales}
+                AND (
+                    u.role = 'technician' 
+                    OR (u.role = 'salesperson' AND (ps.notes IS NULL OR (ps.notes NOT LIKE '%Repair #%' AND ps.notes NOT LIKE '%Products sold by repairer%')))
+                )
             WHERE u.company_id = ? 
             AND u.role IN ('salesperson', 'technician')
             GROUP BY u.id, u.unique_id, u.username, u.email, u.phone_number, u.full_name, u.role, u.is_active, u.created_at, u.updated_at
