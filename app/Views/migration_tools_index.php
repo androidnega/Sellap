@@ -78,6 +78,28 @@
                 </div>
             </div>
 
+            <!-- User Activity Logs Migration -->
+            <div class="border border-indigo-200 rounded-lg p-4 hover:bg-indigo-50 transition bg-indigo-25">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <h3 class="text-base sm:text-lg font-medium text-gray-900">User Activity Logs Migration</h3>
+                            <span class="px-2 py-1 text-xs font-semibold bg-indigo-100 text-indigo-800 rounded whitespace-nowrap">REQUIRED</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1 break-words">
+                            Creates the user_activity_logs table to track user login/logout activity, session duration, and IP addresses.
+                        </p>
+                        <p class="text-xs text-indigo-700 mt-1 font-medium break-words">
+                            ⚠️ Required for User Activity Logs page to work
+                        </p>
+                    </div>
+                    <a href="<?= BASE_URL_PATH ?>/dashboard/tools/run-user-activity-logs-migration" 
+                       class="w-full sm:w-auto sm:flex-shrink-0 px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition text-center text-sm sm:text-base">
+                        Run Migration
+                    </a>
+                </div>
+            </div>
+
             <!-- Laptop Category Migration -->
             <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

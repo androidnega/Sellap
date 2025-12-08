@@ -694,5 +694,166 @@ class MigrationController
 
         require __DIR__ . '/../Views/simple_layout.php';
     }
+
+    /**
+     * Run user_activity_logs table migration via web
+     */
+    public function runUserActivityLogsMigration()
+    {
+        // Start session first
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
+        // Check if user is logged in
+        $userData = $_SESSION['user'] ?? null;
+        
+        if (!$userData) {
+            // Not logged in - redirect to login
+            $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+            $currentPath = $_SERVER['REQUEST_URI'] ?? '/dashboard/tools';
+            $redirectParam = 'redirect=' . urlencode($currentPath);
+            header('Location: ' . $basePath . '/?' . $redirectParam);
+            exit;
+        }
+        
+        // Check if user has system_admin role
+        $userRole = $userData['role'] ?? '';
+        if ($userRole !== 'system_admin') {
+            // Show access denied page
+            $title = 'Access Denied';
+            $errorMessage = "You need to be a System Administrator to access migration tools. Your current role is: " . htmlspecialchars($userRole);
+            
+            ob_start();
+            ?>
+            <div class="max-w-2xl mx-auto">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                    <div class="flex items-center mb-4">
+                        <svg class="w-8 h-8 text-red-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                        </svg>
+                        <h1 class="text-2xl font-bold text-red-900">Access Denied</h1>
+                    </div>
+                    <p class="text-red-800 mb-4"><?= htmlspecialchars($errorMessage) ?></p>
+                    <a href="<?= BASE_URL_PATH ?>/dashboard" class="inline-block px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                        Return to Dashboard
+                    </a>
+                </div>
+            </div>
+            <?php
+            $content = ob_get_clean();
+            
+            $GLOBALS['content'] = $content;
+            $GLOBALS['title'] = $title;
+            $GLOBALS['user_data'] = $userData;
+            
+            require __DIR__ . '/../Views/simple_layout.php';
+            exit;
+        }
+        
+        // User is system_admin, proceed with migration
+        $db = \Database::getInstance()->getConnection();
+        $logs = [];
+        $status = 'success';
+        $errorMessage = null;
+
+        try {
+            $logs[] = ['type' => 'info', 'message' => 'Starting user_activity_logs table migration...'];
+            
+            $dbName = $db->query("SELECT DATABASE()")->fetchColumn();
+            $logs[] = ['type' => 'info', 'message' => "Database: {$dbName}"];
+
+            // Check if table already exists
+            $checkTable = $db->query("SHOW TABLES LIKE 'user_activity_logs'");
+            if ($checkTable->rowCount() > 0) {
+                $logs[] = ['type' => 'warning', 'message' => 'Table user_activity_logs already exists. Skipping creation.'];
+            } else {
+                $logs[] = ['type' => 'info', 'message' => 'Creating user_activity_logs table...'];
+                
+                // Create table
+                $db->exec("
+                    CREATE TABLE IF NOT EXISTS user_activity_logs (
+                        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        user_id BIGINT UNSIGNED NOT NULL,
+                        company_id BIGINT UNSIGNED,
+                        user_role VARCHAR(50) NOT NULL,
+                        username VARCHAR(255) NOT NULL,
+                        full_name VARCHAR(255),
+                        event_type ENUM('login', 'logout', 'session_timeout') NOT NULL,
+                        login_time TIMESTAMP NULL,
+                        logout_time TIMESTAMP NULL,
+                        session_duration_seconds INT DEFAULT 0,
+                        ip_address VARCHAR(45),
+                        user_agent TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_user (user_id),
+                        INDEX idx_company (company_id),
+                        INDEX idx_role (user_role),
+                        INDEX idx_event_type (event_type),
+                        INDEX idx_login_time (login_time),
+                        INDEX idx_created_at (created_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                    COMMENT='Tracks user login/logout activity and session duration'
+                ");
+                
+                $logs[] = ['type' => 'success', 'message' => '✓ Table user_activity_logs created successfully.'];
+                
+                // Try to add foreign keys (may fail if tables don't exist, that's okay)
+                try {
+                    $db->exec("ALTER TABLE user_activity_logs ADD CONSTRAINT fk_user_activity_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE");
+                    $logs[] = ['type' => 'success', 'message' => '✓ Foreign key for user_id added.'];
+                } catch (\Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate key name') !== false || strpos($e->getMessage(), 'already exists') !== false) {
+                        $logs[] = ['type' => 'info', 'message' => 'Foreign key for user_id already exists.'];
+                    } else {
+                        $logs[] = ['type' => 'warning', 'message' => 'Note: Could not add foreign key for user_id (this is okay): ' . $e->getMessage()];
+                    }
+                }
+                
+                try {
+                    $db->exec("ALTER TABLE user_activity_logs ADD CONSTRAINT fk_user_activity_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL");
+                    $logs[] = ['type' => 'success', 'message' => '✓ Foreign key for company_id added.'];
+                } catch (\Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate key name') !== false || strpos($e->getMessage(), 'already exists') !== false) {
+                        $logs[] = ['type' => 'info', 'message' => 'Foreign key for company_id already exists.'];
+                    } else {
+                        $logs[] = ['type' => 'warning', 'message' => 'Note: Could not add foreign key for company_id (this is okay): ' . $e->getMessage()];
+                    }
+                }
+            }
+
+            $logs[] = ['type' => 'success', 'message' => 'Migration completed successfully!'];
+            $logs[] = ['type' => 'info', 'message' => 'User Activity Logs page will now work correctly. Login/logout tracking is now enabled.'];
+            
+        } catch (\Exception $e) {
+            $status = 'error';
+            $errorMessage = $e->getMessage();
+            $logs[] = ['type' => 'error', 'message' => 'Migration failed: ' . $e->getMessage()];
+            error_log("User activity logs migration error: " . $e->getMessage());
+            error_log("User activity logs migration trace: " . $e->getTraceAsString());
+        }
+
+        $title = 'User Activity Logs Migration';
+
+        $GLOBALS['migration_logs'] = $logs;
+        $GLOBALS['migration_status'] = $status;
+        $GLOBALS['migration_error'] = $errorMessage;
+        $GLOBALS['title'] = $title;
+
+        ob_start();
+        include __DIR__ . '/../Views/migration_result.php';
+        $content = ob_get_clean();
+
+        $GLOBALS['content'] = $content;
+
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        if (isset($_SESSION['user'])) {
+            $GLOBALS['user_data'] = $_SESSION['user'];
+        }
+
+        require __DIR__ . '/../Views/simple_layout.php';
+    }
 }
 
