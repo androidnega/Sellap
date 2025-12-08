@@ -15,6 +15,69 @@ class UserActivityLog {
 
     public function __construct() {
         $this->db = \Database::getInstance()->getConnection();
+        $this->ensureTableExists();
+    }
+
+    /**
+     * Ensure the user_activity_logs table exists
+     */
+    private function ensureTableExists() {
+        try {
+            // Check if table exists
+            $checkTable = $this->db->query("SHOW TABLES LIKE 'user_activity_logs'");
+            if ($checkTable->rowCount() == 0) {
+                // Create the table
+                $this->db->exec("
+                    CREATE TABLE IF NOT EXISTS user_activity_logs (
+                        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        user_id BIGINT UNSIGNED NOT NULL,
+                        company_id BIGINT UNSIGNED,
+                        user_role VARCHAR(50) NOT NULL,
+                        username VARCHAR(255) NOT NULL,
+                        full_name VARCHAR(255),
+                        event_type ENUM('login', 'logout', 'session_timeout') NOT NULL,
+                        login_time TIMESTAMP NULL,
+                        logout_time TIMESTAMP NULL,
+                        session_duration_seconds INT DEFAULT 0,
+                        ip_address VARCHAR(45),
+                        user_agent TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_user (user_id),
+                        INDEX idx_company (company_id),
+                        INDEX idx_role (user_role),
+                        INDEX idx_event_type (event_type),
+                        INDEX idx_login_time (login_time),
+                        INDEX idx_created_at (created_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+                
+                // Add foreign keys if tables exist
+                try {
+                    $this->db->exec("
+                        ALTER TABLE user_activity_logs
+                        ADD CONSTRAINT fk_user_activity_user
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    ");
+                } catch (\Exception $e) {
+                    // Foreign key might already exist or users table might not exist yet
+                    error_log("Could not add user foreign key: " . $e->getMessage());
+                }
+                
+                try {
+                    $this->db->exec("
+                        ALTER TABLE user_activity_logs
+                        ADD CONSTRAINT fk_user_activity_company
+                        FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL
+                    ");
+                } catch (\Exception $e) {
+                    // Foreign key might already exist or companies table might not exist yet
+                    error_log("Could not add company foreign key: " . $e->getMessage());
+                }
+            }
+        } catch (\Exception $e) {
+            error_log("UserActivityLog::ensureTableExists error: " . $e->getMessage());
+            // Don't throw - let the application continue
+        }
     }
 
     /**
@@ -49,34 +112,82 @@ class UserActivityLog {
     public function logLogout($userId, $sessionStartTime = null) {
         try {
             // Get the most recent login for this user that doesn't have a logout yet
+            // Check both event_type = 'login' OR (event_type = 'logout' but logout_time is NULL - shouldn't happen but handle it)
             $loginStmt = $this->db->prepare("
-                SELECT id, login_time, created_at
+                SELECT id, login_time, created_at, event_type
                 FROM user_activity_logs
                 WHERE user_id = ? 
-                AND event_type = 'login'
-                AND logout_time IS NULL
-                ORDER BY login_time DESC
+                AND (event_type = 'login' OR event_type = 'logout')
+                AND (logout_time IS NULL OR logout_time = '')
+                ORDER BY login_time DESC, created_at DESC
                 LIMIT 1
             ");
             $loginStmt->execute([$userId]);
             $loginRecord = $loginStmt->fetch(PDO::FETCH_ASSOC);
             
             if ($loginRecord) {
-                $loginTime = strtotime($loginRecord['login_time'] ?? $loginRecord['created_at']);
+                // Calculate session duration
+                $loginTime = $loginRecord['login_time'] ? strtotime($loginRecord['login_time']) : strtotime($loginRecord['created_at']);
+                if ($sessionStartTime && is_numeric($sessionStartTime)) {
+                    $loginTime = $sessionStartTime; // Use session start time if provided
+                }
                 $logoutTime = time();
-                $sessionDuration = $logoutTime - $loginTime;
+                $sessionDuration = max(0, $logoutTime - $loginTime); // Ensure non-negative
                 
+                // Update the login record with logout information
+                // Keep event_type as 'login' but add logout_time and duration
                 $stmt = $this->db->prepare("
                     UPDATE user_activity_logs
-                    SET event_type = 'logout',
-                        logout_time = NOW(),
+                    SET logout_time = NOW(),
                         session_duration_seconds = ?
                     WHERE id = ?
                 ");
                 
-                return $stmt->execute([$sessionDuration, $loginRecord['id']]);
+                $result = $stmt->execute([$sessionDuration, $loginRecord['id']]);
+                
+                if ($result && $stmt->rowCount() > 0) {
+                    error_log("UserActivityLog::logLogout - Updated login record {$loginRecord['id']} with logout time. Duration: {$sessionDuration}s");
+                } else {
+                    error_log("UserActivityLog::logLogout - Failed to update login record {$loginRecord['id']}. Rows affected: " . $stmt->rowCount());
+                }
+                
+                // Also create a separate logout event record for tracking
+                $userStmt = $this->db->prepare("
+                    SELECT company_id, role, username, full_name
+                    FROM users
+                    WHERE id = ?
+                ");
+                $userStmt->execute([$userId]);
+                $user = $userStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($user) {
+                    try {
+                        $logoutStmt = $this->db->prepare("
+                            INSERT INTO user_activity_logs 
+                            (user_id, company_id, user_role, username, full_name, event_type, login_time, logout_time, session_duration_seconds, ip_address)
+                            VALUES (?, ?, ?, ?, ?, 'logout', ?, NOW(), ?, ?)
+                        ");
+                        $logoutStmt->execute([
+                            $userId,
+                            $user['company_id'],
+                            $user['role'],
+                            $user['username'],
+                            $user['full_name'],
+                            $loginRecord['login_time'] ?? date('Y-m-d H:i:s', $loginTime),
+                            $sessionDuration,
+                            $_SERVER['REMOTE_ADDR'] ?? null
+                        ]);
+                        error_log("UserActivityLog::logLogout - Created separate logout event record for user {$userId}");
+                    } catch (\Exception $e) {
+                        // Don't fail if we can't create the separate logout record
+                        error_log("UserActivityLog::logLogout - Could not create separate logout record: " . $e->getMessage());
+                    }
+                }
+                
+                return $result;
             } else {
                 // If no login record found, create a logout-only record
+                error_log("UserActivityLog::logLogout - No login record found for user {$userId}, creating logout-only record");
                 $userStmt = $this->db->prepare("
                     SELECT id, company_id, role, username, full_name
                     FROM users
@@ -106,6 +217,7 @@ class UserActivityLog {
             return false;
         } catch (\Exception $e) {
             error_log("UserActivityLog::logLogout error: " . $e->getMessage());
+            error_log("UserActivityLog::logLogout trace: " . $e->getTraceAsString());
             return false;
         }
     }
