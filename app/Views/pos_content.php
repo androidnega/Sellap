@@ -397,29 +397,29 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
 
         <!-- Cart and Checkout (Right Side) - Sticky -->
         <div class="w-full lg:w-1/3<?php echo (isset($isReadOnly) && $isReadOnly === 'true') ? ' hidden' : ''; ?>" id="cartSection">
-            <div class="sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto" style="position: -webkit-sticky; position: sticky; scrollbar-width: none; -ms-overflow-style: none;">
-            <div class="bg-white rounded-lg shadow-lg" style="scrollbar-width: none; -ms-overflow-style: none;">
-                <div class="p-6 border-b border-gray-200 bg-gray-50">
-                    <h3 class="text-lg font-semibold text-gray-800 flex items-center">
-                        <i class="fas fa-shopping-cart mr-2 text-blue-600"></i>
-                        Cart (<span id="cartItemCount">0</span>)
+            <div class="sticky top-2 sm:top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto overflow-x-hidden" style="position: -webkit-sticky; position: sticky; scrollbar-width: none; -ms-overflow-style: none;">
+            <div class="bg-white rounded-lg shadow-lg min-w-0 overflow-x-hidden" style="scrollbar-width: none; -ms-overflow-style: none;">
+                <div class="p-3 sm:p-4 md:p-6 border-b border-gray-200 bg-gray-50">
+                    <h3 class="text-sm sm:text-base md:text-lg font-semibold text-gray-800 flex items-center">
+                        <i class="fas fa-shopping-cart mr-1.5 sm:mr-2 text-blue-600 text-sm sm:text-base"></i>
+                        <span>Cart (<span id="cartItemCount">0</span>)</span>
                     </h3>
                 </div>
 
                 <!-- Cart Items -->
-                <div class="p-6">
-                    <div id="cartItems" class="space-y-4 max-h-80 overflow-y-auto cart-scroll" style="max-height: 320px; scrollbar-width: none; -ms-overflow-style: none; overflow-y: auto;">
+                <div class="p-3 sm:p-4 md:p-6">
+                    <div id="cartItems" class="space-y-2 sm:space-y-3 md:space-y-4 max-h-80 overflow-y-auto cart-scroll min-w-0" style="max-height: 320px; scrollbar-width: none; -ms-overflow-style: none; overflow-y: auto;">
                         <div class="text-center text-gray-500 py-8">
-                            <i class="fas fa-shopping-cart text-4xl text-gray-300 mb-2"></i>
-                            <p class="font-medium">Cart is empty</p>
-                            <p class="text-sm mt-1">Add items to get started</p>
+                            <i class="fas fa-shopping-cart text-3xl sm:text-4xl text-gray-300 mb-2"></i>
+                            <p class="font-medium text-sm sm:text-base">Cart is empty</p>
+                            <p class="text-xs sm:text-sm mt-1">Add items to get started</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Cart Summary -->
-                <div id="cartSummarySection" class="p-6 border-t border-gray-200 hidden">
-                    <div class="space-y-3">
+                <div id="cartSummarySection" class="p-3 sm:p-4 md:p-6 border-t border-gray-200 hidden">
+                    <div class="space-y-2 sm:space-y-3">
                         <div class="flex justify-between text-sm gap-2">
                             <span class="text-gray-600 flex-shrink-0">Subtotal:</span>
                             <span id="subtotal" class="font-medium break-words overflow-hidden text-right min-w-0">₵0.00</span>
@@ -469,8 +469,8 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
                 </div>
 
                 <!-- Payment Method -->
-                <div id="paymentMethodSection" class="p-6 border-t border-gray-200 hidden">
-                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Payment Method</h4>
+                <div id="paymentMethodSection" class="p-3 sm:p-4 md:p-6 border-t border-gray-200 hidden">
+                    <h4 class="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">Payment Method</h4>
                     <div class="grid grid-cols-2 gap-2">
                         <button class="payment-method-btn bg-green-100 text-green-700 border-2 border-green-300 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center transition-colors" data-method="cash">
                             <i class="fas fa-money-bill-wave mr-1"></i>Cash
@@ -503,8 +503,8 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
                 </div>
 
                 <!-- Customer Type -->
-                <div id="customerSection" class="p-6 border-t border-gray-200 hidden">
-                    <h4 class="text-xs font-semibold text-gray-700 mb-3">Customer</h4>
+                <div id="customerSection" class="p-3 sm:p-4 md:p-6 border-t border-gray-200 hidden">
+                    <h4 class="text-xs font-semibold text-gray-700 mb-2 sm:mb-3">Customer</h4>
                     <div class="grid grid-cols-3 gap-2">
                         <button class="customer-type-btn bg-gray-100 text-gray-700 border-2 border-gray-300 py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center transition-colors" data-type="walkin">
                             <i class="fas fa-walking mr-1 text-xs"></i>Walk-in
@@ -574,24 +574,24 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
                 </div>
 
                 <!-- Notes -->
-                <div id="notesSection" class="p-6 border-t border-gray-200 hidden">
-                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Notes (optional)</h4>
+                <div id="notesSection" class="p-3 sm:p-4 md:p-6 border-t border-gray-200 hidden">
+                    <h4 class="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">Notes (optional)</h4>
                     <textarea id="saleNotes" placeholder="Add notes..." 
                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none" 
                               rows="2"></textarea>
                 </div>
 
                 <!-- Action Buttons -->
-                <div id="actionButtonsSection" class="p-6 border-t border-gray-200 space-y-3 hidden">
-                    <div class="flex gap-2">
-                        <button id="clearCartBtn" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center">
-                            <i class="fas fa-trash mr-2"></i>Clear
+                <div id="actionButtonsSection" class="p-3 sm:p-4 md:p-6 border-t border-gray-200 space-y-2 sm:space-y-3 hidden">
+                    <div class="flex gap-2 flex-nowrap">
+                        <button id="clearCartBtn" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-2 sm:px-3 rounded-lg transition-colors flex items-center justify-center whitespace-nowrap text-xs sm:text-sm min-w-0">
+                            <i class="fas fa-trash text-xs sm:text-sm"></i><span class="ml-1 sm:ml-1.5">Clear</span>
                         </button>
-                        <button id="processSaleBtn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center">
-                            <i class="fas fa-check mr-2"></i>Complete Sale
+                        <button id="processSaleBtn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-2 sm:px-3 rounded-lg transition-colors flex items-center justify-center whitespace-nowrap text-xs sm:text-sm min-w-0">
+                            <i class="fas fa-check text-xs sm:text-sm"></i><span class="ml-1 sm:ml-1.5">Complete Sale</span>
                         </button>
                     </div>
-                    <button id="printLastReceiptBtn" class="w-full bg-purple-100 hover:bg-purple-200 text-purple-700 font-medium py-2 px-4 rounded-lg transition-colors" disabled>
+                    <button id="printLastReceiptBtn" class="w-full bg-purple-100 hover:bg-purple-200 text-purple-700 font-medium py-2 px-4 rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap" disabled>
                         <i class="fas fa-receipt mr-2"></i>
                         Print Last Receipt
                     </button>
@@ -615,6 +615,21 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
 
 <!-- POS JavaScript -->
 <script>
+// Format currency with K/M notation for large numbers - improved for hundreds of thousands
+function formatCurrency(amount) {
+    if (amount >= 1000000) {
+        const millions = amount / 1000000;
+        return millions >= 10 ? millions.toFixed(1) + 'M' : millions.toFixed(2) + 'M';
+    } else if (amount >= 100000) {
+        const hundredsK = amount / 1000;
+        return hundredsK >= 100 ? hundredsK.toFixed(0) + 'K' : hundredsK.toFixed(1) + 'K';
+    } else if (amount >= 1000) {
+        return (amount / 1000).toFixed(1) + 'K';
+    } else {
+        return amount.toFixed(2);
+    }
+}
+
 // Determine if current user is manager/admin/system_admin (view-only)
 const POS_READ_ONLY = <?= $isReadOnly ?>;
 document.addEventListener('DOMContentLoaded', async function() {
@@ -1304,7 +1319,7 @@ function renderProducts(productsToRender) {
         let cardStyle = '';
         
         if (isSwappedItem) {
-            // Swapped items: purple/lavender theme for better visibility
+            // Swapped items: purple/lavender theme for better visibility - responsive
             cardClasses += 'swapped-item-card ';
             cardStyle = 'background-color: #f3e8ff !important; border-color: #a78bfa !important; color: #6b21a8 !important;';
         } else {
@@ -1317,72 +1332,72 @@ function renderProducts(productsToRender) {
         
         return `
             <div class="${cardClasses.trim()}" data-product-id="${productId}" data-is-swapped="${isSwappedItem ? 'true' : 'false'}" ${cardStyle ? `style="${cardStyle}"` : ''} ${isSwappedItem ? `onmouseover="this.style.backgroundColor='#e9d5ff'; this.style.borderColor='#8b5cf6';" onmouseout="this.style.backgroundColor='#f3e8ff'; this.style.borderColor='#a78bfa';"` : ''}>
-                <div class="flex items-center space-x-3">
+                <div class="flex items-start sm:items-center space-x-2 sm:space-x-3 py-1 sm:py-2">
                     <!-- Product Image -->
                     <div class="flex-shrink-0 flex flex-col items-center">
-                        <div class="relative">
+                        <div class="relative w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14">
                             ${imageHtml}
                         </div>
-                        ${stockBadge ? `<div class="mt-1">${stockBadge}</div>` : ''}
+                        ${stockBadge ? `<div class="mt-0.5 sm:mt-1 text-xs">${stockBadge}</div>` : ''}
                     </div>
                     
                     <!-- Product Details -->
                     <div class="flex-1 min-w-0">
                         <!-- Product Name -->
-                        <h3 class="font-semibold ${isSwappedItem ? 'text-purple-900' : 'text-gray-800'} text-lg leading-tight mb-1" style="${isSwappedItem ? 'color: #6b21a8 !important;' : ''}">${product.name || 'Unnamed Product'}</h3>
+                        <h3 class="font-semibold ${isSwappedItem ? 'text-purple-900' : 'text-gray-800'} text-xs sm:text-sm md:text-base leading-tight mb-0.5 sm:mb-1 line-clamp-2" style="${isSwappedItem ? 'color: #6b21a8 !important;' : ''}">${product.name || 'Unnamed Product'}</h3>
                         
                         <!-- Category Badge -->
                         ${product.category_name ? `
-                            <div class="mb-2">
-                                <span class="inline-block ${isSwappedItem ? 'bg-white text-purple-800' : 'bg-blue-100 text-blue-800'} text-xs font-medium px-2 py-1 rounded-full" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">
-                                    <i class="fas fa-tag mr-1" style="${isSwappedItem ? 'color: #6b21a8 !important;' : ''}"></i>${product.category_name}
+                            <div class="mb-1 sm:mb-1.5">
+                                <span class="inline-block ${isSwappedItem ? 'bg-white text-purple-800' : 'bg-blue-100 text-blue-800'} text-xs font-medium px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">
+                                    <i class="fas fa-tag mr-0.5 sm:mr-1 text-xs" style="${isSwappedItem ? 'color: #6b21a8 !important;' : ''}"></i><span class="text-xs">${product.category_name}</span>
                                 </span>
                             </div>
                         ` : ''}
                         
                         <!-- Swapped Item Badge -->
                         ${isSwappedItem ? `
-                            <div class="mb-2">
-                                <span class="inline-block bg-white text-purple-800 text-xs font-bold px-2 py-1 rounded-full border" style="background-color: #c4b5fd !important; color: #6b21a8 !important; border-color: #8b5cf6 !important;">
-                                    <i class="fas fa-exchange-alt mr-1" style="color: #6b21a8 !important;"></i>Swapped Item - For Resale
+                            <div class="mb-1 sm:mb-1.5">
+                                <span class="inline-block bg-white text-purple-800 text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full border" style="background-color: #c4b5fd !important; color: #6b21a8 !important; border-color: #8b5cf6 !important;">
+                                    <i class="fas fa-exchange-alt mr-0.5 sm:mr-1 text-xs" style="color: #6b21a8 !important;"></i><span class="text-xs">Swapped Item - For Resale</span>
                                 </span>
                             </div>
                         ` : ''}
                         
                         <!-- Additional Tags -->
-                        <div class="flex flex-wrap gap-1 mb-2">
-                            ${tags.filter(tag => tag !== product.category_name && tag !== 'Swapped Item').slice(0, 3).map(tag => `
-                                <span class="inline-block ${isSwappedItem ? 'bg-white text-purple-800' : 'bg-gray-100 text-gray-700'} text-xs px-2 py-1 rounded-full" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">${tag}</span>
+                        <div class="flex flex-wrap gap-0.5 sm:gap-1 mb-1 sm:mb-1.5">
+                            ${tags.filter(tag => tag !== product.category_name && tag !== 'Swapped Item').slice(0, 2).map(tag => `
+                                <span class="inline-block ${isSwappedItem ? 'bg-white text-purple-800' : 'bg-gray-100 text-gray-700'} text-xs px-1.5 sm:px-2 py-0.5 rounded-full" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">${tag}</span>
                             `).join('')}
-                            ${tags.filter(tag => tag !== product.category_name && tag !== 'Swapped Item').length > 3 ? `<span class="inline-block ${isSwappedItem ? 'bg-white text-purple-800' : 'bg-gray-100 text-gray-700'} text-xs px-2 py-1 rounded-full" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">+${tags.filter(tag => tag !== product.category_name && tag !== 'Swapped Item').length - 3}</span>` : ''}
+                            ${tags.filter(tag => tag !== product.category_name && tag !== 'Swapped Item').length > 2 ? `<span class="inline-block ${isSwappedItem ? 'bg-white text-purple-800' : 'bg-gray-100 text-gray-700'} text-xs px-1.5 sm:px-2 py-0.5 rounded-full" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">+${tags.filter(tag => tag !== product.category_name && tag !== 'Swapped Item').length - 2}</span>` : ''}
                         </div>
                         
                         <!-- Stock Info -->
-                        <div class="flex items-center space-x-4 mb-2">
+                        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1 sm:mb-1.5">
                             ${isSwappedItem ? `
-                                <span class="text-sm font-medium" style="color: #6b21a8 !important;">Status: <span class="font-bold stock-display" style="color: #6b21a8 !important;">For Resale</span></span>
-                                <span class="text-xs font-medium px-2 py-1 rounded-full" style="background-color: #c4b5fd !important; color: #6b21a8 !important;">
-                                    <i class="fas fa-exchange-alt mr-1" style="color: #6b21a8 !important;"></i>Swapped Item
+                                <span class="text-xs font-medium whitespace-nowrap" style="color: #6b21a8 !important;">Status: <span class="font-bold stock-display" style="color: #6b21a8 !important;">For Resale</span></span>
+                                <span class="text-xs font-medium px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap" style="background-color: #c4b5fd !important; color: #6b21a8 !important;">
+                                    <i class="fas fa-exchange-alt mr-0.5 sm:mr-1 text-xs" style="color: #6b21a8 !important;"></i>Swapped Item
                                 </span>
                             ` : `
-                                <span class="text-sm text-gray-600">Stock: <span class="font-medium text-gray-800 stock-display">${remainingStock}</span></span>
+                                <span class="text-xs text-gray-600 whitespace-nowrap">Stock: <span class="font-medium text-gray-800 stock-display">${remainingStock}</span></span>
                             `}
-                            ${isSelected ? `<span class="text-xs ${isSwappedItem ? '' : 'text-blue-600 bg-blue-100'} font-medium px-2 py-1 rounded-full" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">In Cart: ${cartQuantity}</span>` : ''}
+                            ${isSelected ? `<span class="text-xs ${isSwappedItem ? '' : 'text-blue-600 bg-blue-100'} font-medium px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">In Cart: ${cartQuantity}</span>` : ''}
                         </div>
                         
                         ${!productId ? '<p class="text-xs text-red-500 mt-1">No ID</p>' : ''}
                     </div>
                     
                     <!-- Price and Add Button -->
-                    <div class="flex-shrink-0 text-right">
+                    <div class="flex-shrink-0 text-right min-w-0">
                         ${isSwappedItem ? `
-                            <div class="text-xs font-medium mb-1" style="color: #6b21a8 !important;">For Resale</div>
-                            <div class="text-2xl font-bold mb-3" style="color: #6b21a8 !important;">₵${parseFloat(product.price || product.resell_price || 0).toFixed(2)}</div>
+                            <div class="text-xs font-medium mb-0.5 sm:mb-1 whitespace-nowrap" style="color: #6b21a8 !important;">For Resale</div>
+                            <div class="text-base sm:text-lg md:text-xl font-bold mb-1.5 sm:mb-2 break-words overflow-hidden" style="color: #6b21a8 !important;">₵${formatCurrency(parseFloat(product.price || product.resell_price || 0))}</div>
                             ${parseFloat(product.price || product.resell_price || 0) === 0 ? `
-                                <div class="text-xs mb-2" style="color: #d97706 !important;">⚠ Price not set</div>
+                                <div class="text-xs mb-1 sm:mb-2" style="color: #d97706 !important;">⚠ Price not set</div>
                             ` : ''}
                         ` : `
-                            <div class="text-2xl font-bold text-green-600 mb-3">₵${parseFloat(product.price || 0).toFixed(2)}</div>
+                            <div class="text-base sm:text-lg md:text-xl font-bold text-green-600 mb-1.5 sm:mb-2 break-words overflow-hidden">₵${formatCurrency(parseFloat(product.price || 0))}</div>
                         `}
         ${isAvailable ? `
                             ${POS_READ_ONLY ? `
@@ -1399,15 +1414,15 @@ function renderProducts(productsToRender) {
                                 </div>
                             ` : `
                                 <button onclick=\"event.stopPropagation(); addToCart(${productId})\" 
-                                        class=\"${isSwappedItem ? 'bg-white text-purple-800 hover:bg-purple-50' : 'bg-blue-600 hover:bg-blue-700 text-white'} px-3 py-1.5 rounded-lg text-xs font-medium flex items-center transition-colors\" style=\"${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}\">
+                                        class=\"${isSwappedItem ? 'bg-white text-purple-800 hover:bg-purple-50' : 'bg-blue-600 hover:bg-blue-700 text-white'} px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-medium flex items-center justify-center transition-colors whitespace-nowrap\" style=\"${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}\">
                                     <i class=\"${isSwappedItem ? 'fas fa-tag' : 'fas fa-cart-plus'} mr-1\" style=\"${isSwappedItem ? 'color: #6b21a8 !important;' : ''}\"></i>
-                                    ${isSwappedItem ? 'Resale' : 'Add to Cart'}
+                                    <span class="hidden sm:inline">${isSwappedItem ? 'Resale' : 'Add to Cart'}</span><span class="sm:hidden">${isSwappedItem ? 'Resale' : 'Add'}</span>
                                 </button>
                             `}
                         ` : `
-                            <button disabled class="bg-gray-400 text-white px-3 py-1.5 rounded-lg text-xs font-medium cursor-not-allowed">
+                            <button disabled class="bg-gray-400 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-medium cursor-not-allowed whitespace-nowrap">
                                 <i class="fas fa-times mr-1"></i>
-                                Out of Stock
+                                <span class="hidden sm:inline">Out of Stock</span><span class="sm:hidden">Out</span>
                             </button>
                         `}
                     </div>
@@ -1704,35 +1719,35 @@ function updateCartDisplay() {
         if (item.condition) tags.push(item.condition);
         
         return `
-            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <div class="flex items-start justify-between mb-3">
-                    <div class="flex-1">
-                        <h4 class="font-semibold text-gray-800 text-sm mb-1">${item.name || 'Unknown Product'}</h4>
+            <div class="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200 min-w-0 overflow-hidden">
+                <div class="flex items-start justify-between mb-2 sm:mb-3 gap-2">
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-semibold text-gray-800 text-xs sm:text-sm mb-1 truncate">${item.name || 'Unknown Product'}</h4>
                         <div class="flex flex-wrap gap-1 mb-2">
                             ${tags.map(tag => `
-                                <span class="inline-block bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded-full">${tag}</span>
+                                <span class="inline-block bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded-full whitespace-nowrap">${tag}</span>
                             `).join('')}
                         </div>
                     </div>
-                    <button onclick="removeFromCart(${item.product_id})" class="text-red-500 hover:text-red-700 p-1">
-                        <i class="fas fa-trash text-sm"></i>
+                    <button onclick="removeFromCart(${item.product_id})" class="text-red-500 hover:text-red-700 p-1 flex-shrink-0">
+                        <i class="fas fa-trash text-xs sm:text-sm"></i>
                     </button>
                 </div>
                 
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-2">
-                        <button onclick="updateCartQuantity(${item.product_id}, ${item.quantity - 1})" class="w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center text-sm">
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <div class="flex items-center space-x-1 sm:space-x-2">
+                        <button onclick="updateCartQuantity(${item.product_id}, ${item.quantity - 1})" class="w-7 h-7 sm:w-8 sm:h-8 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center text-xs sm:text-sm">
                             <i class="fas fa-minus"></i>
                         </button>
-                        <span class="text-sm font-bold w-8 text-center">${item.quantity}</span>
-                        <button onclick="updateCartQuantity(${item.product_id}, ${item.quantity + 1})" class="w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center text-sm">
+                        <span class="text-xs sm:text-sm font-bold w-6 sm:w-8 text-center">${item.quantity}</span>
+                        <button onclick="updateCartQuantity(${item.product_id}, ${item.quantity + 1})" class="w-7 h-7 sm:w-8 sm:h-8 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center text-xs sm:text-sm">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
-                    <div class="text-right">
-                        <div class="text-sm text-gray-600">Price: ${parseFloat(item.price || 0).toFixed(0)}</div>
-                        <div class="text-sm text-gray-600">Discount: 0</div>
-                        <div class="text-lg font-bold text-gray-800">₵${itemTotal.toFixed(2)}</div>
+                    <div class="text-right min-w-0">
+                        <div class="text-xs sm:text-sm text-gray-600 break-words">Price: ₵${formatCurrency(parseFloat(item.price || 0))}</div>
+                        <div class="text-xs sm:text-sm text-gray-600">Discount: 0</div>
+                        <div class="text-base sm:text-lg font-bold text-gray-800 break-words">₵${formatCurrency(itemTotal)}</div>
                     </div>
                 </div>
                 ${item.quantity >= item.available_stock ? '<div class="text-xs text-red-500 mt-2">⚠️ Exceeds available stock!</div>' : ''}
@@ -2562,11 +2577,23 @@ window.removeFromCart = async function(productId) {
 // Add CSS for product selection and cart scrolling
 const style = document.createElement('style');
 style.textContent = `
-    /* Swapped items - distinct purple/lavender theme for better visibility */
+    /* Swapped items - distinct purple/lavender theme for better visibility - Responsive */
     .swapped-item-card {
         background-color: #f3e8ff !important;
         border: 2px solid #a78bfa !important;
         color: #6b21a8 !important;
+        min-height: auto !important;
+        padding: 0.5rem !important;
+    }
+    @media (min-width: 640px) {
+        .swapped-item-card {
+            padding: 0.75rem !important;
+        }
+    }
+    @media (min-width: 768px) {
+        .swapped-item-card {
+            padding: 1rem !important;
+        }
     }
     .swapped-item-card:hover {
         background-color: #e9d5ff !important;
@@ -2581,6 +2608,22 @@ style.textContent = `
     .swapped-item-card .fas,
     .swapped-item-card i {
         color: #6b21a8 !important;
+    }
+    
+    /* Reduce product card height - responsive */
+    .product-card {
+        min-height: auto !important;
+        padding: 0.5rem !important;
+    }
+    @media (min-width: 640px) {
+        .product-card {
+            padding: 0.75rem !important;
+        }
+    }
+    @media (min-width: 1024px) {
+        .product-card {
+            padding: 1.25rem !important;
+        }
     }
     
     /* Stock warnings - only for regular products */

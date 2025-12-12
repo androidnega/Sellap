@@ -50,16 +50,29 @@
     /* Responsive table adjustments */
     @media (max-width: 640px) {
         #salesTableBody td {
-            font-size: 0.875rem;
+            font-size: 0.75rem;
+            padding: 0.5rem 0.5rem;
         }
         
         #salesTableBody td:last-child {
-            min-width: 100px;
+            min-width: 90px;
         }
         
         #salesTableBody td:last-child button {
-            min-width: 28px;
-            min-height: 28px;
+            min-width: 24px;
+            min-height: 24px;
+            padding: 0.25rem;
+        }
+        
+        table thead th {
+            font-size: 0.7rem;
+            padding: 0.5rem 0.5rem;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        table thead th {
+            font-size: 0.75rem;
         }
     }
     
@@ -160,7 +173,7 @@
                 </div>
                 <div class="ml-3 sm:ml-4 min-w-0 flex-1">
                     <p class="text-xs sm:text-sm text-gray-600 truncate">Total Revenue</p>
-                    <p id="totalRevenue" class="text-xl sm:text-2xl font-bold text-gray-800 truncate">₵0.00</p>
+                    <p id="totalRevenue" class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 break-words overflow-hidden">₵0.00</p>
                 </div>
             </div>
         </div>
@@ -172,7 +185,7 @@
                 </div>
                 <div class="ml-3 sm:ml-4 min-w-0 flex-1">
                     <p class="text-xs sm:text-sm text-gray-600 truncate">Avg. Sale</p>
-                    <p id="avgSale" class="text-xl sm:text-2xl font-bold text-gray-800 truncate">₵0.00</p>
+                    <p id="avgSale" class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 break-words overflow-hidden">₵0.00</p>
                 </div>
             </div>
         </div>
@@ -197,7 +210,7 @@
                 </div>
                 <div class="ml-3 sm:ml-4 min-w-0 flex-1">
                     <p class="text-xs sm:text-sm text-gray-600 truncate">Total Profit</p>
-                    <p id="totalProfit" class="text-xl sm:text-2xl font-bold text-gray-800 truncate">₵0.00</p>
+                    <p id="totalProfit" class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 break-words overflow-hidden">₵0.00</p>
                 </div>
             </div>
         </div>
@@ -215,36 +228,36 @@
         </div>
         
         <!-- Responsive table container - fluid and auto-adjusting -->
-        <div class="w-full overflow-visible">
-            <div class="inline-block w-full align-middle">
-                <table class="w-full divide-y divide-gray-200" style="table-layout: auto;">
+        <div class="w-full overflow-x-auto">
+            <div class="inline-block min-w-full align-middle">
+                <table class="w-full divide-y divide-gray-200" style="table-layout: auto; min-width: 100%;">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th id="checkboxHeader" class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden">
+                            <th id="checkboxHeader" class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden whitespace-nowrap">
                                 <input type="checkbox" id="selectAllCheckbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                             </th>
-                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                                 Sale ID
                             </th>
-                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                                 Customer
                             </th>
-                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                                 Item
                             </th>
-                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
-                                Category
+                            <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                                <span class="hidden sm:inline">Category</span><span class="sm:hidden">Cat</span>
                             </th>
-                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                                 Total
                             </th>
-                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
-                                Payment
+                            <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                                <span class="hidden lg:inline">Payment</span><span class="lg:hidden">Pay</span>
                             </th>
-                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                            <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                                 Date
                             </th>
-                            <th class="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="min-width: 120px; width: auto;">
+                            <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap" style="min-width: 100px; width: auto;">
                                 Actions
                             </th>
                         </tr>
@@ -376,6 +389,21 @@ let selectedSales = new Set();
 
 let partialPaymentsEnabled = false;
 let isManager = false;
+
+// Format currency with K/M notation for large numbers - improved for hundreds of thousands
+function formatCurrencyForDisplay(amount) {
+    if (amount >= 1000000) {
+        const millions = amount / 1000000;
+        return millions >= 10 ? millions.toFixed(1) + 'M' : millions.toFixed(2) + 'M';
+    } else if (amount >= 100000) {
+        const hundredsK = amount / 1000;
+        return hundredsK >= 100 ? hundredsK.toFixed(0) + 'K' : hundredsK.toFixed(1) + 'K';
+    } else if (amount >= 1000) {
+        return (amount / 1000).toFixed(1) + 'K';
+    } else {
+        return amount.toFixed(2);
+    }
+}
 
 async function loadPermissions() {
     try {
@@ -631,34 +659,34 @@ function renderSalesTable() {
                 </div>
                 ${itemCount > 1 ? `<div class="text-xs ${hasSwappedItems ? 'text-purple-600' : 'text-gray-500'} mt-1">${itemCount} items</div>` : ''}
             </td>
-            <td class="px-3 sm:px-4 py-4 text-sm hidden md:table-cell" ${textColorStyle}>
+            <td class="px-2 sm:px-3 md:px-4 py-3 sm:py-4 text-xs sm:text-sm" ${textColorStyle}>
                 <span class="truncate block max-w-xs">${itemCategory || '-'}</span>
             </td>
-            <td class="px-3 sm:px-4 py-4 whitespace-nowrap text-sm font-medium" ${textColorStyle}>
-                ₵${parseFloat(sale.final_amount || sale.total || 0).toFixed(2)}
+            <td class="px-2 sm:px-3 md:px-4 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium" ${textColorStyle}>
+                ₵${formatCurrencyForDisplay(parseFloat(sale.final_amount || sale.total || 0))}
             </td>
-            <td class="px-3 sm:px-4 py-4 whitespace-nowrap text-sm hidden lg:table-cell">
+            <td class="px-2 sm:px-3 md:px-4 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
                 ${getPaymentStatusBadge(sale.payment_status || 'PAID', sale.final_amount || sale.total || 0)}
             </td>
-            <td class="px-3 sm:px-4 py-4 whitespace-nowrap text-sm hidden sm:table-cell" ${textColorStyle}>
-                ${formattedDate}
+            <td class="px-2 sm:px-3 md:px-4 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm" ${textColorStyle}>
+                <span class="hidden sm:inline">${formattedDate}</span><span class="sm:hidden">${formattedDateShort}</span>
             </td>
-            <td class="px-2 sm:px-4 py-4 text-sm">
-                <div class="flex items-center justify-start gap-1.5 sm:gap-2 flex-wrap">
-                    <button onclick="viewSaleDetails(${sale.id})" class="inline-flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded p-2 transition-colors min-w-[36px] min-h-[36px]" title="View Details">
-                        <i class="fas fa-eye text-sm sm:text-base"></i>
+            <td class="px-2 sm:px-3 md:px-4 py-3 sm:py-4 text-xs sm:text-sm">
+                <div class="flex items-center justify-start gap-1 sm:gap-1.5 md:gap-2 flex-nowrap">
+                    <button onclick="viewSaleDetails(${sale.id})" class="inline-flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded p-1.5 sm:p-2 transition-colors min-w-[28px] min-h-[28px] sm:min-w-[32px] sm:min-h-[32px]" title="View Details">
+                        <i class="fas fa-eye text-xs sm:text-sm"></i>
                     </button>
                     ${partialPaymentsEnabled && (sale.payment_status === 'PARTIAL' || sale.payment_status === 'UNPAID') ? `
-                    <button onclick="openPaymentModal(${sale.id})" class="inline-flex items-center justify-center text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded p-2 transition-colors min-w-[36px] min-h-[36px]" title="Add Payment">
-                        <i class="fas fa-money-bill-wave text-sm sm:text-base"></i>
+                    <button onclick="openPaymentModal(${sale.id})" class="inline-flex items-center justify-center text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded p-1.5 sm:p-2 transition-colors min-w-[28px] min-h-[28px] sm:min-w-[32px] sm:min-h-[32px]" title="Add Payment">
+                        <i class="fas fa-money-bill-wave text-xs sm:text-sm"></i>
                     </button>
                     ` : ''}
-                    <button onclick="printReceipt(${sale.id})" class="inline-flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-50 rounded p-2 transition-colors min-w-[36px] min-h-[36px]" title="Print Receipt">
-                        <i class="fas fa-print text-sm sm:text-base"></i>
+                    <button onclick="printReceipt(${sale.id})" class="inline-flex items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-50 rounded p-1.5 sm:p-2 transition-colors min-w-[28px] min-h-[28px] sm:min-w-[32px] sm:min-h-[32px]" title="Print Receipt">
+                        <i class="fas fa-print text-xs sm:text-sm"></i>
                     </button>
                     ${canDeleteSales ? `
-                    <button onclick="deleteSale(${sale.id})" class="inline-flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-50 rounded p-2 transition-colors min-w-[36px] min-h-[36px]" title="Delete Sale">
-                        <i class="fas fa-trash text-sm sm:text-base"></i>
+                    <button onclick="deleteSale(${sale.id})" class="inline-flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-50 rounded p-1.5 sm:p-2 transition-colors min-w-[28px] min-h-[28px] sm:min-w-[32px] sm:min-h-[32px]" title="Delete Sale">
+                        <i class="fas fa-trash text-xs sm:text-sm"></i>
                     </button>
                     ` : ''}
                 </div>
@@ -862,10 +890,10 @@ function updateSummaryCards(totalProfit = null) {
     if (totalSalesEl) totalSalesEl.textContent = totalSales;
     
     const totalRevenueEl = document.getElementById('totalRevenue');
-    if (totalRevenueEl) totalRevenueEl.textContent = `₵${totalRevenue.toFixed(2)}`;
+    if (totalRevenueEl) totalRevenueEl.textContent = `₵${formatCurrencyForDisplay(totalRevenue)}`;
     
     const avgSaleEl = document.getElementById('avgSale');
-    if (avgSaleEl) avgSaleEl.textContent = `₵${avgSale.toFixed(2)}`;
+    if (avgSaleEl) avgSaleEl.textContent = `₵${formatCurrencyForDisplay(avgSale)}`;
     
     const todaySalesEl = document.getElementById('todaySales');
     if (todaySalesEl) todaySalesEl.textContent = todaySales;
@@ -874,7 +902,7 @@ function updateSummaryCards(totalProfit = null) {
     if (isManager && totalProfit !== null && totalProfit !== undefined) {
         const totalProfitEl = document.getElementById('totalProfit');
         if (totalProfitEl) {
-            totalProfitEl.textContent = `₵${parseFloat(totalProfit).toFixed(2)}`;
+            totalProfitEl.textContent = `₵${formatCurrencyForDisplay(parseFloat(totalProfit))}`;
         }
     }
     
