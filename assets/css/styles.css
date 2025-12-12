@@ -27,6 +27,43 @@
     transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+/* POS Dashboard Responsive Fixes */
+#posStatsCards,
+#posManagerMetrics {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Prevent text overflow in revenue numbers */
+#posStatsCards p[id*="Revenue"],
+#posStatsCards p[id*="revenue"],
+#posManagerMetrics p[id*="revenue"],
+#posManagerMetrics p[id*="Revenue"] {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+/* Responsive font sizing for large numbers */
+@media (max-width: 640px) {
+    #posStatsCards p[id*="Revenue"],
+    #posStatsCards p[id*="revenue"] {
+        font-size: 1rem !important;
+        line-height: 1.2;
+    }
+}
+
+/* Ensure cards don't overflow on small screens */
+@media (max-width: 768px) {
+    #posStatsCards > div,
+    #posManagerMetrics .grid > div {
+        min-width: 0;
+        max-width: 100%;
+    }
+}
+
+
+
 
 
 

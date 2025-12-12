@@ -13,11 +13,11 @@ $isReadOnly = in_array($role, $nonSellingRoles, true) ? 'true' : 'false';
 error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
 ?>
 
-<div class="p-4 pb-4" data-server-rendered="true">
+<div class="p-2 sm:p-4 pb-4 overflow-x-hidden max-w-full" data-server-rendered="true">
     <!-- Header -->
     <div class="mb-4">
-        <h2 class="text-3xl font-bold text-gray-800">Point of Sale</h2>
-        <p class="text-gray-600">Process sales and manage transactions</p>
+        <h2 class="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">Point of Sale</h2>
+        <p class="text-sm sm:text-base text-gray-600">Process sales and manage transactions</p>
     </div>
     
     <!-- Success/Error Messages -->
@@ -36,63 +36,63 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
     <?php endif; ?>
 
     <!-- POS Stats Cards -->
-    <div id="posStatsCards" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200 shadow-sm">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-blue-700 mb-1">Total Items</p>
-                    <p class="text-3xl font-bold text-blue-900" id="posTotalItems">0</p>
+    <div id="posStatsCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 mb-6">
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3 sm:p-4 md:p-5 border border-blue-200 shadow-sm min-w-0 overflow-hidden">
+            <div class="flex items-center justify-between gap-2">
+                <div class="min-w-0 flex-1">
+                    <p class="text-xs sm:text-sm font-medium text-blue-700 mb-1 truncate">Total Items</p>
+                    <p class="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-blue-900 break-words overflow-hidden" id="posTotalItems">0</p>
                 </div>
-                <div class="p-3 bg-blue-200 rounded-lg">
-                    <i class="fas fa-boxes text-2xl text-blue-700"></i>
-                </div>
-            </div>
-        </div>
-        
-        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 border border-green-200 shadow-sm">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-green-700 mb-1">Sales Today</p>
-                    <p class="text-3xl font-bold text-green-900" id="posSalesToday">0</p>
-                </div>
-                <div class="p-3 bg-green-200 rounded-lg">
-                    <i class="fas fa-shopping-cart text-2xl text-green-700"></i>
+                <div class="p-2 sm:p-3 bg-blue-200 rounded-lg flex-shrink-0">
+                    <i class="fas fa-boxes text-lg sm:text-xl md:text-2xl text-blue-700"></i>
                 </div>
             </div>
         </div>
         
-        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 border border-purple-200 shadow-sm">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-purple-700 mb-1">Revenue Today</p>
-                    <p class="text-3xl font-bold text-purple-900" id="posRevenueToday">₵0.00</p>
+        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-3 sm:p-4 md:p-5 border border-green-200 shadow-sm min-w-0 overflow-hidden">
+            <div class="flex items-center justify-between gap-2">
+                <div class="min-w-0 flex-1">
+                    <p class="text-xs sm:text-sm font-medium text-green-700 mb-1 truncate">Sales Today</p>
+                    <p class="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-green-900 break-words overflow-hidden" id="posSalesToday">0</p>
                 </div>
-                <div class="p-3 bg-purple-200 rounded-lg">
-                    <i class="fas fa-money-bill-wave text-2xl text-purple-700"></i>
-                </div>
-            </div>
-        </div>
-        
-        <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-5 border border-orange-200 shadow-sm">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-orange-700 mb-1">Swaps Today</p>
-                    <p class="text-3xl font-bold text-orange-900" id="posSwapsToday">0</p>
-                </div>
-                <div class="p-3 bg-orange-200 rounded-lg">
-                    <i class="fas fa-exchange-alt text-2xl text-orange-700"></i>
+                <div class="p-2 sm:p-3 bg-green-200 rounded-lg flex-shrink-0">
+                    <i class="fas fa-shopping-cart text-lg sm:text-xl md:text-2xl text-green-700"></i>
                 </div>
             </div>
         </div>
         
-        <div class="bg-gradient-to-br from-teal-50 to-teal-100 rounded-xl p-5 border border-teal-200 shadow-sm">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-teal-700 mb-1">Swap Revenue</p>
-                    <p class="text-3xl font-bold text-teal-900" id="posSwapRevenueToday">₵0.00</p>
+        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-3 sm:p-4 md:p-5 border border-purple-200 shadow-sm min-w-0 overflow-hidden">
+            <div class="flex items-center justify-between gap-2">
+                <div class="min-w-0 flex-1">
+                    <p class="text-xs sm:text-sm font-medium text-purple-700 mb-1 truncate">Revenue Today</p>
+                    <p class="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-purple-900 break-words overflow-hidden" id="posRevenueToday">₵0.00</p>
                 </div>
-                <div class="p-3 bg-teal-200 rounded-lg">
-                    <i class="fas fa-hand-holding-usd text-2xl text-teal-700"></i>
+                <div class="p-2 sm:p-3 bg-purple-200 rounded-lg flex-shrink-0">
+                    <i class="fas fa-money-bill-wave text-lg sm:text-xl md:text-2xl text-purple-700"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-3 sm:p-4 md:p-5 border border-orange-200 shadow-sm min-w-0 overflow-hidden">
+            <div class="flex items-center justify-between gap-2">
+                <div class="min-w-0 flex-1">
+                    <p class="text-xs sm:text-sm font-medium text-orange-700 mb-1 truncate">Swaps Today</p>
+                    <p class="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-orange-900 break-words overflow-hidden" id="posSwapsToday">0</p>
+                </div>
+                <div class="p-2 sm:p-3 bg-orange-200 rounded-lg flex-shrink-0">
+                    <i class="fas fa-exchange-alt text-lg sm:text-xl md:text-2xl text-orange-700"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-gradient-to-br from-teal-50 to-teal-100 rounded-xl p-3 sm:p-4 md:p-5 border border-teal-200 shadow-sm min-w-0 overflow-hidden">
+            <div class="flex items-center justify-between gap-2">
+                <div class="min-w-0 flex-1">
+                    <p class="text-xs sm:text-sm font-medium text-teal-700 mb-1 truncate">Swap Revenue</p>
+                    <p class="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-teal-900 break-words overflow-hidden" id="posSwapRevenueToday">₵0.00</p>
+                </div>
+                <div class="p-2 sm:p-3 bg-teal-200 rounded-lg flex-shrink-0">
+                    <i class="fas fa-hand-holding-usd text-lg sm:text-xl md:text-2xl text-teal-700"></i>
                 </div>
             </div>
         </div>
@@ -125,96 +125,96 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-green-100 text-green-600">
-                        <i class="fas fa-sack-dollar text-xl"></i>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+            <div class="bg-white rounded-lg shadow p-4 sm:p-6 min-w-0 overflow-hidden">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <div class="p-2 sm:p-3 rounded-full bg-green-100 text-green-600 flex-shrink-0">
+                        <i class="fas fa-sack-dollar text-lg sm:text-xl"></i>
                     </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Selected Revenue</p>
-                        <p class="text-2xl font-bold text-gray-900" id="pos-today-revenue">₵0.00</p>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-blue-100 text-blue-600">
-                        <i class="fas fa-calendar-day text-xl"></i>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Selected Sales</p>
-                        <p class="text-2xl font-bold text-gray-900" id="pos-today-sales">0</p>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Selected Revenue</p>
+                        <p class="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 break-words overflow-hidden" id="pos-today-revenue">₵0.00</p>
                     </div>
                 </div>
             </div>
-            <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-purple-100 text-purple-600">
-                        <i class="fas fa-calendar-week text-xl"></i>
+            <div class="bg-white rounded-lg shadow p-4 sm:p-6 min-w-0 overflow-hidden">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <div class="p-2 sm:p-3 rounded-full bg-blue-100 text-blue-600 flex-shrink-0">
+                        <i class="fas fa-calendar-day text-lg sm:text-xl"></i>
                     </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Monthly Sales</p>
-                        <p class="text-2xl font-bold text-gray-900" id="pos-month-sales">0</p>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Selected Sales</p>
+                        <p class="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 break-words overflow-hidden" id="pos-today-sales">0</p>
                     </div>
                 </div>
             </div>
-            <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-amber-100 text-amber-600">
-                        <i class="fas fa-coins text-xl"></i>
+            <div class="bg-white rounded-lg shadow p-4 sm:p-6 min-w-0 overflow-hidden">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <div class="p-2 sm:p-3 rounded-full bg-purple-100 text-purple-600 flex-shrink-0">
+                        <i class="fas fa-calendar-week text-lg sm:text-xl"></i>
                     </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Selected Total</p>
-                        <p class="text-2xl font-bold text-gray-900" id="pos-month-revenue">₵0.00</p>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Monthly Sales</p>
+                        <p class="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 break-words overflow-hidden" id="pos-month-sales">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4 sm:p-6 min-w-0 overflow-hidden">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <div class="p-2 sm:p-3 rounded-full bg-amber-100 text-amber-600 flex-shrink-0">
+                        <i class="fas fa-coins text-lg sm:text-xl"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Selected Total</p>
+                        <p class="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 break-words overflow-hidden" id="pos-month-revenue">₵0.00</p>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Inventory Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-gray-100 text-gray-600">
-                        <i class="fas fa-boxes text-xl"></i>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow p-4 sm:p-6 min-w-0 overflow-hidden">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <div class="p-2 sm:p-3 rounded-full bg-gray-100 text-gray-600 flex-shrink-0">
+                        <i class="fas fa-boxes text-lg sm:text-xl"></i>
                     </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Total Products</p>
-                        <p class="text-2xl font-bold text-gray-900" id="pos-total-products">0</p>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-green-100 text-green-600">
-                        <i class="fas fa-check-circle text-xl"></i>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">In Stock</p>
-                        <p class="text-2xl font-bold text-gray-900" id="pos-in-stock">0</p>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Products</p>
+                        <p class="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 break-words overflow-hidden" id="pos-total-products">0</p>
                     </div>
                 </div>
             </div>
-            <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
-                        <i class="fas fa-exclamation-circle text-xl"></i>
+            <div class="bg-white rounded-lg shadow p-4 sm:p-6 min-w-0 overflow-hidden">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <div class="p-2 sm:p-3 rounded-full bg-green-100 text-green-600 flex-shrink-0">
+                        <i class="fas fa-check-circle text-lg sm:text-xl"></i>
                     </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Low Stock</p>
-                        <p class="text-2xl font-bold text-gray-900" id="pos-low-stock">0</p>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">In Stock</p>
+                        <p class="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 break-words overflow-hidden" id="pos-in-stock">0</p>
                     </div>
                 </div>
             </div>
-            <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-red-100 text-red-600">
-                        <i class="fas fa-times-circle text-xl"></i>
+            <div class="bg-white rounded-lg shadow p-4 sm:p-6 min-w-0 overflow-hidden">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <div class="p-2 sm:p-3 rounded-full bg-yellow-100 text-yellow-600 flex-shrink-0">
+                        <i class="fas fa-exclamation-circle text-lg sm:text-xl"></i>
                     </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Out of Stock</p>
-                        <p class="text-2xl font-bold text-gray-900" id="pos-out-of-stock">0</p>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Low Stock</p>
+                        <p class="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 break-words overflow-hidden" id="pos-low-stock">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4 sm:p-6 min-w-0 overflow-hidden">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <div class="p-2 sm:p-3 rounded-full bg-red-100 text-red-600 flex-shrink-0">
+                        <i class="fas fa-times-circle text-lg sm:text-xl"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Out of Stock</p>
+                        <p class="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 break-words overflow-hidden" id="pos-out-of-stock">0</p>
                     </div>
                 </div>
             </div>
@@ -291,22 +291,22 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
                 <i class="fas fa-clipboard-list text-gray-600 mr-2"></i>
                 System Activity Summary
             </h4>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div class="text-center p-4 bg-blue-50 rounded-lg">
-                    <p class="text-2xl font-bold text-blue-600" id="audit-today-sales">0</p>
-                    <p class="text-sm text-gray-600 mt-1">Sales Today</p>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4 mb-4">
+                <div class="text-center p-3 sm:p-4 bg-blue-50 rounded-lg min-w-0 overflow-hidden">
+                    <p class="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 break-words overflow-hidden" id="audit-today-sales">0</p>
+                    <p class="text-xs sm:text-sm text-gray-600 mt-1 truncate">Sales Today</p>
                 </div>
-                <div class="text-center p-4 bg-purple-50 rounded-lg">
-                    <p class="text-2xl font-bold text-purple-600" id="audit-today-repairs">0</p>
-                    <p class="text-sm text-gray-600 mt-1">Repairs Today</p>
+                <div class="text-center p-3 sm:p-4 bg-purple-50 rounded-lg min-w-0 overflow-hidden">
+                    <p class="text-lg sm:text-xl md:text-2xl font-bold text-purple-600 break-words overflow-hidden" id="audit-today-repairs">0</p>
+                    <p class="text-xs sm:text-sm text-gray-600 mt-1 truncate">Repairs Today</p>
                 </div>
-                <div class="text-center p-4 bg-orange-50 rounded-lg">
-                    <p class="text-2xl font-bold text-orange-600" id="audit-today-swaps">0</p>
-                    <p class="text-sm text-gray-600 mt-1">Swaps Today</p>
+                <div class="text-center p-3 sm:p-4 bg-orange-50 rounded-lg min-w-0 overflow-hidden">
+                    <p class="text-lg sm:text-xl md:text-2xl font-bold text-orange-600 break-words overflow-hidden" id="audit-today-swaps">0</p>
+                    <p class="text-xs sm:text-sm text-gray-600 mt-1 truncate">Swaps Today</p>
                 </div>
-                <div class="text-center p-4 bg-green-50 rounded-lg">
-                    <p class="text-2xl font-bold text-green-600" id="audit-month-revenue">₵0.00</p>
-                    <p class="text-sm text-gray-600 mt-1">Month Revenue</p>
+                <div class="text-center p-3 sm:p-4 bg-green-50 rounded-lg min-w-0 overflow-hidden">
+                    <p class="text-lg sm:text-xl md:text-2xl font-bold text-green-600 break-words overflow-hidden" id="audit-month-revenue">₵0.00</p>
+                    <p class="text-xs sm:text-sm text-gray-600 mt-1 truncate">Month Revenue</p>
                 </div>
             </div>
             
@@ -318,27 +318,27 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
                         Payment Status
                     </h4>
                 </div>
-                <div class="grid grid-cols-3 gap-4">
-                    <div class="text-center">
+                <div class="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+                    <div class="text-center min-w-0 overflow-hidden">
                         <div class="flex items-center justify-center mb-1">
-                            <i class="fas fa-check-circle text-green-600 text-sm mr-1"></i>
-                            <p class="text-xs text-gray-600">Fully Paid</p>
+                            <i class="fas fa-check-circle text-green-600 text-xs sm:text-sm mr-1"></i>
+                            <p class="text-xs text-gray-600 truncate">Fully Paid</p>
                         </div>
-                        <p class="text-xl font-bold text-gray-900" id="audit-fully-paid">0</p>
+                        <p class="text-base sm:text-lg md:text-xl font-bold text-gray-900 break-words overflow-hidden" id="audit-fully-paid">0</p>
                     </div>
-                    <div class="text-center">
+                    <div class="text-center min-w-0 overflow-hidden">
                         <div class="flex items-center justify-center mb-1">
-                            <i class="fas fa-exclamation-circle text-yellow-600 text-sm mr-1"></i>
-                            <p class="text-xs text-gray-600">Partial</p>
+                            <i class="fas fa-exclamation-circle text-yellow-600 text-xs sm:text-sm mr-1"></i>
+                            <p class="text-xs text-gray-600 truncate">Partial</p>
                         </div>
-                        <p class="text-xl font-bold text-gray-900" id="audit-partial">0</p>
+                        <p class="text-base sm:text-lg md:text-xl font-bold text-gray-900 break-words overflow-hidden" id="audit-partial">0</p>
                     </div>
-                    <div class="text-center">
+                    <div class="text-center min-w-0 overflow-hidden">
                         <div class="flex items-center justify-center mb-1">
-                            <i class="fas fa-times-circle text-red-600 text-sm mr-1"></i>
-                            <p class="text-xs text-gray-600">Unpaid</p>
+                            <i class="fas fa-times-circle text-red-600 text-xs sm:text-sm mr-1"></i>
+                            <p class="text-xs text-gray-600 truncate">Unpaid</p>
                         </div>
-                        <p class="text-xl font-bold text-gray-900" id="audit-unpaid">0</p>
+                        <p class="text-base sm:text-lg md:text-xl font-bold text-gray-900 break-words overflow-hidden" id="audit-unpaid">0</p>
                     </div>
                 </div>
             </div>
@@ -420,9 +420,9 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
                 <!-- Cart Summary -->
                 <div id="cartSummarySection" class="p-6 border-t border-gray-200 hidden">
                     <div class="space-y-3">
-                        <div class="flex justify-between text-sm">
-                            <span class="text-gray-600">Subtotal:</span>
-                            <span id="subtotal" class="font-medium">₵0.00</span>
+                        <div class="flex justify-between text-sm gap-2">
+                            <span class="text-gray-600 flex-shrink-0">Subtotal:</span>
+                            <span id="subtotal" class="font-medium break-words overflow-hidden text-right min-w-0">₵0.00</span>
                         </div>
                         
                         <!-- Discount -->
@@ -453,17 +453,17 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
                             </div>
                         </div>
                         
-                        <div class="flex justify-between text-sm">
-                            <span class="text-gray-600">Discount:</span>
-                            <span id="discount" class="font-medium text-red-600">-₵0.00</span>
+                        <div class="flex justify-between text-sm gap-2">
+                            <span class="text-gray-600 flex-shrink-0">Discount:</span>
+                            <span id="discount" class="font-medium text-red-600 break-words overflow-hidden text-right min-w-0">-₵0.00</span>
                         </div>
-                        <div class="flex justify-between text-sm">
-                            <span class="text-gray-600">Tax:</span>
-                            <span id="tax" class="font-medium">₵0.00</span>
+                        <div class="flex justify-between text-sm gap-2">
+                            <span class="text-gray-600 flex-shrink-0">Tax:</span>
+                            <span id="tax" class="font-medium break-words overflow-hidden text-right min-w-0">₵0.00</span>
                         </div>
-                        <div class="flex justify-between text-lg font-bold border-t border-gray-200 pt-3">
-                            <span>TOTAL:</span>
-                            <span id="total" class="text-green-600 font-bold">₵0.00</span>
+                        <div class="flex justify-between items-center text-base sm:text-lg font-bold border-t border-gray-200 pt-3 gap-2">
+                            <span class="flex-shrink-0">TOTAL:</span>
+                            <span id="total" class="text-green-600 font-bold break-words overflow-hidden text-right min-w-0">₵0.00</span>
                         </div>
                     </div>
                 </div>
