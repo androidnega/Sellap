@@ -171,15 +171,15 @@
     </div>
 
     <!-- Sales Summary Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6" id="summaryCardsContainer">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 mb-6" id="summaryCardsContainer">
         <div class="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
             <div class="flex items-center">
                 <div class="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <i class="fas fa-shopping-cart text-blue-600 text-lg sm:text-xl"></i>
                 </div>
                 <div class="ml-3 sm:ml-4 min-w-0 flex-1">
-                    <p class="text-xs sm:text-sm text-gray-600 truncate">Total Sales</p>
-                    <p id="totalSales" class="text-xl sm:text-2xl font-bold text-gray-800 truncate">0</p>
+                    <p class="text-xs sm:text-sm text-gray-600">Total Sales</p>
+                    <p id="totalSales" class="text-xl sm:text-2xl font-bold text-gray-800 break-words overflow-hidden">0</p>
                 </div>
             </div>
         </div>
@@ -190,7 +190,7 @@
                     <i class="fas fa-dollar-sign text-green-600 text-lg sm:text-xl"></i>
                 </div>
                 <div class="ml-3 sm:ml-4 min-w-0 flex-1">
-                    <p class="text-xs sm:text-sm text-gray-600 truncate">Total Revenue</p>
+                    <p class="text-xs sm:text-sm text-gray-600">Total Revenue</p>
                     <p id="totalRevenue" class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 break-words overflow-hidden cursor-default">₵0.00</p>
                 </div>
             </div>
@@ -202,7 +202,7 @@
                     <i class="fas fa-percentage text-yellow-600 text-lg sm:text-xl"></i>
                 </div>
                 <div class="ml-3 sm:ml-4 min-w-0 flex-1">
-                    <p class="text-xs sm:text-sm text-gray-600 truncate">Avg. Sale</p>
+                    <p class="text-xs sm:text-sm text-gray-600">Avg. Sale</p>
                     <p id="avgSale" class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 break-words overflow-hidden cursor-default">₵0.00</p>
                 </div>
             </div>
@@ -214,8 +214,8 @@
                     <i class="fas fa-calendar-day text-purple-600 text-lg sm:text-xl"></i>
                 </div>
                 <div class="ml-3 sm:ml-4 min-w-0 flex-1">
-                    <p class="text-xs sm:text-sm text-gray-600 truncate">Today's Sales</p>
-                    <p id="todaySales" class="text-xl sm:text-2xl font-bold text-gray-800 truncate">0</p>
+                    <p class="text-xs sm:text-sm text-gray-600">Today's Sales</p>
+                    <p id="todaySales" class="text-xl sm:text-2xl font-bold text-gray-800 break-words overflow-hidden">0</p>
                 </div>
             </div>
         </div>
@@ -227,7 +227,7 @@
                     <i class="fas fa-chart-line text-emerald-600 text-lg sm:text-xl"></i>
                 </div>
                 <div class="ml-3 sm:ml-4 min-w-0 flex-1">
-                    <p class="text-xs sm:text-sm text-gray-600 truncate">Total Profit</p>
+                    <p class="text-xs sm:text-sm text-gray-600">Total Profit</p>
                     <p id="totalProfit" class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 break-words overflow-hidden cursor-default">₵0.00</p>
                 </div>
             </div>
@@ -442,7 +442,7 @@ async function loadPermissions() {
                 // Update grid to accommodate 5 cards for managers
                 const summaryCardsContainer = document.getElementById('summaryCardsContainer');
                 if (summaryCardsContainer) {
-                    summaryCardsContainer.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-6';
+                    summaryCardsContainer.className = 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 sm:gap-6 mb-6';
                 }
             } else {
                 profitCard.classList.add('hidden');
