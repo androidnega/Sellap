@@ -615,19 +615,20 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
 
 <!-- POS JavaScript -->
 <script>
-// Format currency with K/M notation for large numbers - improved for hundreds of thousands
+// Format currency - show full numbers until millions, then show M with tooltip
 function formatCurrency(amount) {
     if (amount >= 1000000) {
         const millions = amount / 1000000;
         return millions >= 10 ? millions.toFixed(1) + 'M' : millions.toFixed(2) + 'M';
-    } else if (amount >= 100000) {
-        const hundredsK = amount / 1000;
-        return hundredsK >= 100 ? hundredsK.toFixed(0) + 'K' : hundredsK.toFixed(1) + 'K';
-    } else if (amount >= 1000) {
-        return (amount / 1000).toFixed(1) + 'K';
     } else {
-        return amount.toFixed(2);
+        // Show full number with commas for thousands
+        return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
+}
+
+// Get full currency amount for tooltips
+function getFullCurrencyAmount(amount) {
+    return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // Determine if current user is manager/admin/system_admin (view-only)
@@ -1392,12 +1393,20 @@ function renderProducts(productsToRender) {
                     <div class="flex-shrink-0 text-right min-w-0">
                         ${isSwappedItem ? `
                             <div class="text-xs font-medium mb-0.5 sm:mb-1 whitespace-nowrap" style="color: #6b21a8 !important;">For Resale</div>
-                            <div class="text-base sm:text-lg md:text-xl font-bold mb-1.5 sm:mb-2 break-words overflow-hidden" style="color: #6b21a8 !important;">₵${formatCurrency(parseFloat(product.price || product.resell_price || 0))}</div>
+                            ${parseFloat(product.price || product.resell_price || 0) >= 1000000 ? `
+                                <div class="text-base sm:text-lg md:text-xl font-bold mb-1.5 sm:mb-2 break-words overflow-hidden" style="color: #6b21a8 !important;" title="₵${getFullCurrencyAmount(parseFloat(product.price || product.resell_price || 0))}">₵${formatCurrency(parseFloat(product.price || product.resell_price || 0))}</div>
+                            ` : `
+                                <div class="text-base sm:text-lg md:text-xl font-bold mb-1.5 sm:mb-2 break-words overflow-hidden" style="color: #6b21a8 !important;">₵${formatCurrency(parseFloat(product.price || product.resell_price || 0))}</div>
+                            `}
                             ${parseFloat(product.price || product.resell_price || 0) === 0 ? `
                                 <div class="text-xs mb-1 sm:mb-2" style="color: #d97706 !important;">⚠ Price not set</div>
                             ` : ''}
                         ` : `
-                            <div class="text-base sm:text-lg md:text-xl font-bold text-green-600 mb-1.5 sm:mb-2 break-words overflow-hidden">₵${formatCurrency(parseFloat(product.price || 0))}</div>
+                            ${parseFloat(product.price || 0) >= 1000000 ? `
+                                <div class="text-base sm:text-lg md:text-xl font-bold text-green-600 mb-1.5 sm:mb-2 break-words overflow-hidden" title="₵${getFullCurrencyAmount(parseFloat(product.price || 0))}">₵${formatCurrency(parseFloat(product.price || 0))}</div>
+                            ` : `
+                                <div class="text-base sm:text-lg md:text-xl font-bold text-green-600 mb-1.5 sm:mb-2 break-words overflow-hidden">₵${formatCurrency(parseFloat(product.price || 0))}</div>
+                            `}
                         `}
         ${isAvailable ? `
                             ${POS_READ_ONLY ? `
@@ -1745,9 +1754,17 @@ function updateCartDisplay() {
                         </button>
                     </div>
                     <div class="text-right min-w-0">
-                        <div class="text-xs sm:text-sm text-gray-600 break-words">Price: ₵${formatCurrency(parseFloat(item.price || 0))}</div>
+                        ${parseFloat(item.price || 0) >= 1000000 ? `
+                            <div class="text-xs sm:text-sm text-gray-600 break-words" title="₵${getFullCurrencyAmount(parseFloat(item.price || 0))}">Price: ₵${formatCurrency(parseFloat(item.price || 0))}</div>
+                        ` : `
+                            <div class="text-xs sm:text-sm text-gray-600 break-words">Price: ₵${formatCurrency(parseFloat(item.price || 0))}</div>
+                        `}
                         <div class="text-xs sm:text-sm text-gray-600">Discount: 0</div>
-                        <div class="text-base sm:text-lg font-bold text-gray-800 break-words">₵${formatCurrency(itemTotal)}</div>
+                        ${itemTotal >= 1000000 ? `
+                            <div class="text-base sm:text-lg font-bold text-gray-800 break-words" title="₵${getFullCurrencyAmount(itemTotal)}">₵${formatCurrency(itemTotal)}</div>
+                        ` : `
+                            <div class="text-base sm:text-lg font-bold text-gray-800 break-words">₵${formatCurrency(itemTotal)}</div>
+                        `}
                     </div>
                 </div>
                 ${item.quantity >= item.available_stock ? '<div class="text-xs text-red-500 mt-2">⚠️ Exceeds available stock!</div>' : ''}

@@ -17,6 +17,12 @@
         overflow-x: visible;
     }
     
+    /* Remove vertical scrollbar from table */
+    .sales-history-container table,
+    .sales-history-container table tbody {
+        overflow-y: visible !important;
+    }
+    
     /* Ensure Actions column is always visible */
     #salesTableBody td:last-child {
         position: relative;
@@ -76,10 +82,22 @@
         }
     }
     
-    /* Ensure table doesn't overflow */
+    /* Ensure table doesn't overflow - auto-fluid layout */
     table {
         table-layout: auto;
         width: 100%;
+    }
+    
+    /* Make table cells auto-adjust width */
+    table th,
+    table td {
+        width: auto;
+        min-width: fit-content;
+    }
+    
+    /* Ensure table container doesn't have vertical scroll */
+    .sales-history-container .overflow-x-auto {
+        overflow-y: visible !important;
     }
     
     /* Make sure Actions column header is visible */
@@ -173,7 +191,7 @@
                 </div>
                 <div class="ml-3 sm:ml-4 min-w-0 flex-1">
                     <p class="text-xs sm:text-sm text-gray-600 truncate">Total Revenue</p>
-                    <p id="totalRevenue" class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 break-words overflow-hidden">₵0.00</p>
+                    <p id="totalRevenue" class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 break-words overflow-hidden cursor-default">₵0.00</p>
                 </div>
             </div>
         </div>
@@ -185,7 +203,7 @@
                 </div>
                 <div class="ml-3 sm:ml-4 min-w-0 flex-1">
                     <p class="text-xs sm:text-sm text-gray-600 truncate">Avg. Sale</p>
-                    <p id="avgSale" class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 break-words overflow-hidden">₵0.00</p>
+                    <p id="avgSale" class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 break-words overflow-hidden cursor-default">₵0.00</p>
                 </div>
             </div>
         </div>
@@ -210,7 +228,7 @@
                 </div>
                 <div class="ml-3 sm:ml-4 min-w-0 flex-1">
                     <p class="text-xs sm:text-sm text-gray-600 truncate">Total Profit</p>
-                    <p id="totalProfit" class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 break-words overflow-hidden">₵0.00</p>
+                    <p id="totalProfit" class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 break-words overflow-hidden cursor-default">₵0.00</p>
                 </div>
             </div>
         </div>
@@ -230,7 +248,7 @@
         <!-- Responsive table container - fluid and auto-adjusting -->
         <div class="w-full overflow-x-auto">
             <div class="inline-block min-w-full align-middle">
-                <table class="w-full divide-y divide-gray-200" style="table-layout: auto; min-width: 100%;">
+                <table class="w-full divide-y divide-gray-200" style="table-layout: auto; width: 100%;">
                     <thead class="bg-gray-50">
                         <tr>
                             <th id="checkboxHeader" class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden whitespace-nowrap">
@@ -246,13 +264,13 @@
                                 Item
                             </th>
                             <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                                <span class="hidden sm:inline">Category</span><span class="sm:hidden">Cat</span>
+                                Category
                             </th>
                             <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                                 Total
                             </th>
                             <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                                <span class="hidden lg:inline">Payment</span><span class="lg:hidden">Pay</span>
+                                Payment
                             </th>
                             <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                                 Date
@@ -390,19 +408,20 @@ let selectedSales = new Set();
 let partialPaymentsEnabled = false;
 let isManager = false;
 
-// Format currency with K/M notation for large numbers - improved for hundreds of thousands
+// Format currency - show full numbers until millions, then show M with tooltip
 function formatCurrencyForDisplay(amount) {
     if (amount >= 1000000) {
         const millions = amount / 1000000;
         return millions >= 10 ? millions.toFixed(1) + 'M' : millions.toFixed(2) + 'M';
-    } else if (amount >= 100000) {
-        const hundredsK = amount / 1000;
-        return hundredsK >= 100 ? hundredsK.toFixed(0) + 'K' : hundredsK.toFixed(1) + 'K';
-    } else if (amount >= 1000) {
-        return (amount / 1000).toFixed(1) + 'K';
     } else {
-        return amount.toFixed(2);
+        // Show full number with commas for thousands
+        return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
+}
+
+// Get full currency amount for tooltips
+function getFullCurrencyAmountForDisplay(amount) {
+    return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 async function loadPermissions() {
@@ -663,13 +682,17 @@ function renderSalesTable() {
                 <span class="truncate block max-w-xs">${itemCategory || '-'}</span>
             </td>
             <td class="px-2 sm:px-3 md:px-4 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium" ${textColorStyle}>
-                ₵${formatCurrencyForDisplay(parseFloat(sale.final_amount || sale.total || 0))}
+                ${parseFloat(sale.final_amount || sale.total || 0) >= 1000000 ? `
+                    <span title="₵${getFullCurrencyAmountForDisplay(parseFloat(sale.final_amount || sale.total || 0))}">₵${formatCurrencyForDisplay(parseFloat(sale.final_amount || sale.total || 0))}</span>
+                ` : `
+                    ₵${formatCurrencyForDisplay(parseFloat(sale.final_amount || sale.total || 0))}
+                `}
             </td>
             <td class="px-2 sm:px-3 md:px-4 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
                 ${getPaymentStatusBadge(sale.payment_status || 'PAID', sale.final_amount || sale.total || 0)}
             </td>
             <td class="px-2 sm:px-3 md:px-4 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm" ${textColorStyle}>
-                <span class="hidden sm:inline">${formattedDate}</span><span class="sm:hidden">${formattedDateShort}</span>
+                ${formattedDate}
             </td>
             <td class="px-2 sm:px-3 md:px-4 py-3 sm:py-4 text-xs sm:text-sm">
                 <div class="flex items-center justify-start gap-1 sm:gap-1.5 md:gap-2 flex-nowrap">
@@ -890,10 +913,26 @@ function updateSummaryCards(totalProfit = null) {
     if (totalSalesEl) totalSalesEl.textContent = totalSales;
     
     const totalRevenueEl = document.getElementById('totalRevenue');
-    if (totalRevenueEl) totalRevenueEl.textContent = `₵${formatCurrencyForDisplay(totalRevenue)}`;
+    if (totalRevenueEl) {
+        if (totalRevenue >= 1000000) {
+            totalRevenueEl.textContent = `₵${formatCurrencyForDisplay(totalRevenue)}`;
+            totalRevenueEl.setAttribute('title', `₵${getFullCurrencyAmountForDisplay(totalRevenue)}`);
+        } else {
+            totalRevenueEl.textContent = `₵${formatCurrencyForDisplay(totalRevenue)}`;
+            totalRevenueEl.removeAttribute('title');
+        }
+    }
     
     const avgSaleEl = document.getElementById('avgSale');
-    if (avgSaleEl) avgSaleEl.textContent = `₵${formatCurrencyForDisplay(avgSale)}`;
+    if (avgSaleEl) {
+        if (avgSale >= 1000000) {
+            avgSaleEl.textContent = `₵${formatCurrencyForDisplay(avgSale)}`;
+            avgSaleEl.setAttribute('title', `₵${getFullCurrencyAmountForDisplay(avgSale)}`);
+        } else {
+            avgSaleEl.textContent = `₵${formatCurrencyForDisplay(avgSale)}`;
+            avgSaleEl.removeAttribute('title');
+        }
+    }
     
     const todaySalesEl = document.getElementById('todaySales');
     if (todaySalesEl) todaySalesEl.textContent = todaySales;
@@ -902,7 +941,14 @@ function updateSummaryCards(totalProfit = null) {
     if (isManager && totalProfit !== null && totalProfit !== undefined) {
         const totalProfitEl = document.getElementById('totalProfit');
         if (totalProfitEl) {
-            totalProfitEl.textContent = `₵${formatCurrencyForDisplay(parseFloat(totalProfit))}`;
+            const profitAmount = parseFloat(totalProfit);
+            if (profitAmount >= 1000000) {
+                totalProfitEl.textContent = `₵${formatCurrencyForDisplay(profitAmount)}`;
+                totalProfitEl.setAttribute('title', `₵${getFullCurrencyAmountForDisplay(profitAmount)}`);
+            } else {
+                totalProfitEl.textContent = `₵${formatCurrencyForDisplay(profitAmount)}`;
+                totalProfitEl.removeAttribute('title');
+            }
         }
     }
     
