@@ -7,49 +7,49 @@
 
 <div class="p-6">
   <!-- Header -->
-  <div class="mb-6 flex items-center justify-between">
-    <div>
+  <div class="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+    <div class="min-w-0 flex-1">
       <div class="flex items-center mb-2">
-        <a href="<?= BASE_URL_PATH ?>/dashboard/companies/view/<?= $company['id'] ?>" class="text-gray-500 hover:text-gray-700 mr-3">
+        <a href="<?= BASE_URL_PATH ?>/dashboard/companies/view/<?= $company['id'] ?>" class="text-gray-500 hover:text-gray-700 mr-3 flex-shrink-0">
           <i class="fas fa-arrow-left"></i>
         </a>
-        <h2 class="text-3xl font-bold text-gray-800">Company Modules</h2>
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 truncate">Company Modules</h2>
       </div>
-      <p class="text-gray-600">Manage enabled modules for <?= htmlspecialchars($company['name']) ?></p>
+      <p class="text-sm sm:text-base text-gray-600 truncate" title="Manage enabled modules for <?= htmlspecialchars($company['name']) ?>">Manage enabled modules for <?= htmlspecialchars($company['name']) ?></p>
     </div>
-    <a href="<?= BASE_URL_PATH ?>/dashboard/companies" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition text-sm font-medium">
+    <a href="<?= BASE_URL_PATH ?>/dashboard/companies" class="bg-gray-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-gray-600 transition text-xs sm:text-sm font-medium whitespace-nowrap flex-shrink-0">
       <i class="fas fa-arrow-left mr-2"></i>Back to Companies
     </a>
   </div>
 
   <!-- Company Info Card -->
-  <div class="bg-white rounded-lg shadow p-6 mb-6">
-    <div class="flex items-center">
-      <div class="bg-blue-100 rounded-lg p-4 mr-4">
-        <i class="fas fa-building text-blue-600 text-2xl"></i>
+  <div class="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 sm:mb-6 overflow-hidden">
+    <div class="flex items-center min-w-0">
+      <div class="bg-blue-100 rounded-lg p-3 sm:p-4 mr-3 sm:mr-4 flex-shrink-0">
+        <i class="fas fa-building text-blue-600 text-xl sm:text-2xl"></i>
       </div>
-      <div>
-        <h3 class="text-xl font-semibold text-gray-800"><?= htmlspecialchars($company['name']) ?></h3>
-        <p class="text-sm text-gray-600"><?= htmlspecialchars($company['email'] ?? 'No email') ?></p>
+      <div class="min-w-0 flex-1">
+        <h3 class="text-lg sm:text-xl font-semibold text-gray-800 truncate" title="<?= htmlspecialchars($company['name']) ?>"><?= htmlspecialchars($company['name']) ?></h3>
+        <p class="text-xs sm:text-sm text-gray-600 truncate" title="<?= htmlspecialchars($company['email'] ?? 'No email') ?>"><?= htmlspecialchars($company['email'] ?? 'No email') ?></p>
         <p class="text-xs text-gray-500">Company ID: <?= $company['id'] ?></p>
       </div>
     </div>
   </div>
 
   <!-- Summary Stats -->
-  <div id="modules-summary" class="bg-white rounded-lg shadow p-6 mb-6 hidden">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="bg-gray-50 rounded-lg p-4 text-center">
-        <div class="text-2xl font-bold text-gray-800" id="total-modules">0</div>
-        <div class="text-sm text-gray-600">Total Modules</div>
+  <div id="modules-summary" class="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 sm:mb-6 hidden overflow-hidden">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+      <div class="bg-gray-50 rounded-lg p-3 sm:p-4 text-center overflow-hidden">
+        <div class="text-xl sm:text-2xl font-bold text-gray-800 truncate" id="total-modules">0</div>
+        <div class="text-xs sm:text-sm text-gray-600">Total Modules</div>
       </div>
-      <div class="bg-gray-50 rounded-lg p-4 text-center">
-        <div class="text-2xl font-bold text-green-600" id="enabled-modules">0</div>
-        <div class="text-sm text-gray-600">Enabled</div>
+      <div class="bg-gray-50 rounded-lg p-3 sm:p-4 text-center overflow-hidden">
+        <div class="text-xl sm:text-2xl font-bold text-green-600 truncate" id="enabled-modules">0</div>
+        <div class="text-xs sm:text-sm text-gray-600">Enabled</div>
       </div>
-      <div class="bg-gray-50 rounded-lg p-4 text-center">
-        <div class="text-2xl font-bold text-gray-600" id="disabled-modules">0</div>
-        <div class="text-sm text-gray-600">Disabled</div>
+      <div class="bg-gray-50 rounded-lg p-3 sm:p-4 text-center overflow-hidden">
+        <div class="text-xl sm:text-2xl font-bold text-gray-600 truncate" id="disabled-modules">0</div>
+        <div class="text-xs sm:text-sm text-gray-600">Disabled</div>
       </div>
     </div>
   </div>
@@ -99,7 +99,7 @@
     </div>
 
     <!-- Modules Container -->
-    <div id="modules-container" class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 hidden">
+    <div id="modules-container" class="p-3 sm:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 hidden">
       <!-- Modules will be loaded here -->
     </div>
   </div>
@@ -282,22 +282,22 @@
           else disabledCount++;
           
           return `
-            <div class="flex flex-col p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition ${enabled ? 'bg-green-50 border-green-200' : 'bg-white'}">
-              <div class="flex items-start justify-between mb-3">
-                <div class="flex items-center flex-1">
-                  <div class="flex-shrink-0 mr-3">
+            <div class="flex flex-col p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition overflow-hidden ${enabled ? 'bg-green-50 border-green-200' : 'bg-white'}">
+              <div class="flex items-start justify-between mb-3 min-w-0 gap-2">
+                <div class="flex items-center flex-1 min-w-0">
+                  <div class="flex-shrink-0 mr-2 sm:mr-3">
                     <div class="bg-${enabled ? 'green' : 'gray'}-100 rounded-lg p-2">
-                      <i class="fas fa-${getModuleIcon(module.key)} text-${enabled ? 'green' : 'gray'}-600 text-base"></i>
+                      <i class="fas fa-${getModuleIcon(module.key)} text-${enabled ? 'green' : 'gray'}-600 text-sm sm:text-base"></i>
                     </div>
                   </div>
                   <div class="flex-1 min-w-0">
-                    <h4 class="text-sm font-semibold text-gray-900 flex items-center flex-wrap gap-1">
-                      <span class="truncate">${getModuleName(module.key)}</span>
-                      ${enabled ? '<span class="px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded whitespace-nowrap">Enabled</span>' : '<span class="px-1.5 py-0.5 bg-gray-100 text-gray-700 text-xs rounded whitespace-nowrap">Disabled</span>'}
+                    <h4 class="text-xs sm:text-sm font-semibold text-gray-900 flex items-center flex-wrap gap-1">
+                      <span class="truncate" title="${getModuleName(module.key)}">${getModuleName(module.key)}</span>
+                      ${enabled ? '<span class="px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded whitespace-nowrap flex-shrink-0">Enabled</span>' : '<span class="px-1.5 py-0.5 bg-gray-100 text-gray-700 text-xs rounded whitespace-nowrap flex-shrink-0">Disabled</span>'}
                     </h4>
                   </div>
                 </div>
-                <label class="relative inline-flex items-center cursor-pointer ml-2 flex-shrink-0">
+                <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
                   <input 
                     type="checkbox" 
                     class="sr-only peer module-toggle" 
@@ -308,8 +308,8 @@
                   <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
                 </label>
               </div>
-              <p class="text-xs text-gray-600 mb-2 line-clamp-2">${getModuleDescription(module.key)}</p>
-              <p class="text-xs text-gray-400 mt-auto">Key: <code class="bg-gray-100 px-1 rounded text-xs">${module.key}</code></p>
+              <p class="text-xs text-gray-600 mb-2 line-clamp-2 break-words" title="${getModuleDescription(module.key)}">${getModuleDescription(module.key)}</p>
+              <p class="text-xs text-gray-400 mt-auto break-all">Key: <code class="bg-gray-100 px-1 rounded text-xs break-all">${module.key}</code></p>
             </div>
           `;
         }).join('');

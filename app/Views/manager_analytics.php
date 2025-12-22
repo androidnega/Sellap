@@ -132,107 +132,107 @@ $userRole = $user['role'] ?? 'manager';
         <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3 sm:mb-4">Key Metrics</h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
             <!-- Sales & Revenue -->
-            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow p-4 sm:p-6 border border-blue-200">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="p-2 rounded-lg bg-blue-200">
-                        <i class="fas fa-dollar-sign text-blue-700 text-lg"></i>
+            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow p-3 sm:p-4 lg:p-6 border border-blue-200 overflow-hidden">
+                <div class="flex items-center justify-between mb-2 min-w-0">
+                    <div class="p-2 rounded-lg bg-blue-200 flex-shrink-0">
+                        <i class="fas fa-dollar-sign text-blue-700 text-base sm:text-lg"></i>
                     </div>
-                    <span class="text-xs text-gray-600">Period: <span id="salesPeriodLabel">This Month</span></span>
+                    <span class="text-xs text-gray-600 truncate ml-2">Period: <span id="salesPeriodLabel" class="whitespace-nowrap">This Month</span></span>
                 </div>
-                <p class="text-sm font-medium text-gray-600 mb-1">Sales & Revenue</p>
-                <p class="text-2xl font-bold text-gray-900" id="metric-monthly-revenue">₵0.00</p>
-                <div class="mt-2 flex items-center text-xs text-gray-600">
-                    <span id="metric-monthly-sales">0</span> <span class="ml-1">sales</span>
-                    <span class="mx-2">•</span>
-                    <span id="metric-today-revenue">₵0.00</span> <span class="ml-1">today</span>
+                <p class="text-xs sm:text-sm font-medium text-gray-600 mb-1 truncate">Sales & Revenue</p>
+                <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="metric-monthly-revenue" title="₵0.00">₵0.00</p>
+                <div class="mt-2 flex flex-wrap items-center text-xs text-gray-600 gap-1">
+                    <span class="whitespace-nowrap"><span id="metric-monthly-sales">0</span> <span>sales</span></span>
+                    <span>•</span>
+                    <span class="whitespace-nowrap"><span id="metric-today-revenue">₵0.00</span> <span>today</span></span>
                 </div>
             </div>
             
             <!-- Profit & Loss -->
-            <div class="bg-gradient-to-br from-emerald-50 to-green-100 rounded-lg shadow p-4 sm:p-6 border border-emerald-200">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="p-2 rounded-lg bg-emerald-200">
-                        <i class="fas fa-chart-line text-emerald-700 text-lg"></i>
+            <div class="bg-gradient-to-br from-emerald-50 to-green-100 rounded-lg shadow p-3 sm:p-4 lg:p-6 border border-emerald-200 overflow-hidden">
+                <div class="flex items-center justify-between mb-2 min-w-0">
+                    <div class="p-2 rounded-lg bg-emerald-200 flex-shrink-0">
+                        <i class="fas fa-chart-line text-emerald-700 text-base sm:text-lg"></i>
                     </div>
-                    <span class="text-xs text-gray-600" id="profitMarginLabel">20.00%</span>
+                    <span class="text-xs text-gray-600 truncate ml-2" id="profitMarginLabel">20.00%</span>
                 </div>
-                <p class="text-sm font-medium text-gray-600 mb-1">Net Profit</p>
-                <p class="text-2xl font-bold text-gray-900" id="metric-profit-profit">₵0.00</p>
-                <div class="mt-2 flex items-center text-xs text-gray-600">
-                    <span>Revenue: <span id="metric-profit-revenue">₵0.00</span></span>
-                    <span class="mx-2">•</span>
-                    <span>Cost: <span id="metric-profit-cost">₵0.00</span></span>
+                <p class="text-xs sm:text-sm font-medium text-gray-600 mb-1 truncate">Net Profit</p>
+                <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="metric-profit-profit" title="₵0.00">₵0.00</p>
+                <div class="mt-2 flex flex-wrap items-center text-xs text-gray-600 gap-1">
+                    <span class="whitespace-nowrap">Revenue: <span id="metric-profit-revenue">₵0.00</span></span>
+                    <span>•</span>
+                    <span class="whitespace-nowrap">Cost: <span id="metric-profit-cost">₵0.00</span></span>
                 </div>
             </div>
             
             <!-- Services (Repairs & Swaps) -->
-            <div id="repairerStatsSection" class="bg-gradient-to-br from-indigo-50 to-purple-100 rounded-lg shadow p-4 sm:p-6 border border-indigo-200">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="p-2 rounded-lg bg-indigo-200">
-                        <i class="fas fa-wrench text-indigo-700 text-lg"></i>
+            <div id="repairerStatsSection" class="bg-gradient-to-br from-indigo-50 to-purple-100 rounded-lg shadow p-3 sm:p-4 lg:p-6 border border-indigo-200 overflow-hidden">
+                <div class="flex items-center justify-between mb-2 min-w-0">
+                    <div class="p-2 rounded-lg bg-indigo-200 flex-shrink-0">
+                        <i class="fas fa-wrench text-indigo-700 text-base sm:text-lg"></i>
                     </div>
-                    <span class="text-xs text-gray-600">Repairs: <span id="repairerStatsRepairsCount">0</span></span>
+                    <span class="text-xs text-gray-600 truncate ml-2">Repairs: <span id="repairerStatsRepairsCount">0</span></span>
                 </div>
-                <p class="text-sm font-medium text-gray-600 mb-1">Repairer Stats</p>
-                <p class="text-2xl font-bold text-gray-900" id="repairerStatsTotalRevenue">₵0.00</p>
-                <div class="mt-2 flex flex-wrap items-center text-xs text-gray-600">
-                    <span>Parts Sales: <span id="repairerStatsPartsRevenue">₵0.00</span></span>
-                    <span class="mx-2">•</span>
-                    <span>Products Sold: <span id="repairerStatsPartsCount">0</span></span>
-                    <span class="mx-2">•</span>
-                    <span>Profit: <span id="repairerStatsTotalProfit">₵0.00</span></span>
+                <p class="text-xs sm:text-sm font-medium text-gray-600 mb-1 truncate">Repairer Stats</p>
+                <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="repairerStatsTotalRevenue" title="₵0.00">₵0.00</p>
+                <div class="mt-2 flex flex-wrap items-center text-xs text-gray-600 gap-1">
+                    <span class="whitespace-nowrap">Parts Sales: <span id="repairerStatsPartsRevenue">₵0.00</span></span>
+                    <span>•</span>
+                    <span class="whitespace-nowrap">Products Sold: <span id="repairerStatsPartsCount">0</span></span>
+                    <span>•</span>
+                    <span class="whitespace-nowrap">Profit: <span id="repairerStatsTotalProfit">₵0.00</span></span>
                 </div>
             </div>
             
             <!-- Swapping Stats -->
-            <div class="bg-gradient-to-br from-amber-50 to-orange-100 rounded-lg shadow p-4 sm:p-6 border border-amber-200">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="p-2 rounded-lg bg-amber-200">
-                        <i class="fas fa-exchange-alt text-amber-700 text-lg"></i>
+            <div class="bg-gradient-to-br from-amber-50 to-orange-100 rounded-lg shadow p-3 sm:p-4 lg:p-6 border border-amber-200 overflow-hidden">
+                <div class="flex items-center justify-between mb-2 min-w-0">
+                    <div class="p-2 rounded-lg bg-amber-200 flex-shrink-0">
+                        <i class="fas fa-exchange-alt text-amber-700 text-base sm:text-lg"></i>
                     </div>
-                    <span class="text-xs text-gray-600">Total: <span id="metric-swap-total">0</span></span>
+                    <span class="text-xs text-gray-600 truncate ml-2">Total: <span id="metric-swap-total">0</span></span>
                 </div>
-                <p class="text-sm font-medium text-gray-600 mb-1">Swapping Stats</p>
-                <p class="text-2xl font-bold text-gray-900" id="swapTotalRevenue">₵0.00</p>
-                <div class="mt-2 flex items-center text-xs text-gray-600">
-                    <span class="text-yellow-600">Pending: <span id="metric-swap-pending">0</span></span>
-                    <span class="mx-2">•</span>
-                    <span>Revenue: <span id="metric-swap-revenue">₵0.00</span></span>
-                    <span class="mx-2">•</span>
-                    <span class="text-green-600">Profit: <span id="metric-swap-profit">₵0.00</span></span>
+                <p class="text-xs sm:text-sm font-medium text-gray-600 mb-1 truncate">Swapping Stats</p>
+                <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="swapTotalRevenue" title="₵0.00">₵0.00</p>
+                <div class="mt-2 flex flex-wrap items-center text-xs text-gray-600 gap-1">
+                    <span class="text-yellow-600 whitespace-nowrap">Pending: <span id="metric-swap-pending">0</span></span>
+                    <span>•</span>
+                    <span class="whitespace-nowrap">Revenue: <span id="metric-swap-revenue">₵0.00</span></span>
+                    <span>•</span>
+                    <span class="text-green-600 whitespace-nowrap">Profit: <span id="metric-swap-profit">₵0.00</span></span>
                 </div>
             </div>
         </div>
         
         <!-- Payment Status Card - Combined -->
-        <div class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-3 sm:p-4 border border-gray-200" id="audit-payment-status-card" style="display: none;">
-            <div class="flex items-center justify-between mb-2 sm:mb-3">
-                <h4 class="text-xs sm:text-sm font-semibold text-gray-800 flex items-center">
-                    <i class="fas fa-money-bill-wave text-gray-600 mr-2"></i>
+        <div class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-3 sm:p-4 border border-gray-200 overflow-hidden" id="audit-payment-status-card" style="display: none;">
+            <div class="flex items-center justify-between mb-2 sm:mb-3 min-w-0">
+                <h4 class="text-xs sm:text-sm font-semibold text-gray-800 flex items-center truncate">
+                    <i class="fas fa-money-bill-wave text-gray-600 mr-2 flex-shrink-0"></i>
                     Payment Status
                 </h4>
             </div>
             <div class="grid grid-cols-3 gap-2 sm:gap-4">
-                <div class="text-center">
+                <div class="text-center overflow-hidden">
                     <div class="flex items-center justify-center mb-1">
-                        <i class="fas fa-check-circle text-green-600 text-sm mr-1"></i>
-                        <p class="text-xs text-gray-600">Fully Paid</p>
+                        <i class="fas fa-check-circle text-green-600 text-xs sm:text-sm mr-1 flex-shrink-0"></i>
+                        <p class="text-xs text-gray-600 truncate">Fully Paid</p>
                     </div>
-                    <p class="text-xl font-bold text-gray-900" id="audit-fully-paid">0</p>
+                    <p class="text-lg sm:text-xl font-bold text-gray-900 truncate" id="audit-fully-paid" title="0">0</p>
                 </div>
-                <div class="text-center">
+                <div class="text-center overflow-hidden">
                     <div class="flex items-center justify-center mb-1">
-                        <i class="fas fa-exclamation-circle text-yellow-600 text-sm mr-1"></i>
-                        <p class="text-xs text-gray-600">Partial</p>
+                        <i class="fas fa-exclamation-circle text-yellow-600 text-xs sm:text-sm mr-1 flex-shrink-0"></i>
+                        <p class="text-xs text-gray-600 truncate">Partial</p>
                     </div>
-                    <p class="text-xl font-bold text-gray-900" id="audit-partial">0</p>
+                    <p class="text-lg sm:text-xl font-bold text-gray-900 truncate" id="audit-partial" title="0">0</p>
                 </div>
-                <div class="text-center">
+                <div class="text-center overflow-hidden">
                     <div class="flex items-center justify-center mb-1">
-                        <i class="fas fa-times-circle text-red-600 text-sm mr-1"></i>
-                        <p class="text-xs text-gray-600">Unpaid</p>
+                        <i class="fas fa-times-circle text-red-600 text-xs sm:text-sm mr-1 flex-shrink-0"></i>
+                        <p class="text-xs text-gray-600 truncate">Unpaid</p>
                     </div>
-                    <p class="text-xl font-bold text-gray-900" id="audit-unpaid">0</p>
+                    <p class="text-lg sm:text-xl font-bold text-gray-900 truncate" id="audit-unpaid" title="0">0</p>
                 </div>
             </div>
         </div>
@@ -253,21 +253,21 @@ $userRole = $user['role'] ?? 'manager';
             
             <!-- Staff Performance Metrics -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-                <div class="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200">
-                    <p class="text-xs sm:text-sm font-medium text-gray-600">Total Sales</p>
-                    <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffTotalSales">0</p>
+                <div class="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200 overflow-hidden">
+                    <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Sales</p>
+                    <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="staffTotalSales" title="0">0</p>
                 </div>
-                <div class="bg-green-50 rounded-lg p-3 sm:p-4 border border-green-200">
-                    <p class="text-xs sm:text-sm font-medium text-gray-600">Total Revenue</p>
-                    <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffTotalRevenue">₵0.00</p>
+                <div class="bg-green-50 rounded-lg p-3 sm:p-4 border border-green-200 overflow-hidden">
+                    <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Revenue</p>
+                    <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="staffTotalRevenue" title="₵0.00">₵0.00</p>
                 </div>
-                <div class="bg-emerald-50 rounded-lg p-3 sm:p-4 border border-emerald-200">
-                    <p class="text-xs sm:text-sm font-medium text-gray-600">Total Profit</p>
-                    <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffTotalProfit">₵0.00</p>
+                <div class="bg-emerald-50 rounded-lg p-3 sm:p-4 border border-emerald-200 overflow-hidden">
+                    <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Profit</p>
+                    <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="staffTotalProfit" title="₵0.00">₵0.00</p>
                 </div>
-                <div class="bg-red-50 rounded-lg p-3 sm:p-4 border border-red-200">
-                    <p class="text-xs sm:text-sm font-medium text-gray-600">Total Losses</p>
-                    <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffTotalLosses">₵0.00</p>
+                <div class="bg-red-50 rounded-lg p-3 sm:p-4 border border-red-200 overflow-hidden">
+                    <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Losses</p>
+                    <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="staffTotalLosses" title="₵0.00">₵0.00</p>
                 </div>
             </div>
             
@@ -275,25 +275,25 @@ $userRole = $user['role'] ?? 'manager';
             <div id="technicianBreakdownSection" class="hidden mb-4 sm:mb-6">
                 <h4 class="text-base sm:text-lg font-semibold text-gray-700 mb-3 sm:mb-4">Repair Breakdown</h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                    <div class="bg-purple-50 rounded-lg p-3 sm:p-4 border border-purple-200">
-                        <p class="text-xs sm:text-sm font-medium text-gray-600">Workmanship Revenue</p>
-                        <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffWorkmanshipRevenue">₵0.00</p>
-                        <p class="text-xs text-gray-500 mt-1">Repair charges</p>
+                    <div class="bg-purple-50 rounded-lg p-3 sm:p-4 border border-purple-200 overflow-hidden">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Workmanship Revenue</p>
+                        <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="staffWorkmanshipRevenue" title="₵0.00">₵0.00</p>
+                        <p class="text-xs text-gray-500 mt-1 truncate">Repair charges</p>
                     </div>
-                    <div class="bg-indigo-50 rounded-lg p-3 sm:p-4 border border-indigo-200">
-                        <p class="text-xs sm:text-sm font-medium text-gray-600">Parts & Accessories Revenue</p>
-                        <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffPartsRevenue">₵0.00</p>
-                        <p class="text-xs text-gray-500 mt-1">Spare parts sold</p>
+                    <div class="bg-indigo-50 rounded-lg p-3 sm:p-4 border border-indigo-200 overflow-hidden">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Parts & Accessories Revenue</p>
+                        <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="staffPartsRevenue" title="₵0.00">₵0.00</p>
+                        <p class="text-xs text-gray-500 mt-1 truncate">Spare parts sold</p>
                     </div>
-                    <div class="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200">
-                        <p class="text-xs sm:text-sm font-medium text-gray-600">Products Sold</p>
-                        <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffPartsCount">0</p>
-                        <p class="text-xs text-gray-500 mt-1">Spare parts count</p>
+                    <div class="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200 overflow-hidden">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Products Sold</p>
+                        <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="staffPartsCount" title="0">0</p>
+                        <p class="text-xs text-gray-500 mt-1 truncate">Spare parts count</p>
                     </div>
-                    <div class="bg-teal-50 rounded-lg p-3 sm:p-4 border border-teal-200">
-                        <p class="text-xs sm:text-sm font-medium text-gray-600">Parts Profit</p>
-                        <p class="text-xl sm:text-2xl font-bold text-gray-900" id="staffPartsProfit">₵0.00</p>
-                        <p class="text-xs text-gray-500 mt-1">Parts revenue - cost</p>
+                    <div class="bg-teal-50 rounded-lg p-3 sm:p-4 border border-teal-200 overflow-hidden">
+                        <p class="text-xs sm:text-sm font-medium text-gray-600 truncate">Parts Profit</p>
+                        <p class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="staffPartsProfit" title="₵0.00">₵0.00</p>
+                        <p class="text-xs text-gray-500 mt-1 truncate">Parts revenue - cost</p>
                     </div>
                 </div>
             </div>
