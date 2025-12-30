@@ -223,25 +223,53 @@ class Brand {
 
     /**
      * Get brands by category ID
+     * @param int $categoryId
+     * @param int|null $companyId Optional company ID to filter by company-specific brands
      */
-    public function getByCategory($categoryId) {
-        if ($this->brandCategoryTableExists()) {
-            $stmt = $this->db->prepare("
-                SELECT DISTINCT b.id, b.name, b.category_id, b.created_at
-                FROM brands b 
-                LEFT JOIN brand_category_links bcl ON b.id = bcl.brand_id
-                WHERE b.category_id = ? OR bcl.category_id = ?
-                ORDER BY b.name ASC
-            ");
-            $stmt->execute([$categoryId, $categoryId]);
+    public function getByCategory($categoryId, $companyId = null) {
+        if ($companyId) {
+            // Filter by company_id through products
+            if ($this->brandCategoryTableExists()) {
+                $stmt = $this->db->prepare("
+                    SELECT DISTINCT b.id, b.name, b.category_id, b.created_at
+                    FROM brands b 
+                    INNER JOIN products_new p ON b.id = p.brand_id
+                    LEFT JOIN brand_category_links bcl ON b.id = bcl.brand_id
+                    WHERE p.company_id = ?
+                    AND (b.category_id = ? OR bcl.category_id = ?)
+                    ORDER BY b.name ASC
+                ");
+                $stmt->execute([$companyId, $categoryId, $categoryId]);
+            } else {
+                $stmt = $this->db->prepare("
+                    SELECT DISTINCT b.id, b.name, b.category_id, b.created_at
+                    FROM brands b 
+                    INNER JOIN products_new p ON b.id = p.brand_id
+                    WHERE p.company_id = ?
+                    AND b.category_id = ? 
+                    ORDER BY b.name ASC
+                ");
+                $stmt->execute([$companyId, $categoryId]);
+            }
         } else {
-            $stmt = $this->db->prepare("
-                SELECT DISTINCT b.id, b.name, b.category_id, b.created_at
-                FROM brands b 
-                WHERE b.category_id = ? 
-                ORDER BY b.name ASC
-            ");
-            $stmt->execute([$categoryId]);
+            if ($this->brandCategoryTableExists()) {
+                $stmt = $this->db->prepare("
+                    SELECT DISTINCT b.id, b.name, b.category_id, b.created_at
+                    FROM brands b 
+                    LEFT JOIN brand_category_links bcl ON b.id = bcl.brand_id
+                    WHERE b.category_id = ? OR bcl.category_id = ?
+                    ORDER BY b.name ASC
+                ");
+                $stmt->execute([$categoryId, $categoryId]);
+            } else {
+                $stmt = $this->db->prepare("
+                    SELECT DISTINCT b.id, b.name, b.category_id, b.created_at
+                    FROM brands b 
+                    WHERE b.category_id = ? 
+                    ORDER BY b.name ASC
+                ");
+                $stmt->execute([$categoryId]);
+            }
         }
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         // Deduplicate by name (case-insensitive) to avoid duplicates like "Samsung, Samsung"

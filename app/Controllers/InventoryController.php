@@ -243,7 +243,7 @@ class InventoryController {
         
         $companyId = $_SESSION['user']['company_id'] ?? 1;
         
-        $categories = (new \App\Models\Category())->getAll();
+        $categories = (new \App\Models\Category())->getAll($companyId);
         $suppliers = (new \App\Models\Supplier())->getActiveForDropdown($companyId);
         
         // Check if coming from purchase order

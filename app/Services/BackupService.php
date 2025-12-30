@@ -71,9 +71,10 @@ class BackupService {
      * @param string $format 'json' or 'sql'
      * @param int|null $userId User creating the backup
      * @param bool $isAutomatic Whether this is an automatic scheduled backup
+     * @param string $backupDestination Destination preference: 'email', 'cloudinary', or 'both'
      * @return array ['success' => bool, 'filepath' => string, 'filename' => string]
      */
-    public function exportCompanyData($companyId, $format = 'json', $userId = null, $isAutomatic = false) {
+    public function exportCompanyData($companyId, $format = 'json', $userId = null, $isAutomatic = false, $backupDestination = 'email') {
         try {
             // Create in_progress backup record
             $backupRecordId = null;
@@ -173,17 +174,19 @@ class BackupService {
                 
                 $backupRecordId = $this->backupModel->create($backupData);
                 
-                // Upload to Cloudinary automatically
+                // Upload to Cloudinary based on destination preference
                 $cloudinaryUrl = null;
-                try {
-                    $cloudinaryUrl = $this->uploadBackupToCloudinary($zipPath, $zipFilename, $companyId, $backupRecordId);
-                    if ($cloudinaryUrl) {
-                        // Update backup record with Cloudinary URL
-                        $this->updateBackupCloudinaryUrl($backupRecordId, $cloudinaryUrl);
+                if ($backupDestination === 'cloudinary' || $backupDestination === 'both') {
+                    try {
+                        $cloudinaryUrl = $this->uploadBackupToCloudinary($zipPath, $zipFilename, $companyId, $backupRecordId);
+                        if ($cloudinaryUrl) {
+                            // Update backup record with Cloudinary URL
+                            $this->updateBackupCloudinaryUrl($backupRecordId, $cloudinaryUrl);
+                        }
+                    } catch (\Exception $e) {
+                        error_log("Failed to upload backup to Cloudinary: " . $e->getMessage());
+                        // Don't fail the backup if Cloudinary upload fails
                     }
-                } catch (\Exception $e) {
-                    error_log("Failed to upload backup to Cloudinary: " . $e->getMessage());
-                    // Don't fail the backup if Cloudinary upload fails
                 }
                 
                 return [

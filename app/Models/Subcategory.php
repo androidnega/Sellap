@@ -15,28 +15,56 @@ class Subcategory {
 
     /**
      * Get all subcategories
+     * @param int|null $companyId Optional company ID to filter by company-specific subcategories
      */
-    public function getAll() {
-        $stmt = $this->db->prepare("
-            SELECT s.*, c.name as category_name
-            FROM subcategories s
-            LEFT JOIN categories c ON s.category_id = c.id
-            ORDER BY c.name ASC, s.name ASC
-        ");
-        $stmt->execute();
+    public function getAll($companyId = null) {
+        if ($companyId) {
+            $stmt = $this->db->prepare("
+                SELECT DISTINCT s.*, c.name as category_name
+                FROM subcategories s
+                INNER JOIN categories cat ON s.category_id = cat.id
+                INNER JOIN products_new p ON s.category_id = p.category_id AND (s.id = p.subcategory_id OR p.subcategory_id IS NULL)
+                LEFT JOIN categories c ON s.category_id = c.id
+                WHERE p.company_id = ?
+                ORDER BY c.name ASC, s.name ASC
+            ");
+            $stmt->execute([$companyId]);
+        } else {
+            $stmt = $this->db->prepare("
+                SELECT s.*, c.name as category_name
+                FROM subcategories s
+                LEFT JOIN categories c ON s.category_id = c.id
+                ORDER BY c.name ASC, s.name ASC
+            ");
+            $stmt->execute();
+        }
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**
      * Get subcategories by category ID
+     * @param int $categoryId
+     * @param int|null $companyId Optional company ID to filter by company-specific subcategories
      */
-    public function getByCategory($categoryId) {
-        $stmt = $this->db->prepare("
-            SELECT * FROM subcategories 
-            WHERE category_id = ? 
-            ORDER BY name ASC
-        ");
-        $stmt->execute([$categoryId]);
+    public function getByCategory($categoryId, $companyId = null) {
+        if ($companyId) {
+            $stmt = $this->db->prepare("
+                SELECT DISTINCT s.* 
+                FROM subcategories s
+                INNER JOIN products_new p ON s.category_id = p.category_id AND (s.id = p.subcategory_id OR p.subcategory_id IS NULL)
+                WHERE s.category_id = ? 
+                AND p.company_id = ?
+                ORDER BY s.name ASC
+            ");
+            $stmt->execute([$categoryId, $companyId]);
+        } else {
+            $stmt = $this->db->prepare("
+                SELECT * FROM subcategories 
+                WHERE category_id = ? 
+                ORDER BY name ASC
+            ");
+            $stmt->execute([$categoryId]);
+        }
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 

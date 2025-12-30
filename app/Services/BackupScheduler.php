@@ -30,17 +30,29 @@ class BackupScheduler {
         ];
 
         try {
-            // Get all active companies
-            $stmt = $this->db->query("SELECT id, name FROM companies WHERE status = 'active' ORDER BY id");
+            // Get all active companies with auto-backup enabled
+            // Only backup companies that have auto_backup_enabled = 1
+            $stmt = $this->db->query("
+                SELECT c.id, c.name, 
+                       COALESCE(cbs.auto_backup_enabled, 0) as auto_backup_enabled,
+                       COALESCE(cbs.backup_time, '02:00:00') as backup_time,
+                       COALESCE(cbs.backup_destination, 'email') as backup_destination
+                FROM companies c
+                LEFT JOIN company_backup_settings cbs ON c.id = cbs.company_id
+                WHERE c.status = 'active' 
+                AND COALESCE(cbs.auto_backup_enabled, 0) = 1
+                ORDER BY c.id
+            ");
             $companies = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
-            // Backup each company
+            // Backup each company that has auto-backup enabled
             foreach ($companies as $company) {
                 try {
                     $backupId = $this->backupService->createCompanyBackup(
                         $company['id'],
                         null, // System user
-                        true  // Automatic backup
+                        true, // Automatic backup
+                        $company['backup_destination'] // Pass destination preference
                     );
 
                     // Update backup record to mark as automatic
@@ -89,8 +101,8 @@ class BackupScheduler {
             // Cleanup old automatic backups (keep last 30 days)
             $this->cleanupOldBackups(30);
             
-            // Send backups via email
-            $this->sendBackupsViaEmail($results);
+            // Send backups based on company settings (email, cloudinary, or both)
+            $this->processBackupDestinations($results);
             
             // Sync backups from Cloudinary
             $this->syncBackupsFromCloudinary();
@@ -226,7 +238,193 @@ class BackupScheduler {
     }
     
     /**
-     * Send backups via email to backup@sellapp.store
+     * Process backup destinations based on company settings
+     */
+    private function processBackupDestinations($results) {
+        try {
+            // Get backup destination settings for each company
+            $stmt = $this->db->query("
+                SELECT company_id, backup_destination 
+                FROM company_backup_settings 
+                WHERE auto_backup_enabled = 1
+            ");
+            $destinationSettings = [];
+            while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+                $destinationSettings[$row['company_id']] = $row['backup_destination'];
+            }
+
+            // Process each company backup
+            foreach ($results['companies'] as $companyBackup) {
+                if (!empty($companyBackup['success']) && !empty($companyBackup['backup_id'])) {
+                    $companyId = $companyBackup['company_id'];
+                    $destination = $destinationSettings[$companyId] ?? 'email';
+                    
+                    // Send to email if destination is 'email' or 'both'
+                    if ($destination === 'email' || $destination === 'both') {
+                        $this->sendCompanyBackupViaEmail($companyBackup);
+                    }
+                    
+                    // Upload to Cloudinary if destination is 'cloudinary' or 'both'
+                    if ($destination === 'cloudinary' || $destination === 'both') {
+                        $this->uploadCompanyBackupToCloudinary($companyBackup);
+                    }
+                }
+            }
+            
+            // System backup - send to email by default (can be configured later)
+            if (!empty($results['system']['success']) && !empty($results['system']['backup_id'])) {
+                $this->sendSystemBackupViaEmail($results['system']);
+            }
+        } catch (\Exception $e) {
+            error_log("Error processing backup destinations: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Send company backup via email
+     */
+    private function sendCompanyBackupViaEmail($companyBackup) {
+        try {
+            $emailService = new EmailService();
+            $backupService = $this->backupService;
+            $backupEmail = 'backup@sellapp.store';
+            
+            if (!empty($companyBackup['backup_id'])) {
+                $backup = $backupService->getBackupById($companyBackup['backup_id']);
+                if ($backup && !empty($backup['file_path']) && file_exists($backup['file_path'])) {
+                    $subject = "Daily Backup - " . ($companyBackup['company_name'] ?? 'Company #' . $companyBackup['company_id']) . " - " . date('Y-m-d');
+                    $message = "
+                        <html>
+                        <head>
+                            <style>
+                                body { font-family: Arial, sans-serif; }
+                                .header { background-color: #3b82f6; color: white; padding: 20px; }
+                                .content { padding: 20px; }
+                                .footer { background-color: #f3f4f6; padding: 10px; text-align: center; font-size: 12px; }
+                            </style>
+                        </head>
+                        <body>
+                            <div class='header'>
+                                <h2>SellApp Daily Backup</h2>
+                            </div>
+                            <div class='content'>
+                                <p>This is an automated daily backup from SellApp.</p>
+                                <p><strong>Backup Type:</strong> Company</p>
+                                <p><strong>Company:</strong> " . htmlspecialchars($companyBackup['company_name'] ?? 'Unknown') . " (ID: " . htmlspecialchars($companyBackup['company_id']) . ")</p>
+                                <p><strong>Backup File:</strong> " . htmlspecialchars($backup['file_name']) . "</p>
+                                <p><strong>Date:</strong> " . date('Y-m-d H:i:s') . "</p>
+                                <p>The backup file is attached to this email.</p>
+                            </div>
+                            <div class='footer'>
+                                <p>This is an automated message from SellApp Backup System.</p>
+                            </div>
+                        </body>
+                        </html>
+                    ";
+                    
+                    $emailResult = $emailService->sendEmail(
+                        $backupEmail,
+                        $subject,
+                        $message,
+                        $backup['file_path'],
+                        $backup['file_name'],
+                        'backup',
+                        $companyBackup['company_id'],
+                        null,
+                        null
+                    );
+                    
+                    if ($emailResult['success']) {
+                        error_log("Backup email sent successfully: {$backup['file_name']} to {$backupEmail}");
+                    } else {
+                        error_log("Failed to send backup email: {$backup['file_name']} - " . $emailResult['message']);
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            error_log("Error sending company backup email: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Send system backup via email
+     */
+    private function sendSystemBackupViaEmail($systemBackup) {
+        try {
+            $emailService = new EmailService();
+            $backupService = $this->backupService;
+            $backupEmail = 'backup@sellapp.store';
+            
+            if (!empty($systemBackup['backup_id'])) {
+                $backup = $backupService->getBackupById($systemBackup['backup_id']);
+                if ($backup && !empty($backup['file_path']) && file_exists($backup['file_path'])) {
+                    $subject = "Daily Backup - System - " . date('Y-m-d');
+                    $message = "
+                        <html>
+                        <head>
+                            <style>
+                                body { font-family: Arial, sans-serif; }
+                                .header { background-color: #3b82f6; color: white; padding: 20px; }
+                                .content { padding: 20px; }
+                                .footer { background-color: #f3f4f6; padding: 10px; text-align: center; font-size: 12px; }
+                            </style>
+                        </head>
+                        <body>
+                            <div class='header'>
+                                <h2>SellApp Daily Backup</h2>
+                            </div>
+                            <div class='content'>
+                                <p>This is an automated daily backup from SellApp.</p>
+                                <p><strong>Backup Type:</strong> System</p>
+                                <p><strong>Backup File:</strong> " . htmlspecialchars($backup['file_name']) . "</p>
+                                <p><strong>Date:</strong> " . date('Y-m-d H:i:s') . "</p>
+                                <p>The backup file is attached to this email.</p>
+                            </div>
+                            <div class='footer'>
+                                <p>This is an automated message from SellApp Backup System.</p>
+                            </div>
+                        </body>
+                        </html>
+                    ";
+                    
+                    $emailResult = $emailService->sendEmail(
+                        $backupEmail,
+                        $subject,
+                        $message,
+                        $backup['file_path'],
+                        $backup['file_name'],
+                        'backup',
+                        null,
+                        null,
+                        null
+                    );
+                    
+                    if ($emailResult['success']) {
+                        error_log("System backup email sent successfully: {$backup['file_name']} to {$backupEmail}");
+                    } else {
+                        error_log("Failed to send system backup email: {$backup['file_name']} - " . $emailResult['message']);
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            error_log("Error sending system backup email: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Upload company backup to Cloudinary
+     * Note: BackupService already handles Cloudinary upload during backup creation
+     * This method is kept for potential re-upload scenarios
+     */
+    private function uploadCompanyBackupToCloudinary($companyBackup) {
+        // Cloudinary upload is already handled in BackupService during backup creation
+        // based on the backup_destination setting
+        // This method is a placeholder for future re-upload functionality if needed
+        return;
+    }
+
+    /**
+     * Send backups via email to backup@sellapp.store (legacy method - kept for compatibility)
      */
     private function sendBackupsViaEmail($results) {
         try {

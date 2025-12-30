@@ -229,6 +229,10 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/customers', 'fas fa-user-friends', 'Customers', $currentPage, 'customers') ?>
             <?php endif; ?>
             
+            <?php if (isModuleEnabled('reports_analytics', $companyId, $userRole)): ?>
+                <?= sidebarLink(BASE_URL_PATH . '/dashboard/audit-trail', 'fas fa-chart-bar', 'Audit Trail', $currentPage, 'audit-trail') ?>
+            <?php endif; ?>
+            
             <!-- SMS Settings - Available for managers to view balance and purchase credits -->
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/sms-settings', 'fas fa-sms', 'SMS Settings', $currentPage, 'sms-settings') ?>
             

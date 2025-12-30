@@ -15,13 +15,21 @@ $companyId = $user['company_id'] ?? null;
     <h1 class="text-3xl font-bold text-gray-800 mb-6">Data Backup Management</h1>
     <p class="text-gray-600 mb-6">Export and manage your company data backups</p>
 
-    <!-- Export Backup Section -->
-    <div class="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 class="text-xl font-semibold text-gray-800 mb-4">
-            <i class="fas fa-download text-blue-500 mr-2"></i> Export Backup
-        </h2>
+    <!-- Manual Export Backup Section (Optional - Auto-backup is recommended) -->
+    <?php if ($user['role'] === 'system_admin'): ?>
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg shadow p-6 mb-6">
+        <div class="flex items-start mb-4">
+            <i class="fas fa-info-circle text-yellow-600 mr-2 mt-1"></i>
+            <div>
+                <h2 class="text-xl font-semibold text-gray-800">
+                    Manual Backup (Optional)
+                </h2>
+                <p class="text-sm text-gray-600 mt-1">
+                    <strong>Note:</strong> Auto-backup is recommended and configured below. Use manual backup only for emergency situations.
+                </p>
+            </div>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <?php if ($user['role'] === 'system_admin'): ?>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Select Company</label>
                 <select id="selectCompany" class="border border-gray-300 rounded px-4 py-2 w-full">
@@ -31,7 +39,33 @@ $companyId = $user['company_id'] ?? null;
                     <?php endforeach; ?>
                 </select>
             </div>
-            <?php endif; ?>
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Format</label>
+                <select id="exportFormat" class="border border-gray-300 rounded px-4 py-2 w-full" disabled>
+                    <option value="json" selected>JSON (ZIP) - Compatible with Restore Points</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Backups are created as ZIP files containing JSON data, compatible with the restore points system.</p>
+            </div>
+            <button id="btnExportBackup" class="bg-yellow-600 hover:bg-yellow-700 text-white rounded px-6 py-2">
+                <i class="fas fa-download mr-2"></i> Create Manual Backup
+            </button>
+        </div>
+        <div id="exportProgress" class="hidden mt-4">
+            <div class="bg-blue-50 border border-blue-200 rounded p-4">
+                <div class="flex items-center">
+                    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
+                    <span class="text-blue-700">Creating backup... This may take a few moments.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php else: ?>
+    <!-- For non-admin users, show a simpler manual backup option -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-download text-blue-500 mr-2"></i> Export Backup
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
             <div class="flex-1">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Format</label>
                 <select id="exportFormat" class="border border-gray-300 rounded px-4 py-2 w-full" disabled>
@@ -52,8 +86,34 @@ $companyId = $user['company_id'] ?? null;
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
     <?php if ($user['role'] === 'system_admin'): ?>
+    <!-- Auto-Backup Configuration Section (Admin Only) -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-cog text-blue-500 mr-2"></i> Auto-Backup Configuration
+        </h2>
+        <p class="text-gray-600 mb-4">Configure automatic backups for companies. Backups will run automatically at the specified time.</p>
+        
+        <div id="backupSettingsTable" class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Auto-Backup</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Backup Time</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Destination</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="backupSettingsBody" class="bg-white divide-y divide-gray-200">
+                    <!-- Settings will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- Automatic Backups Section (Admin Only) -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
         <h2 class="text-xl font-semibold text-gray-800 mb-4">
@@ -61,7 +121,7 @@ $companyId = $user['company_id'] ?? null;
         </h2>
         <div class="mb-4 p-4 bg-purple-50 border border-purple-200 rounded">
             <p class="text-sm text-purple-800 mb-2">
-                <strong>Automatic backups</strong> are created daily at 2:00 AM for all companies and the entire system.
+                <strong>Automatic backups</strong> are created daily at the configured time for companies with auto-backup enabled.
                 They are automatically deleted after 30 days to save disk space.
             </p>
             <button id="btnRunScheduled" class="bg-purple-600 hover:bg-purple-700 text-white rounded px-4 py-2 text-sm">
@@ -241,11 +301,176 @@ $companyId = $user['company_id'] ?? null;
             document.getElementById('btnRunScheduled').addEventListener('click', runScheduledBackups);
             loadAutomaticBackups();
             loadBackupStats();
+            loadBackupSettings();
         }
         
         // Load initial backups
         loadBackups();
     });
+
+    // Load backup settings for all companies
+    async function loadBackupSettings() {
+        try {
+            const response = await fetch(`${BASE}/api/backup-settings`);
+            const data = await response.json();
+            
+            if (data.success) {
+                displayBackupSettings(data.settings || []);
+            } else {
+                console.error('Failed to load backup settings:', data.error);
+            }
+        } catch (error) {
+            console.error('Error loading backup settings:', error);
+        }
+    }
+
+    // Display backup settings in table
+    function displayBackupSettings(settings) {
+        const tbody = document.getElementById('backupSettingsBody');
+        
+        // Get all companies
+        const companies = <?= json_encode($GLOBALS['companies'] ?? []) ?>;
+        
+        // Create a map of company_id to settings
+        const settingsMap = {};
+        settings.forEach(s => {
+            settingsMap[s.company_id] = s;
+        });
+        
+        if (companies.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-3 text-sm text-gray-500 text-center">No companies found</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = companies.map(company => {
+            const setting = settingsMap[company.id] || {
+                company_id: company.id,
+                auto_backup_enabled: 0,
+                backup_time: '02:00:00',
+                backup_destination: 'email'
+            };
+            
+            return `
+                <tr>
+                    <td class="px-4 py-3 text-sm font-medium">${escapeHtml(company.name)}</td>
+                    <td class="px-4 py-3 text-sm">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" 
+                                   class="backup-enabled-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                                   data-company-id="${company.id}"
+                                   ${setting.auto_backup_enabled ? 'checked' : ''}
+                                   onchange="updateBackupSetting(${company.id}, 'auto_backup_enabled', this.checked ? 1 : 0)">
+                            <span class="ml-2 text-sm text-gray-700">Enabled</span>
+                        </label>
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        <input type="time" 
+                               class="backup-time-input border border-gray-300 rounded px-2 py-1 text-sm"
+                               data-company-id="${company.id}"
+                               value="${setting.backup_time || '02:00:00'}"
+                               onchange="updateBackupSetting(${company.id}, 'backup_time', this.value)">
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        <select class="backup-destination-select border border-gray-300 rounded px-2 py-1 text-sm"
+                                data-company-id="${company.id}"
+                                value="${setting.backup_destination || 'email'}"
+                                onchange="updateBackupSetting(${company.id}, 'backup_destination', this.value)">
+                            <option value="email" ${setting.backup_destination === 'email' ? 'selected' : ''}>Email</option>
+                            <option value="cloudinary" ${setting.backup_destination === 'cloudinary' ? 'selected' : ''}>Cloudinary</option>
+                            <option value="both" ${setting.backup_destination === 'both' ? 'selected' : ''}>Both</option>
+                        </select>
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        <button onclick="saveBackupSettings(${company.id})" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-sm">
+                            <i class="fas fa-save mr-1"></i> Save
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // Update a single backup setting
+    async function updateBackupSetting(companyId, field, value) {
+        // This will be called on change, but we'll batch save on button click
+        // Store the change in a temporary object
+        if (!window.pendingBackupSettings) {
+            window.pendingBackupSettings = {};
+        }
+        if (!window.pendingBackupSettings[companyId]) {
+            window.pendingBackupSettings[companyId] = {};
+        }
+        window.pendingBackupSettings[companyId][field] = value;
+    }
+
+    // Save backup settings for a company
+    async function saveBackupSettings(companyId) {
+        try {
+            // Get current settings
+            const response = await fetch(`${BASE}/api/company/${companyId}/backup-settings`);
+            const data = await response.json();
+            
+            let settings = data.success ? data.settings : {
+                company_id: companyId,
+                auto_backup_enabled: 0,
+                backup_time: '02:00:00',
+                backup_destination: 'email'
+            };
+            
+            // Merge with pending changes
+            if (window.pendingBackupSettings && window.pendingBackupSettings[companyId]) {
+                settings = { ...settings, ...window.pendingBackupSettings[companyId] };
+            }
+            
+            // Get current form values
+            const row = document.querySelector(`tr:has([data-company-id="${companyId}"])`);
+            if (row) {
+                const enabledCheckbox = row.querySelector('.backup-enabled-checkbox');
+                const timeInput = row.querySelector('.backup-time-input');
+                const destinationSelect = row.querySelector('.backup-destination-select');
+                
+                settings.auto_backup_enabled = enabledCheckbox.checked ? 1 : 0;
+                settings.backup_time = timeInput.value;
+                settings.backup_destination = destinationSelect.value;
+            }
+            
+            // Send update
+            const updateResponse = await fetch(`${BASE}/api/company/${companyId}/backup-settings`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    auto_backup_enabled: settings.auto_backup_enabled,
+                    backup_time: settings.backup_time,
+                    backup_destination: settings.backup_destination
+                })
+            });
+            
+            const updateData = await updateResponse.json();
+            
+            if (updateData.success) {
+                alert('Backup settings saved successfully');
+                // Clear pending changes
+                if (window.pendingBackupSettings && window.pendingBackupSettings[companyId]) {
+                    delete window.pendingBackupSettings[companyId];
+                }
+                loadBackupSettings(); // Reload to ensure consistency
+            } else {
+                alert('Failed to save backup settings: ' + (updateData.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error saving backup settings:', error);
+            alert('Error saving backup settings');
+        }
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
     async function exportBackup() {
         const btn = document.getElementById('btnExportBackup');

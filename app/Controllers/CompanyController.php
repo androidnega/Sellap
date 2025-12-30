@@ -112,7 +112,7 @@ class CompanyController {
             $this->userModel->create($managerData);
             
             // Initialize default modules for the new company
-            $defaultModules = ['products_inventory', 'pos_sales', 'customers'];
+            $defaultModules = ['products_inventory', 'pos_sales', 'customers', 'reports_analytics'];
             $companyModuleModel = new CompanyModule();
             $companyModuleModel->initializeCompanyModules($company_id, $defaultModules);
             

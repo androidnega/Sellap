@@ -1,0 +1,78 @@
+warning: in the working copy of 'app/Views/pos_content.php', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/app/Views/pos_content.php b/app/Views/pos_content.php[m
+[1mindex bedec9a..619cba1 100644[m
+[1m--- a/app/Views/pos_content.php[m
+[1m+++ b/app/Views/pos_content.php[m
+[36m@@ -615,21 +615,22 @@[m [merror_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");[m
+ [m
+ <!-- POS JavaScript -->[m
+ <script>[m
+[31m-// Format currency with K/M notation for large numbers - improved for hundreds of thousands[m
+[32m+[m[32m// Format currency - show full numbers until millions, then show M with tooltip[m
+ function formatCurrency(amount) {[m
+     if (amount >= 1000000) {[m
+         const millions = amount / 1000000;[m
+         return millions >= 10 ? millions.toFixed(1) + 'M' : millions.toFixed(2) + 'M';[m
+[31m-    } else if (amount >= 100000) {[m
+[31m-        const hundredsK = amount / 1000;[m
+[31m-        return hundredsK >= 100 ? hundredsK.toFixed(0) + 'K' : hundredsK.toFixed(1) + 'K';[m
+[31m-    } else if (amount >= 1000) {[m
+[31m-        return (amount / 1000).toFixed(1) + 'K';[m
+     } else {[m
+[31m-        return amount.toFixed(2);[m
+[32m+[m[32m        // Show full number with commas for thousands[m
+[32m+[m[32m        return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });[m
+     }[m
+ }[m
+ [m
+[32m+[m[32m// Get full currency amount for tooltips[m
+[32m+[m[32mfunction getFullCurrencyAmount(amount) {[m
+[32m+[m[32m    return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });[m
+[32m+[m[32m}[m
+[32m+[m
+ // Determine if current user is manager/admin/system_admin (view-only)[m
+ const POS_READ_ONLY = <?= $isReadOnly ?>;[m
+ document.addEventListener('DOMContentLoaded', async function() {[m
+[36m@@ -1392,12 +1393,20 @@[m [mfunction renderProducts(productsToRender) {[m
+                     <div class="flex-shrink-0 text-right min-w-0">[m
+                         ${isSwappedItem ? `[m
+                             <div class="text-xs font-medium mb-0.5 sm:mb-1 whitespace-nowrap" style="color: #6b21a8 !important;">For Resale</div>[m
+[31m-                            <div class="text-base sm:text-lg md:text-xl font-bold mb-1.5 sm:mb-2 break-words overflow-hidden" style="color: #6b21a8 !important;">₵${formatCurrency(parseFloat(product.price || product.resell_price || 0))}</div>[m
+[32m+[m[32m                            ${parseFloat(product.price || product.resell_price || 0) >= 1000000 ? `[m
+[32m+[m[32m                                <div class="text-base sm:text-lg md:text-xl font-bold mb-1.5 sm:mb-2 break-words overflow-hidden" style="color: #6b21a8 !important;" title="₵${getFullCurrencyAmount(parseFloat(product.price || product.resell_price || 0))}">₵${formatCurrency(parseFloat(product.price || product.resell_price || 0))}</div>[m
+[32m+[m[32m                            ` : `[m
+[32m+[m[32m                                <div class="text-base sm:text-lg md:text-xl font-bold mb-1.5 sm:mb-2 break-words overflow-hidden" style="color: #6b21a8 !important;">₵${formatCurrency(parseFloat(product.price || product.resell_price || 0))}</div>[m
+[32m+[m[32m                            `}[m
+                             ${parseFloat(product.price || product.resell_price || 0) === 0 ? `[m
+                                 <div class="text-xs mb-1 sm:mb-2" style="color: #d97706 !important;">⚠ Price not set</div>[m
+                             ` : ''}[m
+                         ` : `[m
+[31m-                            <div class="text-base sm:text-lg md:text-xl font-bold text-green-600 mb-1.5 sm:mb-2 break-words overflow-hidden">₵${formatCurrency(parseFloat(product.price || 0))}</div>[m
+[32m+[m[32m                            ${parseFloat(product.price || 0) >= 1000000 ? `[m
+[32m+[m[32m                                <div class="text-base sm:text-lg md:text-xl font-bold text-green-600 mb-1.5 sm:mb-2 break-words overflow-hidden" title="₵${getFullCurrencyAmount(parseFloat(product.price || 0))}">₵${formatCurrency(parseFloat(product.price || 0))}</div>[m
+[32m+[m[32m                            ` : `[m
+[32m+[m[32m                                <div class="text-base sm:text-lg md:text-xl font-bold text-green-600 mb-1.5 sm:mb-2 break-words overflow-hidden">₵${formatCurrency(parseFloat(product.price || 0))}</div>[m
+[32m+[m[32m                            `}[m
+                         `}[m
+         ${isAvailable ? `[m
+                             ${POS_READ_ONLY ? `[m
+[36m@@ -1745,9 +1754,17 @@[m [mfunction updateCartDisplay() {[m
+                         </button>[m
+                     </div>[m
+                     <div class="text-right min-w-0">[m
+[31m-                        <div class="text-xs sm:text-sm text-gray-600 break-words">Price: ₵${formatCurrency(parseFloat(item.price || 0))}</div>[m
+[32m+[m[32m                        ${parseFloat(item.price || 0) >= 1000000 ? `[m
+[32m+[m[32m                            <div class="text-xs sm:text-sm text-gray-600 break-words" title="₵${getFullCurrencyAmount(parseFloat(item.price || 0))}">Price: ₵${formatCurrency(parseFloat(item.price || 0))}</div>[m
+[32m+[m[32m                        ` : `[m
+[32m+[m[32m                            <div class="text-xs sm:text-sm text-gray-600 break-words">Price: ₵${formatCurrency(parseFloat(item.price || 0))}</div>[m
+[32m+[m[32m                        `}[m
+                         <div class="text-xs sm:text-sm text-gray-600">Discount: 0</div>[m
+[31m-                        <div class="text-base sm:text-lg font-bold text-gray-800 break-words">₵${formatCurrency(itemTotal)}</div>[m
+[32m+[m[32m                        ${itemTotal >= 1000000 ? `[m
+[32m+[m[32m                            <div class="text-base sm:text-lg font-bold text-gray-800 break-words" title="₵${getFullCurrencyAmount(itemTotal)}">₵${formatCurrency(itemTotal)}</div>[m
+[32m+[m[32m                        ` : `[m
+[32m+[m[32m                            <div class="text-base sm:text-lg font-bold text-gray-800 break-words">₵${formatCurrency(itemTotal)}</div>[m
+[32m+[m[32m                        `}[m
+                     </div>[m
+                 </div>[m
+                 ${item.quantity >= item.available_stock ? '<div class="text-xs text-red-500 mt-2">⚠️ Exceeds available stock!</div>' : ''}[m

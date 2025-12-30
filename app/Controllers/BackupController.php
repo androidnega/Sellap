@@ -531,5 +531,206 @@ class BackupController {
             ]);
         }
     }
+
+    /**
+     * Get backup settings for a company
+     * GET /api/company/{id}/backup-settings
+     */
+    public function getBackupSettings($companyId) {
+        WebAuthMiddleware::handle(['system_admin']);
+        
+        // Clean output buffers
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        ob_start();
+        
+        header('Content-Type: application/json');
+        
+        try {
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            
+            $user = $_SESSION['user'] ?? null;
+            if (!$user || $user['role'] !== 'system_admin') {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                exit;
+            }
+
+            $db = \Database::getInstance()->getConnection();
+            $stmt = $db->prepare("
+                SELECT * FROM company_backup_settings 
+                WHERE company_id = ?
+            ");
+            $stmt->execute([$companyId]);
+            $settings = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // If no settings exist, return defaults
+            if (!$settings) {
+                $settings = [
+                    'company_id' => $companyId,
+                    'auto_backup_enabled' => 0,
+                    'backup_time' => '02:00:00',
+                    'backup_destination' => 'email'
+                ];
+            }
+
+            ob_end_clean();
+            echo json_encode([
+                'success' => true,
+                'settings' => $settings
+            ]);
+        } catch (\Exception $e) {
+            ob_end_clean();
+            http_response_code(500);
+            error_log("Get backup settings error: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Update backup settings for a company
+     * POST /api/company/{id}/backup-settings
+     */
+    public function updateBackupSettings($companyId) {
+        WebAuthMiddleware::handle(['system_admin']);
+        
+        // Clean output buffers
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        ob_start();
+        
+        header('Content-Type: application/json');
+        
+        try {
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            
+            $user = $_SESSION['user'] ?? null;
+            if (!$user || $user['role'] !== 'system_admin') {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                exit;
+            }
+
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            $autoBackupEnabled = isset($input['auto_backup_enabled']) ? (int)$input['auto_backup_enabled'] : 0;
+            $backupTime = $input['backup_time'] ?? '02:00:00';
+            $backupDestination = $input['backup_destination'] ?? 'email';
+
+            // Validate backup destination
+            if (!in_array($backupDestination, ['email', 'cloudinary', 'both'])) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Invalid backup destination']);
+                exit;
+            }
+
+            // Validate time format
+            if (!preg_match('/^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/', $backupTime)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Invalid time format']);
+                exit;
+            }
+
+            $db = \Database::getInstance()->getConnection();
+            
+            // Check if settings exist
+            $checkStmt = $db->prepare("SELECT id FROM company_backup_settings WHERE company_id = ?");
+            $checkStmt->execute([$companyId]);
+            $exists = $checkStmt->fetch();
+
+            if ($exists) {
+                // Update existing
+                $stmt = $db->prepare("
+                    UPDATE company_backup_settings 
+                    SET auto_backup_enabled = ?, backup_time = ?, backup_destination = ?
+                    WHERE company_id = ?
+                ");
+                $stmt->execute([$autoBackupEnabled, $backupTime, $backupDestination, $companyId]);
+            } else {
+                // Insert new
+                $stmt = $db->prepare("
+                    INSERT INTO company_backup_settings 
+                    (company_id, auto_backup_enabled, backup_time, backup_destination)
+                    VALUES (?, ?, ?, ?)
+                ");
+                $stmt->execute([$companyId, $autoBackupEnabled, $backupTime, $backupDestination]);
+            }
+
+            ob_end_clean();
+            echo json_encode([
+                'success' => true,
+                'message' => 'Backup settings updated successfully'
+            ]);
+        } catch (\Exception $e) {
+            ob_end_clean();
+            http_response_code(500);
+            error_log("Update backup settings error: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get all company backup settings
+     * GET /api/backup-settings
+     */
+    public function getAllBackupSettings() {
+        WebAuthMiddleware::handle(['system_admin']);
+        
+        // Clean output buffers
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        ob_start();
+        
+        header('Content-Type: application/json');
+        
+        try {
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            
+            $user = $_SESSION['user'] ?? null;
+            if (!$user || $user['role'] !== 'system_admin') {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                exit;
+            }
+
+            $db = \Database::getInstance()->getConnection();
+            $stmt = $db->query("
+                SELECT cbs.*, c.name as company_name
+                FROM company_backup_settings cbs
+                LEFT JOIN companies c ON cbs.company_id = c.id
+                ORDER BY c.name ASC
+            ");
+            $settings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            ob_end_clean();
+            echo json_encode([
+                'success' => true,
+                'settings' => $settings
+            ]);
+        } catch (\Exception $e) {
+            ob_end_clean();
+            http_response_code(500);
+            error_log("Get all backup settings error: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
 }
 

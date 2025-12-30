@@ -508,6 +508,8 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
                 $currentPage = 'staff';
             } elseif (strpos($currentPath, '/companies') !== false) {
                 $currentPage = 'companies';
+            } elseif (strpos($currentPath, '/backup') !== false) {
+                $currentPage = 'backup';
             } elseif (strpos($currentPath, '/analytics') !== false) {
                 $currentPage = 'analytics';
             } elseif (strpos($currentPath, '/profile') !== false) {

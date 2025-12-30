@@ -438,6 +438,8 @@
                 $GLOBALS['currentPage'] = 'staff';
             } elseif (strpos($currentPath, '/companies') !== false) {
                 $GLOBALS['currentPage'] = 'companies';
+            } elseif (strpos($currentPath, '/backup') !== false) {
+                $GLOBALS['currentPage'] = 'backup';
             } elseif (strpos($currentPath, '/analytics') !== false) {
                 $GLOBALS['currentPage'] = 'analytics';
             } elseif (strpos($currentPath, '/profile') !== false) {

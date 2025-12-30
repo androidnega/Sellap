@@ -3059,6 +3059,22 @@ $router->get('api/admin/backups/stats', function() {
     $controller->stats();
 });
 
+// Company Backup Settings Routes
+$router->get('api/company/{id}/backup-settings', function($id) {
+    $controller = new \App\Controllers\BackupController();
+    $controller->getBackupSettings($id);
+});
+
+$router->post('api/company/{id}/backup-settings', function($id) {
+    $controller = new \App\Controllers\BackupController();
+    $controller->updateBackupSettings($id);
+});
+
+$router->get('api/backup-settings', function() {
+    $controller = new \App\Controllers\BackupController();
+    $controller->getAllBackupSettings();
+});
+
 // ========================================
 // BACKUP ROUTES
 // ========================================
