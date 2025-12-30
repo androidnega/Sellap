@@ -90,27 +90,53 @@ $companyId = $user['company_id'] ?? null;
 
     <?php if ($user['role'] === 'system_admin'): ?>
     <!-- Auto-Backup Configuration Section (Admin Only) -->
-    <div class="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 class="text-xl font-semibold text-gray-800 mb-4">
-            <i class="fas fa-cog text-blue-500 mr-2"></i> Auto-Backup Configuration
-        </h2>
-        <p class="text-gray-600 mb-4">Configure automatic backups for companies. Backups will run automatically at the specified time.</p>
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6 border border-gray-200">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">
+                    <i class="fas fa-cog text-blue-500 mr-2"></i> Auto-Backup Configuration
+                </h2>
+                <p class="text-gray-600">Configure automatic backups for companies. Backups will run automatically at the specified time and be sent to your chosen destination.</p>
+            </div>
+        </div>
         
-        <div id="backupSettingsTable" class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+        <!-- Loading State -->
+        <div id="backupSettingsLoading" class="text-center py-8">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p class="mt-2 text-gray-600">Loading backup settings...</p>
+        </div>
+        
+        <!-- Error State -->
+        <div id="backupSettingsError" class="hidden bg-red-50 border border-red-200 rounded p-4 mb-4">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-circle text-red-600 mr-2"></i>
+                <p class="text-red-800" id="backupSettingsErrorMessage">Failed to load backup settings</p>
+            </div>
+        </div>
+        
+        <!-- Settings Table -->
+        <div id="backupSettingsTable" class="hidden overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg">
+                <thead class="bg-gradient-to-r from-blue-50 to-blue-100">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Auto-Backup</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Backup Time</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Destination</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Company Name</th>
+                        <th class="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Auto-Backup Enabled</th>
+                        <th class="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Backup Time</th>
+                        <th class="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Destination</th>
+                        <th class="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="backupSettingsBody" class="bg-white divide-y divide-gray-200">
                     <!-- Settings will be loaded here -->
                 </tbody>
             </table>
+        </div>
+        
+        <!-- Empty State -->
+        <div id="backupSettingsEmpty" class="hidden text-center py-12">
+            <i class="fas fa-building text-gray-400 text-5xl mb-4"></i>
+            <p class="text-gray-600 text-lg font-medium mb-2">No companies found</p>
+            <p class="text-gray-500 text-sm">Companies will appear here once they are created in the system.</p>
         </div>
     </div>
 
@@ -310,36 +336,81 @@ $companyId = $user['company_id'] ?? null;
 
     // Load backup settings for all companies
     async function loadBackupSettings() {
+        const loadingEl = document.getElementById('backupSettingsLoading');
+        const errorEl = document.getElementById('backupSettingsError');
+        const errorMsgEl = document.getElementById('backupSettingsErrorMessage');
+        const tableEl = document.getElementById('backupSettingsTable');
+        const emptyEl = document.getElementById('backupSettingsEmpty');
+        
+        // Show loading, hide others
+        if (loadingEl) loadingEl.classList.remove('hidden');
+        if (errorEl) errorEl.classList.add('hidden');
+        if (tableEl) tableEl.classList.add('hidden');
+        if (emptyEl) emptyEl.classList.add('hidden');
+        
         try {
+            // Get companies from PHP
+            let companies = <?= json_encode($GLOBALS['companies'] ?? []) ?>;
+            
+            // If no companies from PHP, try to fetch from API
+            if (!companies || companies.length === 0) {
+                try {
+                    const companiesResponse = await fetch(`${BASE}/api/companies`);
+                    if (companiesResponse.ok) {
+                        const companiesData = await companiesResponse.json();
+                        if (companiesData.success && companiesData.companies) {
+                            companies = companiesData.companies;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Could not fetch companies from API:', e);
+                }
+            }
+            
+            if (!companies || companies.length === 0) {
+                if (loadingEl) loadingEl.classList.add('hidden');
+                if (emptyEl) emptyEl.classList.remove('hidden');
+                return;
+            }
+            
+            // Fetch backup settings
             const response = await fetch(`${BASE}/api/backup-settings`);
             const data = await response.json();
             
+            if (loadingEl) loadingEl.classList.add('hidden');
+            
             if (data.success) {
-                displayBackupSettings(data.settings || []);
+                displayBackupSettings(companies, data.settings || []);
+                if (tableEl) tableEl.classList.remove('hidden');
             } else {
-                console.error('Failed to load backup settings:', data.error);
+                if (errorMsgEl) errorMsgEl.textContent = data.error || 'Failed to load backup settings';
+                if (errorEl) errorEl.classList.remove('hidden');
             }
         } catch (error) {
             console.error('Error loading backup settings:', error);
+            if (loadingEl) loadingEl.classList.add('hidden');
+            if (errorMsgEl) errorMsgEl.textContent = 'Error loading backup settings: ' + (error.message || 'Unknown error');
+            if (errorEl) errorEl.classList.remove('hidden');
         }
     }
 
     // Display backup settings in table
-    function displayBackupSettings(settings) {
+    function displayBackupSettings(companies, settings) {
         const tbody = document.getElementById('backupSettingsBody');
         
-        // Get all companies
-        const companies = <?= json_encode($GLOBALS['companies'] ?? []) ?>;
+        if (!companies || companies.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">No companies found</td></tr>';
+            return;
+        }
         
         // Create a map of company_id to settings
         const settingsMap = {};
-        settings.forEach(s => {
-            settingsMap[s.company_id] = s;
-        });
-        
-        if (companies.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-3 text-sm text-gray-500 text-center">No companies found</td></tr>';
-            return;
+        if (settings && settings.length > 0) {
+            settings.forEach(s => {
+                if (s.company_id) {
+                    settingsMap[s.company_id] = s;
+                }
+            });
         }
         
         tbody.innerHTML = companies.map(company => {
@@ -350,39 +421,49 @@ $companyId = $user['company_id'] ?? null;
                 backup_destination: 'email'
             };
             
+            const isEnabled = setting.auto_backup_enabled == 1 || setting.auto_backup_enabled === true;
+            const backupTime = setting.backup_time || '02:00:00';
+            const destination = setting.backup_destination || 'email';
+            
             return `
-                <tr>
-                    <td class="px-4 py-3 text-sm font-medium">${escapeHtml(company.name)}</td>
-                    <td class="px-4 py-3 text-sm">
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <i class="fas fa-building text-blue-500 mr-2"></i>
+                            <span class="text-sm font-semibold text-gray-900">${escapeHtml(company.name)}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
                         <label class="inline-flex items-center cursor-pointer">
                             <input type="checkbox" 
-                                   class="backup-enabled-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                                   class="backup-enabled-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2" 
                                    data-company-id="${company.id}"
-                                   ${setting.auto_backup_enabled ? 'checked' : ''}
+                                   ${isEnabled ? 'checked' : ''}
                                    onchange="updateBackupSetting(${company.id}, 'auto_backup_enabled', this.checked ? 1 : 0)">
-                            <span class="ml-2 text-sm text-gray-700">Enabled</span>
+                            <span class="ml-2 text-sm ${isEnabled ? 'text-green-700 font-medium' : 'text-gray-500'}">
+                                ${isEnabled ? 'Enabled' : 'Disabled'}
+                            </span>
                         </label>
                     </td>
-                    <td class="px-4 py-3 text-sm">
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
                         <input type="time" 
-                               class="backup-time-input border border-gray-300 rounded px-2 py-1 text-sm"
+                               class="backup-time-input border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                data-company-id="${company.id}"
-                               value="${setting.backup_time || '02:00:00'}"
+                               value="${backupTime}"
                                onchange="updateBackupSetting(${company.id}, 'backup_time', this.value)">
                     </td>
-                    <td class="px-4 py-3 text-sm">
-                        <select class="backup-destination-select border border-gray-300 rounded px-2 py-1 text-sm"
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <select class="backup-destination-select border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[140px]"
                                 data-company-id="${company.id}"
-                                value="${setting.backup_destination || 'email'}"
                                 onchange="updateBackupSetting(${company.id}, 'backup_destination', this.value)">
-                            <option value="email" ${setting.backup_destination === 'email' ? 'selected' : ''}>Email</option>
-                            <option value="cloudinary" ${setting.backup_destination === 'cloudinary' ? 'selected' : ''}>Cloudinary</option>
-                            <option value="both" ${setting.backup_destination === 'both' ? 'selected' : ''}>Both</option>
+                            <option value="email" ${destination === 'email' ? 'selected' : ''}>📧 Email</option>
+                            <option value="cloudinary" ${destination === 'cloudinary' ? 'selected' : ''}>☁️ Cloudinary</option>
+                            <option value="both" ${destination === 'both' ? 'selected' : ''}>📧☁️ Both</option>
                         </select>
                     </td>
-                    <td class="px-4 py-3 text-sm">
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
                         <button onclick="saveBackupSettings(${company.id})" 
-                                class="bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-1 text-sm">
+                                class="bg-blue-600 hover:bg-blue-700 text-white rounded-md px-4 py-2 text-sm font-medium transition-colors shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                             <i class="fas fa-save mr-1"></i> Save
                         </button>
                     </td>
@@ -407,33 +488,33 @@ $companyId = $user['company_id'] ?? null;
     // Save backup settings for a company
     async function saveBackupSettings(companyId) {
         try {
-            // Get current settings
-            const response = await fetch(`${BASE}/api/company/${companyId}/backup-settings`);
-            const data = await response.json();
-            
-            let settings = data.success ? data.settings : {
-                company_id: companyId,
-                auto_backup_enabled: 0,
-                backup_time: '02:00:00',
-                backup_destination: 'email'
-            };
-            
-            // Merge with pending changes
-            if (window.pendingBackupSettings && window.pendingBackupSettings[companyId]) {
-                settings = { ...settings, ...window.pendingBackupSettings[companyId] };
-            }
-            
             // Get current form values
             const row = document.querySelector(`tr:has([data-company-id="${companyId}"])`);
-            if (row) {
-                const enabledCheckbox = row.querySelector('.backup-enabled-checkbox');
-                const timeInput = row.querySelector('.backup-time-input');
-                const destinationSelect = row.querySelector('.backup-destination-select');
-                
-                settings.auto_backup_enabled = enabledCheckbox.checked ? 1 : 0;
-                settings.backup_time = timeInput.value;
-                settings.backup_destination = destinationSelect.value;
+            if (!row) {
+                alert('Could not find company settings row');
+                return;
             }
+            
+            const enabledCheckbox = row.querySelector('.backup-enabled-checkbox');
+            const timeInput = row.querySelector('.backup-time-input');
+            const destinationSelect = row.querySelector('.backup-destination-select');
+            const saveButton = row.querySelector('button[onclick*="saveBackupSettings"]');
+            
+            if (!enabledCheckbox || !timeInput || !destinationSelect) {
+                alert('Could not find all required form fields');
+                return;
+            }
+            
+            // Disable button during save
+            const originalButtonText = saveButton.innerHTML;
+            saveButton.disabled = true;
+            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving...';
+            
+            const settings = {
+                auto_backup_enabled: enabledCheckbox.checked ? 1 : 0,
+                backup_time: timeInput.value,
+                backup_destination: destinationSelect.value
+            };
             
             // Send update
             const updateResponse = await fetch(`${BASE}/api/company/${companyId}/backup-settings`, {
@@ -441,28 +522,59 @@ $companyId = $user['company_id'] ?? null;
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    auto_backup_enabled: settings.auto_backup_enabled,
-                    backup_time: settings.backup_time,
-                    backup_destination: settings.backup_destination
-                })
+                body: JSON.stringify(settings)
             });
             
             const updateData = await updateResponse.json();
             
             if (updateData.success) {
-                alert('Backup settings saved successfully');
+                // Show success message
+                saveButton.innerHTML = '<i class="fas fa-check mr-1"></i> Saved!';
+                saveButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                saveButton.classList.add('bg-green-600', 'hover:bg-green-700');
+                
                 // Clear pending changes
                 if (window.pendingBackupSettings && window.pendingBackupSettings[companyId]) {
                     delete window.pendingBackupSettings[companyId];
                 }
-                loadBackupSettings(); // Reload to ensure consistency
+                
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    saveButton.disabled = false;
+                    saveButton.innerHTML = originalButtonText;
+                    saveButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    saveButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                }, 2000);
+                
+                // Update enabled text
+                const enabledText = row.querySelector('span[class*="text-"]');
+                if (enabledText) {
+                    if (settings.auto_backup_enabled) {
+                        enabledText.textContent = 'Enabled';
+                        enabledText.classList.remove('text-gray-500');
+                        enabledText.classList.add('text-green-700', 'font-medium');
+                    } else {
+                        enabledText.textContent = 'Disabled';
+                        enabledText.classList.remove('text-green-700', 'font-medium');
+                        enabledText.classList.add('text-gray-500');
+                    }
+                }
             } else {
+                saveButton.disabled = false;
+                saveButton.innerHTML = originalButtonText;
                 alert('Failed to save backup settings: ' + (updateData.error || 'Unknown error'));
             }
         } catch (error) {
             console.error('Error saving backup settings:', error);
-            alert('Error saving backup settings');
+            const row = document.querySelector(`tr:has([data-company-id="${companyId}"])`);
+            if (row) {
+                const saveButton = row.querySelector('button[onclick*="saveBackupSettings"]');
+                if (saveButton) {
+                    saveButton.disabled = false;
+                    saveButton.innerHTML = '<i class="fas fa-save mr-1"></i> Save';
+                }
+            }
+            alert('Error saving backup settings: ' + error.message);
         }
     }
 
