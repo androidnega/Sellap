@@ -314,18 +314,14 @@ class Product {
             // For POS, only show items with quantity > 0 (both regular and swapped items)
             $sql .= " AND COALESCE(p.quantity, 0) > 0";
         } elseif (!$swappedItemsOnly && $hasIsSwappedItem) {
-            // For regular product/inventory views: exclude swapped items with quantity = 0 (sold/resold items)
-            // Swapped items should only appear if they have quantity > 0 (available for resale)
-            // Also exclude regular products with quantity = 0 (sold out items)
-            $sql .= " AND NOT (COALESCE(p.is_swapped_item, 0) = 1 AND COALESCE(p.quantity, 0) = 0)";
-            if ($hasInventoryProductId) {
-                $sql .= " AND NOT (si2.id IS NOT NULL AND COALESCE(p.quantity, 0) = 0)";
-            }
-            // Also exclude regular products (non-swapped) with quantity = 0
-            $sql .= " AND NOT (COALESCE(p.is_swapped_item, 0) = 0 AND COALESCE(p.quantity, 0) = 0)";
+            // For regular product/inventory views: show all items including quantity = 0
+            // Salespersons need to see all items regardless of quantity
+            // Only hide swapped items that have been sold (quantity = 0) if they're not needed
+            // But for salespersons viewing inventory, show everything
+            // No quantity filter - show all items
         } elseif (!$swappedItemsOnly) {
-            // If swapped item columns don't exist, still filter out products with quantity = 0
-            $sql .= " AND COALESCE(p.quantity, 0) > 0";
+            // For salespersons and regular inventory views: show all items including quantity = 0
+            // No quantity filter - show all items
         }
         
         $sql .= " ORDER BY p.id DESC LIMIT " . intval($limit);
@@ -434,22 +430,9 @@ class Product {
         if ($swappedItemsOnly && $hasIsSwappedItem) {
             $sql .= " AND (p.is_swapped_item = 1" . ($hasInventoryProductId ? " OR si2.id IS NOT NULL" : "") . ")";
         } elseif (!$swappedItemsOnly) {
-            // For regular inventory view: show all regular products (including quantity 0)
-            // BUT hide swapped items that have been sold (quantity = 0)
-            // Swapped items should only appear if they have quantity > 0 (available for resale)
-            $conditions = [];
-            if ($hasIsSwappedItem) {
-                // Hide swapped items with quantity = 0 (they've been sold/resold)
-                $conditions[] = "(COALESCE(p.is_swapped_item, 0) = 1 AND COALESCE(p.quantity, 0) = 0)";
-            }
-            if ($hasInventoryProductId) {
-                // Hide swapped items linked via inventory_product_id with quantity = 0
-                $conditions[] = "(si2.id IS NOT NULL AND COALESCE(p.quantity, 0) = 0)";
-            }
-            if (!empty($conditions)) {
-                $sql .= " AND NOT (" . implode(" OR ", $conditions) . ")";
-            }
-            // Regular products with quantity 0 will still show (not filtered out)
+            // For regular inventory view: show ALL products including quantity 0
+            // Salespersons need to see all items regardless of quantity
+            // Show all items - no quantity filtering
         }
         
         // Use direct integer values for LIMIT/OFFSET to avoid prepared statement issues
@@ -524,22 +507,9 @@ class Product {
                 $sql .= " AND (" . implode(" OR ", $conditions) . ")";
             }
         } elseif (!$swappedItemsOnly) {
-            // For regular inventory view: show all regular products (including quantity 0)
-            // BUT hide swapped items that have been sold (quantity = 0)
-            // Swapped items should only appear if they have quantity > 0 (available for resale)
-            $conditions = [];
-            if ($hasIsSwappedItem) {
-                // Hide swapped items with quantity = 0 (they've been sold/resold)
-                $conditions[] = "(COALESCE(p.is_swapped_item, 0) = 1 AND COALESCE(p.quantity, 0) = 0)";
-            }
-            if ($hasInventoryProductId) {
-                // Hide swapped items linked via inventory_product_id with quantity = 0
-                $conditions[] = "(si2.id IS NOT NULL AND COALESCE(p.quantity, 0) = 0)";
-            }
-            if (!empty($conditions)) {
-                $sql .= " AND NOT (" . implode(" OR ", $conditions) . ")";
-            }
-            // Regular products with quantity 0 will still show (not filtered out)
+            // For regular inventory view: show ALL products including quantity 0
+            // Salespersons need to see all items regardless of quantity
+            // Show all items - no quantity filtering
         }
 
         $stmt = $this->db->prepare($sql);
