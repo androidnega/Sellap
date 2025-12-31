@@ -11,8 +11,25 @@ class Database {
     private $connection;
 
     private function __construct() {
-        // Get environment (local or production)
-        $appEnv = getenv('APP_ENV') ?: 'local';
+        // Auto-detect environment based on domain if not explicitly set
+        $appEnv = getenv('APP_ENV');
+        
+        // If APP_ENV is not set, auto-detect from HTTP_HOST
+        if (empty($appEnv) && isset($_SERVER['HTTP_HOST'])) {
+            $httpHost = $_SERVER['HTTP_HOST'];
+            // Check if we're on the live server domain
+            if (preg_match('#sellapp\.store#', $httpHost) || 
+                preg_match('#www\.sellapp\.store#', $httpHost)) {
+                $appEnv = 'production';
+            } else {
+                $appEnv = 'local';
+            }
+        }
+        
+        // Default to local if still not set
+        if (empty($appEnv)) {
+            $appEnv = 'local';
+        }
         
         // Load database credentials from environment variables
         // Falls back to defaults if not set
@@ -33,6 +50,9 @@ class Database {
         // Debug output (only in development)
         if ($appEnv === 'local' || $appEnv === 'development') {
             error_log("Database connection attempt: env=$appEnv, host=$host, dbname=$dbname, username=$username");
+        } else {
+            // Log environment detection for production debugging (without sensitive data)
+            error_log("Database connection attempt: env=$appEnv, host=$host, dbname=$dbname");
         }
 
         try {

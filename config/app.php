@@ -23,7 +23,24 @@ if (isset($_SERVER['HTTP_HOST'])) {
 
 define('APP_NAME', 'SellApp');
 define('APP_URL', getenv('APP_URL') ?: ($detectedAppUrl ?: 'https://sellapp.store'));
-define('APP_ENV', getenv('APP_ENV') ?: 'local');
+
+// Auto-detect environment based on domain if not explicitly set
+$appEnv = getenv('APP_ENV');
+if (empty($appEnv) && isset($_SERVER['HTTP_HOST'])) {
+    $httpHost = $_SERVER['HTTP_HOST'];
+    // Check if we're on the live server domain
+    if (preg_match('#sellapp\.store#', $httpHost) || 
+        preg_match('#www\.sellapp\.store#', $httpHost)) {
+        $appEnv = 'production';
+    } else {
+        $appEnv = 'local';
+    }
+}
+// Default to local if still not set
+if (empty($appEnv)) {
+    $appEnv = 'local';
+}
+define('APP_ENV', $appEnv);
 define('JWT_SECRET', getenv('JWT_SECRET') ?: 'your_secret_key');
 
 // Base URL Path - Auto-detect from request URI for live server compatibility
