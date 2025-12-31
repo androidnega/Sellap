@@ -12,9 +12,22 @@ class AuthController {
         try {
             $this->auth = new AuthService();
         } catch (\Exception $e) {
-            // Log the error and throw a more user-friendly message
+            // Log the full error details for debugging
             error_log("AuthController constructor error: " . $e->getMessage());
-            throw new \Exception('Authentication service initialization failed');
+            error_log("AuthController constructor error trace: " . $e->getTraceAsString());
+            
+            // Check if it's a JWT library issue
+            if (strpos($e->getMessage(), 'Firebase JWT') !== false) {
+                throw new \Exception('Authentication service initialization failed: Firebase JWT library not found. Please run "composer install" on the server.');
+            }
+            
+            // Check if it's a database issue
+            if (strpos($e->getMessage(), 'Database connection') !== false) {
+                throw new \Exception('Authentication service initialization failed: Database connection error. Please check database configuration.');
+            }
+            
+            // Generic error
+            throw new \Exception('Authentication service initialization failed: ' . $e->getMessage());
         }
     }
 

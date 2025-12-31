@@ -37,8 +37,26 @@ $router->get('login', function() {
 
 // Login form submission (POST) - pure PHP
 $router->post('login', function() {
-    $controller = new \App\Controllers\AuthController();
-    $controller->loginForm();
+    try {
+        $controller = new \App\Controllers\AuthController();
+        $controller->loginForm();
+    } catch (\Exception $e) {
+        // Handle authentication service initialization errors
+        error_log("Login route error: " . $e->getMessage());
+        
+        // Check if it's a dependency issue
+        if (strpos($e->getMessage(), 'Composer dependencies') !== false || 
+            strpos($e->getMessage(), 'Firebase JWT') !== false) {
+            $error = urlencode('System error: Required libraries not installed. Please contact the administrator.');
+            header('Location: ' . BASE_URL_PATH . '/?error=' . $error);
+            exit;
+        }
+        
+        // Generic error
+        $error = urlencode('System error: ' . $e->getMessage());
+        header('Location: ' . BASE_URL_PATH . '/?error=' . $error);
+        exit;
+    }
 });
 
 // ========================================
@@ -47,20 +65,53 @@ $router->post('login', function() {
 
 // Login endpoint (POST)
 $router->post('api/auth/login', function() {
-    $controller = new \App\Controllers\AuthController();
-    $controller->login();
+    try {
+        $controller = new \App\Controllers\AuthController();
+        $controller->login();
+    } catch (\Exception $e) {
+        error_log("API login route error: " . $e->getMessage());
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Authentication service unavailable. Please contact the administrator.'
+        ]);
+        exit;
+    }
 });
 
 // Validate localStorage token and set in session
 $router->post('api/auth/validate-local-token', function() {
-    $controller = new \App\Controllers\AuthController();
-    $controller->validateLocalToken();
+    try {
+        $controller = new \App\Controllers\AuthController();
+        $controller->validateLocalToken();
+    } catch (\Exception $e) {
+        error_log("Validate local token route error: " . $e->getMessage());
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Authentication service unavailable.'
+        ]);
+        exit;
+    }
 });
 
 // Validate token endpoint
 $router->get('api/auth/validate', function() {
-    $controller = new \App\Controllers\AuthController();
-    $controller->validate();
+    try {
+        $controller = new \App\Controllers\AuthController();
+        $controller->validate();
+    } catch (\Exception $e) {
+        error_log("Validate token route error: " . $e->getMessage());
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Authentication service unavailable.'
+        ]);
+        exit;
+    }
 });
 
 // Database connection test endpoint (for debugging)
@@ -112,20 +163,53 @@ $router->get('api/test/users', function() {
 
 // Logout endpoint
 $router->post('api/auth/logout', function() {
-    $controller = new \App\Controllers\AuthController();
-    $controller->logout();
+    try {
+        $controller = new \App\Controllers\AuthController();
+        $controller->logout();
+    } catch (\Exception $e) {
+        error_log("Logout route error: " . $e->getMessage());
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Authentication service unavailable.'
+        ]);
+        exit;
+    }
 });
 
 // Logout endpoint (GET for compatibility)
 $router->get('api/auth/logout', function() {
-    $controller = new \App\Controllers\AuthController();
-    $controller->logout();
+    try {
+        $controller = new \App\Controllers\AuthController();
+        $controller->logout();
+    } catch (\Exception $e) {
+        error_log("Logout route error: " . $e->getMessage());
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Authentication service unavailable.'
+        ]);
+        exit;
+    }
 });
 
 // Re-authenticate endpoint (for session expiration)
 $router->post('api/auth/reauthenticate', function() {
-    $controller = new \App\Controllers\AuthController();
-    $controller->reauthenticate();
+    try {
+        $controller = new \App\Controllers\AuthController();
+        $controller->reauthenticate();
+    } catch (\Exception $e) {
+        error_log("Re-authenticate route error: " . $e->getMessage());
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Authentication service unavailable.'
+        ]);
+        exit;
+    }
 });
 
 // ========================================

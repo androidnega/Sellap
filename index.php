@@ -108,8 +108,48 @@ if ($isStaticFile) {
 }
 
 // Load Composer autoloader (if available)
-if (file_exists(__DIR__ . '/vendor/autoload.php')) {
-    require_once __DIR__ . '/vendor/autoload.php';
+$vendorAutoload = __DIR__ . '/vendor/autoload.php';
+if (file_exists($vendorAutoload)) {
+    require_once $vendorAutoload;
+    
+    // Verify that Firebase JWT is actually loaded
+    if (!class_exists('Firebase\JWT\JWT')) {
+        // Autoloader exists but JWT library is missing - composer install may have failed
+        if (strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false) {
+            header('Content-Type: application/json');
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Firebase JWT library not found. Please run: composer install'
+            ]);
+            exit;
+        } else {
+            die('
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Dependencies Missing</title>
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
+                    .error { background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                    h1 { color: #d32f2f; }
+                    code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; }
+                </style>
+            </head>
+            <body>
+                <div class="error">
+                    <h1>⚠️ Dependencies Missing</h1>
+                    <p>The Firebase JWT library is not installed.</p>
+                    <p>Please run the following command on your server:</p>
+                    <p><code>composer install</code></p>
+                    <p style="margin-top: 20px; color: #666; font-size: 14px;">
+                        This will install the Firebase JWT library and other required dependencies.
+                    </p>
+                </div>
+            </body>
+            </html>');
+        }
+    }
 } else {
     // Show helpful error if vendor directory is missing
     if (strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false) {

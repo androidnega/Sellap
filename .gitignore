@@ -4,8 +4,9 @@
 .env.*.local
 
 # Vendor directory (Composer dependencies)
-/vendor/
-vendor/
+# NOTE: Vendor is included in git because live server cannot run composer install
+# /vendor/
+# vendor/
 
 # IDE and editor files
 .vscode/

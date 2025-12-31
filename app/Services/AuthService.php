@@ -14,14 +14,39 @@ class AuthService {
 
     public function __construct() {
         try {
+            // Check if vendor/autoload.php was loaded
+            if (!file_exists(__DIR__ . '/../../vendor/autoload.php')) {
+                throw new \Exception('Composer dependencies not installed. The vendor/autoload.php file is missing. Please run "composer install" on your server.');
+            }
+            
             // Check if JWT class is available
             if (!class_exists('Firebase\JWT\JWT')) {
-                throw new \Exception('Firebase JWT library not found. Please run: composer install');
+                // Try to load the autoloader if it wasn't loaded
+                if (!class_exists('Firebase\JWT\JWT')) {
+                    throw new \Exception('Firebase JWT library not found. Please run "composer install" on your server to install required dependencies.');
+                }
+            }
+            
+            // Ensure config is loaded
+            if (!defined('JWT_SECRET')) {
+                // Try to load config if not already loaded
+                if (file_exists(__DIR__ . '/../../config/app.php')) {
+                    require_once __DIR__ . '/../../config/app.php';
+                }
+            }
+            
+            // Get JWT secret with fallback
+            if (defined('JWT_SECRET')) {
+                $this->secret = getenv('JWT_SECRET') ?: JWT_SECRET;
+            } else {
+                $this->secret = getenv('JWT_SECRET') ?: 'your_secret_key_change_in_production';
+                error_log('WARNING: JWT_SECRET constant not defined. Using fallback secret. Please set JWT_SECRET in config/app.php or environment variable.');
             }
             
             $this->userModel = new User();
-            $this->secret = getenv('JWT_SECRET') ?: JWT_SECRET;
         } catch (\Exception $e) {
+            error_log('AuthService constructor error: ' . $e->getMessage());
+            error_log('AuthService constructor error trace: ' . $e->getTraceAsString());
             throw new \Exception('Failed to initialize authentication service: ' . $e->getMessage());
         }
     }
