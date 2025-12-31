@@ -288,7 +288,7 @@ class POSSale {
         
         // Build product-related subqueries only if products table exists
         $firstItemProductName = "NULL as first_item_product_name";
-        $firstItemCategory = "'' as first_item_category";
+        $firstItemCategory = "'N/A' as first_item_category";
         
         if ($productsTable) {
             // Check if categories table exists and if products has category_id
@@ -308,16 +308,19 @@ class POSSale {
                     ORDER BY psi.id LIMIT 1) as first_item_product_name";
                 
                 if ($hasCategories && $hasCategoryId) {
-                    $firstItemCategory = "(SELECT COALESCE(cat.name, '') FROM pos_sale_items psi 
+                    $firstItemCategory = "(SELECT COALESCE(cat.name, 'N/A') FROM pos_sale_items psi 
                         LEFT JOIN {$productsTable} p ON psi.item_id = p.id 
                         LEFT JOIN categories cat ON p.category_id = cat.id
-                        WHERE psi.pos_sale_id = s.id AND psi.item_id IS NOT NULL
+                        WHERE psi.pos_sale_id = s.id AND psi.item_id IS NOT NULL AND p.id IS NOT NULL
                         ORDER BY psi.id LIMIT 1) as first_item_category";
                 } elseif ($hasCategory) {
-                    $firstItemCategory = "(SELECT COALESCE(p.category, '') FROM pos_sale_items psi 
+                    $firstItemCategory = "(SELECT COALESCE(p.category, 'N/A') FROM pos_sale_items psi 
                         LEFT JOIN {$productsTable} p ON psi.item_id = p.id 
-                        WHERE psi.pos_sale_id = s.id AND psi.item_id IS NOT NULL
+                        WHERE psi.pos_sale_id = s.id AND psi.item_id IS NOT NULL AND p.id IS NOT NULL
                         ORDER BY psi.id LIMIT 1) as first_item_category";
+                } else {
+                    // Fallback: use N/A if no category column exists
+                    $firstItemCategory = "'N/A' as first_item_category";
                 }
             } catch (\Exception $e) {
                 // If there's an error checking columns, use simpler queries
@@ -427,7 +430,7 @@ class POSSale {
         
         // Build product-related subqueries only if products table exists
         $firstItemProductName = "NULL as first_item_product_name";
-        $firstItemCategory = "'' as first_item_category";
+        $firstItemCategory = "'N/A' as first_item_category";
         
         if ($productsTable) {
             // Check if categories table exists and if products has category_id
@@ -447,16 +450,19 @@ class POSSale {
                     ORDER BY psi.id LIMIT 1) as first_item_product_name";
                 
                 if ($hasCategories && $hasCategoryId) {
-                    $firstItemCategory = "(SELECT COALESCE(cat.name, '') FROM pos_sale_items psi 
+                    $firstItemCategory = "(SELECT COALESCE(cat.name, 'N/A') FROM pos_sale_items psi 
                         LEFT JOIN {$productsTable} p ON psi.item_id = p.id 
                         LEFT JOIN categories cat ON p.category_id = cat.id
-                        WHERE psi.pos_sale_id = s.id AND psi.item_id IS NOT NULL
+                        WHERE psi.pos_sale_id = s.id AND psi.item_id IS NOT NULL AND p.id IS NOT NULL
                         ORDER BY psi.id LIMIT 1) as first_item_category";
                 } elseif ($hasCategory) {
-                    $firstItemCategory = "(SELECT COALESCE(p.category, '') FROM pos_sale_items psi 
+                    $firstItemCategory = "(SELECT COALESCE(p.category, 'N/A') FROM pos_sale_items psi 
                         LEFT JOIN {$productsTable} p ON psi.item_id = p.id 
-                        WHERE psi.pos_sale_id = s.id AND psi.item_id IS NOT NULL
+                        WHERE psi.pos_sale_id = s.id AND psi.item_id IS NOT NULL AND p.id IS NOT NULL
                         ORDER BY psi.id LIMIT 1) as first_item_category";
+                } else {
+                    // Fallback: use N/A if no category column exists
+                    $firstItemCategory = "'N/A' as first_item_category";
                 }
             } catch (\Exception $e) {
                 // If there's an error checking columns, use simpler queries
@@ -682,12 +688,54 @@ class POSSale {
             ? "(SELECT product_name FROM pos_sale_items WHERE pos_sale_id = s.id ORDER BY id LIMIT 1) as first_item_product_name"
             : "NULL as first_item_product_name";
         
-        // Check for category_name column
+        // Check for category_name column in pos_sale_items first
         $checkCategory = $this->conn->query("SHOW COLUMNS FROM pos_sale_items LIKE 'category_name'");
         $hasCategory = $checkCategory && $checkCategory->rowCount() > 0;
-        $firstItemCategory = $hasCategory 
-            ? "(SELECT category_name FROM pos_sale_items WHERE pos_sale_id = s.id ORDER BY id LIMIT 1) as first_item_category"
-            : "NULL as first_item_category";
+        
+        if ($hasCategory) {
+            $firstItemCategory = "(SELECT COALESCE(category_name, 'N/A') FROM pos_sale_items WHERE pos_sale_id = s.id ORDER BY id LIMIT 1) as first_item_category";
+        } else {
+            // Try to get category from products table
+            $productsTable = 'products';
+            try {
+                $checkTable = $this->conn->query("SHOW TABLES LIKE 'products_new'");
+                if ($checkTable->rowCount() > 0) {
+                    $productsTable = 'products_new';
+                } else {
+                    $checkTable2 = $this->conn->query("SHOW TABLES LIKE 'products'");
+                    if ($checkTable2->rowCount() === 0) {
+                        $productsTable = null;
+                    }
+                }
+            } catch (\Exception $e) {
+                $productsTable = null;
+            }
+            
+            if ($productsTable) {
+                try {
+                    $checkCategories = $this->conn->query("SHOW TABLES LIKE 'categories'");
+                    $hasCategories = $checkCategories->rowCount() > 0;
+                    
+                    $checkCategoryId = $this->conn->query("SHOW COLUMNS FROM {$productsTable} LIKE 'category_id'");
+                    $hasCategoryId = $checkCategoryId->rowCount() > 0;
+                    
+                    if ($hasCategories && $hasCategoryId) {
+                        $firstItemCategory = "(SELECT COALESCE(cat.name, 'N/A') FROM pos_sale_items psi 
+                            LEFT JOIN {$productsTable} p ON psi.item_id = p.id 
+                            LEFT JOIN categories cat ON p.category_id = cat.id
+                            WHERE psi.pos_sale_id = s.id AND psi.item_id IS NOT NULL AND p.id IS NOT NULL
+                            ORDER BY psi.id LIMIT 1) as first_item_category";
+                    } else {
+                        $firstItemCategory = "'N/A' as first_item_category";
+                    }
+                } catch (\Exception $e) {
+                    error_log("POSSale::findByCompanyWithRoles: Error getting category from products: " . $e->getMessage());
+                    $firstItemCategory = "'N/A' as first_item_category";
+                }
+            } else {
+                $firstItemCategory = "'N/A' as first_item_category";
+            }
+        }
         
         // Check for swapped items - check pos_sale_items, products table, and swapped_items table
         $checkSwapped = $this->conn->query("SHOW COLUMNS FROM pos_sale_items LIKE 'is_swapped_item'");
