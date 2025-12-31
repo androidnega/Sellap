@@ -406,19 +406,22 @@ document.addEventListener('DOMContentLoaded', function(){
       console.error('Error loading categories via API:', error);
     }
   }
-  const categorySelect = document.getElementById('categorySelect');
-  const subcategoryWrapper = document.getElementById('subcategoryWrapper');
-  const subcategorySelect = document.getElementById('subcategorySelect');
-  const brandWrapper = document.getElementById('brandWrapper');
-  const brandSelect = document.getElementById('brandSelect');
-  const brandRequiredIndicator = document.getElementById('brandRequiredIndicator');
-  const swapWrapper = document.getElementById('swapWrapper');
-  const specsContainer = document.getElementById('specsContainer');
-  const specsWrapper = document.getElementById('specsWrapper');
-  
   // Store existing specs globally for easy access
   const existingSpecs = <?= isset($product) && !empty($product['specs']) ? json_encode($product['specs']) : 'null' ?>;
   console.log('Loaded existing specs:', existingSpecs);
+  console.log('DOM elements initialized. Category select:', categorySelect, 'Brand wrapper:', brandWrapper);
+  
+  // Verify elements exist before proceeding
+  if (!categorySelect) {
+    console.error('CRITICAL: categorySelect element not found! Cannot proceed with dynamic form.');
+    return;
+  }
+  if (!brandWrapper) {
+    console.error('CRITICAL: brandWrapper element not found! Brand selection will not work.');
+  }
+  if (!brandSelect) {
+    console.error('CRITICAL: brandSelect element not found! Brand selection will not work.');
+  }
 
   const fetchJson = (url) => fetch(url).then(r => r.ok ? r.json() : {data: []}).then(data => {
     // Handle different response formats
@@ -486,31 +489,49 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function updateBrandFieldVisibility(hasBrands, requireBrand = false) {
+    if (!brandWrapper || !brandSelect) {
+      console.error('updateBrandFieldVisibility: brandWrapper or brandSelect not found!');
+      return;
+    }
+    
+    console.log('updateBrandFieldVisibility called:', { hasBrands, requireBrand });
+    
     if (hasBrands) {
+      // Show brand field - use both display and visibility to ensure it's visible
       brandWrapper.style.display = 'block';
+      brandWrapper.style.visibility = 'visible';
       brandSelect.disabled = false;
+      
       if (requireBrand) {
         brandSelect.required = true;
         brandSelect.setAttribute('required', 'required');
         brandSelect.setAttribute('aria-required', 'true');
+        console.log('Brand is required for this category');
       } else {
         brandSelect.required = false;
         brandSelect.removeAttribute('required');
         brandSelect.removeAttribute('aria-required');
       }
+      
       if (brandRequiredIndicator) {
         brandRequiredIndicator.style.display = requireBrand ? 'inline' : 'none';
       }
+      
+      console.log('✓ Brand field is now visible');
     } else {
+      // Hide brand field
       brandWrapper.style.display = 'none';
       brandSelect.disabled = true;
       brandSelect.required = false;
       brandSelect.removeAttribute('required');
       brandSelect.removeAttribute('aria-required');
       brandSelect.value = '';
+      
       if (brandRequiredIndicator) {
         brandRequiredIndicator.style.display = 'none';
       }
+      
+      console.log('Brand field is now hidden');
     }
   }
 
@@ -521,13 +542,26 @@ document.addEventListener('DOMContentLoaded', function(){
     const catId = categorySelect.value;
     console.log('Category changed to:', catId);
     
-    const categories = <?= json_encode(array_column($categories, 'name', 'id')) ?>;
-    const catName = categories[catId] || '';
+    // Get category name from the selected option
+    const selectedOption = categorySelect.options[categorySelect.selectedIndex];
+    const catName = selectedOption ? selectedOption.text : '';
+    
+    // Fallback: try to get from PHP categories array if available
+    let categories = {};
+    try {
+      const phpCategories = <?= json_encode(!empty($categories) && is_array($categories) ? array_column($categories, 'name', 'id') : []) ?>;
+      categories = phpCategories || {};
+    } catch(e) {
+      console.warn('Could not load categories from PHP:', e);
+    }
+    
+    // Use category name from selected option, or fallback to categories array
+    const finalCatName = catName || categories[catId] || '';
     
     console.log('Available categories:', categories);
-    console.log('Selected category name:', catName);
+    console.log('Selected category name:', finalCatName);
     console.log('Category ID:', catId);
-    console.log('Normalized category name:', normalizeCategoryName(catName));
+    console.log('Normalized category name:', normalizeCategoryName(finalCatName));
     
     const specsWrapper = document.getElementById('specsWrapper');
     
@@ -553,21 +587,36 @@ document.addEventListener('DOMContentLoaded', function(){
       resetSelect(subcategorySelect); 
     }
 
-    // Load brands
+    // Load brands for this category
     const brandUrl = `${basePath}/api/brands/by-category/${catId}`;
     console.log('Fetching brands from URL:', brandUrl);
     const brands = await fetchJson(brandUrl);
     console.log('Brands loaded:', brands);
-    console.log('Brands length:', brands ? brands.length : 'null/undefined');
+    console.log('Brands count:', brands ? brands.length : 0);
     
-    const requiresBrand = isPhoneCategory(catName);
+    const requiresBrand = isPhoneCategory(finalCatName);
+    console.log('Brand required for this category?', requiresBrand);
+    
     if(brands && brands.length > 0){ 
-      console.log('Showing brand wrapper and populating brands');
-      console.log('Brand wrapper element:', brandWrapper);
-      console.log('Brand wrapper current display:', brandWrapper.style.display);
-      populateSelect(brandSelect, brands, 'Select brand'); 
+      console.log('✓ Brands found - showing brand dropdown');
+      if (!brandSelect) {
+        console.error('ERROR: brandSelect element not found!');
+      } else {
+        populateSelect(brandSelect, brands, 'Select brand'); 
+      }
       updateBrandFieldVisibility(true, requiresBrand);
-      console.log('Brand wrapper display set to:', brandWrapper.style.display);
+      console.log('Brand wrapper should now be visible');
+      
+      // Verify brand wrapper is visible
+      setTimeout(() => {
+        if (brandWrapper) {
+          console.log('Brand wrapper display after update:', brandWrapper.style.display);
+          if (brandWrapper.style.display === 'none') {
+            console.error('WARNING: Brand wrapper is still hidden! Forcing display...');
+            brandWrapper.style.display = 'block';
+          }
+        }
+      }, 100);
       
       // Set the selected brand value if editing
       <?php if (isset($product) && !empty($product['brand_id'])): ?>
@@ -586,18 +635,18 @@ document.addEventListener('DOMContentLoaded', function(){
     }
 
     // Swap toggle: show only for phone-like categories
-    if(isPhoneCategory(catName)) {
+    if(isPhoneCategory(finalCatName)) {
       console.log('Showing swap toggle for phone category');
-      swapWrapper.style.display = 'block';
+      if (swapWrapper) swapWrapper.style.display = 'block';
     } else {
       console.log('Hiding swap toggle for non-phone category');
-      swapWrapper.style.display = 'none';
+      if (swapWrapper) swapWrapper.style.display = 'none';
       const chk = document.querySelector('#available_for_swap');
       if (chk) chk.checked = false;
     }
     
     // Check if category is accessory - show generic accessory specs
-    const normalizedCatName = normalizeCategoryName(catName);
+    const normalizedCatName = normalizeCategoryName(finalCatName);
     const accessoryCategories = ['accessory', 'accessories'];
     const isAccessoryCategory = accessoryCategories.includes(normalizedCatName);
     
@@ -802,8 +851,26 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 
-  categorySelect.addEventListener('change', onCategoryChange);
-  brandSelect.addEventListener('change', onBrandChange);
+  // Attach event listeners
+  if (categorySelect) {
+    categorySelect.addEventListener('change', function() {
+      console.log('Category change event fired!');
+      onCategoryChange();
+    });
+    console.log('Category change event listener attached');
+  } else {
+    console.error('Cannot attach category change listener - element not found');
+  }
+  
+  if (brandSelect) {
+    brandSelect.addEventListener('change', function() {
+      console.log('Brand change event fired!');
+      onBrandChange();
+    });
+    console.log('Brand change event listener attached');
+  } else {
+    console.error('Cannot attach brand change listener - element not found');
+  }
 
   // If edit page has preselected values, trigger load:
   if(categorySelect.value) {

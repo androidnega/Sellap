@@ -11,14 +11,29 @@ class Database {
     private $connection;
 
     private function __construct() {
-        // Live server credentials
-        $host = 'localhost';
-        $dbname = 'manuelc8_sellapp';
-        $username = 'manuelc8_sellapp';
-        $password = 'Atomic2@2020^';
+        // Get environment (local or production)
+        $appEnv = getenv('APP_ENV') ?: 'local';
         
-        // Debug output (remove in production)
-        error_log("Database connection attempt: host=$host, dbname=$dbname, username=$username");
+        // Load database credentials from environment variables
+        // Falls back to defaults if not set
+        if ($appEnv === 'local' || $appEnv === 'development') {
+            // Localhost/Development database credentials
+            $host = getenv('DB_HOST') ?: '127.0.0.1:3307';
+            $dbname = getenv('DB_NAME') ?: 'sellapp_db';
+            $username = getenv('DB_USER') ?: 'root';
+            $password = getenv('DB_PASS') ?: 'newpassword';
+        } else {
+            // Production/Live server database credentials
+            $host = getenv('DB_HOST') ?: 'localhost';
+            $dbname = getenv('DB_NAME') ?: 'manuelc8_sellapp';
+            $username = getenv('DB_USER') ?: 'manuelc8_sellapp';
+            $password = getenv('DB_PASS') ?: 'Atomic2@2020^';
+        }
+        
+        // Debug output (only in development)
+        if ($appEnv === 'local' || $appEnv === 'development') {
+            error_log("Database connection attempt: env=$appEnv, host=$host, dbname=$dbname, username=$username");
+        }
 
         try {
             $this->connection = new PDO(
