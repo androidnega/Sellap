@@ -29,9 +29,17 @@ class Category {
             ");
             $stmt->execute();
             $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Debug logging
+            error_log("Category::getAll() - Found " . count($result) . " active categories");
+            if (empty($result)) {
+                error_log("WARNING: No active categories found in database. Check if categories table has data and is_active = 1");
+            }
+            
             return $result ?: [];
         } catch (\Exception $e) {
             error_log("Category::getAll() error: " . $e->getMessage());
+            error_log("Category::getAll() error trace: " . $e->getTraceAsString());
             return [];
         }
     }

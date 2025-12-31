@@ -243,8 +243,17 @@ class InventoryController {
         
         $companyId = $_SESSION['user']['company_id'] ?? 1;
         
-        $categories = (new \App\Models\Category())->getAll($companyId);
+        $categoryModel = new \App\Models\Category();
+        $categories = $categoryModel->getAll($companyId);
         $suppliers = (new \App\Models\Supplier())->getActiveForDropdown($companyId);
+        
+        // Debug: Log category count
+        error_log("InventoryController::create() - Loaded " . count($categories) . " categories for company ID: " . $companyId);
+        
+        // Ensure we have categories - if not, log error
+        if (empty($categories)) {
+            error_log("WARNING: No categories found for company ID: " . $companyId);
+        }
         
         // Check if coming from purchase order
         $productData = null;

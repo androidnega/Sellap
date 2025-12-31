@@ -785,6 +785,23 @@ $router->get('api/subcategories/by-category/{categoryId}', function($categoryId)
     }
 });
 
+// Get all categories (API endpoint)
+$router->get('api/categories', function() {
+    header('Content-Type: application/json');
+    try {
+        \App\Middleware\WebAuthMiddleware::handle(['system_admin', 'admin', 'manager', 'salesperson', 'technician']);
+        $controller = new \App\Controllers\ProductController();
+        $controller->apiGetCategories();
+    } catch (\Exception $e) {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'data' => []
+        ]);
+    }
+});
+
 // Get brand specifications
 $router->get('api/products/brand-specs/{brandId}', function($brandId) {
     header('Content-Type: application/json');

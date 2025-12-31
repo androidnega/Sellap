@@ -13,6 +13,19 @@ $prefillData = $GLOBALS['prefill_product_data'] ?? null;
 if (!is_array($categories)) {
     $categories = [];
 }
+
+// Debug: Log if categories are empty (remove in production)
+if (empty($categories)) {
+    error_log("WARNING: No categories found in GLOBALS for inventory create page");
+    // Try to load categories directly as fallback
+    try {
+        $categoryModel = new \App\Models\Category();
+        $categories = $categoryModel->getAll();
+        error_log("Fallback: Loaded " . count($categories) . " categories directly from model");
+    } catch (\Exception $e) {
+        error_log("Error loading categories in fallback: " . $e->getMessage());
+    }
+}
 ?>
 
 <div class="p-6">
@@ -66,6 +79,7 @@ if (!is_array($categories)) {
                                 <?php 
                                 if (!empty($categories) && is_array($categories)) {
                                     $uniqueCategories = [];
+                                    $categoryCount = 0;
                                     foreach ($categories as $category) {
                                         if (isset($category['id']) && isset($category['name'])) {
                                             // Only show unique category names to avoid duplicates
@@ -74,11 +88,18 @@ if (!is_array($categories)) {
                                                 $selected = (isset($product['category_id']) && $product['category_id'] == $category['id']) ? 'selected' : '';
                                                 echo '<option value="' . htmlspecialchars($category['id']) . '" ' . $selected . '>' .
                                                      htmlspecialchars($category['name']) . '</option>';
+                                                $categoryCount++;
                                             }
                                         }
                                     }
+                                    // Debug output (remove in production)
+                                    if ($categoryCount === 0) {
+                                        error_log("WARNING: Categories array is not empty but no valid categories found. Count: " . count($categories));
+                                        echo '<!-- DEBUG: Categories array has ' . count($categories) . ' items but none were valid -->';
+                                    }
                                 } else {
                                     echo '<option value="" disabled>No categories available. Please create categories first.</option>';
+                                    error_log("ERROR: Categories array is empty or not an array. Type: " . gettype($categories) . ", Count: " . (is_array($categories) ? count($categories) : 'N/A'));
                                 }
                                 ?>
                             </select>
@@ -351,6 +372,40 @@ if (!is_array($categories)) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function(){
+  // Check if category dropdown is empty and load via API if needed
+  const categorySelect = document.getElementById('categorySelect');
+  if (categorySelect && categorySelect.options.length <= 1) {
+    // Only "Select a category" option exists, try to load via API
+    console.log('Category dropdown is empty, attempting to load categories via API...');
+    loadCategoriesViaAPI();
+  }
+  
+  async function loadCategoriesViaAPI() {
+    try {
+      const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+      const response = await fetch(`${basePath}/api/categories`);
+      const data = await response.json();
+      
+      if (data.success && data.data && data.data.length > 0) {
+        console.log('Loaded ' + data.data.length + ' categories via API');
+        const uniqueCategories = [];
+        data.data.forEach(category => {
+          if (category.id && category.name && !uniqueCategories.includes(category.name)) {
+            uniqueCategories.push(category.name);
+            const option = document.createElement('option');
+            option.value = category.id;
+            option.textContent = category.name;
+            categorySelect.appendChild(option);
+          }
+        });
+        console.log('Added ' + uniqueCategories.length + ' categories to dropdown');
+      } else {
+        console.error('API returned no categories:', data);
+      }
+    } catch (error) {
+      console.error('Error loading categories via API:', error);
+    }
+  }
   const categorySelect = document.getElementById('categorySelect');
   const subcategoryWrapper = document.getElementById('subcategoryWrapper');
   const subcategorySelect = document.getElementById('subcategorySelect');
