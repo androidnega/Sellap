@@ -20,25 +20,14 @@ class Category {
      */
     public function getAll($companyId = null): array {
         try {
-            if ($companyId) {
-                // Filter by company_id if column exists, otherwise filter by products
-                $stmt = $this->db->prepare("
-                    SELECT DISTINCT c.* 
-                    FROM categories c
-                    INNER JOIN products_new p ON c.id = p.category_id
-                    WHERE c.is_active = 1 
-                    AND p.company_id = ?
-                    ORDER BY c.name ASC
-                ");
-                $stmt->execute([$companyId]);
-            } else {
-                $stmt = $this->db->prepare("
-                    SELECT * FROM categories 
-                    WHERE is_active = 1 
-                    ORDER BY name ASC
-                ");
-                $stmt->execute();
-            }
+            // Always return all active categories, regardless of whether they have products
+            // This ensures the dropdown is always populated for product creation
+            $stmt = $this->db->prepare("
+                SELECT * FROM categories 
+                WHERE is_active = 1 
+                ORDER BY name ASC
+            ");
+            $stmt->execute();
             $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
             return $result ?: [];
         } catch (\Exception $e) {

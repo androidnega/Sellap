@@ -4,8 +4,15 @@ $isEdit = isset($product) && !empty($product);
 $formTitle = $isEdit ? 'Edit Product' : 'Add New Product';
 $formAction = $isEdit ? BASE_URL_PATH . '/dashboard/inventory/update/' . $product['id'] : BASE_URL_PATH . '/dashboard/inventory/store';
 
-// Get prefill data from purchase order if available
+// Get variables from controller
+$categories = $GLOBALS['categories'] ?? [];
+$suppliers = $GLOBALS['suppliers'] ?? [];
 $prefillData = $GLOBALS['prefill_product_data'] ?? null;
+
+// Ensure categories is an array
+if (!is_array($categories)) {
+    $categories = [];
+}
 ?>
 
 <div class="p-6">
@@ -57,14 +64,21 @@ $prefillData = $GLOBALS['prefill_product_data'] ?? null;
                                     required>
                                 <option value="">Select a category</option>
                                 <?php 
-                                $uniqueCategories = [];
-                                foreach ($categories as $category) {
-                                    if (!in_array($category['name'], $uniqueCategories)) {
-                                        $uniqueCategories[] = $category['name'];
-                                        echo '<option value="' . $category['id'] . '" ' . 
-                                             (($product['category_id'] ?? '') == $category['id'] ? 'selected' : '') . '>' .
-                                             htmlspecialchars($category['name']) . '</option>';
+                                if (!empty($categories) && is_array($categories)) {
+                                    $uniqueCategories = [];
+                                    foreach ($categories as $category) {
+                                        if (isset($category['id']) && isset($category['name'])) {
+                                            // Only show unique category names to avoid duplicates
+                                            if (!in_array($category['name'], $uniqueCategories)) {
+                                                $uniqueCategories[] = $category['name'];
+                                                $selected = (isset($product['category_id']) && $product['category_id'] == $category['id']) ? 'selected' : '';
+                                                echo '<option value="' . htmlspecialchars($category['id']) . '" ' . $selected . '>' .
+                                                     htmlspecialchars($category['name']) . '</option>';
+                                            }
+                                        }
                                     }
+                                } else {
+                                    echo '<option value="" disabled>No categories available. Please create categories first.</option>';
                                 }
                                 ?>
                             </select>

@@ -280,7 +280,9 @@ class InventoryController {
         
         // Capture the view content
         ob_start();
-        // Pass product data to view if available
+        // Pass variables to view
+        $GLOBALS['categories'] = $categories;
+        $GLOBALS['suppliers'] = $suppliers;
         if ($productData) {
             $GLOBALS['prefill_product_data'] = $productData;
         }
