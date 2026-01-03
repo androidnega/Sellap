@@ -10,23 +10,72 @@
  * URL: https://sellapp.store/test_salesperson_access.php?company_id=11
  */
 
-// Start session and include necessary files
-session_start();
-require_once __DIR__ . '/config/database.php';
-require_once __DIR__ . '/app/Models/Database.php';
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Start output buffering
+ob_start();
+
+try {
+    // Start session
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    
+    // Include database config
+    if (!file_exists(__DIR__ . '/config/database.php')) {
+        throw new Exception('Database config file not found');
+    }
+    require_once __DIR__ . '/config/database.php';
+    
+    // Include Database model
+    if (!file_exists(__DIR__ . '/app/Models/Database.php')) {
+        throw new Exception('Database model file not found');
+    }
+    require_once __DIR__ . '/app/Models/Database.php';
+    
+    // Get database connection
+    try {
+        $db = \Database::getInstance()->getConnection();
+    } catch (Exception $e) {
+        throw new Exception('Database connection failed: ' . $e->getMessage());
+    }
+    
+    // Get company ID from query parameter or default
+    $testCompanyId = isset($_GET['company_id']) ? intval($_GET['company_id']) : 11;
+    
+} catch (Exception $e) {
+    ob_clean();
+    header('Content-Type: text/html; charset=utf-8');
+    http_response_code(500);
+    die('
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Error</title>
+        <style>
+            body { font-family: Arial, sans-serif; padding: 50px; background: #f5f5f5; }
+            .error { background: white; padding: 30px; border-radius: 8px; max-width: 800px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            h1 { color: #d32f2f; }
+            pre { background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; }
+        </style>
+    </head>
+    <body>
+        <div class="error">
+            <h1>❌ Error Loading Test File</h1>
+            <p><strong>Error:</strong> ' . htmlspecialchars($e->getMessage()) . '</p>
+            <p><strong>File:</strong> ' . htmlspecialchars(__FILE__) . '</p>
+            <p><strong>Line:</strong> ' . $e->getLine() . '</p>
+            <h3>Stack Trace:</h3>
+            <pre>' . htmlspecialchars($e->getTraceAsString()) . '</pre>
+        </div>
+    </body>
+    </html>');
+}
 
 // Set headers for browser viewing
 header('Content-Type: text/html; charset=utf-8');
-
-// Get database connection
-try {
-    $db = \Database::getInstance()->getConnection();
-} catch (Exception $e) {
-    die("Database connection failed: " . $e->getMessage());
-}
-
-// Get company ID from query parameter or default
-$testCompanyId = $_GET['company_id'] ?? 11;
 
 ?>
 <!DOCTYPE html>
@@ -52,7 +101,6 @@ $testCompanyId = $_GET['company_id'] ?? 11;
         .badge-orange { background: #ff9800; color: white; }
         .count { font-size: 24px; font-weight: bold; color: #2196F3; }
         code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 11px; }
-        .diff { background: #fff3cd; padding: 2px 4px; }
         .info-box { background: #e3f2fd; padding: 10px; border-radius: 4px; margin: 10px 0; }
     </style>
 </head>
@@ -77,19 +125,31 @@ try {
     $hasSwapRefId = false;
     $hasInventoryProductId = false;
     
-    $checkIsSwapped = $db->query("SHOW COLUMNS FROM products LIKE 'is_swapped_item'");
-    $hasIsSwappedItem = $checkIsSwapped && $checkIsSwapped->rowCount() > 0;
+    try {
+        $checkIsSwapped = $db->query("SHOW COLUMNS FROM products LIKE 'is_swapped_item'");
+        $hasIsSwappedItem = $checkIsSwapped && $checkIsSwapped->rowCount() > 0;
+    } catch (Exception $e) {
+        echo '<div class="warning">Could not check is_swapped_item column: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    }
     
-    $checkSwapRef = $db->query("SHOW COLUMNS FROM products LIKE 'swap_ref_id'");
-    $hasSwapRefId = $checkSwapRef && $checkSwapRef->rowCount() > 0;
+    try {
+        $checkSwapRef = $db->query("SHOW COLUMNS FROM products LIKE 'swap_ref_id'");
+        $hasSwapRefId = $checkSwapRef && $checkSwapRef->rowCount() > 0;
+    } catch (Exception $e) {
+        echo '<div class="warning">Could not check swap_ref_id column: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    }
     
-    $checkInventory = $db->query("SHOW COLUMNS FROM swapped_items LIKE 'inventory_product_id'");
-    $hasInventoryProductId = $checkInventory && $checkInventory->rowCount() > 0;
+    try {
+        $checkInventory = $db->query("SHOW COLUMNS FROM swapped_items LIKE 'inventory_product_id'");
+        $hasInventoryProductId = $checkInventory && $checkInventory->rowCount() > 0;
+    } catch (Exception $e) {
+        echo '<div class="warning">Could not check inventory_product_id column: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    }
     
     // Total products in database
     $totalQuery = $db->prepare("SELECT COUNT(*) as total FROM products WHERE company_id = ?");
     $totalQuery->execute([$testCompanyId]);
-    $totalProducts = $totalQuery->fetch(PDO::FETCH_ASSOC)['total'];
+    $totalProducts = $totalQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
     
     // Products that managers see (using findByCompanyPaginated logic)
     $si2Join = $hasInventoryProductId ? "LEFT JOIN swapped_items si2 ON p.id = si2.inventory_product_id" : "";
@@ -117,7 +177,7 @@ try {
     
     $managerQuery = $db->prepare($managerSql);
     $managerQuery->execute([$testCompanyId]);
-    $managerProducts = $managerQuery->fetch(PDO::FETCH_ASSOC)['total'];
+    $managerProducts = $managerQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
     
     // Products that salespersons see (using findByCompany logic with swappedItems=false)
     $salespersonSql = "
@@ -142,21 +202,26 @@ try {
     
     $salespersonQuery = $db->prepare($salespersonSql);
     $salespersonQuery->execute([$testCompanyId]);
-    $salespersonProducts = $salespersonQuery->fetch(PDO::FETCH_ASSOC)['total'];
+    $salespersonProducts = $salespersonQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
     
     // Count swapped items
-    $swappedItemsQuery = $db->prepare("
-        SELECT COUNT(*) as total
-        FROM products p
-        " . ($hasInventoryProductId ? "LEFT JOIN swapped_items si2 ON p.id = si2.inventory_product_id" : "") . "
-        WHERE p.company_id = ?
-        AND (
-            " . ($hasIsSwappedItem ? "COALESCE(p.is_swapped_item, 0) = 1" : "0") . "
-            " . ($hasInventoryProductId ? "OR si2.id IS NOT NULL" : "") . "
-        )
-    ");
-    $swappedItemsQuery->execute([$testCompanyId]);
-    $swappedItemsCount = $swappedItemsQuery->fetch(PDO::FETCH_ASSOC)['total'];
+    $swappedItemsCount = 0;
+    try {
+        $swappedItemsQuery = $db->prepare("
+            SELECT COUNT(*) as total
+            FROM products p
+            " . ($hasInventoryProductId ? "LEFT JOIN swapped_items si2 ON p.id = si2.inventory_product_id" : "") . "
+            WHERE p.company_id = ?
+            AND (
+                " . ($hasIsSwappedItem ? "COALESCE(p.is_swapped_item, 0) = 1" : "0") . "
+                " . ($hasInventoryProductId ? "OR si2.id IS NOT NULL" : "") . "
+            )
+        ");
+        $swappedItemsQuery->execute([$testCompanyId]);
+        $swappedItemsCount = $swappedItemsQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+    } catch (Exception $e) {
+        echo '<div class="warning">Could not count swapped items: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    }
     
     echo '<div class="info-box">';
     echo '<p><strong>Total Products in Database:</strong> <span class="count">' . $totalProducts . '</span></p>';
@@ -178,120 +243,36 @@ try {
     
 } catch (Exception $e) {
     echo '<div class="error">Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    echo '<pre>' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
 }
 echo '</div>';
 
 // ============================================
-// TEST 2: Show Missing Products
+// TEST 2: Customer Count Comparison
 // ============================================
 echo '<div class="section">';
-echo '<h2>Test 2: Products Visible to Managers but NOT to Salespersons</h2>';
-
-try {
-    $si2Join = $hasInventoryProductId ? "LEFT JOIN swapped_items si2 ON p.id = si2.inventory_product_id" : "";
-    
-    // Get products that managers see but salespersons don't
-    $missingSql = "
-        SELECT 
-            p.id,
-            p.name,
-            p.quantity,
-            p.is_swapped_item,
-            p.swap_ref_id,
-            p.status,
-            CASE WHEN si2.id IS NOT NULL THEN 1 ELSE 0 END as has_inventory_link
-        FROM products p
-        " . ($hasSwapRefId ? "LEFT JOIN swapped_items si ON p.swap_ref_id = si.id" : "") . "
-        {$si2Join}
-        WHERE p.company_id = ?
-        AND (
-            " . ($hasIsSwappedItem ? "COALESCE(p.is_swapped_item, 0) = 1" : "0") . "
-            " . ($hasInventoryProductId ? "OR si2.id IS NOT NULL" : "") . "
-        )
-        AND NOT (
-            " . ($hasIsSwappedItem ? "(COALESCE(p.is_swapped_item, 0) = 1 AND COALESCE(p.quantity, 0) = 0)" : "0") . "
-            " . ($hasInventoryProductId ? "OR (si2.id IS NOT NULL AND COALESCE(p.quantity, 0) = 0)" : "") . "
-        )
-        ORDER BY p.id DESC
-        LIMIT 50
-    ";
-    
-    $missingQuery = $db->prepare($missingSql);
-    $missingQuery->execute([$testCompanyId]);
-    $missingProducts = $missingQuery->fetchAll(PDO::FETCH_ASSOC);
-    
-    echo '<p class="count">Found: ' . count($missingProducts) . ' swapped items visible to managers but hidden from salespersons</p>';
-    
-    if (count($missingProducts) > 0) {
-        echo '<table>';
-        echo '<tr>';
-        echo '<th>Product ID</th>';
-        echo '<th>Product Name</th>';
-        echo '<th>Quantity</th>';
-        echo '<th>is_swapped_item</th>';
-        echo '<th>swap_ref_id</th>';
-        echo '<th>Status</th>';
-        echo '<th>Has Inventory Link</th>';
-        echo '</tr>';
-        
-        foreach ($missingProducts as $product) {
-            echo '<tr>';
-            echo '<td>' . htmlspecialchars($product['id']) . '</td>';
-            echo '<td>' . htmlspecialchars($product['name']) . '</td>';
-            echo '<td>' . htmlspecialchars($product['quantity']) . '</td>';
-            echo '<td>' . ($product['is_swapped_item'] ? '<span class="badge badge-orange">YES</span>' : 'NO') . '</td>';
-            echo '<td>' . ($product['swap_ref_id'] ? htmlspecialchars($product['swap_ref_id']) : 'NULL') . '</td>';
-            echo '<td>' . htmlspecialchars($product['status']) . '</td>';
-            echo '<td>' . ($product['has_inventory_link'] ? '<span class="badge badge-orange">YES</span>' : 'NO') . '</td>';
-            echo '</tr>';
-        }
-        echo '</table>';
-    }
-    
-} catch (Exception $e) {
-    echo '<div class="error">Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
-}
-echo '</div>';
-
-// ============================================
-// TEST 3: Customer Count Comparison
-// ============================================
-echo '<div class="section">';
-echo '<h2>Test 3: Customer Count Comparison</h2>';
+echo '<h2>Test 2: Customer Count Comparison</h2>';
 
 try {
     // Total customers in database
     $totalCustomersQuery = $db->prepare("SELECT COUNT(*) as total FROM customers WHERE company_id = ?");
     $totalCustomersQuery->execute([$testCompanyId]);
-    $totalCustomers = $totalCustomersQuery->fetch(PDO::FETCH_ASSOC)['total'];
+    $totalCustomers = $totalCustomersQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
     
     // Customers via findByCompany (used in some places) - has LIMIT 100
-    $findByCompanyQuery = $db->prepare("SELECT COUNT(*) as total FROM (
-        SELECT * FROM customers WHERE company_id = ? ORDER BY id DESC LIMIT 100
-    ) as limited");
-    $findByCompanyQuery->execute([$testCompanyId]);
-    $findByCompanyCount = $findByCompanyQuery->fetch(PDO::FETCH_ASSOC)['total'];
+    $findByCompanyCount = min(100, $totalCustomers);
     
     // Customers via allByCompany (used in POS) - no limit
-    $allByCompanyQuery = $db->prepare("SELECT COUNT(*) as total FROM customers WHERE company_id = ?");
-    $allByCompanyQuery->execute([$testCompanyId]);
-    $allByCompanyCount = $allByCompanyQuery->fetch(PDO::FETCH_ASSOC)['total'];
+    $allByCompanyCount = $totalCustomers;
     
     // Customers via quickSearch (used in autocomplete) - LIMIT 50
-    $quickSearchQuery = $db->prepare("SELECT COUNT(*) as total FROM (
-        SELECT * FROM customers 
-        WHERE company_id = ? 
-        ORDER BY full_name ASC 
-        LIMIT 50
-    ) as limited");
-    $quickSearchQuery->execute([$testCompanyId]);
-    $quickSearchCount = $quickSearchQuery->fetch(PDO::FETCH_ASSOC)['total'];
+    $quickSearchCount = min(50, $totalCustomers);
     
     echo '<div class="info-box">';
     echo '<p><strong>Total Customers in Database:</strong> <span class="count">' . $totalCustomers . '</span></p>';
-    echo '<p><strong>Customers via findByCompany (LIMIT 100):</strong> <span class="count">' . min(100, $totalCustomers) . '</span></p>';
+    echo '<p><strong>Customers via findByCompany (LIMIT 100):</strong> <span class="count">' . $findByCompanyCount . '</span></p>';
     echo '<p><strong>Customers via allByCompany (no limit):</strong> <span class="count">' . $allByCompanyCount . '</span></p>';
-    echo '<p><strong>Customers via quickSearch (LIMIT 50):</strong> <span class="count">' . min(50, $totalCustomers) . '</span></p>';
+    echo '<p><strong>Customers via quickSearch (LIMIT 50):</strong> <span class="count">' . $quickSearchCount . '</span></p>';
     echo '</div>';
     
     if ($totalCustomers > 100) {
@@ -316,94 +297,8 @@ try {
     
 } catch (Exception $e) {
     echo '<div class="error">Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    echo '<pre>' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
 }
-echo '</div>';
-
-// ============================================
-// TEST 4: Show Missing Customers
-// ============================================
-echo '<div class="section">';
-echo '<h2>Test 4: Customers That May Be Missing from Search</h2>';
-
-try {
-    // Get customers beyond the 100 limit
-    $missingCustomersQuery = $db->prepare("
-        SELECT id, full_name, phone_number, email, created_at
-        FROM customers 
-        WHERE company_id = ?
-        ORDER BY id DESC
-        LIMIT 150
-        OFFSET 100
-    ");
-    $missingCustomersQuery->execute([$testCompanyId]);
-    $missingCustomers = $missingCustomersQuery->fetchAll(PDO::FETCH_ASSOC);
-    
-    if (count($missingCustomers) > 0) {
-        echo '<p class="count">Found: ' . count($missingCustomers) . ' customers beyond the 100 limit</p>';
-        echo '<div class="warning">These customers won\'t appear when using <code>findByCompany()</code> with default limit</div>';
-        
-        echo '<table>';
-        echo '<tr>';
-        echo '<th>Customer ID</th>';
-        echo '<th>Full Name</th>';
-        echo '<th>Phone Number</th>';
-        echo '<th>Email</th>';
-        echo '<th>Created At</th>';
-        echo '</tr>';
-        
-        foreach ($missingCustomers as $customer) {
-            echo '<tr>';
-            echo '<td>' . htmlspecialchars($customer['id']) . '</td>';
-            echo '<td>' . htmlspecialchars($customer['full_name']) . '</td>';
-            echo '<td>' . htmlspecialchars($customer['phone_number']) . '</td>';
-            echo '<td>' . htmlspecialchars($customer['email'] ?? 'N/A') . '</td>';
-            echo '<td>' . htmlspecialchars($customer['created_at']) . '</td>';
-            echo '</tr>';
-        }
-        echo '</table>';
-    } else {
-        echo '<div class="success">✅ All customers are within the 100 limit!</div>';
-    }
-    
-} catch (Exception $e) {
-    echo '<div class="error">Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
-}
-echo '</div>';
-
-// ============================================
-// TEST 5: Query Analysis
-// ============================================
-echo '<div class="section">';
-echo '<h2>Test 5: Query Analysis & Recommendations</h2>';
-
-echo '<h3>Product Query Issues:</h3>';
-echo '<div class="info-box">';
-echo '<p><strong>Current Salesperson Query (InventoryController.php line 158):</strong></p>';
-echo '<pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto;">';
-echo htmlspecialchars('$products = $this->productModel->findByCompany($companyId, 1000, $category_id, null, false, $swappedItems);');
-echo '</pre>';
-echo '<p><strong>Problem:</strong> When <code>$swappedItems = false</code>, the query excludes ALL swapped items with:</p>';
-echo '<pre style="background: #ffebee; padding: 10px; border-radius: 4px;">';
-echo htmlspecialchars('AND COALESCE(p.is_swapped_item, 0) = 0');
-echo '</pre>';
-echo '<p><strong>Solution:</strong> Use the same query logic as managers, or use <code>findByCompanyPaginated()</code></p>';
-echo '</div>';
-
-echo '<h3>Customer Query Issues:</h3>';
-echo '<div class="info-box">';
-echo '<p><strong>1. findByCompany() has LIMIT 100:</strong></p>';
-echo '<pre style="background: #f5f5f5; padding: 10px; border-radius: 4px;">';
-echo htmlspecialchars('public function findByCompany($company_id, $limit = 100)');
-echo '</pre>';
-echo '<p><strong>Solution:</strong> Use <code>allByCompany()</code> which has no limit, or increase the limit</p>';
-
-echo '<p><strong>2. quickSearch() has LIMIT 50:</strong></p>';
-echo '<pre style="background: #f5f5f5; padding: 10px; border-radius: 4px;">';
-echo htmlspecialchars('public function quickSearch($searchTerm, $limit = 50, $companyId = null)');
-echo '</pre>';
-echo '<p><strong>Solution:</strong> Increase the limit to match <code>search()</code> which uses 200000</p>';
-echo '</div>';
-
 echo '</div>';
 
 // ============================================
@@ -431,4 +326,3 @@ echo '</div>';
     </div>
 </body>
 </html>
-
