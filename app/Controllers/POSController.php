@@ -2347,7 +2347,8 @@ class POSController {
                     $products = $this->product->search($companyId, $search, $category_id);
                 } else {
                     // Get all products including swapped items (swapped items should always be visible for resale)
-                    $products = $this->product->findByCompanyForPOS($companyId, 200, $category_id);
+                    // Increased limit to 10,000 to ensure all in-stock products are available in POS
+                    $products = $this->product->findByCompanyForPOS($companyId, 10000, $category_id);
                 }
             } catch (\Exception $e) {
                 error_log("POSController: Error fetching products: " . $e->getMessage());

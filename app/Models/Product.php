@@ -430,10 +430,23 @@ class Product {
         if ($swappedItemsOnly && $hasIsSwappedItem) {
             $sql .= " AND (p.is_swapped_item = 1" . ($hasInventoryProductId ? " OR si2.id IS NOT NULL" : "") . ")";
         } elseif (!$swappedItemsOnly) {
-            // For regular inventory view: show only in-stock products (quantity > 0)
-            // Salespersons should only see products available for sale
-            // Hide out-of-stock products (quantity = 0)
-            $sql .= " AND COALESCE(p.quantity, 0) > 0";
+            // For regular inventory view: show ALL products (including out-of-stock)
+            // Salespersons need to see all products in their inventory view
+            // Only hide swapped items that have been sold (quantity = 0)
+            $conditions = [];
+            if ($hasIsSwappedItem) {
+                // Hide swapped items with quantity = 0 (they've been sold/resold)
+                $conditions[] = "(COALESCE(p.is_swapped_item, 0) = 1 AND COALESCE(p.quantity, 0) = 0)";
+            }
+            if ($hasInventoryProductId) {
+                // Hide swapped items linked via inventory_product_id with quantity = 0
+                $conditions[] = "(si2.id IS NOT NULL AND COALESCE(p.quantity, 0) = 0)";
+            }
+            if (!empty($conditions)) {
+                $sql .= " AND NOT (" . implode(" OR ", $conditions) . ")";
+            }
+            // Show all products (including regular products with quantity = 0)
+            // This allows salespersons to see all 278 products in their dashboard
         }
         
         // Use direct integer values for LIMIT/OFFSET to avoid prepared statement issues
@@ -508,10 +521,9 @@ class Product {
                 $sql .= " AND (" . implode(" OR ", $conditions) . ")";
             }
         } elseif (!$swappedItemsOnly) {
-            // For regular inventory view: count only in-stock products (quantity > 0)
-            // Salespersons should only see products available for sale
-            // Exclude out-of-stock products (quantity = 0)
-            // Also exclude swapped items that have been sold (quantity = 0)
+            // For regular inventory view: count ALL products (including out-of-stock)
+            // Salespersons need to see all products in their inventory view
+            // Only exclude swapped items that have been sold (quantity = 0)
             $conditions = [];
             if ($hasIsSwappedItem) {
                 // Hide swapped items with quantity = 0 (they've been sold/resold)
@@ -524,8 +536,8 @@ class Product {
             if (!empty($conditions)) {
                 $sql .= " AND NOT (" . implode(" OR ", $conditions) . ")";
             }
-            // Show only products with quantity > 0 (in stock)
-            $sql .= " AND COALESCE(p.quantity, 0) > 0";
+            // Count all products (including regular products with quantity = 0)
+            // This allows salespersons to see all 278 products in their dashboard
         }
 
         $stmt = $this->db->prepare($sql);
