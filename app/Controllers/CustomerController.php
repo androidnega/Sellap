@@ -287,7 +287,9 @@ class CustomerController {
         header('Content-Type: application/json');
         
         try {
-            $customers = $this->model->findByCompany($companyId);
+            // Use allByCompany() to ensure ALL customers are returned (no limit)
+            // This is critical for salespersons to search all customers in POS and swaps
+            $customers = $this->model->allByCompany($companyId);
             echo json_encode([
                 'success' => true,
                 'data' => $customers,

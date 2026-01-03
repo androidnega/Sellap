@@ -3274,9 +3274,18 @@ function openSwapModal(productId, productName, productPrice) {
         updateSwapBalance();
     }
     
-    // Populate customer dropdown
-    if (typeof populateSwapCustomerDropdown === 'function') {
-        populateSwapCustomerDropdown();
+    // Ensure customers are loaded before populating dropdown
+    if (!customers || customers.length === 0) {
+        loadCustomers().then(() => {
+            if (typeof populateSwapCustomerDropdown === 'function') {
+                populateSwapCustomerDropdown();
+            }
+        });
+    } else {
+        // Populate customer dropdown
+        if (typeof populateSwapCustomerDropdown === 'function') {
+            populateSwapCustomerDropdown();
+        }
     }
     
     // Show modal
