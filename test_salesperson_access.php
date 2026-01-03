@@ -23,17 +23,11 @@ try {
         session_start();
     }
     
-    // Include database config
+    // Include database config (Database class is defined here, not in Models)
     if (!file_exists(__DIR__ . '/config/database.php')) {
         throw new Exception('Database config file not found');
     }
     require_once __DIR__ . '/config/database.php';
-    
-    // Include Database model
-    if (!file_exists(__DIR__ . '/app/Models/Database.php')) {
-        throw new Exception('Database model file not found');
-    }
-    require_once __DIR__ . '/app/Models/Database.php';
     
     // Get database connection
     try {

@@ -166,37 +166,11 @@ class InventoryController {
         // Use findByCompanyPaginated like managers do - this ensures salespersons see ALL products
         $products = $this->productModel->findByCompanyPaginated($companyId, $currentPage, $itemsPerPage, $category_id, $swappedItemsOnly);
         
-        // Calculate stats from all products (not just paginated ones)
-        // Get all products for stats calculation
-        $allProducts = $this->productModel->findByCompanyPaginated($companyId, 1, 10000, $category_id, $swappedItemsOnly);
-        $stats = [
-            'total_products' => $totalItems,
-            'in_stock' => 0,
-            'low_stock' => 0,
-            'out_of_stock' => 0,
-            'swapped_items' => 0,
-            'total_value' => 0
-        ];
+        // Calculate stats using direct database queries for accuracy
+        $stats = $this->productModel->getStats($companyId);
         
-        foreach ($allProducts as $product) {
-            $qty = intval($product['quantity'] ?? $product['qty'] ?? 0);
-            $price = floatval($product['price'] ?? 0);
-            
-            if ($swappedItemsOnly || (isset($product['is_swapped_item']) && $product['is_swapped_item'])) {
-                $stats['swapped_items']++;
-            }
-            
-            if ($qty > 0) {
-                $stats['in_stock']++;
-                $minQty = intval($product['min_quantity'] ?? 5);
-                if ($qty <= $minQty) {
-                    $stats['low_stock']++;
-                }
-                $stats['total_value'] += $qty * $price;
-            } else {
-                $stats['out_of_stock']++;
-            }
-        }
+        // Override total_products with actual count
+        $stats['total_products'] = $totalItems;
         
         // Use paginated products for display (view expects $products variable)
         $products = $paginatedProducts;
