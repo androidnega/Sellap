@@ -164,7 +164,7 @@ class InventoryController {
         }
         
         // Use findByCompanyPaginated like managers do - this ensures salespersons see ALL products
-        $products = $this->productModel->findByCompanyPaginated($companyId, $currentPage, $itemsPerPage, $category_id, $swappedItemsOnly);
+        $paginatedProducts = $this->productModel->findByCompanyPaginated($companyId, $currentPage, $itemsPerPage, $category_id, $swappedItemsOnly);
         
         // Calculate stats using direct database queries for accuracy
         $stats = $this->productModel->getStats($companyId);

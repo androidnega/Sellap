@@ -113,29 +113,38 @@ header('Content-Type: text/html; charset=utf-8');
 echo '<div class="section">';
 echo '<h2>Test 1: Product Count Comparison</h2>';
 
+// Initialize variables to prevent undefined variable errors
+$totalProducts = 0;
+$managerProducts = 0;
+$salespersonProducts = 0;
+$swappedItemsCount = 0;
+
 try {
-    // Check if columns exist
+    // Check if columns exist by querying INFORMATION_SCHEMA
     $hasIsSwappedItem = false;
     $hasSwapRefId = false;
     $hasInventoryProductId = false;
     
     try {
-        $checkIsSwapped = $db->query("SHOW COLUMNS FROM products LIKE 'is_swapped_item'");
-        $hasIsSwappedItem = $checkIsSwapped && $checkIsSwapped->rowCount() > 0;
+        $checkIsSwapped = $db->query("SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'is_swapped_item'");
+        $result = $checkIsSwapped->fetch(PDO::FETCH_ASSOC);
+        $hasIsSwappedItem = ($result['cnt'] ?? 0) > 0;
     } catch (Exception $e) {
         echo '<div class="warning">Could not check is_swapped_item column: ' . htmlspecialchars($e->getMessage()) . '</div>';
     }
     
     try {
-        $checkSwapRef = $db->query("SHOW COLUMNS FROM products LIKE 'swap_ref_id'");
-        $hasSwapRefId = $checkSwapRef && $checkSwapRef->rowCount() > 0;
+        $checkSwapRef = $db->query("SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'swap_ref_id'");
+        $result = $checkSwapRef->fetch(PDO::FETCH_ASSOC);
+        $hasSwapRefId = ($result['cnt'] ?? 0) > 0;
     } catch (Exception $e) {
         echo '<div class="warning">Could not check swap_ref_id column: ' . htmlspecialchars($e->getMessage()) . '</div>';
     }
     
     try {
-        $checkInventory = $db->query("SHOW COLUMNS FROM swapped_items LIKE 'inventory_product_id'");
-        $hasInventoryProductId = $checkInventory && $checkInventory->rowCount() > 0;
+        $checkInventory = $db->query("SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'swapped_items' AND COLUMN_NAME = 'inventory_product_id'");
+        $result = $checkInventory->fetch(PDO::FETCH_ASSOC);
+        $hasInventoryProductId = ($result['cnt'] ?? 0) > 0;
     } catch (Exception $e) {
         echo '<div class="warning">Could not check inventory_product_id column: ' . htmlspecialchars($e->getMessage()) . '</div>';
     }
@@ -191,7 +200,11 @@ try {
     
     // Also exclude swapped items linked via inventory_product_id
     if ($hasInventoryProductId) {
-        $salespersonSql .= " AND (si2.id IS NULL OR COALESCE(p.is_swapped_item, 0) = 0)";
+        if ($hasIsSwappedItem) {
+            $salespersonSql .= " AND (si2.id IS NULL OR COALESCE(p.is_swapped_item, 0) = 0)";
+        } else {
+            $salespersonSql .= " AND si2.id IS NULL";
+        }
     }
     
     $salespersonQuery = $db->prepare($salespersonSql);
@@ -201,18 +214,25 @@ try {
     // Count swapped items
     $swappedItemsCount = 0;
     try {
-        $swappedItemsQuery = $db->prepare("
-            SELECT COUNT(*) as total
-            FROM products p
-            " . ($hasInventoryProductId ? "LEFT JOIN swapped_items si2 ON p.id = si2.inventory_product_id" : "") . "
-            WHERE p.company_id = ?
-            AND (
-                " . ($hasIsSwappedItem ? "COALESCE(p.is_swapped_item, 0) = 1" : "0") . "
-                " . ($hasInventoryProductId ? "OR si2.id IS NOT NULL" : "") . "
-            )
-        ");
-        $swappedItemsQuery->execute([$testCompanyId]);
-        $swappedItemsCount = $swappedItemsQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+        $swappedConditions = [];
+        if ($hasIsSwappedItem) {
+            $swappedConditions[] = "COALESCE(p.is_swapped_item, 0) = 1";
+        }
+        if ($hasInventoryProductId) {
+            $swappedConditions[] = "si2.id IS NOT NULL";
+        }
+        
+        if (!empty($swappedConditions)) {
+            $swappedItemsQuery = $db->prepare("
+                SELECT COUNT(*) as total
+                FROM products p
+                " . ($hasInventoryProductId ? "LEFT JOIN swapped_items si2 ON p.id = si2.inventory_product_id" : "") . "
+                WHERE p.company_id = ?
+                AND (" . implode(" OR ", $swappedConditions) . ")
+            ");
+            $swappedItemsQuery->execute([$testCompanyId]);
+            $swappedItemsCount = $swappedItemsQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+        }
     } catch (Exception $e) {
         echo '<div class="warning">Could not count swapped items: ' . htmlspecialchars($e->getMessage()) . '</div>';
     }
@@ -303,7 +323,11 @@ echo '<h2>📊 Summary</h2>';
 echo '<p><strong>Test completed at:</strong> ' . date('Y-m-d H:i:s') . '</p>';
 echo '<p><strong>Issues Found:</strong></p>';
 echo '<ol>';
-echo '<li><strong>Products:</strong> Salespersons exclude ALL swapped items, missing ' . ($managerProducts - $salespersonProducts) . ' products</li>';
+if (isset($managerProducts) && isset($salespersonProducts) && $managerProducts > $salespersonProducts) {
+    echo '<li><strong>Products:</strong> Salespersons exclude ALL swapped items, missing ' . ($managerProducts - $salespersonProducts) . ' products</li>';
+} else {
+    echo '<li><strong>Products:</strong> Product count comparison completed (see Test 1 details above)</li>';
+}
 echo '<li><strong>Customers:</strong> Various methods have limits (100, 50) that may hide customers</li>';
 echo '</ol>';
 echo '<p><strong>Recommended Fixes:</strong></p>';
