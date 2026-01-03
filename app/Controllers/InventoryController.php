@@ -152,14 +152,25 @@ class InventoryController {
         $currentPage = max(1, intval($_GET['page'] ?? 1));
         $itemsPerPage = 20;
         $category_id = $_GET['category_id'] ?? null;
-        $swappedItems = isset($_GET['swapped_items']) && $_GET['swapped_items'] == '1';
+        $swappedItemsOnly = isset($_GET['swapped_items']) && $_GET['swapped_items'] == '1';
         
-        // Get products
-        $products = $this->productModel->findByCompany($companyId, 1000, $category_id, null, false, $swappedItems);
+        // Get total count first to validate pagination (same as managers use)
+        $totalItems = $this->productModel->getTotalCountByCompany($companyId, $category_id, $swappedItemsOnly);
         
-        // Calculate stats
+        // Ensure current page doesn't exceed available pages
+        $totalPages = $totalItems > 0 ? ceil($totalItems / $itemsPerPage) : 1;
+        if ($currentPage > $totalPages && $totalPages > 0) {
+            $currentPage = $totalPages;
+        }
+        
+        // Use findByCompanyPaginated like managers do - this ensures salespersons see ALL products
+        $products = $this->productModel->findByCompanyPaginated($companyId, $currentPage, $itemsPerPage, $category_id, $swappedItemsOnly);
+        
+        // Calculate stats from all products (not just paginated ones)
+        // Get all products for stats calculation
+        $allProducts = $this->productModel->findByCompanyPaginated($companyId, 1, 10000, $category_id, $swappedItemsOnly);
         $stats = [
-            'total_products' => count($products),
+            'total_products' => $totalItems,
             'in_stock' => 0,
             'low_stock' => 0,
             'out_of_stock' => 0,
@@ -167,11 +178,11 @@ class InventoryController {
             'total_value' => 0
         ];
         
-        foreach ($products as $product) {
+        foreach ($allProducts as $product) {
             $qty = intval($product['quantity'] ?? $product['qty'] ?? 0);
             $price = floatval($product['price'] ?? 0);
             
-            if ($swappedItems || (isset($product['is_swapped_item']) && $product['is_swapped_item'])) {
+            if ($swappedItemsOnly || (isset($product['is_swapped_item']) && $product['is_swapped_item'])) {
                 $stats['swapped_items']++;
             }
             
@@ -187,15 +198,16 @@ class InventoryController {
             }
         }
         
-        // Paginate
-        $totalItems = count($products);
-        $totalPages = $totalItems > 0 ? ceil($totalItems / $itemsPerPage) : 1;
-        if ($currentPage > $totalPages && $totalPages > 0) {
-            $currentPage = $totalPages;
-        }
+        // Use paginated products for display (view expects $products variable)
+        $products = $paginatedProducts;
         
-        $offset = ($currentPage - 1) * $itemsPerPage;
-        $paginatedProducts = array_slice($products, $offset, $itemsPerPage);
+        // Generate pagination (same as managers use)
+        $pagination = \App\Helpers\PaginationHelper::generate(
+            $currentPage, 
+            $totalItems, 
+            $itemsPerPage, 
+            BASE_URL_PATH . '/dashboard/products' . ($category_id ? '?category_id=' . $category_id : '')
+        );
         
         $categories = (new \App\Models\Category())->getAll();
         

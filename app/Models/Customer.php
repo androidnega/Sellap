@@ -113,8 +113,9 @@ class Customer {
 
     /**
      * Find customers by company with limit (Multi-tenant filtering)
+     * Increased default limit to 10000 to ensure all customers are returned
      */
-    public function findByCompany($company_id, $limit = 100) {
+    public function findByCompany($company_id, $limit = 10000) {
         $stmt = $this->conn->prepare("SELECT * FROM {$this->table} WHERE company_id = :company_id ORDER BY id DESC LIMIT :limit");
         $stmt->bindValue(':company_id', $company_id, PDO::PARAM_INT);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
@@ -442,10 +443,10 @@ class Customer {
     /**
      * Quick search for API - returns matching customers for autocomplete/search (Multi-tenant)
      * @param string $searchTerm Search term
-     * @param int $limit Result limit
+     * @param int $limit Result limit (increased to 200 to ensure all matching customers are found)
      * @param int|null $companyId Company ID for filtering (required for multi-tenant isolation)
      */
-    public function quickSearch($searchTerm, $limit = 50, $companyId = null) {
+    public function quickSearch($searchTerm, $limit = 200, $companyId = null) {
         // Company filter (MANDATORY for multi-tenant isolation)
         // If companyId is not provided, return empty array to prevent data leakage
         if ($companyId === null) {
