@@ -13,7 +13,7 @@ try {
     $host = 'localhost';
     $dbname = 'manuelc8_sellapp';
     $username = 'manuelc8_sellapp';
-    $password = 'Asempa@2020';  // Update if different
+    $password = 'Atomic2@2020^';
     
     $db = new PDO(
         "mysql:host=$host;dbname=$dbname;charset=utf8mb4",
