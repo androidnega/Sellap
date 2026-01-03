@@ -521,23 +521,10 @@ class Product {
                 $sql .= " AND (" . implode(" OR ", $conditions) . ")";
             }
         } elseif (!$swappedItemsOnly) {
-            // For regular inventory view: count ALL products (including out-of-stock)
-            // Salespersons need to see all products in their inventory view
-            // Only exclude swapped items that have been sold (quantity = 0)
-            $conditions = [];
-            if ($hasIsSwappedItem) {
-                // Hide swapped items with quantity = 0 (they've been sold/resold)
-                $conditions[] = "(COALESCE(p.is_swapped_item, 0) = 1 AND COALESCE(p.quantity, 0) = 0)";
-            }
-            if ($hasInventoryProductId) {
-                // Hide swapped items linked via inventory_product_id with quantity = 0
-                $conditions[] = "(si2.id IS NOT NULL AND COALESCE(p.quantity, 0) = 0)";
-            }
-            if (!empty($conditions)) {
-                $sql .= " AND NOT (" . implode(" OR ", $conditions) . ")";
-            }
-            // Count all products (including regular products with quantity = 0)
-            // This allows salespersons to see all 278 products in their dashboard
+            // For regular inventory view: count ALL products (including out-of-stock and swapped items)
+            // Salespersons need to see all products in their inventory view - same as managers
+            // Don't exclude anything - show all 278 products
+            // No filters applied - count everything
         }
 
         $stmt = $this->db->prepare($sql);
