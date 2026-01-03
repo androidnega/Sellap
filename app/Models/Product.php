@@ -304,7 +304,12 @@ class Product {
         } elseif (!$includeSwappedItemsAlways && $hasIsSwappedItem) {
             // Exclude swapped items if not explicitly requested for POS or swappedItemsOnly
             // Only add this filter if the column exists
-            $sql .= " AND COALESCE(p.is_swapped_item, 0) = 0";
+            // But also exclude items linked via inventory_product_id
+            if ($hasInventoryProductId) {
+                $sql .= " AND COALESCE(p.is_swapped_item, 0) = 0 AND (si2.id IS NULL)";
+            } else {
+                $sql .= " AND COALESCE(p.is_swapped_item, 0) = 0";
+            }
         }
         
         // For POS (includeSwappedItemsAlways = true), show only items with quantity > 0
@@ -312,6 +317,7 @@ class Product {
         // Once a swapped item is sold (quantity = 0), it should not appear in POS
         if ($includeSwappedItemsAlways) {
             // For POS, only show items with quantity > 0 (both regular and swapped items)
+            // Include ALL products with quantity > 0, including swapped items (both flagged and linked via inventory_product_id)
             $sql .= " AND COALESCE(p.quantity, 0) > 0";
         } elseif (!$swappedItemsOnly && $hasIsSwappedItem) {
             // For regular product/inventory views: show all items including quantity = 0
