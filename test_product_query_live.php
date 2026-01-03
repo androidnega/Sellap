@@ -10,14 +10,49 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 try {
-    require_once __DIR__ . '/config/database.php';
-    require_once __DIR__ . '/app/Models/Database.php';
+    // Try different path configurations
+    $configPath = __DIR__ . '/config/database.php';
+    if (!file_exists($configPath)) {
+        $configPath = dirname(__DIR__) . '/config/database.php';
+    }
     
-    $db = \Database::getInstance()->getConnection();
+    if (file_exists($configPath)) {
+        require_once $configPath;
+    } else {
+        throw new Exception('Database config not found');
+    }
+    
+    // Try to include Database model
+    $dbModelPath = __DIR__ . '/app/Models/Database.php';
+    if (!file_exists($dbModelPath)) {
+        // Try alternate path
+        $dbModelPath = __DIR__ . '/Database.php';
+    }
+    
+    if (file_exists($dbModelPath)) {
+        require_once $dbModelPath;
+    }
+    
+    // Try direct PDO connection if Database class not available
+    if (!class_exists('Database')) {
+        // Use PDO directly
+        $host = getenv('DB_HOST') ?: 'localhost';
+        $dbname = getenv('DB_NAME') ?: 'manuelc8_sellapp';
+        $username = getenv('DB_USER') ?: 'manuelc8_sellapp';
+        $password = getenv('DB_PASS') ?: '';
+        
+        $db = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+        ]);
+    } else {
+        $db = \Database::getInstance()->getConnection();
+    }
+    
     $testCompanyId = $_GET['company_id'] ?? 11;
     
 } catch (Exception $e) {
-    die('Error: ' . $e->getMessage());
+    die('<html><body style="font-family:Arial;padding:50px;"><h1>Error</h1><p>' . htmlspecialchars($e->getMessage()) . '</p><pre>' . htmlspecialchars($e->getTraceAsString()) . '</pre></body></html>');
 }
 
 header('Content-Type: text/html; charset=utf-8');
