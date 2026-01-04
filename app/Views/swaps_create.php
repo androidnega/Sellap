@@ -44,16 +44,33 @@
             </div>
 
             <div class="mt-4">
-                <label for="customer_id" class="block text-sm font-medium text-gray-700 mb-1">Existing Customer</label>
-                <select id="customer_id" name="customer_id" 
-                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <label for="customer_search" class="block text-sm font-medium text-gray-700 mb-1">Existing Customer (Search)</label>
+                <div class="relative">
+                    <input type="text" id="customer_search" placeholder="Search customers by name or phone number..." 
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                           autocomplete="off">
+                    <div id="customer_dropdown" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg hidden max-h-60 overflow-y-auto mt-1"></div>
+                </div>
+                <!-- Hidden select for form submission -->
+                <select id="customer_id" name="customer_id" class="hidden">
                     <option value="">Select existing customer (optional)</option>
-                    <?php foreach ($customers as $customer): ?>
-                        <option value="<?= htmlspecialchars($customer['id']) ?>">
-                            <?= htmlspecialchars($customer['full_name']) ?> - <?= htmlspecialchars($customer['phone_number']) ?>
-                        </option>
-                    <?php endforeach; ?>
                 </select>
+                
+                <!-- Selected Customer Display -->
+                <div id="selected_customer_info" class="hidden mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="font-medium text-blue-800" id="selected_customer_name">Customer Name</div>
+                            <div class="text-sm text-blue-600" id="selected_customer_phone">Phone Number</div>
+                        </div>
+                        <button type="button" id="clear_customer_btn" 
+                                class="text-blue-600 hover:text-blue-800 focus:outline-none">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -257,18 +274,127 @@
         totalValue.value = total.toFixed(2);
     }
 
-    // Auto-fill customer info when selecting existing customer
-    document.getElementById('customer_id').addEventListener('change', function() {
-        const customerId = this.value;
-        if (customerId) {
-            const customers = <?= json_encode($customers) ?>;
-            const customer = customers.find(c => c.id == customerId);
-            if (customer) {
-                document.getElementById('customer_name').value = customer.full_name;
-                document.getElementById('customer_contact').value = customer.phone_number;
+    // Searchable customer dropdown functionality
+    (function() {
+        const customers = <?= json_encode($customers) ?>;
+        const searchInput = document.getElementById('customer_search');
+        const dropdown = document.getElementById('customer_dropdown');
+        const hiddenSelect = document.getElementById('customer_id');
+        const selectedInfo = document.getElementById('selected_customer_info');
+        const selectedName = document.getElementById('selected_customer_name');
+        const selectedPhone = document.getElementById('selected_customer_phone');
+        const clearBtn = document.getElementById('clear_customer_btn');
+        
+        if (!searchInput || !dropdown || !hiddenSelect) return;
+        
+        function renderCustomerList(filteredCustomers) {
+            if (!filteredCustomers || filteredCustomers.length === 0) {
+                dropdown.innerHTML = '<div class="p-3 text-gray-500 text-center">No customers found</div>';
+                return;
             }
+            
+            dropdown.innerHTML = filteredCustomers.map(customer => `
+                <div class="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0" 
+                     data-id="${customer.id}" 
+                     data-name="${customer.full_name || ''}" 
+                     data-phone="${customer.phone_number || ''}"
+                     data-email="${customer.email || ''}">
+                    <div class="font-medium text-gray-800">${customer.full_name || 'No name'}</div>
+                    <div class="text-sm text-gray-600">${customer.phone_number || 'No phone'}</div>
+                    ${customer.email ? `<div class="text-xs text-gray-500">${customer.email}</div>` : ''}
+                </div>
+            `).join('');
         }
-    });
+        
+        // Initial render - show all customers
+        renderCustomerList(customers);
+        
+        // Open dropdown on focus/click
+        searchInput.addEventListener('focus', () => {
+            if (customers.length > 0) {
+                dropdown.classList.remove('hidden');
+            }
+        });
+        
+        searchInput.addEventListener('click', () => {
+            if (customers.length > 0) {
+                dropdown.classList.remove('hidden');
+            }
+        });
+        
+        // Filter as user types
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            if (query === '') {
+                renderCustomerList(customers);
+            } else {
+                const filtered = customers.filter(customer => {
+                    const name = (customer.full_name || '').toLowerCase();
+                    const phone = (customer.phone_number || '').toLowerCase();
+                    const email = (customer.email || '').toLowerCase();
+                    return name.includes(query) || phone.includes(query) || email.includes(query);
+                });
+                renderCustomerList(filtered);
+            }
+            dropdown.classList.remove('hidden');
+        });
+        
+        // Select customer from dropdown
+        dropdown.addEventListener('click', function(e) {
+            const item = e.target.closest('[data-id]');
+            if (!item) return;
+            
+            const customerId = item.getAttribute('data-id');
+            const customerName = item.getAttribute('data-name');
+            const customerPhone = item.getAttribute('data-phone');
+            
+            // Set hidden select value
+            hiddenSelect.value = customerId;
+            
+            // Update search input
+            searchInput.value = `${customerName} (${customerPhone})`;
+            
+            // Hide dropdown
+            dropdown.classList.add('hidden');
+            
+            // Show selected customer info
+            selectedName.textContent = customerName || 'No name';
+            selectedPhone.textContent = customerPhone || 'No phone';
+            selectedInfo.classList.remove('hidden');
+            
+            // Auto-fill customer name and contact fields
+            document.getElementById('customer_name').value = customerName || '';
+            document.getElementById('customer_contact').value = customerPhone || '';
+        });
+        
+        // Clear customer selection
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                searchInput.value = '';
+                hiddenSelect.value = '';
+                dropdown.classList.add('hidden');
+                selectedInfo.classList.add('hidden');
+                
+                // Clear customer name and contact fields
+                document.getElementById('customer_name').value = '';
+                document.getElementById('customer_contact').value = '';
+            });
+        }
+        
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+        
+        // Handle keyboard navigation
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                dropdown.classList.add('hidden');
+            }
+        });
+    })();
 
     // Event listeners
     storeProductSelect.addEventListener('change', updateStoreProductInfo);
