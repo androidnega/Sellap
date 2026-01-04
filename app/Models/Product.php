@@ -312,13 +312,13 @@ class Product {
             }
         }
         
-        // For POS (includeSwappedItemsAlways = true), show only items with quantity > 0
-        // Swapped items with quantity = 0 (sold/resold) should not appear in POS
-        // Once a swapped item is sold (quantity = 0), it should not appear in POS
+        // For POS (includeSwappedItemsAlways = true), show ALL products including those with quantity = 0
+        // This allows users to see all products in POS for reference, even if out of stock
+        // Products with quantity = 0 will be displayed but marked as out of stock
         if ($includeSwappedItemsAlways) {
-            // For POS, only show items with quantity > 0 (both regular and swapped items)
-            // Include ALL products with quantity > 0, including swapped items (both flagged and linked via inventory_product_id)
-            $sql .= " AND COALESCE(p.quantity, 0) > 0";
+            // For POS, show ALL products regardless of quantity
+            // This ensures all 278 products are visible, not just those with quantity > 0
+            // No quantity filter - show all products
         } elseif (!$swappedItemsOnly && $hasIsSwappedItem) {
             // For regular product/inventory views: show all items including quantity = 0
             // Salespersons need to see all items regardless of quantity
