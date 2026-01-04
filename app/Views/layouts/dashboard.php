@@ -180,6 +180,14 @@
             min-height: 100vh;
             overflow-x: hidden;
             overflow-y: auto; /* Allow vertical scrolling for sticky to work */
+            /* Hide scrollbar but keep functionality */
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+        
+        html::-webkit-scrollbar,
+        body::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
         }
         
         /* Ensure proper flex layout */
@@ -219,13 +227,28 @@
             width: 100%;
             margin-left: 14rem; /* Account for fixed sidebar width */
             /* Remove overflow to allow sticky positioning to work */
+            /* Hide scrollbar but keep functionality */
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+        
+        .main-content-container::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
         }
         
         /* Prevent overflow in main content */
         main {
             overflow-x: hidden;
+            overflow-y: auto;
             max-width: 100%;
             flex: 1;
+            /* Hide scrollbar but keep functionality */
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+        
+        main::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
         }
         
         /* Ensure all cards and containers respect boundaries */
