@@ -3297,16 +3297,10 @@ class DashboardController {
         
         // Total Products - check if status column exists
         try {
-            $checkStatusCol = $db->query("SHOW COLUMNS FROM products LIKE 'status'");
-            $hasStatus = $checkStatusCol->rowCount() > 0;
-            
-            if ($hasStatus) {
-                $productsQuery = $db->prepare("SELECT COUNT(*) as total FROM products WHERE company_id = ? AND status = 'available'");
-            } else {
-                $productsQuery = $db->prepare("SELECT COUNT(*) as total FROM products WHERE company_id = ?");
-            }
-            $productsQuery->execute([$companyId]);
-            $totalProducts = $productsQuery->fetch()['total'] ?? 0;
+            // Count all products for the company (same as inventory page)
+            // Use Product model for consistency with inventory page
+            $productModel = new \App\Models\Product();
+            $totalProducts = $productModel->getTotalCountByCompany($companyId);
         } catch (\Exception $e) {
             error_log("Error getting total products: " . $e->getMessage());
             $totalProducts = 0;

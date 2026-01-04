@@ -519,7 +519,7 @@ class Product {
      * Get total count of products by company
      */
     public function getTotalCountByCompany($company_id, $category_id = null, $swappedItemsOnly = false, $stockFilter = null) {
-        $sql = "SELECT COUNT(*) as total FROM products p WHERE p.company_id = ?";
+        $sql = "SELECT COUNT(DISTINCT p.id) as total FROM products p WHERE p.company_id = ?";
         $params = [$company_id];
 
         if ($category_id) {
