@@ -79,25 +79,40 @@
             <h2 class="text-lg font-semibold text-gray-800 mb-4">Store Product</h2>
             
             <div>
-                <label for="store_product_id" class="block text-sm font-medium text-gray-700 mb-1">
+                <label for="product_search" class="block text-sm font-medium text-gray-700 mb-1">
                     Select Product <span class="text-red-500">*</span>
                 </label>
-                <select id="store_product_id" name="store_product_id" required 
-                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <div class="relative">
+                    <input type="text" id="product_search" placeholder="Search products by name, brand, or model..." 
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                           autocomplete="off" required>
+                    <div id="product_dropdown" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg hidden max-h-60 overflow-y-auto mt-1"></div>
+                </div>
+                <!-- Hidden select for form submission -->
+                <select id="store_product_id" name="store_product_id" class="hidden" required>
                     <option value="">Select product to give customer</option>
-                    <?php foreach ($storeProducts as $product): ?>
-                        <option value="<?= htmlspecialchars($product['id']) ?>" 
-                                data-price="<?= htmlspecialchars($product['price']) ?>"
-                                data-name="<?= htmlspecialchars($product['name']) ?>">
-                            <?= htmlspecialchars($product['name']) ?> - <?= htmlspecialchars($product['brand_name'] ?? 'Generic') ?> - ₵<?= number_format($product['price'], 2) ?>
-                        </option>
-                    <?php endforeach; ?>
                 </select>
             </div>
             
             <div id="storeProductInfo" class="mt-4 p-4 bg-gray-50 rounded-lg hidden">
                 <h3 class="font-medium text-gray-800">Selected Product Details</h3>
                 <div id="storeProductDetails" class="text-sm text-gray-600"></div>
+            </div>
+            
+            <!-- Selected Product Display -->
+            <div id="selected_product_info" class="hidden mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="font-medium text-green-800" id="selected_product_name">Product Name</div>
+                        <div class="text-sm text-green-600" id="selected_product_details">Brand - Price</div>
+                    </div>
+                    <button type="button" id="clear_product_btn" 
+                            class="text-green-600 hover:text-green-800 focus:outline-none">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -226,6 +241,7 @@
 <script>
 // Swap form JavaScript
 (function() {
+    const storeProducts = <?= json_encode($storeProducts) ?>;
     const storeProductSelect = document.getElementById('store_product_id');
     const storeProductInfo = document.getElementById('storeProductInfo');
     const storeProductDetails = document.getElementById('storeProductDetails');
@@ -237,16 +253,137 @@
     const cashToAdd = document.getElementById('cashToAdd');
     const totalTransaction = document.getElementById('totalTransaction');
 
-    // Update store product info
-    function updateStoreProductInfo() {
-        const selectedOption = storeProductSelect.options[storeProductSelect.selectedIndex];
-        if (selectedOption && selectedOption.value) {
-            const price = parseFloat(selectedOption.dataset.price);
-            const name = selectedOption.dataset.name;
+    // Searchable product dropdown functionality
+    (function() {
+        const productSearch = document.getElementById('product_search');
+        const productDropdown = document.getElementById('product_dropdown');
+        const hiddenSelect = storeProductSelect;
+        const selectedInfo = document.getElementById('selected_product_info');
+        const selectedName = document.getElementById('selected_product_name');
+        const selectedDetails = document.getElementById('selected_product_details');
+        const clearBtn = document.getElementById('clear_product_btn');
+        
+        if (!productSearch || !productDropdown || !hiddenSelect) return;
+        
+        function renderProductList(filteredProducts) {
+            if (!filteredProducts || filteredProducts.length === 0) {
+                productDropdown.innerHTML = '<div class="p-3 text-gray-500 text-center">No products found</div>';
+                return;
+            }
             
+            productDropdown.innerHTML = filteredProducts.map(product => {
+                const brandName = product.brand_name || 'Generic';
+                const price = parseFloat(product.price || 0).toFixed(2);
+                const displayText = `${product.name} - ${brandName} - ₵${price}`;
+                
+                return `
+                    <div class="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0" 
+                         data-id="${product.id}" 
+                         data-name="${product.name || ''}" 
+                         data-brand="${brandName}"
+                         data-price="${product.price || 0}">
+                        <div class="font-medium text-gray-800">${product.name || 'No name'}</div>
+                        <div class="text-sm text-gray-600">${brandName} - ₵${price}</div>
+                        ${product.model_name && product.model_name !== 'N/A' ? `<div class="text-xs text-gray-500">Model: ${product.model_name}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Initial render - show all products
+        renderProductList(storeProducts);
+        
+        // Open dropdown on focus/click
+        productSearch.addEventListener('focus', () => {
+            if (storeProducts.length > 0) {
+                productDropdown.classList.remove('hidden');
+            }
+        });
+        
+        productSearch.addEventListener('click', () => {
+            if (storeProducts.length > 0) {
+                productDropdown.classList.remove('hidden');
+            }
+        });
+        
+        // Filter as user types
+        productSearch.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            if (query === '') {
+                renderProductList(storeProducts);
+            } else {
+                const filtered = storeProducts.filter(product => {
+                    const name = (product.name || '').toLowerCase();
+                    const brand = (product.brand_name || '').toLowerCase();
+                    const model = (product.model_name || '').toLowerCase();
+                    return name.includes(query) || brand.includes(query) || model.includes(query);
+                });
+                renderProductList(filtered);
+            }
+            productDropdown.classList.remove('hidden');
+        });
+        
+        // Select product from dropdown
+        productDropdown.addEventListener('click', function(e) {
+            const item = e.target.closest('[data-id]');
+            if (!item) return;
+            
+            const productId = item.getAttribute('data-id');
+            const productName = item.getAttribute('data-name');
+            const productBrand = item.getAttribute('data-brand');
+            const productPrice = parseFloat(item.getAttribute('data-price'));
+            
+            // Set hidden select value
+            hiddenSelect.value = productId;
+            
+            // Update search input
+            productSearch.value = `${productName} - ${productBrand} - ₵${productPrice.toFixed(2)}`;
+            
+            // Hide dropdown
+            productDropdown.classList.add('hidden');
+            
+            // Show selected product info
+            selectedName.textContent = productName || 'No name';
+            selectedDetails.textContent = `${productBrand} - ₵${productPrice.toFixed(2)}`;
+            selectedInfo.classList.remove('hidden');
+            
+            // Update product details display
+            updateStoreProductInfo(productName, productPrice);
+        });
+        
+        // Clear product selection
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                productSearch.value = '';
+                hiddenSelect.value = '';
+                productDropdown.classList.add('hidden');
+                selectedInfo.classList.add('hidden');
+                storeProductInfo.classList.add('hidden');
+                updateCalculation();
+            });
+        }
+        
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!productSearch.contains(e.target) && !productDropdown.contains(e.target)) {
+                productDropdown.classList.add('hidden');
+            }
+        });
+        
+        // Handle keyboard navigation
+        productSearch.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                productDropdown.classList.add('hidden');
+            }
+        });
+    })();
+
+    // Update store product info
+    function updateStoreProductInfo(productName, productPrice) {
+        if (productName && productPrice !== undefined) {
             storeProductDetails.innerHTML = `
-                <div><strong>Product:</strong> ${name}</div>
-                <div><strong>Price:</strong> ₵${price.toFixed(2)}</div>
+                <div><strong>Product:</strong> ${productName}</div>
+                <div><strong>Price:</strong> ₵${productPrice.toFixed(2)}</div>
             `;
             storeProductInfo.classList.remove('hidden');
             updateCalculation();
@@ -257,8 +394,16 @@
 
     // Update calculation
     function updateCalculation() {
-        const selectedOption = storeProductSelect.options[storeProductSelect.selectedIndex];
-        const storeProductPrice = selectedOption ? parseFloat(selectedOption.dataset.price) : 0;
+        // Get product price from hidden select or selected product
+        let storeProductPrice = 0;
+        const selectedProductId = storeProductSelect.value;
+        if (selectedProductId) {
+            const selectedProduct = storeProducts.find(p => p.id == selectedProductId);
+            if (selectedProduct) {
+                storeProductPrice = parseFloat(selectedProduct.price || 0);
+            }
+        }
+        
         const customerProductValue = parseFloat(swapValue.value) || 0;
         const cashToAddValue = parseFloat(cashAdded.value) || 0;
         
@@ -397,7 +542,6 @@
     })();
 
     // Event listeners
-    storeProductSelect.addEventListener('change', updateStoreProductInfo);
     swapValue.addEventListener('input', updateCalculation);
     cashAdded.addEventListener('input', updateCalculation);
 
