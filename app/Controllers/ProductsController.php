@@ -70,7 +70,8 @@ class ProductsController {
         ];
         
         foreach ($allProducts as $prod) {
-            $qty = $prod['quantity'] ?? 0;
+            // Ensure quantity is treated as integer (handle string values from database)
+            $qty = intval($prod['quantity'] ?? $prod['qty'] ?? 0);
             $stats['total_quantity'] += $qty;
             
             if ($qty > 10) {
