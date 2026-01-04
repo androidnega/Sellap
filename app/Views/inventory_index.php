@@ -27,12 +27,13 @@
                 <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
             </div>
             <div class="w-full md:w-auto">
+                <?php $currentStockFilter = $_GET['stock_filter'] ?? ''; ?>
                 <select id="stockFilter" class="w-full md:w-48 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">All Stock</option>
-                    <option value="in_stock">In Stock</option>
-                    <option value="low_stock">Low Stock</option>
-                    <option value="out_of_stock">Out of Stock</option>
-                    <option value="low_and_out">Low & Out of Stock</option>
+                    <option value="" <?= $currentStockFilter === '' ? 'selected' : '' ?>>All Stock</option>
+                    <option value="in_stock" <?= $currentStockFilter === 'in_stock' ? 'selected' : '' ?>>In Stock</option>
+                    <option value="low_stock" <?= $currentStockFilter === 'low_stock' ? 'selected' : '' ?>>Low Stock</option>
+                    <option value="out_of_stock" <?= $currentStockFilter === 'out_of_stock' ? 'selected' : '' ?>>Out of Stock</option>
+                    <option value="low_and_out" <?= $currentStockFilter === 'low_and_out' ? 'selected' : '' ?>>Low & Out of Stock</option>
                 </select>
             </div>
             <div class="flex items-center gap-2">
@@ -393,17 +394,12 @@
                 // Restore original page rows
                 tbody.innerHTML = originalHTML;
                 if (info) info.classList.add('hidden');
-                // Apply stock filter if selected
-                if (stockFilter && stockFilter.value) {
-                    setTimeout(() => applyStockFilter(), 50);
-                } else {
-                    // Update selection count after restoring
-                    setTimeout(() => {
-                        if (typeof window.updateSelectedCount === 'function') {
-                            window.updateSelectedCount();
-                        }
-                    }, 100);
-                }
+                // Update selection count after restoring
+                setTimeout(() => {
+                    if (typeof window.updateSelectedCount === 'function') {
+                        window.updateSelectedCount();
+                    }
+                }, 100);
                 return;
             }
             try {
@@ -421,11 +417,6 @@
                 filteredCountEl.textContent = results.length;
                 totalCountEl.textContent = results.length;
                 info.classList.remove('hidden');
-                // Apply stock filter to search results if selected
-                if (stockFilter && stockFilter.value) {
-                    setTimeout(() => applyStockFilter(), 50);
-                }
-                
                 // Update selection count after search results are loaded
                 setTimeout(() => {
                     if (typeof window.updateSelectedCount === 'function') {
@@ -436,10 +427,6 @@
                 // Fallback to local filter if remote fails
                 tbody.innerHTML = originalHTML;
                 info.classList.add('hidden');
-                // Apply stock filter if selected
-                if (stockFilter && stockFilter.value) {
-                    setTimeout(() => applyStockFilter(), 50);
-                }
                 // Update selection count after restoring original HTML
                 setTimeout(() => {
                     if (typeof window.updateSelectedCount === 'function') {
@@ -450,17 +437,25 @@
         }, 200);
     });
     
-    // Stock filter event listener
+    // Stock filter event listener - redirect to URL with filter parameter
     if (stockFilter) {
         stockFilter.addEventListener('change', () => {
-            const q = (searchInput.value || '').trim();
-            if (q) {
-                // If search is active, re-trigger search to get fresh results, then filter
-                searchInput.dispatchEvent(new Event('input'));
+            const selectedFilter = stockFilter.value;
+            const base = (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
+            const url = new URL(window.location.href);
+            
+            // Update or remove stock_filter parameter
+            if (selectedFilter) {
+                url.searchParams.set('stock_filter', selectedFilter);
             } else {
-                // Apply stock filter to current rows
-                applyStockFilter();
+                url.searchParams.delete('stock_filter');
             }
+            
+            // Reset to page 1 when filter changes
+            url.searchParams.set('page', '1');
+            
+            // Redirect to new URL
+            window.location.href = url.toString();
         });
     }
 })();

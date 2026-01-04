@@ -86,10 +86,11 @@ class InventoryController {
         $currentPage = max(1, intval($_GET['page'] ?? 1));
         $itemsPerPage = 10;
         $category_id = $_GET['category_id'] ?? null;
+        $stockFilter = $_GET['stock_filter'] ?? null; // Get stock filter from URL
         $companyId = $_SESSION['user']['company_id'] ?? 1;
 
-        // Get total count first to validate pagination
-        $totalItems = $this->productModel->getTotalCountByCompany($companyId, $category_id);
+        // Get total count first to validate pagination (with stock filter)
+        $totalItems = $this->productModel->getTotalCountByCompany($companyId, $category_id, false, $stockFilter);
         
         // Ensure current page doesn't exceed available pages
         $totalPages = $totalItems > 0 ? ceil($totalItems / $itemsPerPage) : 1;
@@ -97,8 +98,8 @@ class InventoryController {
             $currentPage = $totalPages;
         }
         
-        // Fetch paginated products and totals for the authenticated company
-        $products = $this->productModel->findByCompanyPaginated($companyId, $currentPage, $itemsPerPage, $category_id);
+        // Fetch paginated products and totals for the authenticated company (with stock filter)
+        $products = $this->productModel->findByCompanyPaginated($companyId, $currentPage, $itemsPerPage, $category_id, false, $stockFilter);
         $inventoryStats = $this->productModel->getStats($companyId);
         $categories = (new \App\Models\Category())->getAll();
         
@@ -112,11 +113,24 @@ class InventoryController {
             }
         }
         
+        // Build pagination URL with query parameters
+        $paginationUrl = BASE_URL_PATH . '/dashboard/inventory';
+        $queryParams = [];
+        if ($category_id) {
+            $queryParams[] = 'category_id=' . urlencode($category_id);
+        }
+        if ($stockFilter) {
+            $queryParams[] = 'stock_filter=' . urlencode($stockFilter);
+        }
+        if (!empty($queryParams)) {
+            $paginationUrl .= '?' . implode('&', $queryParams);
+        }
+        
         $pagination = \App\Helpers\PaginationHelper::generate(
             $currentPage, 
             $totalItems, 
             $itemsPerPage, 
-            BASE_URL_PATH . '/dashboard/inventory'
+            $paginationUrl
         );
         
         $page = 'inventory';

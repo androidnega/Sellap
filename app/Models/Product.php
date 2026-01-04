@@ -366,7 +366,7 @@ class Product {
     /**
      * Find products by company with pagination
      */
-    public function findByCompanyPaginated($company_id, $page = 1, $limit = 10, $category_id = null, $swappedItemsOnly = false) {
+    public function findByCompanyPaginated($company_id, $page = 1, $limit = 10, $category_id = null, $swappedItemsOnly = false, $stockFilter = null) {
         // Ensure values are integers
         $page = (int)$page;
         $limit = (int)$limit;
@@ -471,6 +471,23 @@ class Product {
             // This allows salespersons to see all 278 products in their dashboard
         }
         
+        // Apply stock filter if specified
+        if ($stockFilter) {
+            if ($stockFilter === 'in_stock') {
+                // In stock: quantity > 10
+                $sql .= " AND COALESCE(p.{$quantityColumn}, 0) > 10";
+            } elseif ($stockFilter === 'low_stock') {
+                // Low stock: quantity > 0 and <= 10
+                $sql .= " AND COALESCE(p.{$quantityColumn}, 0) > 0 AND COALESCE(p.{$quantityColumn}, 0) <= 10";
+            } elseif ($stockFilter === 'out_of_stock') {
+                // Out of stock: quantity = 0
+                $sql .= " AND COALESCE(p.{$quantityColumn}, 0) = 0";
+            } elseif ($stockFilter === 'low_and_out') {
+                // Low and out of stock: quantity <= 10
+                $sql .= " AND COALESCE(p.{$quantityColumn}, 0) <= 10";
+            }
+        }
+        
         // Use direct integer values for LIMIT/OFFSET to avoid prepared statement issues
         $sql .= " ORDER BY p.id DESC LIMIT {$limit} OFFSET {$offset}";
         
@@ -501,7 +518,7 @@ class Product {
     /**
      * Get total count of products by company
      */
-    public function getTotalCountByCompany($company_id, $category_id = null, $swappedItemsOnly = false) {
+    public function getTotalCountByCompany($company_id, $category_id = null, $swappedItemsOnly = false, $stockFilter = null) {
         $sql = "SELECT COUNT(*) as total FROM products p WHERE p.company_id = ?";
         $params = [$company_id];
 
@@ -547,6 +564,31 @@ class Product {
             // Salespersons need to see all products in their inventory view - same as managers
             // Don't exclude anything - show all 278 products
             // No filters applied - count everything
+        }
+        
+        // Apply stock filter if specified
+        if ($stockFilter) {
+            // Detect quantity column name (qty or quantity)
+            $quantityColumn = 'quantity';
+            if ($this->productsHasColumn('qty')) {
+                $quantityColumn = 'qty';
+            } elseif ($this->productsHasColumn('quantity')) {
+                $quantityColumn = 'quantity';
+            }
+            
+            if ($stockFilter === 'in_stock') {
+                // In stock: quantity > 10
+                $sql .= " AND COALESCE(p.{$quantityColumn}, 0) > 10";
+            } elseif ($stockFilter === 'low_stock') {
+                // Low stock: quantity > 0 and <= 10
+                $sql .= " AND COALESCE(p.{$quantityColumn}, 0) > 0 AND COALESCE(p.{$quantityColumn}, 0) <= 10";
+            } elseif ($stockFilter === 'out_of_stock') {
+                // Out of stock: quantity = 0
+                $sql .= " AND COALESCE(p.{$quantityColumn}, 0) = 0";
+            } elseif ($stockFilter === 'low_and_out') {
+                // Low and out of stock: quantity <= 10
+                $sql .= " AND COALESCE(p.{$quantityColumn}, 0) <= 10";
+            }
         }
 
         $stmt = $this->db->prepare($sql);
