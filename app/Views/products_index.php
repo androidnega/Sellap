@@ -282,10 +282,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const productRows = document.querySelectorAll('.product-row');
     
     function filterProducts() {
-        const searchTerm = searchInput.value.toLowerCase().trim();
-        const selectedCategory = categoryFilter.value;
-        const selectedStock = stockFilter.value;
+        const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        const selectedCategory = categoryFilter ? categoryFilter.value : '';
+        const selectedStock = stockFilter ? stockFilter.value : '';
         const isSwappedItemsView = window.location.search.includes('swapped_items=1');
+        
+        // Debug log for stock filter
+        if (selectedStock === 'low_stock') {
+            console.log('Low Stock filter selected, filtering products...');
+        }
         
         let visibleCount = 0;
         
@@ -295,7 +300,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const brandName = row.dataset.brandName || '';
             const categoryName = row.dataset.categoryName || '';
             const sku = row.dataset.sku || '';
-            const stockValue = parseInt(row.dataset.quantity || '0');
+            // Parse quantity - ensure it's a number, handle NaN cases
+            let stockValue = parseInt(row.dataset.quantity || '0', 10);
+            if (isNaN(stockValue)) {
+                stockValue = 0;
+            }
             const isSwappedItem = row.dataset.isSwapped === '1';
             
             // Search filter - check name, brand, and SKU
@@ -309,7 +318,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Category filter
             const matchesCategory = !selectedCategory || categoryName === selectedCategory;
             
-            // Stock filter - improved logic
+            // Stock filter - improved logic with explicit number comparison
             let matchesStock = true;
             if (selectedStock === 'in_stock') {
                 // In stock: quantity > 10 (above low stock threshold)
@@ -424,5 +433,17 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial filter on page load
     filterProducts();
+    
+    // Debug: Log quantity values for first few products (remove in production)
+    if (productRows.length > 0) {
+        console.log('Product quantities check:');
+        productRows.forEach((row, index) => {
+            if (index < 5) { // Only log first 5
+                const qty = parseInt(row.dataset.quantity || '0', 10);
+                const name = row.dataset.productName || 'Unknown';
+                console.log(`Product: ${name}, Quantity: ${qty}, Data attribute: "${row.dataset.quantity}"`);
+            }
+        });
+    }
 });
 </script>
