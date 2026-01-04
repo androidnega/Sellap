@@ -695,14 +695,15 @@ class Product {
      */
     public function getStats($company_id) {
         // Unified products table uses 'quantity' column directly
+        // Use quantity = 0 for out of stock instead of status = 'out_of_stock'
         $stmt = $this->db->prepare("
             SELECT 
                 COUNT(*) as total_products,
-                SUM(CASE WHEN p.status = 'available' THEN 1 ELSE 0 END) as available_products,
-                SUM(CASE WHEN p.status = 'out_of_stock' THEN 1 ELSE 0 END) as out_of_stock,
+                SUM(CASE WHEN COALESCE(p.quantity, 0) > 0 THEN 1 ELSE 0 END) as available_products,
+                SUM(CASE WHEN COALESCE(p.quantity, 0) = 0 THEN 1 ELSE 0 END) as out_of_stock,
                 SUM(CASE WHEN p.available_for_swap = 1 THEN 1 ELSE 0 END) as swap_available,
-                SUM(p.quantity) as total_quantity,
-                SUM(p.price * p.quantity) as total_value
+                SUM(COALESCE(p.quantity, 0)) as total_quantity,
+                SUM(p.price * COALESCE(p.quantity, 0)) as total_value
             FROM products p
             WHERE p.company_id = ?
         ");

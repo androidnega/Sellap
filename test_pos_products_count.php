@@ -103,6 +103,8 @@ $port = 3306;
     <div class="container">
         <h1>🔍 POS Products Count Diagnostic Test</h1>
         <p><strong>Server:</strong> app.dcapple.com</p>
+        <p><strong>Version:</strong> 2.0 (with auto company detection)</p>
+        <p><strong>File Last Modified:</strong> <?= date('Y-m-d H:i:s', filemtime(__FILE__)) ?></p>
         
         <?php
         try {
@@ -226,8 +228,21 @@ $port = 3306;
                 $stmt->execute([$companyId]);
                 $regularCount = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
                 echo '<div class="count-box">Regular Products: ' . $regularCount . '</div>';
+            } elseif ($hasInventoryProductId) {
+                // Count products that are NOT linked via inventory_product_id
+                $sql = "SELECT COUNT(*) as total 
+                        FROM products p
+                        LEFT JOIN swapped_items si2 ON p.id = si2.inventory_product_id
+                        WHERE p.company_id = ? 
+                        AND COALESCE(p.quantity, 0) > 0 
+                        AND si2.id IS NULL";
+                $stmt = $connection->prepare($sql);
+                $stmt->execute([$companyId]);
+                $regularCount = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
+                echo '<div class="count-box">Regular Products: ' . $regularCount . '</div>';
+                echo '<div class="info">(Products not linked via inventory_product_id)</div>';
             } else {
-                echo '<div class="warning">is_swapped_item column does not exist</div>';
+                echo '<div class="warning">No swapped item detection columns found - all products counted as regular</div>';
                 $regularCount = $inStockCount;
             }
             echo '</div>';
@@ -402,16 +417,40 @@ $port = 3306;
             echo '<div class="test-section" style="background: #e3f2fd; border-left-color: #2196f3;">';
             echo '<h2>📊 Summary</h2>';
             echo '<table>';
-            echo '<tr><th>Metric</th><th>Count</th></tr>';
-            echo '<tr><td>Total Products</td><td>' . $totalCount . '</td></tr>';
-            echo '<tr><td>Out of Stock (qty = 0)</td><td>' . $outOfStockCount . '</td></tr>';
-            echo '<tr><td>In Stock (qty > 0)</td><td>' . $inStockCount . '</td></tr>';
-            echo '<tr><td>Regular Products (qty > 0)</td><td>' . ($regularCount ?? 'N/A') . '</td></tr>';
-            echo '<tr><td>Swapped Items (qty > 0)</td><td>' . ($swappedCount ?? 'N/A') . '</td></tr>';
-            echo '<tr><td><strong>POS Query Result</strong></td><td><strong>' . $posCount . '</strong></td></tr>';
-            echo '<tr><td>Expected POS Count</td><td>' . $inStockCount . '</td></tr>';
-            echo '<tr><td><strong>Difference</strong></td><td><strong>' . ($inStockCount - $posCount) . '</strong></td></tr>';
+            echo '<tr><th>Metric</th><th>Count</th><th>Notes</th></tr>';
+            echo '<tr><td>Total Products</td><td>' . $totalCount . '</td><td>All products in database</td></tr>';
+            echo '<tr><td>Out of Stock (qty = 0)</td><td>' . $outOfStockCount . '</td><td>Products with quantity = 0</td></tr>';
+            echo '<tr><td>In Stock (qty > 0)</td><td>' . $inStockCount . '</td><td>Products available for sale</td></tr>';
+            echo '<tr><td>Regular Products (qty > 0)</td><td>' . ($regularCount ?? 'N/A') . '</td><td>Non-swapped products</td></tr>';
+            echo '<tr><td>Swapped Items (qty > 0)</td><td>' . ($swappedCount ?? 'N/A') . '</td><td>Swapped items available for resale</td></tr>';
+            echo '<tr><td><strong>POS Query Result</strong></td><td><strong>' . $posCount . '</strong></td><td>What POS page loads</td></tr>';
+            echo '<tr><td>Expected POS Count</td><td>' . $inStockCount . '</td><td>Should match "In Stock" count</td></tr>';
+            $difference = $inStockCount - $posCount;
+            $statusClass = $difference == 0 ? 'success' : 'warning';
+            echo '<tr><td><strong>Difference</strong></td><td><strong class="' . $statusClass . '">' . $difference . '</strong></td><td>';
+            if ($difference == 0) {
+                echo '✓ POS is loading correctly - all in-stock products are included';
+            } else {
+                echo '⚠ ' . $difference . ' products are missing from POS';
+            }
+            echo '</td></tr>';
             echo '</table>';
+            
+            // Additional analysis
+            if (isset($regularCount) && isset($swappedCount)) {
+                $calculatedTotal = $regularCount + $swappedCount;
+                echo '<div class="info" style="margin-top: 15px;">';
+                echo '<strong>Breakdown:</strong><br>';
+                echo 'Regular Products: ' . $regularCount . '<br>';
+                echo 'Swapped Items: ' . $swappedCount . '<br>';
+                echo 'Calculated Total: ' . $calculatedTotal . '<br>';
+                if ($calculatedTotal == $posCount) {
+                    echo '<span class="success">✓ Swapped items are included in POS count</span>';
+                } else {
+                    echo '<span class="warning">⚠ Swapped items may not be included (difference: ' . ($posCount - $calculatedTotal) . ')</span>';
+                }
+                echo '</div>';
+            }
             echo '</div>';
             
             $connection = null;
