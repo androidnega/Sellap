@@ -202,6 +202,13 @@
             overflow-x: hidden;
             flex-shrink: 0;
             z-index: 40;
+            /* Hide scrollbar but keep functionality */
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+        
+        .sidebar::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
         }
         
         .main-content-container {

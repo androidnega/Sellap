@@ -39,7 +39,11 @@
     </div>
 
     <!-- Inventory Summary Cards (moved to top) -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <?php
+    // Low stock count is calculated in controller and passed as $lowStockCount
+    $lowStockCount = $lowStockCount ?? 0;
+    ?>
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <div class="bg-white p-4 rounded shadow">
             <div class="flex items-center">
                 <div class="p-2 rounded-full bg-blue-100 text-blue-600">
@@ -61,6 +65,17 @@
                     <p class="text-xl font-bold text-gray-900">
                         <?= isset($inventoryStats['available_products']) ? (int)$inventoryStats['available_products'] : count(array_filter($products, function($p) { return ($p['quantity'] ?? 0) > 0; })) ?>
                     </p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded shadow">
+            <div class="flex items-center">
+                <div class="p-2 rounded-full bg-yellow-100 text-yellow-600">
+                    <i class="fas fa-exclamation-circle text-lg"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-gray-600">Low Stock</p>
+                    <p class="text-xl font-bold text-gray-900"><?= $lowStockCount ?></p>
                 </div>
             </div>
         </div>

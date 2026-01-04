@@ -102,6 +102,16 @@ class InventoryController {
         $inventoryStats = $this->productModel->getStats($companyId);
         $categories = (new \App\Models\Category())->getAll();
         
+        // Calculate low stock count (quantity > 0 and <= 10) from all products
+        $allProducts = $this->productModel->findByCompany($companyId, 10000);
+        $lowStockCount = 0;
+        foreach ($allProducts as $p) {
+            $qty = intval($p['quantity'] ?? $p['qty'] ?? 0);
+            if ($qty > 0 && $qty <= 10) {
+                $lowStockCount++;
+            }
+        }
+        
         $pagination = \App\Helpers\PaginationHelper::generate(
             $currentPage, 
             $totalItems, 
