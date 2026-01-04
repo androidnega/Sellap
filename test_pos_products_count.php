@@ -117,14 +117,56 @@ $port = 3306;
             echo '<h2>✓ Database Connection Successful</h2>';
             echo '</div>';
             
-            // Get company_id (assuming company_id = 1 or 2, adjust as needed)
-            // You may need to change this based on your actual company_id
-            $companyId = $_GET['company_id'] ?? 1;
+            // First, find all companies that have products
+            echo '<div class="test-section">';
+            echo '<h2>Available Companies</h2>';
+            $stmt = $connection->query("
+                SELECT p.company_id, COUNT(*) as product_count 
+                FROM products p 
+                GROUP BY p.company_id 
+                ORDER BY product_count DESC
+            ");
+            $companies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (count($companies) > 0) {
+                echo '<table>';
+                echo '<tr><th>Company ID</th><th>Product Count</th><th>Action</th></tr>';
+                foreach ($companies as $company) {
+                    $cid = $company['company_id'];
+                    $count = $company['product_count'];
+                    $current = isset($_GET['company_id']) && $_GET['company_id'] == $cid ? ' (Current)' : '';
+                    echo '<tr>';
+                    echo '<td>' . htmlspecialchars($cid) . $current . '</td>';
+                    echo '<td>' . htmlspecialchars($count) . '</td>';
+                    echo '<td><a href="?company_id=' . htmlspecialchars($cid) . '">Test This Company</a></td>';
+                    echo '</tr>';
+                }
+                echo '</table>';
+            } else {
+                echo '<div class="warning">No companies found with products</div>';
+            }
+            echo '</div>';
+            
+            // Get company_id from URL or use the first company with products
+            if (isset($_GET['company_id'])) {
+                $companyId = intval($_GET['company_id']);
+            } else {
+                // Auto-detect: use the company with the most products
+                if (count($companies) > 0) {
+                    $companyId = $companies[0]['company_id'];
+                    echo '<div class="test-section">';
+                    echo '<h2>Auto-Detected Company</h2>';
+                    echo '<div class="info">Using Company ID: ' . $companyId . ' (has ' . $companies[0]['product_count'] . ' products)</div>';
+                    echo '<div class="info">To test a different company, click the link above or add ?company_id=X to URL</div>';
+                    echo '</div>';
+                } else {
+                    $companyId = 1; // Default fallback
+                }
+            }
             
             echo '<div class="test-section">';
             echo '<h2>Test Parameters</h2>';
-            echo '<div class="info">Company ID: ' . htmlspecialchars($companyId) . '</div>';
-            echo '<div class="info">Change company_id via URL: ?company_id=2</div>';
+            echo '<div class="info"><strong>Company ID:</strong> ' . htmlspecialchars($companyId) . '</div>';
             echo '</div>';
             
             // Test 1: Total products count
