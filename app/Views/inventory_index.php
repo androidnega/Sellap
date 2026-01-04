@@ -26,6 +26,15 @@
                 <input id="inventorySearch" type="text" placeholder="Search by name, brand, model, SKU, category..." class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
             </div>
+            <div class="w-full md:w-auto">
+                <select id="stockFilter" class="w-full md:w-48 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">All Stock</option>
+                    <option value="in_stock">In Stock</option>
+                    <option value="low_stock">Low Stock</option>
+                    <option value="out_of_stock">Out of Stock</option>
+                    <option value="low_and_out">Low & Out of Stock</option>
+                </select>
+            </div>
             <div class="flex items-center gap-2">
                 <button id="selectAllBtn" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 text-sm font-medium">
                     <i class="fas fa-check-square mr-1"></i>Select All
@@ -171,8 +180,11 @@
                         // Silently fail - don't break the page if check fails
                     }
                 }
+                
+                // Calculate quantity for filtering
+                $qty = intval($product['quantity'] ?? $product['qty'] ?? 0);
                 ?>
-                <tr class="border-b" data-product-id="<?= $product['id'] ?>"
+                <tr class="border-b inventory-row" data-product-id="<?= $product['id'] ?>" data-quantity="<?= $qty ?>"
                     <?php if ($isSwappedItem): ?>
                         style="background-color: #fee2e2; color: #991b1b;" 
                         onmouseover="this.style.backgroundColor='#fecaca'" 
@@ -238,6 +250,7 @@
 <script>
 (function(){
     const searchInput = document.getElementById('inventorySearch');
+    const stockFilter = document.getElementById('stockFilter');
     const tbody = document.getElementById('inventoryTableBody');
     const info = document.getElementById('inventoryFilterInfo');
     const filteredCountEl = document.getElementById('inventoryFilteredCount');
@@ -246,6 +259,55 @@
 
     // Keep original rows HTML for local filter fallback
     const originalHTML = tbody.innerHTML;
+    
+    // Stock filter function
+    function applyStockFilter() {
+        const selectedStock = stockFilter ? stockFilter.value : '';
+        const rows = tbody.querySelectorAll('.inventory-row');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            const qty = parseInt(row.dataset.quantity || '0', 10);
+            let matchesStock = true;
+            
+            if (selectedStock === 'in_stock') {
+                // In stock: quantity > 10
+                matchesStock = qty > 10;
+            } else if (selectedStock === 'low_stock') {
+                // Low stock: quantity > 0 and <= 10
+                matchesStock = qty > 0 && qty <= 10;
+            } else if (selectedStock === 'out_of_stock') {
+                // Out of stock: quantity is 0
+                matchesStock = qty === 0;
+            } else if (selectedStock === 'low_and_out') {
+                // Low and out of stock: quantity <= 10
+                matchesStock = qty <= 10;
+            }
+            
+            if (matchesStock) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Update filter info
+        if (selectedStock && info) {
+            filteredCountEl.textContent = visibleCount;
+            totalCountEl.textContent = rows.length;
+            info.classList.remove('hidden');
+        } else if (info && !searchInput.value.trim()) {
+            info.classList.add('hidden');
+        }
+        
+        // Update selection count
+        if (typeof window.updateSelectedCount === 'function') {
+            setTimeout(() => {
+                window.updateSelectedCount();
+            }, 100);
+        }
+    }
 
     function textOfRow(tr){
         return (tr.textContent || '').toLowerCase();
@@ -263,11 +325,11 @@
 
     function rowHTML(p){
         const status = (p.status || 'out_of_stock');
-        const qty = p.quantity || 0;
+        const qty = parseInt(p.quantity || p.qty || 0, 10);
         const id = p.id;
         const name = escapeHtml(p.name || '');
         return `
-            <tr class="border-b hover:bg-gray-50" data-product-id="${id}">
+            <tr class="border-b hover:bg-gray-50 inventory-row" data-product-id="${id}" data-quantity="${qty}">
                 <td class="p-3">
                     <input type="checkbox" class="product-checkbox cursor-pointer" data-product-id="${id}" data-product-name="${name}">
                 </td>
@@ -295,6 +357,33 @@
 
     let lastQuery = '';
     let debounceTimer;
+    
+    // Combined filter function
+    function applyFilters() {
+        const q = (searchInput.value || '').trim();
+        const selectedStock = stockFilter ? stockFilter.value : '';
+        
+        // If search is active, let search handle filtering
+        if (q) {
+            // Search will handle filtering, then apply stock filter after
+            return;
+        }
+        
+        // If no search, apply stock filter to original rows
+        if (!q && selectedStock) {
+            applyStockFilter();
+        } else if (!q && !selectedStock) {
+            // Restore original
+            tbody.innerHTML = originalHTML;
+            if (info) info.classList.add('hidden');
+            if (typeof window.updateSelectedCount === 'function') {
+                setTimeout(() => {
+                    window.updateSelectedCount();
+                }, 100);
+            }
+        }
+    }
+    
     searchInput.addEventListener('input', () => {
         const q = (searchInput.value || '').trim();
         clearTimeout(debounceTimer);
@@ -303,13 +392,18 @@
             if (!q) {
                 // Restore original page rows
                 tbody.innerHTML = originalHTML;
-                info.classList.add('hidden');
-                // Update selection count after restoring
-                setTimeout(() => {
-                    if (typeof window.updateSelectedCount === 'function') {
-                        window.updateSelectedCount();
-                    }
-                }, 100);
+                if (info) info.classList.add('hidden');
+                // Apply stock filter if selected
+                if (stockFilter && stockFilter.value) {
+                    setTimeout(() => applyStockFilter(), 50);
+                } else {
+                    // Update selection count after restoring
+                    setTimeout(() => {
+                        if (typeof window.updateSelectedCount === 'function') {
+                            window.updateSelectedCount();
+                        }
+                    }, 100);
+                }
                 return;
             }
             try {
@@ -327,6 +421,11 @@
                 filteredCountEl.textContent = results.length;
                 totalCountEl.textContent = results.length;
                 info.classList.remove('hidden');
+                // Apply stock filter to search results if selected
+                if (stockFilter && stockFilter.value) {
+                    setTimeout(() => applyStockFilter(), 50);
+                }
+                
                 // Update selection count after search results are loaded
                 setTimeout(() => {
                     if (typeof window.updateSelectedCount === 'function') {
@@ -337,6 +436,10 @@
                 // Fallback to local filter if remote fails
                 tbody.innerHTML = originalHTML;
                 info.classList.add('hidden');
+                // Apply stock filter if selected
+                if (stockFilter && stockFilter.value) {
+                    setTimeout(() => applyStockFilter(), 50);
+                }
                 // Update selection count after restoring original HTML
                 setTimeout(() => {
                     if (typeof window.updateSelectedCount === 'function') {
@@ -346,6 +449,20 @@
             }
         }, 200);
     });
+    
+    // Stock filter event listener
+    if (stockFilter) {
+        stockFilter.addEventListener('change', () => {
+            const q = (searchInput.value || '').trim();
+            if (q) {
+                // If search is active, re-trigger search to get fresh results, then filter
+                searchInput.dispatchEvent(new Event('input'));
+            } else {
+                // Apply stock filter to current rows
+                applyStockFilter();
+            }
+        });
+    }
 })();
 
 // Bulk selection and delete functionality
