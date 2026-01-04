@@ -84,7 +84,7 @@ class InventoryController {
         }
         
         $currentPage = max(1, intval($_GET['page'] ?? 1));
-        $itemsPerPage = 10;
+        $itemsPerPage = 40;
         $category_id = $_GET['category_id'] ?? null;
         $stockFilter = $_GET['stock_filter'] ?? null; // Get stock filter from URL
         $companyId = $_SESSION['user']['company_id'] ?? 1;
