@@ -5,6 +5,81 @@
  * cPanel Shared Hosting Compatible
  */
 
+// Register fatal error handler early to catch fatal errors that cause 503
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error !== NULL && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_CORE_WARNING])) {
+        // Clean any output buffers
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        
+        // Log the fatal error
+        error_log("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
+        
+        // Determine if this is an API request
+        $isApiRequest = strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false;
+        
+        if (!headers_sent()) {
+            // Use 503 for fatal errors that prevent service
+            http_response_code(503);
+            
+            if ($isApiRequest) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Service Unavailable',
+                    'message' => 'The server encountered a fatal error and is temporarily unable to service your request.',
+                    'type' => 'fatal_error'
+                ]);
+            } else {
+                header('Content-Type: text/html; charset=utf-8');
+                echo '<!DOCTYPE html>
+<html>
+<head>
+    <title>Service Unavailable</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
+        .error { background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #d32f2f; }
+        p { color: #666; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="error">
+        <h1>Service Unavailable</h1>
+        <p>The server is temporarily unable to service your request due to a technical error.</p>
+        <p>Please try again later. If the problem persists, please contact the administrator.</p>
+        <p style="margin-top: 20px; font-size: 12px; color: #999;">
+            Error details have been logged for the administrator.
+        </p>
+    </div>
+</body>
+</html>';
+            }
+        }
+        exit;
+    }
+});
+
+// Set error handler for non-fatal errors
+set_error_handler(function($severity, $message, $file, $line) {
+    // Only handle errors that are not suppressed
+    if (!(error_reporting() & $severity)) {
+        return false;
+    }
+    
+    // Log the error
+    error_log("PHP Error [$severity]: $message in $file on line $line");
+    
+    // For fatal errors, let the shutdown function handle it
+    if (in_array($severity, [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        return false; // Let PHP handle fatal errors normally
+    }
+    
+    return false; // Let PHP handle the error normally
+});
+
 // Serve static files directly before routing
 $requestUri = $_SERVER['REQUEST_URI'] ?? '';
 $requestPath = parse_url($requestUri, PHP_URL_PATH);
@@ -232,48 +307,144 @@ require_once __DIR__ . '/routes/web.php';
 // Dispatch request
 try {
     $router->dispatch();
-} catch (Exception $e) {
-    // Handle database connection errors gracefully
-    if (strpos($e->getMessage(), 'Database connection failed') !== false) {
-        // If this is an API request, return JSON error
-        if (strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false) {
-            header('Content-Type: application/json');
-            http_response_code(500);
-            echo json_encode([
-                'success' => false,
-                'error' => 'Database connection failed. Please check your MySQL service.'
-            ]);
-            exit;
-        } else {
-            // For web requests, show a user-friendly error page
-            http_response_code(500);
-            echo '<!DOCTYPE html>
+} catch (\Exception $e) {
+    // Clean any output buffers
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    
+    // Log the exception
+    error_log("Uncaught exception: " . $e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine());
+    error_log("Stack trace: " . $e->getTraceAsString());
+    
+    $isApiRequest = strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false;
+    
+    // Handle database connection errors - use 503 for service unavailable
+    if (strpos($e->getMessage(), 'Database connection failed') !== false || 
+        strpos($e->getMessage(), 'SQLSTATE') !== false ||
+        $e instanceof \PDOException) {
+        
+        if (!headers_sent()) {
+            http_response_code(503); // Service Unavailable for database errors
+            header('Retry-After: 60'); // Suggest retry after 60 seconds
+            
+            if ($isApiRequest) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Service Unavailable',
+                    'message' => 'Database connection failed. The service is temporarily unavailable.',
+                    'type' => 'database_error'
+                ]);
+            } else {
+                header('Content-Type: text/html; charset=utf-8');
+                echo '<!DOCTYPE html>
 <html>
 <head>
-    <title>Database Connection Error</title>
+    <title>Service Unavailable</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-        .error { color: #d32f2f; background: #ffebee; padding: 20px; border-radius: 5px; }
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
+        .error { background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #d32f2f; }
+        p { color: #666; line-height: 1.6; }
+        ul { text-align: left; display: inline-block; }
     </style>
 </head>
 <body>
-    <h1>Database Connection Error</h1>
     <div class="error">
-        <p>Unable to connect to the database. Please check:</p>
-        <ul style="text-align: left; display: inline-block;">
-            <li>MySQL service is running in XAMPP</li>
-            <li>Database credentials are correct</li>
-            <li>Port configuration is correct</li>
-        </ul>
-        <p><a href="setup_db.php">Run Database Setup</a></p>
+        <h1>Service Unavailable</h1>
+        <p>The server is temporarily unable to service your request due to a database connection issue.</p>
+        <p>Please try again in a few moments. If the problem persists, please contact the administrator.</p>
+        <p style="margin-top: 20px; font-size: 12px; color: #999;">
+            Error details have been logged for the administrator.
+        </p>
     </div>
 </body>
 </html>';
-            exit;
+            }
         }
+        exit;
     } else {
-        // Re-throw other exceptions
-        throw $e;
+        // For other exceptions, use 500 Internal Server Error
+        if (!headers_sent()) {
+            http_response_code(500);
+            
+            if ($isApiRequest) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Internal Server Error',
+                    'message' => 'An unexpected error occurred. Please try again later.'
+                ]);
+            } else {
+                header('Content-Type: text/html; charset=utf-8');
+                echo '<!DOCTYPE html>
+<html>
+<head>
+    <title>Internal Server Error</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
+        .error { background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #d32f2f; }
+        p { color: #666; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="error">
+        <h1>Internal Server Error</h1>
+        <p>An unexpected error occurred while processing your request.</p>
+        <p>Please try again later. If the problem persists, please contact the administrator.</p>
+    </div>
+</body>
+</html>';
+            }
+        }
+        exit;
     }
+} catch (\Throwable $e) {
+    // Catch any other throwable (PHP 7+)
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    
+    error_log("Uncaught throwable: " . $e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine());
+    error_log("Stack trace: " . $e->getTraceAsString());
+    
+    $isApiRequest = strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false;
+    
+    if (!headers_sent()) {
+        http_response_code(503);
+        
+        if ($isApiRequest) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'error' => 'Service Unavailable',
+                'message' => 'The server encountered an error and is temporarily unable to service your request.'
+            ]);
+        } else {
+            header('Content-Type: text/html; charset=utf-8');
+            echo '<!DOCTYPE html>
+<html>
+<head>
+    <title>Service Unavailable</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
+        .error { background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #d32f2f; }
+        p { color: #666; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="error">
+        <h1>Service Unavailable</h1>
+        <p>The server is temporarily unable to service your request.</p>
+        <p>Please try again later. If the problem persists, please contact the administrator.</p>
+    </div>
+</body>
+</html>';
+        }
+    }
+    exit;
 }
 

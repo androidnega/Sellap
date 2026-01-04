@@ -56,19 +56,45 @@ class Database {
         }
 
         try {
-            $this->connection = new PDO(
-                "mysql:host=$host;dbname=$dbname;charset=utf8mb4",
-                $username,
-                $password,
-                [PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true]
-            );
+            // Set connection timeout (5 seconds)
+            $options = [
+                PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
+                PDO::ATTR_TIMEOUT => 5,
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+            ];
+            
+            // Parse host and port if port is specified
+            $hostParts = explode(':', $host);
+            $dbHost = $hostParts[0];
+            $dbPort = isset($hostParts[1]) ? $hostParts[1] : 3306;
+            
+            $dsn = "mysql:host=$dbHost;port=$dbPort;dbname=$dbname;charset=utf8mb4";
+            
+            $this->connection = new PDO($dsn, $username, $password, $options);
             $this->connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->connection->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+            
+            // Test the connection with a simple query
+            $this->connection->query("SELECT 1");
+            
         } catch (PDOException $e) {
             // Log detailed error for debugging
-            error_log("PDO Exception: " . $e->getMessage());
-            error_log("Connection string: mysql:host=$host;dbname=$dbname;charset=utf8mb4");
-            throw new \Exception("Database connection failed: " . $e->getMessage());
+            $errorCode = $e->getCode();
+            $errorMessage = $e->getMessage();
+            
+            error_log("PDO Exception [$errorCode]: " . $errorMessage);
+            error_log("Connection attempt: mysql:host=$host;dbname=$dbname");
+            
+            // Provide more specific error messages
+            if (strpos($errorMessage, 'Access denied') !== false) {
+                throw new \Exception("Database connection failed: Invalid credentials. Please check your database username and password.");
+            } elseif (strpos($errorMessage, 'Unknown database') !== false) {
+                throw new \Exception("Database connection failed: Database '$dbname' does not exist. Please create the database first.");
+            } elseif (strpos($errorMessage, 'Connection refused') !== false || strpos($errorMessage, 'Connection timed out') !== false) {
+                throw new \Exception("Database connection failed: Cannot connect to database server. Please check if MySQL is running and the host/port is correct.");
+            } else {
+                throw new \Exception("Database connection failed: " . $errorMessage);
+            }
         } catch (\Exception $e) {
             error_log("Database connection error: " . $e->getMessage());
             throw $e;

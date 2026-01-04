@@ -1,6 +1,166 @@
 <?php
 
 // ========================================
+// HEALTH CHECK ENDPOINT
+// ========================================
+// Use this endpoint to check if the server is running and database is accessible
+// Access via: /api/health or /health
+$router->get('api/health', function() {
+    header('Content-Type: application/json');
+    
+    $health = [
+        'status' => 'ok',
+        'timestamp' => date('Y-m-d H:i:s'),
+        'checks' => []
+    ];
+    
+    $allOk = true;
+    
+    // Check PHP version
+    $phpVersion = phpversion();
+    $health['checks']['php'] = [
+        'status' => 'ok',
+        'version' => $phpVersion
+    ];
+    
+    // Check database connection
+    try {
+        $db = \Database::getInstance()->getConnection();
+        $db->query("SELECT 1");
+        $health['checks']['database'] = [
+            'status' => 'ok',
+            'message' => 'Database connection successful'
+        ];
+    } catch (\Exception $e) {
+        $allOk = false;
+        $health['checks']['database'] = [
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ];
+    }
+    
+    // Check required directories
+    $requiredDirs = [
+        'storage' => STORAGE_PATH,
+        'sessions' => STORAGE_PATH . '/sessions',
+        'logs' => STORAGE_PATH . '/logs'
+    ];
+    
+    foreach ($requiredDirs as $name => $path) {
+        if (is_dir($path) && is_writable($path)) {
+            $health['checks']["directory_$name"] = [
+                'status' => 'ok',
+                'path' => $path
+            ];
+        } else {
+            $allOk = false;
+            $health['checks']["directory_$name"] = [
+                'status' => 'error',
+                'message' => "Directory $path is not writable or does not exist"
+            ];
+        }
+    }
+    
+    // Check Composer dependencies
+    if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+        require_once __DIR__ . '/../vendor/autoload.php';
+        if (class_exists('Firebase\JWT\JWT')) {
+            $health['checks']['dependencies'] = [
+                'status' => 'ok',
+                'message' => 'Composer dependencies loaded'
+            ];
+        } else {
+            $allOk = false;
+            $health['checks']['dependencies'] = [
+                'status' => 'error',
+                'message' => 'Composer dependencies incomplete'
+            ];
+        }
+    } else {
+        $allOk = false;
+        $health['checks']['dependencies'] = [
+            'status' => 'error',
+            'message' => 'Composer dependencies not installed'
+        ];
+    }
+    
+    $health['status'] = $allOk ? 'ok' : 'degraded';
+    
+    http_response_code($allOk ? 200 : 503);
+    echo json_encode($health, JSON_PRETTY_PRINT);
+    exit;
+});
+
+// Simple health check (web version)
+$router->get('health', function() {
+    header('Content-Type: text/html; charset=utf-8');
+    
+    $checks = [];
+    $allOk = true;
+    
+    // Check PHP
+    $checks['PHP'] = ['status' => 'ok', 'version' => phpversion()];
+    
+    // Check database
+    try {
+        $db = \Database::getInstance()->getConnection();
+        $db->query("SELECT 1");
+        $checks['Database'] = ['status' => 'ok', 'message' => 'Connected'];
+    } catch (\Exception $e) {
+        $allOk = false;
+        $checks['Database'] = ['status' => 'error', 'message' => $e->getMessage()];
+    }
+    
+    // Check storage
+    if (is_dir(STORAGE_PATH) && is_writable(STORAGE_PATH)) {
+        $checks['Storage'] = ['status' => 'ok', 'path' => STORAGE_PATH];
+    } else {
+        $allOk = false;
+        $checks['Storage'] = ['status' => 'error', 'message' => 'Not writable'];
+    }
+    
+    http_response_code($allOk ? 200 : 503);
+    
+    echo '<!DOCTYPE html>
+<html>
+<head>
+    <title>Health Check</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: ' . ($allOk ? '#4caf50' : '#d32f2f') . '; }
+        .check { padding: 10px; margin: 10px 0; border-left: 4px solid ' . ($allOk ? '#4caf50' : '#d32f2f') . '; background: #f9f9f9; }
+        .status-ok { color: #4caf50; font-weight: bold; }
+        .status-error { color: #d32f2f; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>System Health Check</h1>
+        <p>Status: <strong style="color: ' . ($allOk ? '#4caf50' : '#d32f2f') . '">' . ($allOk ? 'OK' : 'ERROR') . '</strong></p>';
+    
+    foreach ($checks as $name => $check) {
+        $statusClass = $check['status'] === 'ok' ? 'status-ok' : 'status-error';
+        echo '<div class="check">
+            <strong>' . htmlspecialchars($name) . ':</strong> 
+            <span class="' . $statusClass . '">' . strtoupper($check['status']) . '</span>';
+        if (isset($check['message'])) {
+            echo '<br><small>' . htmlspecialchars($check['message']) . '</small>';
+        }
+        if (isset($check['version'])) {
+            echo '<br><small>Version: ' . htmlspecialchars($check['version']) . '</small>';
+        }
+        if (isset($check['path'])) {
+            echo '<br><small>Path: ' . htmlspecialchars($check['path']) . '</small>';
+        }
+        echo '</div>';
+    }
+    
+    echo '</div></body></html>';
+    exit;
+});
+
+// ========================================
 // ROOT ROUTE
 // ========================================
 
