@@ -1,8 +1,11 @@
 <?php
 
 /**
- * Database Configuration
+ * Database Configuration for app.dcapple.com
  * Singleton pattern for PDO connection
+ * 
+ * This is a standalone database configuration file for app.dcapple.com
+ * Copy this file to config/database.php on your app.dcapple.com server
  */
 
 if (!class_exists('Database')) {
@@ -20,19 +23,14 @@ class Database {
             // Check if we're on app.dcapple.com
             if (preg_match('#app\.dcapple\.com#', $httpHost)) {
                 $appEnv = 'dcapple';
-            }
-            // Check if we're on the live server domain (sellapp.store)
-            elseif (preg_match('#sellapp\.store#', $httpHost) || 
-                preg_match('#www\.sellapp\.store#', $httpHost)) {
-                $appEnv = 'production';
             } else {
                 $appEnv = 'local';
             }
         }
         
-        // Default to local if still not set
+        // Default to dcapple if still not set (for app.dcapple.com)
         if (empty($appEnv)) {
-            $appEnv = 'local';
+            $appEnv = 'dcapple';
         }
         
         // Load database credentials from environment variables
@@ -43,17 +41,11 @@ class Database {
             $dbname = getenv('DB_NAME') ?: 'dcapple3_app';
             $username = getenv('DB_USER') ?: 'dcapple3_appuser';
             $password = getenv('DB_PASS') ?: 'Atomic2@2020^';
-        } elseif ($appEnv === 'local' || $appEnv === 'development') {
-            // Localhost/Development database credentials
-            $host = getenv('DB_HOST') ?: '127.0.0.1:3307';
-            $dbname = getenv('DB_NAME') ?: 'sellapp_db';
-            $username = getenv('DB_USER') ?: 'root';
-            $password = getenv('DB_PASS') ?: 'newpassword';
         } else {
-            // Production/Live server database credentials (sellapp.store)
-            $host = getenv('DB_HOST') ?: 'localhost';
-            $dbname = getenv('DB_NAME') ?: 'manuelc8_sellapp';
-            $username = getenv('DB_USER') ?: 'manuelc8_sellapp';
+            // Localhost/Development database credentials (fallback)
+            $host = getenv('DB_HOST') ?: '127.0.0.1:3307';
+            $dbname = getenv('DB_NAME') ?: 'dcapple3_app';
+            $username = getenv('DB_USER') ?: 'dcapple3_appuser';
             $password = getenv('DB_PASS') ?: 'Atomic2@2020^';
         }
         
