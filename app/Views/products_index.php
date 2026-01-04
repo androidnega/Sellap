@@ -164,13 +164,17 @@ if (!isset($categories)) {
                                 }
                             }
                             ?>
+                            <?php 
+                            // Ensure quantity is treated as integer (handle both 'quantity' and 'qty' keys)
+                            $qty = intval($product['quantity'] ?? $product['qty'] ?? 0);
+                            ?>
                             <tr class="border-b product-row" 
                                 data-product-id="<?= $product['id'] ?>" 
                                 data-product-name="<?= htmlspecialchars(strtolower($product['name'] ?? '')) ?>"
                                 data-brand-name="<?= htmlspecialchars(strtolower($product['brand_name'] ?? '')) ?>"
                                 data-category-name="<?= htmlspecialchars($product['category_name'] ?? '') ?>"
                                 data-sku="<?= htmlspecialchars(strtolower($product['sku'] ?? '')) ?>"
-                                data-quantity="<?= $product['quantity'] ?? 0 ?>"
+                                data-quantity="<?= $qty ?>"
                                 data-is-swapped="<?= $isSwappedItem ? '1' : '0' ?>"
                                 <?php if ($isSwappedItem): ?>
                                     style="background-color: #fee2e2; color: #991b1b;" 
@@ -228,8 +232,8 @@ if (!isset($categories)) {
                                     </span>
                                 </td>
                                 <td class="p-3">
-                                    <span class="px-2 py-1 rounded text-xs font-medium <?= $isSwappedItem ? '' : (($product['quantity'] ?? 0) > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') ?>" <?= $isSwappedItem ? 'style="background-color: #c4b5fd; color: #6b21a8;"' : '' ?>>
-                                        <?= $product['quantity'] ?? 0 ?>
+                                    <span class="px-2 py-1 rounded text-xs font-medium <?= $isSwappedItem ? '' : ($qty > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') ?>" <?= $isSwappedItem ? 'style="background-color: #c4b5fd; color: #6b21a8;"' : '' ?>>
+                                        <?= $qty ?>
                                     </span>
                                 </td>
                                 <td class="p-3">
@@ -239,7 +243,7 @@ if (!isset($categories)) {
                                         $statusClass = '';
                                         $statusStyle = 'background-color: #c4b5fd; color: #6b21a8;';
                                     } else {
-                                        $statusClass = ($status === 'available' || ($product['quantity'] ?? 0) > 0) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+                                        $statusClass = ($status === 'available' || $qty > 0) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
                                         $statusStyle = '';
                                     }
                                     ?>
