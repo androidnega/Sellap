@@ -248,6 +248,14 @@ class Product {
         $isSwappedItemSelect = $hasIsSwappedItem ? 'COALESCE(p.is_swapped_item, 0) as is_swapped_item,' : '0 as is_swapped_item,';
         $swapRefIdSelect = $hasSwapRefId ? 'p.swap_ref_id,' : 'NULL as swap_ref_id,';
         
+        // Detect quantity column name (qty or quantity)
+        $quantityColumn = 'quantity';
+        if ($this->productsHasColumn('qty')) {
+            $quantityColumn = 'qty';
+        } elseif ($this->productsHasColumn('quantity')) {
+            $quantityColumn = 'quantity';
+        }
+        
         // Also check if product is linked via inventory_product_id in swapped_items table
         // This handles cases where swapped items were synced to products table but flags might not be set
         $hasInventoryProductId = false;
@@ -274,7 +282,7 @@ class Product {
                 p.brand_id,
                 p.price,
                 p.cost,
-                COALESCE(p.quantity, 0) as quantity,
+                COALESCE(p.{$quantityColumn}, 0) as quantity,
                 COALESCE(p.status, 'available') as status,
                 COALESCE(p.available_for_swap, 0) as available_for_swap,
                 {$isSwappedItemSelect}
@@ -319,7 +327,7 @@ class Product {
             // For POS, show only products with quantity > 0 (in stock)
             // This includes regular products AND swapped items that are in stock
             // Swapped items are already included because we don't exclude them when includeSwappedItemsAlways = true
-            $sql .= " AND COALESCE(p.quantity, 0) > 0";
+            $sql .= " AND COALESCE(p.{$quantityColumn}, 0) > 0";
         } elseif (!$swappedItemsOnly && $hasIsSwappedItem) {
             // For regular product/inventory views: show all items including quantity = 0
             // Salespersons need to see all items regardless of quantity
@@ -370,10 +378,17 @@ class Product {
             $offset = 0;
         }
         
-        // Use unified products table (uses 'quantity' column, not 'qty')
         // Check if swapped item columns exist
         $hasIsSwappedItem = $this->productsHasColumn('is_swapped_item');
         $hasSwapRefId = $this->productsHasColumn('swap_ref_id');
+        
+        // Detect quantity column name (qty or quantity)
+        $quantityColumn = 'quantity';
+        if ($this->productsHasColumn('qty')) {
+            $quantityColumn = 'qty';
+        } elseif ($this->productsHasColumn('quantity')) {
+            $quantityColumn = 'quantity';
+        }
         
         // Also check if product is linked via inventory_product_id in swapped_items table
         // This handles cases where swapped items were synced to products table but flags might not be set
@@ -409,7 +424,7 @@ class Product {
                 p.brand_id,
                 p.price,
                 p.cost,
-                COALESCE(p.quantity, 0) as quantity,
+                COALESCE(p.{$quantityColumn}, 0) as quantity,
                 COALESCE(p.status, 'available') as status,
                 COALESCE(p.available_for_swap, 0) as available_for_swap,
                 {$isSwappedItemSelect}
@@ -443,11 +458,11 @@ class Product {
             $conditions = [];
             if ($hasIsSwappedItem) {
                 // Hide swapped items with quantity = 0 (they've been sold/resold)
-                $conditions[] = "(COALESCE(p.is_swapped_item, 0) = 1 AND COALESCE(p.quantity, 0) = 0)";
+                $conditions[] = "(COALESCE(p.is_swapped_item, 0) = 1 AND COALESCE(p.{$quantityColumn}, 0) = 0)";
             }
             if ($hasInventoryProductId) {
                 // Hide swapped items linked via inventory_product_id with quantity = 0
-                $conditions[] = "(si2.id IS NOT NULL AND COALESCE(p.quantity, 0) = 0)";
+                $conditions[] = "(si2.id IS NOT NULL AND COALESCE(p.{$quantityColumn}, 0) = 0)";
             }
             if (!empty($conditions)) {
                 $sql .= " AND NOT (" . implode(" OR ", $conditions) . ")";
@@ -544,10 +559,18 @@ class Product {
      * Find a single product by ID and company with category and brand information
      */
     public function find($id, $company_id) {
+        // Detect quantity column name (qty or quantity)
+        $quantityColumn = 'quantity';
+        if ($this->productsHasColumn('qty')) {
+            $quantityColumn = 'qty';
+        } elseif ($this->productsHasColumn('quantity')) {
+            $quantityColumn = 'quantity';
+        }
+        
         $stmt = $this->db->prepare("
             SELECT 
                 p.*,
-                p.quantity,
+                p.{$quantityColumn} as quantity,
                 COALESCE(c.name, 'N/A') as category_name,
                 COALESCE(b.name, 'N/A') as brand_name
             FROM products p
@@ -571,10 +594,18 @@ class Product {
      * Find products available for swap
      */
     public function findAvailableForSwap($company_id) {
+        // Detect quantity column name (qty or quantity)
+        $quantityColumn = 'quantity';
+        if ($this->productsHasColumn('qty')) {
+            $quantityColumn = 'qty';
+        } elseif ($this->productsHasColumn('quantity')) {
+            $quantityColumn = 'quantity';
+        }
+        
         $stmt = $this->db->prepare("
             SELECT 
                 p.*,
-                p.quantity,
+                p.{$quantityColumn} as quantity,
                 COALESCE(c.name, 'N/A') as category_name,
                 COALESCE(b.name, 'N/A') as brand_name
             FROM products p
@@ -584,7 +615,7 @@ class Product {
             AND p.category_id = (SELECT id FROM categories WHERE name = 'Phone' LIMIT 1)
             AND p.available_for_swap = 1 
             AND p.status = 'available' 
-            AND p.quantity > 0
+            AND p.{$quantityColumn} > 0
             ORDER BY p.name ASC
         ");
         $stmt->execute([$company_id]);
@@ -595,8 +626,16 @@ class Product {
      * Find products by category for API endpoints
      */
     public function findByCategory($company_id, $category_id) {
+        // Detect quantity column name (qty or quantity)
+        $quantityColumn = 'quantity';
+        if ($this->productsHasColumn('qty')) {
+            $quantityColumn = 'qty';
+        } elseif ($this->productsHasColumn('quantity')) {
+            $quantityColumn = 'quantity';
+        }
+        
         $stmt = $this->db->prepare("
-            SELECT p.id, p.name, p.price, p.quantity, p.available_for_swap, p.status,
+            SELECT p.id, p.name, p.price, p.{$quantityColumn} as quantity, p.available_for_swap, p.status,
                    c.name as category_name, b.name as brand_name
             FROM products p
             LEFT JOIN categories c ON p.category_id = c.id
@@ -643,6 +682,14 @@ class Product {
      * Search products by name
      */
     public function search($company_id, $query, $category_id = null) {
+        // Detect quantity column name (qty or quantity)
+        $quantityColumn = 'quantity';
+        if ($this->productsHasColumn('qty')) {
+            $quantityColumn = 'qty';
+        } elseif ($this->productsHasColumn('quantity')) {
+            $quantityColumn = 'quantity';
+        }
+        
         $sql = "
             SELECT 
                 p.id,
@@ -653,7 +700,7 @@ class Product {
                 p.brand_id,
                 p.price,
                 p.cost,
-                COALESCE(p.quantity, 0) as quantity,
+                COALESCE(p.{$quantityColumn}, 0) as quantity,
                 COALESCE(p.status, 'available') as status,
                 p.item_location,
                 COALESCE(NULLIF(TRIM(p.model_name), ''), 'N/A') as model_name,
@@ -694,16 +741,23 @@ class Product {
      * Get product statistics for dashboard
      */
     public function getStats($company_id) {
-        // Unified products table uses 'quantity' column directly
+        // Detect quantity column name (qty or quantity)
+        $quantityColumn = 'quantity';
+        if ($this->productsHasColumn('qty')) {
+            $quantityColumn = 'qty';
+        } elseif ($this->productsHasColumn('quantity')) {
+            $quantityColumn = 'quantity';
+        }
+        
         // Use quantity = 0 for out of stock instead of status = 'out_of_stock'
         $stmt = $this->db->prepare("
             SELECT 
                 COUNT(*) as total_products,
-                SUM(CASE WHEN COALESCE(p.quantity, 0) > 0 THEN 1 ELSE 0 END) as available_products,
-                SUM(CASE WHEN COALESCE(p.quantity, 0) = 0 THEN 1 ELSE 0 END) as out_of_stock,
+                SUM(CASE WHEN COALESCE(p.{$quantityColumn}, 0) > 0 THEN 1 ELSE 0 END) as available_products,
+                SUM(CASE WHEN COALESCE(p.{$quantityColumn}, 0) = 0 THEN 1 ELSE 0 END) as out_of_stock,
                 SUM(CASE WHEN p.available_for_swap = 1 THEN 1 ELSE 0 END) as swap_available,
-                SUM(COALESCE(p.quantity, 0)) as total_quantity,
-                SUM(p.price * COALESCE(p.quantity, 0)) as total_value
+                SUM(COALESCE(p.{$quantityColumn}, 0)) as total_quantity,
+                SUM(p.price * COALESCE(p.{$quantityColumn}, 0)) as total_value
             FROM products p
             WHERE p.company_id = ?
         ");
@@ -715,8 +769,16 @@ class Product {
      * Get all products (for inventory management - simplified version)
      */
     public function all() {
+        // Detect quantity column name (qty or quantity)
+        $quantityColumn = 'quantity';
+        if ($this->productsHasColumn('qty')) {
+            $quantityColumn = 'qty';
+        } elseif ($this->productsHasColumn('quantity')) {
+            $quantityColumn = 'quantity';
+        }
+        
         $stmt = $this->db->prepare("
-            SELECT p.*, p.category as category_name, p.brand as brand_name, p.qty as quantity 
+            SELECT p.*, p.category as category_name, p.brand as brand_name, p.{$quantityColumn} as quantity 
             FROM products p
             ORDER BY p.id DESC
         ");
@@ -728,8 +790,16 @@ class Product {
      * Find product by ID (simplified version for inventory management)
      */
     public function findById($id) {
+        // Detect quantity column name (qty or quantity)
+        $quantityColumn = 'quantity';
+        if ($this->productsHasColumn('qty')) {
+            $quantityColumn = 'qty';
+        } elseif ($this->productsHasColumn('quantity')) {
+            $quantityColumn = 'quantity';
+        }
+        
         $stmt = $this->db->prepare("
-            SELECT p.*, p.category as category_name, p.brand as brand_name, p.qty as quantity 
+            SELECT p.*, p.category as category_name, p.brand as brand_name, p.{$quantityColumn} as quantity 
             FROM products p
             WHERE p.id = ? 
             LIMIT 1
@@ -924,13 +994,21 @@ class Product {
      * Get products for restock with pagination
      */
     public function getProductsForRestock($whereClause, $params, $limit, $offset) {
+        // Detect quantity column name (qty or quantity)
+        $quantityColumn = 'quantity';
+        if ($this->productsHasColumn('qty')) {
+            $quantityColumn = 'qty';
+        } elseif ($this->productsHasColumn('quantity')) {
+            $quantityColumn = 'quantity';
+        }
+        
         $sql = "
             SELECT p.*, c.name as category_name, b.name as brand_name
             FROM {$this->table} p
             LEFT JOIN categories c ON p.category_id = c.id
             LEFT JOIN brands b ON p.brand_id = b.id
             WHERE $whereClause
-            ORDER BY p.quantity ASC, p.name ASC
+            ORDER BY p.{$quantityColumn} ASC, p.name ASC
             LIMIT " . (int)$limit . " OFFSET " . (int)$offset . "
         ";
 
