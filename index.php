@@ -290,22 +290,23 @@ if (file_exists(__DIR__ . '/.env')) {
     }
 }
 
-// Load application configuration
-require_once __DIR__ . '/config/app.php';
-
-// Load database configuration
-require_once __DIR__ . '/config/database.php';
-
-// Initialize Router
+// Initialize Router (use statement must be outside try-catch)
 use App\Core\Router;
 
-$router = new Router();
-
-// Load routes
-require_once __DIR__ . '/routes/web.php';
-
-// Dispatch request
+// Wrap entire bootstrap in try-catch to catch any fatal errors
 try {
+    // Load application configuration
+    require_once __DIR__ . '/config/app.php';
+    
+    // Load database configuration
+    require_once __DIR__ . '/config/database.php';
+    
+    $router = new Router();
+    
+    // Load routes
+    require_once __DIR__ . '/routes/web.php';
+    
+    // Dispatch request
     $router->dispatch();
 } catch (\Exception $e) {
     // Clean any output buffers
@@ -402,7 +403,7 @@ try {
         exit;
     }
 } catch (\Throwable $e) {
-    // Catch any other throwable (PHP 7+)
+    // Catch any other throwable (PHP 7+) including bootstrap errors
     while (ob_get_level()) {
         ob_end_clean();
     }
@@ -420,7 +421,58 @@ try {
             echo json_encode([
                 'success' => false,
                 'error' => 'Service Unavailable',
-                'message' => 'The server encountered an error and is temporarily unable to service your request.'
+                'message' => 'The server encountered an error and is temporarily unable to service your request.',
+                'type' => 'bootstrap_error'
+            ]);
+        } else {
+            header('Content-Type: text/html; charset=utf-8');
+            echo '<!DOCTYPE html>
+<html>
+<head>
+    <title>Service Unavailable</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
+        .error { background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #d32f2f; }
+        p { color: #666; line-height: 1.6; }
+        .details { margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 5px; font-size: 12px; color: #999; text-align: left; }
+    </style>
+</head>
+<body>
+    <div class="error">
+        <h1>Service Unavailable</h1>
+        <p>The server is temporarily unable to service your request.</p>
+        <p>Please try again later. If the problem persists, please contact the administrator.</p>
+        <div class="details">
+            <strong>Error Details:</strong><br>
+            ' . htmlspecialchars($e->getMessage()) . '<br>
+            <small>File: ' . htmlspecialchars(basename($e->getFile())) . ' (Line: ' . $e->getLine() . ')</small>
+        </div>
+    </div>
+</body>
+</html>';
+        }
+    }
+    exit;
+} catch (\Error $e) {
+    // Catch PHP 7+ Error class (separate from Exception)
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    
+    error_log("PHP Error: " . $e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine());
+    
+    $isApiRequest = strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false;
+    
+    if (!headers_sent()) {
+        http_response_code(503);
+        
+        if ($isApiRequest) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'error' => 'Service Unavailable',
+                'message' => 'A PHP error occurred during application initialization.'
             ]);
         } else {
             header('Content-Type: text/html; charset=utf-8');
@@ -438,8 +490,8 @@ try {
 <body>
     <div class="error">
         <h1>Service Unavailable</h1>
-        <p>The server is temporarily unable to service your request.</p>
-        <p>Please try again later. If the problem persists, please contact the administrator.</p>
+        <p>The server encountered a PHP error during initialization.</p>
+        <p>Please contact the administrator with this information.</p>
     </div>
 </body>
 </html>';

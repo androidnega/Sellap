@@ -1,6 +1,38 @@
 <?php
 
 // ========================================
+// SIMPLE TEST ENDPOINT (No dependencies)
+// ========================================
+// This endpoint works even if database/config fails
+$router->get('test', function() {
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+        h1 { color: #4caf50; }
+        .info { background: #e8f5e9; padding: 15px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✓ PHP is Working</h1>
+        <div class="info">
+            <strong>PHP Version:</strong> ' . phpversion() . '<br>
+            <strong>Server:</strong> ' . ($_SERVER['SERVER_SOFTWARE'] ?? 'Unknown') . '<br>
+            <strong>Time:</strong> ' . date('Y-m-d H:i:s') . '
+        </div>
+        <p>If you can see this page, PHP is executing correctly.</p>
+    </div>
+</body>
+</html>';
+    exit;
+});
+
+// ========================================
 // HEALTH CHECK ENDPOINT
 // ========================================
 // Use this endpoint to check if the server is running and database is accessible
