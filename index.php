@@ -305,11 +305,7 @@ try {
     // Load database configuration
     require_once __DIR__ . '/config/database.php';
     
-    // Database session handler removed to prevent errors
-    // Using default PHP file-based sessions now
-    
-    // Cloudinary storage removed to fix Database class not found error
-    // All logging uses standard PHP error_log() now
+    // Cloudinary removed - using standard PHP sessions and logging
     
     $router = new Router();
     
