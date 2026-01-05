@@ -103,14 +103,8 @@ define('ASSETS_PATH', BASE_PATH . '/assets');
 // Session timeout: 30 minutes of inactivity (in seconds)
 define('SESSION_TIMEOUT', 30 * 60); // 1800 seconds = 30 minutes
 
-// Use database sessions instead of file system to prevent disk space usage
-// Load database session handler before any session_start() calls
-if (session_status() === PHP_SESSION_NONE) {
-    // Load database session handler
-    require_once __DIR__ . '/../app/Services/DatabaseSessionHandler.php';
-    $sessionHandler = new \App\Services\DatabaseSessionHandler();
-    session_set_save_handler($sessionHandler, true);
-}
+// Note: Database session handler will be initialized AFTER database.php is loaded
+// This is done in index.php to ensure Database class is available
 
 // Only set session configuration if session is not already active
 if (session_status() === PHP_SESSION_NONE) {

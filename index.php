@@ -305,6 +305,19 @@ try {
     // Load database configuration
     require_once __DIR__ . '/config/database.php';
     
+    // Initialize database session handler AFTER database is loaded
+    if (session_status() === PHP_SESSION_NONE && class_exists('Database')) {
+        require_once __DIR__ . '/app/Services/DatabaseSessionHandler.php';
+        try {
+            $sessionHandler = new \App\Services\DatabaseSessionHandler();
+            session_set_save_handler($sessionHandler, true);
+        } catch (\Exception $e) {
+            // If database session handler fails, fall back to default file-based sessions
+            // This ensures the application still works even if database sessions fail
+            error_log("Database session handler failed, using default sessions: " . $e->getMessage());
+        }
+    }
+    
     // Load Cloudinary storage helper AFTER database is loaded
     require_once __DIR__ . '/app/Helpers/CloudinaryStorage.php';
     
