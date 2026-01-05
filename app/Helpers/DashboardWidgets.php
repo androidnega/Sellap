@@ -2,41 +2,6 @@
 
 namespace App\Helpers;
 
-/**
- * Check if New Year message should be displayed
- * Shows only in January, automatically disables after January ends
- */
-function shouldShowNewYearMessage() {
-    $currentMonth = (int)date('n'); // 1-12
-    return $currentMonth === 1; // Only show in January
-}
-
-/**
- * Get New Year message HTML
- */
-function getNewYearMessage() {
-    if (!shouldShowNewYearMessage()) {
-        return '';
-    }
-    
-    $currentYear = date('Y');
-    return '
-    <div class="mb-4 sm:mb-6 bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 rounded-lg shadow-lg p-4 sm:p-6 text-white animate-pulse">
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-            <div class="flex items-center gap-3 sm:gap-4 flex-1">
-                <div class="text-3xl sm:text-4xl md:text-5xl animate-bounce">🎉</div>
-                <div>
-                    <h2 class="text-xl sm:text-2xl md:text-3xl font-bold mb-1">Happy New Year ' . $currentYear . '!</h2>
-                    <p class="text-sm sm:text-base opacity-90">Wishing you a prosperous and successful year ahead!</p>
-                </div>
-            </div>
-            <div class="text-2xl sm:text-3xl md:text-4xl">
-                🎊✨🎈
-            </div>
-        </div>
-    </div>';
-}
-
 use App\Models\CompanyModule;
 
 /**
@@ -260,6 +225,74 @@ class DashboardWidgets {
         }
         
         return $filtered;
+    }
+    
+    /**
+     * Get today's sales count based on user role
+     */
+    public static function getTodaySalesCount($companyId, $userId = null, $userRole = 'salesperson') {
+        try {
+            $db = \Database::getInstance()->getConnection();
+            $today = date('Y-m-d');
+            
+            if (in_array($userRole, ['manager', 'admin'])) {
+                // Manager/Admin - all company sales
+                $stmt = $db->prepare("
+                    SELECT COUNT(*) as count 
+                    FROM pos_sales 
+                    WHERE company_id = ? AND DATE(created_at) = ? AND swap_id IS NULL
+                ");
+                $stmt->execute([$companyId, $today]);
+            } elseif ($userRole === 'technician') {
+                // Technician - repairs completed today
+                $stmt = $db->prepare("
+                    SELECT COUNT(*) as count 
+                    FROM repairs_new 
+                    WHERE company_id = ? AND technician_id = ? AND DATE(created_at) = ? AND status = 'completed'
+                ");
+                $stmt->execute([$companyId, $userId, $today]);
+            } else {
+                // Salesperson - their own sales
+                $stmt = $db->prepare("
+                    SELECT COUNT(*) as count 
+                    FROM pos_sales 
+                    WHERE company_id = ? AND created_by_user_id = ? AND DATE(created_at) = ? 
+                    AND swap_id IS NULL
+                    AND (notes IS NULL OR (notes NOT LIKE '%Repair #%' AND notes NOT LIKE '%Products sold by repairer%'))
+                ");
+                $stmt->execute([$companyId, $userId, $today]);
+            }
+            
+            $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+            return (int)($result['count'] ?? 0);
+        } catch (\Exception $e) {
+            error_log("Error getting today's sales count: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Check if New Year message should be displayed
+     * Shows only in January if enabled in settings
+     */
+    public static function shouldShowNewYearMessage() {
+        $currentMonth = (int)date('n'); // 1-12
+        if ($currentMonth !== 1) {
+            return false; // Only show in January
+        }
+        
+        // Check if enabled in system settings
+        try {
+            $db = \Database::getInstance()->getConnection();
+            $stmt = $db->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'new_year_message_enabled'");
+            $stmt->execute();
+            $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+            $enabled = $result ? (int)$result['setting_value'] : 1; // Default to enabled
+            return $enabled === 1;
+        } catch (\Exception $e) {
+            error_log("Error checking new year message setting: " . $e->getMessage());
+            return true; // Default to enabled if error
+        }
     }
 }
 

@@ -474,6 +474,17 @@ $smsConfigured = $smsConfigured ?? false;
                             <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
                     </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="text-xs font-medium text-gray-900">New Year Message</h4>
+                            <p class="text-xs text-gray-500">Show Happy New Year message banner on dashboards during January</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="new-year-message-enabled" value="1" <?= ($settings['new_year_message_enabled'] ?? '1') === '1' ? 'checked' : '' ?> class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
                         </div>
                         
                         <div class="flex justify-end">
@@ -905,6 +916,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (settings['default_image_quality']) {
                         document.getElementById('default-image-quality').value = settings['default_image_quality'];
                     }
+                    // Update New Year message toggle
+                    const newYearToggle = document.getElementById('new-year-message-enabled');
+                    if (newYearToggle) {
+                        const newYearValue = settings['new_year_message_enabled'] ?? '1';
+                        newYearToggle.checked = newYearValue === '1' || newYearValue === 1 || newYearValue === true;
+                    }
                     // Update SMS toggle states
                     const purchaseToggle = document.getElementById('sms-purchase-enabled');
                     const repairToggle = document.getElementById('sms-repair-enabled');
@@ -1335,12 +1352,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const purchaseToggle = document.getElementById('sms-purchase-enabled');
             const repairToggle = document.getElementById('sms-repair-enabled');
             const paymentToggle = document.getElementById('sms-payment-enabled');
+            const newYearToggle = document.getElementById('new-year-message-enabled');
             
             const settings = {
                 default_image_quality: document.getElementById('default-image-quality').value,
                 sms_purchase_enabled: purchaseToggle && purchaseToggle.checked ? '1' : '0',
                 sms_repair_enabled: repairToggle && repairToggle.checked ? '1' : '0',
-                sms_payment_enabled: paymentToggle && paymentToggle.checked ? '1' : '0'
+                sms_payment_enabled: paymentToggle && paymentToggle.checked ? '1' : '0',
+                new_year_message_enabled: newYearToggle && newYearToggle.checked ? '1' : '0'
             };
             
             console.log('Saving general settings:', settings);
