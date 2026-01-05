@@ -6,7 +6,6 @@
  */
 
 // Register fatal error handler early to catch fatal errors that cause 503
-// Note: CloudinaryStorage will be loaded after database config
 register_shutdown_function(function() {
     $error = error_get_last();
     if ($error !== NULL && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_CORE_WARNING])) {
@@ -16,8 +15,6 @@ register_shutdown_function(function() {
         }
         
         // Log the fatal error - use error_log directly to avoid any class loading issues
-        // Cloudinary logging will be handled by the application after it's fully loaded
-        // DO NOT use CloudinaryStorage here as Database class may not be loaded yet
         error_log("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
         
         // Determine if this is an API request
@@ -73,7 +70,6 @@ set_error_handler(function($severity, $message, $file, $line) {
     }
     
     // Log the error - use error_log directly to avoid class loading issues
-    // Cloudinary logging will be handled after application is fully loaded
     error_log("PHP Error [$severity]: $message in $file on line $line");
     
     // For fatal errors, let the shutdown function handle it
