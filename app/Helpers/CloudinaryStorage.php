@@ -16,6 +16,11 @@ class CloudinaryStorage {
     public static function getService() {
         if (self::$cloudinaryService === null) {
             try {
+                // Check if Database class is available
+                if (!class_exists('Database')) {
+                    return null;
+                }
+                
                 $db = \Database::getInstance()->getConnection();
                 $settingsQuery = $db->query("SELECT setting_key, setting_value FROM system_settings");
                 $settings = $settingsQuery->fetchAll(\PDO::FETCH_KEY_PAIR);

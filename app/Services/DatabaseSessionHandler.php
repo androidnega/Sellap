@@ -13,6 +13,11 @@ class DatabaseSessionHandler implements \SessionHandlerInterface {
     private $tableName = 'sessions';
     
     public function __construct() {
+        // Check if Database class is available
+        if (!class_exists('Database')) {
+            throw new \RuntimeException('Database class not available. Ensure config/database.php is loaded before using DatabaseSessionHandler.');
+        }
+        
         $this->db = \Database::getInstance()->getConnection();
         $this->createTableIfNotExists();
     }

@@ -17,6 +17,12 @@ class CloudinaryLoggingService {
     
     public function __construct() {
         try {
+            // Check if Database class is available
+            if (!class_exists('Database')) {
+                $this->enabled = false;
+                return;
+            }
+            
             $db = \Database::getInstance()->getConnection();
             $settingsQuery = $db->query("SELECT setting_key, setting_value FROM system_settings");
             $settings = $settingsQuery->fetchAll(\PDO::FETCH_KEY_PAIR);

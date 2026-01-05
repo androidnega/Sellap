@@ -5,10 +5,8 @@
  * cPanel Shared Hosting Compatible
  */
 
-// Load Cloudinary storage helper early
-require_once __DIR__ . '/app/Helpers/CloudinaryStorage.php';
-
 // Register fatal error handler early to catch fatal errors that cause 503
+// Note: CloudinaryStorage will be loaded after database config
 register_shutdown_function(function() {
     $error = error_get_last();
     if ($error !== NULL && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_CORE_WARNING])) {
@@ -17,9 +15,9 @@ register_shutdown_function(function() {
             ob_end_clean();
         }
         
-        // Log the fatal error to Cloudinary (not file system)
+        // Log the fatal error - try Cloudinary if available, otherwise use error_log
         try {
-            if (class_exists('CloudinaryStorage')) {
+            if (class_exists('CloudinaryStorage') && class_exists('Database')) {
                 CloudinaryStorage::logError("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
             } else {
                 error_log("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
