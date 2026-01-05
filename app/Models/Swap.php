@@ -1041,6 +1041,7 @@ class Swap {
                    {$totalValueSelect}
                    s.added_cash, s.estimated_value,
                    " . ($hasSwapDate ? "s.swap_date," : "s.created_at as swap_date,") . "
+                   s.created_at,
                    " . ($hasCompanyProductId ? "s.company_product_id," : "") . "
                    " . ($hasNewPhoneId ? "s.new_phone_id," : "") . "
                    " . ($userRefCol ? "s.{$userRefCol}," : "") . "
@@ -1176,6 +1177,14 @@ class Swap {
             $totalValueSelect = "{$productPriceExpression} as total_value,";
         }
         
+        // Build swap_date select - use swap_date if exists, otherwise use created_at
+        $swapDateSelect = '';
+        if ($hasSwapDate) {
+            $swapDateSelect = "s.swap_date,";
+        } else {
+            $swapDateSelect = "s.created_at as swap_date,";
+        }
+        
         // Build profit columns select - only if table exists
         $profitSelect = '';
         if ($hasProfitLinksTable) {
@@ -1224,6 +1233,7 @@ class Swap {
         $productPriceSelect = rtrim(trim($productPriceSelect), ',');
         $totalValueSelect = rtrim(trim($totalValueSelect), ',');
         $cashReceivedSelect = rtrim(trim($cashReceivedSelect), ',');
+        $swapDateSelect = rtrim(trim($swapDateSelect), ',');
         $profitSelect = trim($profitSelect); // profitSelect doesn't have trailing comma
         
         // Build the SELECT clause with proper comma handling
@@ -1231,6 +1241,11 @@ class Swap {
         
         // Add s.* first
         $selectFields[] = 's.*';
+        
+        // Add swap_date explicitly to ensure it's available
+        if (!empty($swapDateSelect)) {
+            $selectFields[] = $swapDateSelect;
+        }
         
         // Add other fields only if they're not empty
         if (!empty($transactionCodeSelect)) {

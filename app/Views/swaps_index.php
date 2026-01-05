@@ -165,6 +165,9 @@
                             Transaction Code
                         </th>
                         <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                            Date
+                        </th>
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                             Product
                         </th>
                         <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
@@ -207,6 +210,26 @@
                                 }
                                 ?>
                                 <span class="font-mono text-sm font-semibold"><?= htmlspecialchars($transactionCode ?? 'SWAP-' . str_pad($swap['id'] ?? 0, 6, '0', STR_PAD_LEFT)) ?></span>
+                            </td>
+                            <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
+                                <?php
+                                // Get date from swap_date, created_at, or swap_date column
+                                $swapDate = $swap['swap_date'] ?? $swap['created_at'] ?? null;
+                                if ($swapDate) {
+                                    $dateObj = new DateTime($swapDate);
+                                    $formattedDate = $dateObj->format('M j, Y');
+                                    $formattedTime = $dateObj->format('g:i A');
+                                } else {
+                                    $formattedDate = 'N/A';
+                                    $formattedTime = '';
+                                }
+                                ?>
+                                <div class="text-xs sm:text-sm">
+                                    <div class="font-medium text-gray-900"><?= htmlspecialchars($formattedDate) ?></div>
+                                    <?php if ($formattedTime): ?>
+                                        <div class="text-gray-500"><?= htmlspecialchars($formattedTime) ?></div>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                             <td class="px-3 sm:px-6 py-4">
                                 <div class="space-y-1 min-w-[150px]">
