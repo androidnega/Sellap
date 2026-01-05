@@ -720,4 +720,48 @@
     // Initialize
     updateStoreProductInfo();
 })();
+
+// Form submission handler
+document.addEventListener('DOMContentLoaded', function() {
+    const swapForm = document.querySelector('form[action*="/dashboard/swaps/store"]');
+    const completeSwapBtn = document.getElementById('completeSwapBtn');
+    
+    if (swapForm && completeSwapBtn) {
+        swapForm.addEventListener('submit', function(e) {
+            // Validate required fields
+            const storeProductId = document.getElementById('store_product_id');
+            const customerName = document.getElementById('customer_name');
+            const customerContact = document.getElementById('customer_contact');
+            
+            if (!storeProductId || !storeProductId.value) {
+                e.preventDefault();
+                alert('Please select a store product');
+                const productSearch = document.getElementById('product_search');
+                if (productSearch) productSearch.focus();
+                return false;
+            }
+            
+            if (!customerName || !customerName.value.trim()) {
+                e.preventDefault();
+                alert('Please enter customer name');
+                customerName.focus();
+                return false;
+            }
+            
+            if (!customerContact || !customerContact.value.trim()) {
+                e.preventDefault();
+                alert('Please enter customer contact');
+                customerContact.focus();
+                return false;
+            }
+            
+            // Show loading state
+            completeSwapBtn.disabled = true;
+            completeSwapBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i><span>Processing...</span>';
+            
+            // Form will submit normally
+            return true;
+        });
+    }
+});
 </script>
