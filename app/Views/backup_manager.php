@@ -176,9 +176,9 @@ $companyId = $user['company_id'] ?? null;
                 </div>
             </div>
             <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-                <button id="btnRunScheduled" class="bg-purple-600 hover:bg-purple-700 text-white rounded px-4 py-2 text-sm">
-                    <i class="fas fa-play mr-2"></i> Run Scheduled Backups Now
-                </button>
+            <button id="btnRunScheduled" class="bg-purple-600 hover:bg-purple-700 text-white rounded px-4 py-2 text-sm">
+                <i class="fas fa-play mr-2"></i> Run Scheduled Backups Now
+            </button>
                 <div class="text-xs text-purple-700 mt-2 sm:mt-0">
                     <i class="fas fa-info-circle mr-1"></i>
                     This will create backups for all companies with auto-backup enabled, regardless of their configured backup time.
