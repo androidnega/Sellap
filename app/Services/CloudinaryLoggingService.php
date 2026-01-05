@@ -16,14 +16,25 @@ class CloudinaryLoggingService {
     private $enabled = true;
     
     public function __construct() {
-        // Always start with disabled state - set this FIRST before any other code
-        $this->enabled = false;
+        // CRITICAL: Set enabled to false FIRST - before ANY other code
+        // Wrap even this in try-catch to prevent any errors
+        try {
+            $this->enabled = false;
+        } catch (\Throwable $e) {
+            // If even setting enabled fails, we're in trouble - but continue
+        }
+        
+        // CRITICAL: Check Database class availability BEFORE doing ANYTHING else
+        // Use @ suppression with false flag to prevent ANY autoload attempts
+        // Return immediately if Database doesn't exist - don't even try
+        if (!@class_exists('Database', false)) {
+            return; // Exit immediately - Database not available
+        }
         
         // Wrap EVERYTHING in try-catch to prevent any fatal errors
         try {
-            // Check if Database class is available FIRST - before any other operations
-            // Use multiple checks and wrap in try-catch
-            if (!@class_exists('Database') && !@class_exists('\Database')) {
+            // Double-check Database class exists (with false flag)
+            if (!@class_exists('Database', false) && !@class_exists('\Database', false)) {
                 return; // Exit early if Database not available
             }
             
