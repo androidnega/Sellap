@@ -21,34 +21,19 @@
     <form method="POST" action="<?= BASE_URL_PATH ?>/dashboard/swaps/store" class="space-y-6">
         <!-- Customer Information -->
         <div class="bg-white p-6 rounded-lg shadow-sm border">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Customer Information</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">Customer Information</h2>
+            <p class="text-sm text-gray-600 mb-4">Enter customer details or search for an existing customer</p>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="customer_name" class="block text-sm font-medium text-gray-700 mb-1">
-                        Customer Name <span class="text-red-500">*</span>
-                    </label>
-                    <input type="text" id="customer_name" name="customer_name" required 
-                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                           placeholder="Enter customer name">
-                </div>
-                
-                <div>
-                    <label for="customer_contact" class="block text-sm font-medium text-gray-700 mb-1">
-                        Contact <span class="text-red-500">*</span>
-                    </label>
-                    <input type="text" id="customer_contact" name="customer_contact" required 
-                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                           placeholder="Phone number">
-                </div>
-            </div>
-
-            <div class="mt-4">
-                <label for="customer_search" class="block text-sm font-medium text-gray-700 mb-1">Existing Customer (Search)</label>
+            <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <label for="customer_search" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-search mr-1 text-blue-600"></i>Search Existing Customer
+                </label>
+                <p class="text-xs text-gray-600 mb-2">Quickly find and select a customer from your database</p>
                 <div class="relative">
-                    <input type="text" id="customer_search" placeholder="Search customers by name or phone number..." 
+                    <input type="text" id="customer_search" placeholder="Type customer name or phone number to search..." 
                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                           autocomplete="off">
+                           autocomplete="off"
+                           aria-label="Search for existing customer">
                     <div id="customer_dropdown" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg hidden max-h-60 overflow-y-auto mt-1"></div>
                 </div>
                 <!-- Hidden select for form submission -->
@@ -57,14 +42,16 @@
                 </select>
                 
                 <!-- Selected Customer Display -->
-                <div id="selected_customer_info" class="hidden mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div id="selected_customer_info" class="hidden mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
                     <div class="flex justify-between items-start">
                         <div>
-                            <div class="font-medium text-blue-800" id="selected_customer_name">Customer Name</div>
-                            <div class="text-sm text-blue-600" id="selected_customer_phone">Phone Number</div>
+                            <div class="text-xs text-gray-600 mb-1">Selected Customer:</div>
+                            <div class="font-medium text-green-800" id="selected_customer_name">Customer Name</div>
+                            <div class="text-sm text-green-600" id="selected_customer_phone">Phone Number</div>
                         </div>
                         <button type="button" id="clear_customer_btn" 
-                                class="text-blue-600 hover:text-blue-800 focus:outline-none">
+                                class="text-green-600 hover:text-green-800 focus:outline-none"
+                                aria-label="Clear selected customer">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
@@ -72,22 +59,56 @@
                     </div>
                 </div>
             </div>
+
+            <div class="border-t border-gray-200 pt-4">
+                <p class="text-sm font-medium text-gray-700 mb-3">Or Enter New Customer Details:</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="customer_name" class="block text-sm font-medium text-gray-700 mb-1">
+                            Full Name <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" id="customer_name" name="customer_name" required 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="e.g. John Doe"
+                               aria-required="true"
+                               aria-describedby="customer_name_help">
+                        <p id="customer_name_help" class="mt-1 text-xs text-gray-500">Enter the customer's full name</p>
+                    </div>
+                    
+                    <div>
+                        <label for="customer_contact" class="block text-sm font-medium text-gray-700 mb-1">
+                            Phone Number <span class="text-red-500">*</span>
+                        </label>
+                        <input type="tel" id="customer_contact" name="customer_contact" required 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="e.g. 0244123456 or 0501234567"
+                               aria-required="true"
+                               aria-describedby="customer_contact_help">
+                        <p id="customer_contact_help" class="mt-1 text-xs text-gray-500">Enter customer's phone number</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Store Product -->
         <div class="bg-white p-6 rounded-lg shadow-sm border">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Store Product</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">Store Product</h2>
+            <p class="text-sm text-gray-600 mb-4">Select the product from your inventory to give to the customer</p>
             
             <div>
                 <label for="product_search" class="block text-sm font-medium text-gray-700 mb-1">
-                    Select Product <span class="text-red-500">*</span>
+                    <i class="fas fa-box mr-1 text-blue-600"></i>Search & Select Product <span class="text-red-500">*</span>
                 </label>
+                <p class="text-xs text-gray-500 mb-2">Start typing to search by product name, brand, or model</p>
                 <div class="relative">
-                    <input type="text" id="product_search" placeholder="Search products by name, brand, or model..." 
+                    <input type="text" id="product_search" placeholder="Type product name, brand, or model (e.g. iPhone 13, Samsung Galaxy)" 
                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                           autocomplete="off" required>
+                           autocomplete="off" required
+                           aria-required="true"
+                           aria-describedby="product_search_help">
                     <div id="product_dropdown" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg hidden max-h-60 overflow-y-auto mt-1"></div>
                 </div>
+                <p id="product_search_help" class="mt-1 text-xs text-gray-500">Select a product from the dropdown that appears as you type</p>
                 <!-- Hidden select for form submission -->
                 <select id="store_product_id" name="store_product_id" class="hidden" required>
                     <option value="">Select product to give customer</option>
@@ -95,7 +116,7 @@
             </div>
             
             <div id="storeProductInfo" class="mt-4 p-4 bg-gray-50 rounded-lg hidden">
-                <h3 class="font-medium text-gray-800">Selected Product Details</h3>
+                <h3 class="font-medium text-gray-800 mb-2">Selected Product Details</h3>
                 <div id="storeProductDetails" class="text-sm text-gray-600"></div>
             </div>
             
@@ -103,11 +124,13 @@
             <div id="selected_product_info" class="hidden mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
                 <div class="flex justify-between items-start">
                     <div>
+                        <div class="text-xs text-gray-600 mb-1">Selected Product:</div>
                         <div class="font-medium text-green-800" id="selected_product_name">Product Name</div>
                         <div class="text-sm text-green-600" id="selected_product_details">Brand - Price</div>
                     </div>
                     <button type="button" id="clear_product_btn" 
-                            class="text-green-600 hover:text-green-800 focus:outline-none">
+                            class="text-green-600 hover:text-green-800 focus:outline-none"
+                            aria-label="Clear selected product">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
@@ -118,16 +141,19 @@
 
         <!-- Customer's Product -->
         <div class="bg-white p-6 rounded-lg shadow-sm border">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Customer's Product</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">Customer's Product</h2>
+            <p class="text-sm text-gray-600 mb-4">Enter details about the product the customer is bringing in for swap</p>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label for="customer_brand_id" class="block text-sm font-medium text-gray-700 mb-1">
-                        Brand <span class="text-red-500">*</span>
+                        <i class="fas fa-tag mr-1 text-blue-600"></i>Brand <span class="text-red-500">*</span>
                     </label>
                     <div class="relative">
                         <select id="customer_brand_id" name="customer_brand_id" required 
-                               class="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer">
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+                               aria-required="true"
+                               aria-describedby="customer_brand_help">
                             <option value="">Select Brand</option>
                             <!-- Brands will be loaded dynamically -->
                         </select>
@@ -137,23 +163,30 @@
                             </svg>
                         </div>
                     </div>
+                    <p id="customer_brand_help" class="mt-1 text-xs text-gray-500">Select the brand of the customer's device</p>
                     <!-- Hidden input to store brand name for form submission -->
                     <input type="hidden" id="customer_brand" name="customer_brand">
                 </div>
                 
                 <div>
                     <label for="customer_model" class="block text-sm font-medium text-gray-700 mb-1">
-                        Model <span class="text-red-500">*</span>
+                        <i class="fas fa-mobile-alt mr-1 text-blue-600"></i>Model <span class="text-red-500">*</span>
                     </label>
                     <input type="text" id="customer_model" name="customer_model" required 
                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                           placeholder="e.g. iPhone 12, Galaxy S21">
+                           placeholder="e.g. iPhone 12 Pro, Galaxy S21 Ultra"
+                           aria-required="true"
+                           aria-describedby="customer_model_help">
+                    <p id="customer_model_help" class="mt-1 text-xs text-gray-500">Enter the specific model name</p>
                 </div>
             </div>
             
             <!-- Dynamic Spec Fields Container -->
             <div id="customerSpecsContainer" class="mt-4 hidden">
-                <h5 class="text-sm font-semibold text-gray-700 mb-3">Device Specifications</h5>
+                <h5 class="text-sm font-semibold text-gray-700 mb-3">
+                    <i class="fas fa-info-circle mr-1 text-blue-600"></i>Device Specifications
+                </h5>
+                <p class="text-xs text-gray-500 mb-3">Additional details about the device (e.g. Storage, Color, etc.)</p>
                 <div id="customerDynamicSpecs" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Dynamic fields will be inserted here -->
                 </div>
@@ -161,13 +194,16 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <div>
-                    <label for="customer_condition" class="block text-sm font-medium text-gray-700 mb-1">Condition</label>
+                    <label for="customer_condition" class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="fas fa-check-circle mr-1 text-blue-600"></i>Condition
+                    </label>
                     <div class="relative">
                         <select id="customer_condition" name="customer_condition" 
-                                class="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer">
-                            <option value="used">Used</option>
-                            <option value="new">New</option>
-                            <option value="faulty">Faulty</option>
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+                                aria-describedby="customer_condition_help">
+                            <option value="used">Used - Good working condition</option>
+                            <option value="new">New - Unused, sealed</option>
+                            <option value="faulty">Faulty - Has issues or damage</option>
                         </select>
                         <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -175,36 +211,49 @@
                             </svg>
                         </div>
                     </div>
+                    <p id="customer_condition_help" class="mt-1 text-xs text-gray-500">Select the condition of the customer's device</p>
                 </div>
                 
                 <div>
                     <label for="swap_value" class="block text-sm font-medium text-gray-700 mb-1">
-                        Estimated Value (₵) <span class="text-red-500">*</span>
+                        <i class="fas fa-money-bill-wave mr-1 text-blue-600"></i>Estimated Value (₵) <span class="text-red-500">*</span>
                     </label>
                     <input type="number" id="swap_value" name="swap_value" step="0.01" min="0" required 
                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                           placeholder="0.00">
+                           placeholder="0.00"
+                           aria-required="true"
+                           aria-describedby="swap_value_help">
+                    <p id="swap_value_help" class="mt-1 text-xs text-gray-500">Enter the estimated value of the customer's device in Ghana Cedis</p>
                 </div>
             </div>
         </div>
 
         <!-- Swap Calculation -->
         <div class="bg-white p-6 rounded-lg shadow-sm border">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Swap Calculation</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">Swap Calculation</h2>
+            <p class="text-sm text-gray-600 mb-4">Enter the cash amount customer needs to add to complete the swap</p>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label for="cash_added" class="block text-sm font-medium text-gray-700 mb-1">Cash to Add (₵)</label>
+                    <label for="cash_added" class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="fas fa-coins mr-1 text-blue-600"></i>Cash to Add (₵)
+                    </label>
                     <input type="number" id="cash_added" name="cash_added" step="0.01" min="0" 
                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                           placeholder="0.00">
+                           placeholder="0.00"
+                           aria-describedby="cash_added_help">
+                    <p id="cash_added_help" class="mt-1 text-xs text-gray-500">Additional cash customer pays (calculated automatically)</p>
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Total Transaction Value (₵)</label>
+                    <label for="total_value" class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="fas fa-calculator mr-1 text-blue-600"></i>Total Transaction Value (₵)
+                    </label>
                     <input type="text" id="total_value" readonly 
-                           class="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100"
-                           placeholder="0.00">
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 font-semibold"
+                           placeholder="0.00"
+                           aria-readonly="true">
+                    <p class="mt-1 text-xs text-gray-500">Total amount for this swap transaction</p>
                 </div>
             </div>
             
@@ -234,13 +283,18 @@
 
         <!-- Notes -->
         <div class="bg-white p-6 rounded-lg shadow-sm border">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Additional Notes</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">Additional Notes</h2>
+            <p class="text-sm text-gray-600 mb-4">Add any extra information about this swap transaction</p>
             
             <div>
-                <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea id="notes" name="notes" rows="3"
+                <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">
+                    <i class="fas fa-sticky-note mr-1 text-blue-600"></i>Notes (Optional)
+                </label>
+                <textarea id="notes" name="notes" rows="4"
                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Any additional notes about the swap..."></textarea>
+                          placeholder="Enter any additional notes about the swap, customer preferences, or special conditions..."
+                          aria-describedby="notes_help"></textarea>
+                <p id="notes_help" class="mt-1 text-xs text-gray-500">Optional: Add any relevant information about this swap</p>
             </div>
         </div>
 
