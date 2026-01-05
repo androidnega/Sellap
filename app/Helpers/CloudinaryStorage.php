@@ -39,8 +39,18 @@ class CloudinaryStorage {
      * Get CloudinaryLoggingService instance
      */
     public static function getLogger() {
+        // Only create logger if Database class is available
+        if (!class_exists('Database')) {
+            return null;
+        }
+        
         if (self::$loggingService === null) {
-            self::$loggingService = new \App\Services\CloudinaryLoggingService();
+            try {
+                self::$loggingService = new \App\Services\CloudinaryLoggingService();
+            } catch (\Exception $e) {
+                // If logger creation fails, return null
+                return null;
+            }
         }
         return self::$loggingService;
     }
