@@ -150,14 +150,27 @@ $companyId = $user['company_id'] ?? null;
                 <strong>Automatic backups</strong> are created daily at the configured time for companies with auto-backup enabled.
                 They are automatically deleted after 30 days to save disk space.
             </p>
+            <div class="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                <p class="text-xs text-yellow-800 mb-2">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    <strong>Important:</strong> Automatic backups require a cron job to be set up. 
+                    The "backup time" setting indicates when backups should run, but the cron job must be configured to trigger the scheduler.
+                </p>
+                <p class="text-xs text-yellow-700">
+                    <strong>Option 1 (Recommended):</strong> Set up a webhook/cron service to call this URL daily:<br>
+                    <code class="bg-yellow-100 px-2 py-1 rounded mt-1 inline-block">GET <?= BASE_URL_PATH ?>/api/admin/backups/run-cron?token=sellapp_backup_cron_2024</code>
+                </p>
+                <p class="text-xs text-yellow-700 mt-2">
+                    <strong>Option 2:</strong> Use the "Run Scheduled Backups Now" button below to manually trigger backups for testing.
+                </p>
+            </div>
             <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
                 <button id="btnRunScheduled" class="bg-purple-600 hover:bg-purple-700 text-white rounded px-4 py-2 text-sm">
                     <i class="fas fa-play mr-2"></i> Run Scheduled Backups Now
                 </button>
                 <div class="text-xs text-purple-700 mt-2 sm:mt-0">
                     <i class="fas fa-info-circle mr-1"></i>
-                    <strong>Cron Setup:</strong> Set up a daily cron job to call: 
-                    <code class="bg-purple-100 px-1 rounded">GET <?= BASE_URL_PATH ?>/api/admin/backups/run-cron?token=sellapp_backup_cron_2024</code>
+                    This will create backups for all companies with auto-backup enabled, regardless of their configured backup time.
                 </div>
             </div>
         </div>
@@ -1009,6 +1022,10 @@ $companyId = $user['company_id'] ?? null;
         const btn = document.getElementById('btnRunScheduled');
         const originalText = btn.innerHTML;
         
+        if (!confirm('This will create backups for all companies with auto-backup enabled. Continue?')) {
+            return;
+        }
+        
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Running...';
         
@@ -1025,23 +1042,46 @@ $companyId = $user['company_id'] ?? null;
             
             if (data.success) {
                 const results = data.results;
-                let message = `Scheduled backups completed!\n\n`;
-                message += `Companies: ${results.companies.filter(c => c.success).length}/${results.companies.length}\n`;
+                let message = `✅ Scheduled backups completed!\n\n`;
+                
+                const successfulCompanies = results.companies.filter(c => c.success);
+                const failedCompanies = results.companies.filter(c => !c.success);
+                
+                message += `✅ Companies backed up: ${successfulCompanies.length}\n`;
+                if (successfulCompanies.length > 0) {
+                    message += successfulCompanies.map(c => `   • ${c.company_name} (ID: ${c.backup_id})`).join('\n') + '\n';
+                }
+                
                 if (results.system && results.system.success) {
-                    message += `System backup: Created (ID: ${results.system.backup_id})\n`;
+                    message += `\n✅ System backup: Created (ID: ${results.system.backup_id})\n`;
                 }
+                
+                if (failedCompanies.length > 0) {
+                    message += `\n❌ Failed: ${failedCompanies.length} companies\n`;
+                    failedCompanies.forEach(c => {
+                        message += `   • ${c.company_name}: ${c.error || 'Unknown error'}\n`;
+                    });
+                }
+                
                 if (results.errors && results.errors.length > 0) {
-                    message += `\nErrors: ${results.errors.length}`;
+                    message += `\n⚠️ Errors: ${results.errors.length}\n`;
+                    results.errors.forEach(err => {
+                        message += `   • ${err}\n`;
+                    });
                 }
+                
                 alert(message);
+                
+                // Reload data
                 loadAutomaticBackups();
                 loadBackupStats();
+                loadBackups();
             } else {
-                alert('Failed to run scheduled backups: ' + (data.error || 'Unknown error'));
+                alert('❌ Failed to run scheduled backups: ' + (data.error || 'Unknown error'));
             }
         } catch (error) {
             console.error('Error running scheduled backups:', error);
-            alert('Error running scheduled backups');
+            alert('❌ Error running scheduled backups: ' + error.message);
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;
