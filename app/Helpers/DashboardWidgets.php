@@ -2,6 +2,41 @@
 
 namespace App\Helpers;
 
+/**
+ * Check if New Year message should be displayed
+ * Shows only in January, automatically disables after January ends
+ */
+function shouldShowNewYearMessage() {
+    $currentMonth = (int)date('n'); // 1-12
+    return $currentMonth === 1; // Only show in January
+}
+
+/**
+ * Get New Year message HTML
+ */
+function getNewYearMessage() {
+    if (!shouldShowNewYearMessage()) {
+        return '';
+    }
+    
+    $currentYear = date('Y');
+    return '
+    <div class="mb-4 sm:mb-6 bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 rounded-lg shadow-lg p-4 sm:p-6 text-white animate-pulse">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+            <div class="flex items-center gap-3 sm:gap-4 flex-1">
+                <div class="text-3xl sm:text-4xl md:text-5xl animate-bounce">🎉</div>
+                <div>
+                    <h2 class="text-xl sm:text-2xl md:text-3xl font-bold mb-1">Happy New Year ' . $currentYear . '!</h2>
+                    <p class="text-sm sm:text-base opacity-90">Wishing you a prosperous and successful year ahead!</p>
+                </div>
+            </div>
+            <div class="text-2xl sm:text-3xl md:text-4xl">
+                🎊✨🎈
+            </div>
+        </div>
+    </div>';
+}
+
 use App\Models\CompanyModule;
 
 /**

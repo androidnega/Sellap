@@ -11,7 +11,28 @@ $active_repairs = $active_repairs ?? 0;
 $pending_swaps = $pending_swaps ?? 0;
 
 ob_start();
+
+// Show New Year message in January
+$currentMonth = (int)date('n');
+$showNewYear = ($currentMonth === 1);
+$currentYear = date('Y');
 ?>
+            <?php if ($showNewYear): ?>
+            <div class="mb-4 sm:mb-6 bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 rounded-lg shadow-lg p-4 sm:p-6 text-white animate-pulse">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+                    <div class="flex items-center gap-3 sm:gap-4 flex-1">
+                        <div class="text-3xl sm:text-4xl md:text-5xl animate-bounce">🎉</div>
+                        <div>
+                            <h2 class="text-xl sm:text-2xl md:text-3xl font-bold mb-1">Happy New Year <?= $currentYear ?>!</h2>
+                            <p class="text-sm sm:text-base opacity-90">Wishing you a prosperous and successful year ahead!</p>
+                        </div>
+                    </div>
+                    <div class="text-2xl sm:text-3xl md:text-4xl">
+                        🎊✨🎈
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
             <div class="mb-6">
                 <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">Company Dashboard</h2>
                 <p class="text-sm sm:text-base text-gray-600">Monitor your company's performance and operations</p>
