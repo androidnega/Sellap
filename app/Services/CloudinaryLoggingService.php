@@ -113,6 +113,31 @@ class CloudinaryLoggingService {
             // Catch any other Throwable that might occur during initialization
             $this->enabled = false;
         }
+        
+        // Top-level catch for ANY error that might occur in constructor
+        } catch (\Throwable $e) {
+            // If ANY error occurs in constructor, just disable logging
+            // Don't throw - this ensures the object is created successfully
+            try {
+                $this->enabled = false;
+            } catch (\Throwable $e2) {
+                // If even setting enabled fails, ignore it
+            }
+        } catch (\Error $e) {
+            // Catch Error separately
+            try {
+                $this->enabled = false;
+            } catch (\Throwable $e2) {
+                // Ignore
+            }
+        } catch (\Exception $e) {
+            // Catch Exception separately
+            try {
+                $this->enabled = false;
+            } catch (\Throwable $e2) {
+                // Ignore
+            }
+        }
     }
     
     /**
