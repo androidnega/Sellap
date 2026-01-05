@@ -1,9 +1,17 @@
 <?php
 // Technician Dashboard View
+// Get user data from session/globals
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+$userData = $_SESSION['user'] ?? null;
+$companyId = $userData['company_id'] ?? $GLOBALS['companyId'] ?? null;
+$userId = $userData['id'] ?? $GLOBALS['userId'] ?? null;
+
 use App\Helpers\DashboardWidgets;
 $currentYear = date('Y');
 $showNewYear = DashboardWidgets::shouldShowNewYearMessage();
-$todayRepairs = DashboardWidgets::getTodaySalesCount($companyId ?? null, $userId ?? null, 'technician');
+$todayRepairs = DashboardWidgets::getTodaySalesCount($companyId, $userId, 'technician');
 ?>
 
 <div class="p-3 sm:p-4 pb-4 max-w-full bg-white min-h-screen">
