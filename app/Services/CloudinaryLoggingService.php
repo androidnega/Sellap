@@ -86,12 +86,14 @@ class CloudinaryLoggingService {
             }
             
             // Create temporary file in memory (not on disk)
-            $tempFile = tmpfile();
+            // Use php://temp which stays in memory for small files
+            $tempFile = fopen('php://temp', 'r+');
             if ($tempFile === false) {
                 return;
             }
             
             fwrite($tempFile, $logContent);
+            rewind($tempFile);
             $tempPath = stream_get_meta_data($tempFile)['uri'];
             
             // Upload to Cloudinary

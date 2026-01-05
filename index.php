@@ -19,7 +19,11 @@ register_shutdown_function(function() {
         
         // Log the fatal error to Cloudinary (not file system)
         try {
-            CloudinaryStorage::logError("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
+            if (class_exists('CloudinaryStorage')) {
+                CloudinaryStorage::logError("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
+            } else {
+                error_log("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
+            }
         } catch (\Exception $e) {
             // Fallback to PHP error_log only if Cloudinary fails
             error_log("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
@@ -77,8 +81,17 @@ set_error_handler(function($severity, $message, $file, $line) {
         return false;
     }
     
-    // Log the error
-    error_log("PHP Error [$severity]: $message in $file on line $line");
+    // Log the error to Cloudinary (not file system)
+    try {
+        if (class_exists('CloudinaryStorage')) {
+            CloudinaryStorage::logError("PHP Error [$severity]: $message in $file on line $line");
+        } else {
+            error_log("PHP Error [$severity]: $message in $file on line $line");
+        }
+    } catch (\Exception $e) {
+        // Fallback to PHP error_log if Cloudinary fails
+        error_log("PHP Error [$severity]: $message in $file on line $line");
+    }
     
     // For fatal errors, let the shutdown function handle it
     if (in_array($severity, [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
@@ -323,8 +336,19 @@ try {
     }
     
     // Log the exception
-    error_log("Uncaught exception: " . $e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine());
-    error_log("Stack trace: " . $e->getTraceAsString());
+    // Log to Cloudinary instead of file system
+    try {
+        if (class_exists('CloudinaryStorage')) {
+            CloudinaryStorage::logError("Uncaught exception: " . $e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine());
+            CloudinaryStorage::logError("Stack trace: " . $e->getTraceAsString());
+        } else {
+            error_log("Uncaught exception: " . $e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine());
+            error_log("Stack trace: " . $e->getTraceAsString());
+        }
+    } catch (\Exception $logError) {
+        error_log("Uncaught exception: " . $e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine());
+        error_log("Stack trace: " . $e->getTraceAsString());
+    }
     
     $isApiRequest = strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false;
     
