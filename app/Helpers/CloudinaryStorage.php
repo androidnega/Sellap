@@ -152,9 +152,21 @@ class CloudinaryStorage {
      * @param string $level Log level
      */
     public static function log($message, $level = 'info') {
-        $logger = self::getLogger();
-        if ($logger) {
-            $logger->log($message, $level);
+        // Only try to log if Database class is available
+        if (!class_exists('Database')) {
+            error_log($message);
+            return;
+        }
+        
+        try {
+            $logger = self::getLogger();
+            if ($logger) {
+                $logger->log($message, $level);
+            } else {
+                error_log($message);
+            }
+        } catch (\Exception $e) {
+            error_log($message);
         }
     }
     
@@ -162,9 +174,25 @@ class CloudinaryStorage {
      * Log error (replaces error_log for errors)
      */
     public static function logError($message, $context = []) {
-        $logger = self::getLogger();
-        if ($logger) {
-            $logger->error($message, $context);
+        // Only try to log if Database class is available
+        // This prevents errors when called before database config is loaded
+        if (!class_exists('Database')) {
+            // Fallback to PHP error_log if Database not available
+            error_log($message);
+            return;
+        }
+        
+        try {
+            $logger = self::getLogger();
+            if ($logger) {
+                $logger->error($message, $context);
+            } else {
+                // Fallback to PHP error_log if logger not available
+                error_log($message);
+            }
+        } catch (\Exception $e) {
+            // Fallback to PHP error_log if Cloudinary logging fails
+            error_log($message);
         }
     }
 }
