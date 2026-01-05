@@ -150,9 +150,16 @@ $companyId = $user['company_id'] ?? null;
                 <strong>Automatic backups</strong> are created daily at the configured time for companies with auto-backup enabled.
                 They are automatically deleted after 30 days to save disk space.
             </p>
-            <button id="btnRunScheduled" class="bg-purple-600 hover:bg-purple-700 text-white rounded px-4 py-2 text-sm">
-                <i class="fas fa-play mr-2"></i> Run Scheduled Backups Now
-            </button>
+            <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+                <button id="btnRunScheduled" class="bg-purple-600 hover:bg-purple-700 text-white rounded px-4 py-2 text-sm">
+                    <i class="fas fa-play mr-2"></i> Run Scheduled Backups Now
+                </button>
+                <div class="text-xs text-purple-700 mt-2 sm:mt-0">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    <strong>Cron Setup:</strong> Set up a daily cron job to call: 
+                    <code class="bg-purple-100 px-1 rounded">GET <?= BASE_URL_PATH ?>/api/admin/backups/run-cron?token=sellapp_backup_cron_2024</code>
+                </div>
+            </div>
         </div>
         <div id="automaticBackupsStats" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             <!-- Stats will be loaded here -->
@@ -1050,6 +1057,29 @@ $companyId = $user['company_id'] ?? null;
                 const stats = data.stats;
                 const statsPanel = document.getElementById('automaticBackupsStats');
                 
+                // Format last run time
+                let lastRunHtml = '<div class="text-xs text-gray-500 mt-1">Never</div>';
+                if (data.last_run_time) {
+                    const lastRun = new Date(data.last_run_time);
+                    const now = new Date();
+                    const diffMs = now - lastRun;
+                    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const diffDays = Math.floor(diffHours / 24);
+                    
+                    let timeAgo = '';
+                    if (diffDays > 0) {
+                        timeAgo = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+                    } else if (diffHours > 0) {
+                        timeAgo = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+                    } else {
+                        const diffMins = Math.floor(diffMs / (1000 * 60));
+                        timeAgo = diffMins > 0 ? `${diffMins} minute${diffMins > 1 ? 's' : ''} ago` : 'Just now';
+                    }
+                    
+                    const statusColor = diffDays > 1 ? 'text-red-600' : diffHours > 24 ? 'text-yellow-600' : 'text-green-600';
+                    lastRunHtml = `<div class="text-xs ${statusColor} mt-1">${timeAgo}</div><div class="text-xs text-gray-500">${lastRun.toLocaleString()}</div>`;
+                }
+                
                 statsPanel.innerHTML = `
                     <div class="bg-blue-50 rounded p-4">
                         <div class="text-sm text-gray-600">Total Automatic</div>
@@ -1064,8 +1094,8 @@ $companyId = $user['company_id'] ?? null;
                         <div class="text-2xl font-bold text-gray-900">${formatFileSize(stats.total_size || 0)}</div>
                     </div>
                     <div class="bg-yellow-50 rounded p-4">
-                        <div class="text-sm text-gray-600">Companies</div>
-                        <div class="text-2xl font-bold text-gray-900">${stats.by_company ? stats.by_company.length : 0}</div>
+                        <div class="text-sm text-gray-600">Last Run</div>
+                        ${lastRunHtml}
                     </div>
                 `;
             }

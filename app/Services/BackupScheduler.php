@@ -26,7 +26,9 @@ class BackupScheduler {
         $results = [
             'companies' => [],
             'system' => null,
-            'errors' => []
+            'errors' => [],
+            'started_at' => date('Y-m-d H:i:s'),
+            'completed_at' => null
         ];
 
         try {
@@ -107,6 +109,10 @@ class BackupScheduler {
             // Sync backups from Cloudinary
             $this->syncBackupsFromCloudinary();
 
+            // Update last run timestamp in system settings
+            $this->updateLastBackupRunTime();
+
+            $results['completed_at'] = date('Y-m-d H:i:s');
             return $results;
         } catch (\Exception $e) {
             error_log("BackupScheduler error: " . $e->getMessage());
@@ -610,6 +616,48 @@ class BackupScheduler {
             
         } catch (\Exception $e) {
             error_log("Error syncing backups from Cloudinary: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Update last backup run time in system settings
+     */
+    private function updateLastBackupRunTime() {
+        try {
+            $timestamp = date('Y-m-d H:i:s');
+            
+            // Check if setting exists
+            $checkStmt = $this->db->prepare("SELECT id FROM system_settings WHERE setting_key = 'last_backup_run_time'");
+            $checkStmt->execute();
+            $exists = $checkStmt->fetch();
+            
+            if ($exists) {
+                // Update existing
+                $stmt = $this->db->prepare("UPDATE system_settings SET setting_value = ? WHERE setting_key = 'last_backup_run_time'");
+                $stmt->execute([$timestamp]);
+            } else {
+                // Insert new
+                $stmt = $this->db->prepare("INSERT INTO system_settings (setting_key, setting_value) VALUES ('last_backup_run_time', ?)");
+                $stmt->execute([$timestamp]);
+            }
+        } catch (\Exception $e) {
+            error_log("Error updating last backup run time: " . $e->getMessage());
+            // Don't fail the backup if this fails
+        }
+    }
+
+    /**
+     * Get last backup run time
+     */
+    public function getLastBackupRunTime() {
+        try {
+            $stmt = $this->db->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'last_backup_run_time'");
+            $stmt->execute();
+            $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+            return $result ? $result['setting_value'] : null;
+        } catch (\Exception $e) {
+            error_log("Error getting last backup run time: " . $e->getMessage());
+            return null;
         }
     }
 }

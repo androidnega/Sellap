@@ -3352,6 +3352,13 @@ $router->get('api/admin/backups/stats', function() {
     $controller->stats();
 });
 
+// Run scheduled backups via GET (for cron jobs/webhooks)
+// Usage: GET /api/admin/backups/run-cron?token=your_secret_token
+$router->get('api/admin/backups/run-cron', function() {
+    $controller = new \App\Controllers\BackupSchedulerController();
+    $controller->runCron();
+});
+
 // Company Backup Settings Routes
 $router->get('api/company/{id}/backup-settings', function($id) {
     $controller = new \App\Controllers\BackupController();

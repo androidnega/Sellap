@@ -66,14 +66,55 @@ class BackupSchedulerController {
 
         try {
             $stats = $this->scheduler->getBackupStats();
+            $lastRunTime = $this->scheduler->getLastBackupRunTime();
             
             echo json_encode([
                 'success' => true,
-                'stats' => $stats
+                'stats' => $stats,
+                'last_run_time' => $lastRunTime
             ]);
         } catch (\Exception $e) {
             http_response_code(500);
             error_log("BackupSchedulerController::stats error: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Run scheduled backups via GET (for cron jobs/webhooks)
+     * Requires a secret token for security
+     */
+    public function runCron() {
+        header('Content-Type: application/json');
+        
+        // Check for secret token (can be set in environment or system_settings)
+        $secretToken = getenv('BACKUP_CRON_SECRET') ?: 'sellapp_backup_cron_2024';
+        
+        // Get token from query parameter or header
+        $providedToken = $_GET['token'] ?? $_SERVER['HTTP_X_BACKUP_TOKEN'] ?? '';
+        
+        if (empty($providedToken) || $providedToken !== $secretToken) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'error' => 'Invalid or missing token']);
+            return;
+        }
+
+        try {
+            $results = $this->scheduler->runScheduledBackups();
+            
+            echo json_encode([
+                'success' => true,
+                'results' => $results,
+                'message' => 'Scheduled backups completed',
+                'started_at' => $results['started_at'] ?? null,
+                'completed_at' => $results['completed_at'] ?? null
+            ]);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            error_log("BackupSchedulerController::runCron error: " . $e->getMessage());
             echo json_encode([
                 'success' => false,
                 'error' => $e->getMessage()
