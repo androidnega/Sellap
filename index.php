@@ -17,6 +17,7 @@ register_shutdown_function(function() {
         
         // Log the fatal error - use error_log directly to avoid any class loading issues
         // Cloudinary logging will be handled by the application after it's fully loaded
+        // DO NOT use CloudinaryStorage here as Database class may not be loaded yet
         error_log("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
         
         // Determine if this is an API request
