@@ -349,16 +349,53 @@ class CloudinaryService {
                 ];
             }
             
-            // Get the secure URL
-            $url = $this->cloudinary->raw($publicId)->toUrl();
+            // Use Admin API to get download URL for raw files
+            // This ensures proper authentication
+            $adminApi = $this->cloudinary->adminApi();
             
-            // Download the file
-            $fileContent = file_get_contents($url);
+            try {
+                // Get asset details first
+                $asset = $adminApi->asset($publicId, [
+                    'resource_type' => 'raw'
+                ]);
+                
+                // Use the secure_url from the asset response
+                $url = $asset['secure_url'] ?? null;
+                
+                if (!$url) {
+                    // Fallback: generate signed URL
+                    $url = $this->cloudinary->raw($publicId)->toUrl([
+                        'secure' => true,
+                        'resource_type' => 'raw'
+                    ]);
+                }
+            } catch (\Exception $e) {
+                // If Admin API fails, try generating signed URL directly
+                error_log("Admin API failed, trying direct URL: " . $e->getMessage());
+                $url = $this->cloudinary->raw($publicId)->toUrl([
+                    'secure' => true,
+                    'resource_type' => 'raw'
+                ]);
+            }
             
-            if ($fileContent === false) {
+            // Use cURL with proper headers for authenticated requests
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 300); // 5 minute timeout for large files
+            
+            $fileContent = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+            
+            if ($fileContent === false || $httpCode !== 200) {
+                $errorMsg = $curlError ?: "HTTP $httpCode";
+                error_log("Failed to download from Cloudinary: $errorMsg (URL: $url)");
                 return [
                     'success' => false,
-                    'error' => 'Failed to download file from Cloudinary'
+                    'error' => "Failed to download file from Cloudinary: $errorMsg"
                 ];
             }
             
@@ -384,6 +421,7 @@ class CloudinaryService {
                 'size' => $written
             ];
         } catch (\Exception $e) {
+            error_log("Cloudinary download error: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => $e->getMessage()
