@@ -16,13 +16,15 @@ class CloudinaryLoggingService {
     private $enabled = true;
     
     public function __construct() {
+        // Always start with disabled state
+        $this->enabled = false;
+        
+        // Check if Database class is available FIRST - before any other operations
+        if (!class_exists('Database')) {
+            return; // Exit early if Database not available
+        }
+        
         try {
-            // Check if Database class is available
-            if (!class_exists('Database')) {
-                $this->enabled = false;
-                return;
-            }
-            
             $db = \Database::getInstance()->getConnection();
             $settingsQuery = $db->query("SELECT setting_key, setting_value FROM system_settings");
             $settings = $settingsQuery->fetchAll(\PDO::FETCH_KEY_PAIR);
@@ -31,10 +33,11 @@ class CloudinaryLoggingService {
             $this->cloudinaryService->loadFromSettings($settings);
             
             // Check if Cloudinary is configured
-            if (!$this->cloudinaryService->isConfigured()) {
-                $this->enabled = false;
+            if ($this->cloudinaryService->isConfigured()) {
+                $this->enabled = true;
             }
         } catch (\Exception $e) {
+            // Silently fail - logging is optional
             $this->enabled = false;
         }
     }

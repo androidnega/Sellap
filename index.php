@@ -15,17 +15,9 @@ register_shutdown_function(function() {
             ob_end_clean();
         }
         
-        // Log the fatal error - try Cloudinary if available, otherwise use error_log
-        try {
-            if (class_exists('CloudinaryStorage') && class_exists('Database')) {
-                CloudinaryStorage::logError("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
-            } else {
-                error_log("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
-            }
-        } catch (\Exception $e) {
-            // Fallback to PHP error_log only if Cloudinary fails
-            error_log("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
-        }
+        // Log the fatal error - use error_log directly to avoid any class loading issues
+        // Cloudinary logging will be handled by the application after it's fully loaded
+        error_log("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
         
         // Determine if this is an API request
         $isApiRequest = strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false;
