@@ -40,15 +40,15 @@ class DatabaseSessionHandler implements \SessionHandlerInterface {
         }
     }
     
-    public function open($savePath, $sessionName) {
+    public function open($savePath, $sessionName): bool {
         return true;
     }
     
-    public function close() {
+    public function close(): bool {
         return true;
     }
     
-    public function read($sessionId) {
+    public function read($sessionId): string|false {
         try {
             $stmt = $this->db->prepare("SELECT data FROM {$this->tableName} WHERE id = ?");
             $stmt->execute([$sessionId]);
@@ -58,14 +58,14 @@ class DatabaseSessionHandler implements \SessionHandlerInterface {
                 return $result['data'];
             }
         } catch (\Exception $e) {
-            // Log error but don't break session
-            CloudinaryStorage::logError("Session read error: " . $e->getMessage());
+            // Don't use CloudinaryStorage here to avoid circular dependency
+            // Just silently fail - session will work without logging
         }
         
         return '';
     }
     
-    public function write($sessionId, $data) {
+    public function write($sessionId, $data): bool {
         try {
             $stmt = $this->db->prepare("
                 INSERT INTO {$this->tableName} (id, data, last_activity)
@@ -82,7 +82,7 @@ class DatabaseSessionHandler implements \SessionHandlerInterface {
         }
     }
     
-    public function destroy($sessionId) {
+    public function destroy($sessionId): bool {
         try {
             $stmt = $this->db->prepare("DELETE FROM {$this->tableName} WHERE id = ?");
             return $stmt->execute([$sessionId]);
@@ -92,7 +92,7 @@ class DatabaseSessionHandler implements \SessionHandlerInterface {
         }
     }
     
-    public function gc($maxLifetime) {
+    public function gc($maxLifetime): int|false {
         try {
             $stmt = $this->db->prepare("DELETE FROM {$this->tableName} WHERE last_activity < ?");
             $oldest = time() - $maxLifetime;
