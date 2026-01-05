@@ -601,6 +601,9 @@ class SwapController {
             exit;
         }
         
+        // Debug: Log swap data to see what's being retrieved
+        error_log("Swap show: Retrieved swap data - " . json_encode($swap));
+        
         $title = 'Swap Details';
         
         // Capture the view content
@@ -609,11 +612,28 @@ class SwapController {
         echo '<div class="container mx-auto p-6">';
         echo '<h1 class="text-2xl font-bold mb-4">Swap Details</h1>';
         if ($swap) {
+            // Get transaction code - check multiple possible column names
+            $transactionCode = $swap['transaction_code'] ?? $swap['unique_id'] ?? 'SWAP-' . str_pad($swap['id'] ?? 0, 6, '0', STR_PAD_LEFT);
+            
+            // Get status - check multiple possible column names
+            $status = $swap['status'] ?? $swap['swap_status'] ?? 'N/A';
+            if ($status === 'N/A' && isset($swap['swapped_item_status'])) {
+                $status = $swap['swapped_item_status'];
+            }
+            
+            // Get total value - check multiple possible column names
+            $totalValue = $swap['total_value'] ?? $swap['final_price'] ?? $swap['added_cash'] ?? 0;
+            
+            // Get customer name
+            $customerName = $swap['customer_name'] ?? 'N/A';
+            
             echo '<div class="bg-white p-6 rounded-lg shadow">';
-            echo '<p><strong>Transaction Code:</strong> ' . htmlspecialchars($swap['transaction_code'] ?? 'N/A') . '</p>';
-            echo '<p><strong>Customer:</strong> ' . htmlspecialchars($swap['customer_name'] ?? 'N/A') . '</p>';
-            echo '<p><strong>Status:</strong> ' . htmlspecialchars($swap['status'] ?? 'N/A') . '</p>';
-            echo '<p><strong>Total Value:</strong> ₵' . number_format($swap['total_value'] ?? 0, 2) . '</p>';
+            echo '<p><strong>Transaction Code:</strong> ' . htmlspecialchars($transactionCode) . '</p>';
+            echo '<p><strong>Customer:</strong> ' . htmlspecialchars($customerName) . '</p>';
+            echo '<p><strong>Status:</strong> ' . htmlspecialchars($status) . '</p>';
+            echo '<p><strong>Total Value:</strong> ₵' . number_format((float)$totalValue, 2) . '</p>';
+            echo '<p><strong>Added Cash:</strong> ₵' . number_format((float)($swap['added_cash'] ?? 0), 2) . '</p>';
+            echo '<p><strong>Estimated Value:</strong> ₵' . number_format((float)($swap['estimated_value'] ?? 0), 2) . '</p>';
             echo '</div>';
         }
         echo '</div>';
