@@ -318,8 +318,11 @@ try {
         }
     }
     
-    // Load Cloudinary storage helper AFTER database is loaded
-    require_once __DIR__ . '/app/Helpers/CloudinaryStorage.php';
+    // Load Cloudinary storage helper ONLY AFTER database is confirmed loaded
+    // Double-check Database class exists before loading CloudinaryStorage
+    if (class_exists('Database')) {
+        require_once __DIR__ . '/app/Helpers/CloudinaryStorage.php';
+    }
     
     $router = new Router();
     
