@@ -56,13 +56,27 @@ class CloudinaryStorage {
         // Return null immediately if Database doesn't exist - don't even try to create logger
         
         // First check: Does Database class exist? (use false flag to prevent autoload)
-        if (!@class_exists('Database', false)) {
-            return null; // Database not available, return null immediately
+        // Wrap in try-catch to be absolutely safe
+        try {
+            $dbExists = @class_exists('Database', false);
+            if (!$dbExists) {
+                return null; // Database not available, return null immediately
+            }
+        } catch (\Throwable $e) {
+            // If checking Database fails, return null
+            return null;
         }
         
         // Second check: Can we verify Database methods exist? (use false flag)
-        if (!@method_exists('Database', 'getInstance')) {
-            return null; // Database methods not available, return null immediately
+        // Wrap in try-catch to be absolutely safe
+        try {
+            $methodExists = @method_exists('Database', 'getInstance');
+            if (!$methodExists) {
+                return null; // Database methods not available, return null immediately
+            }
+        } catch (\Throwable $e) {
+            // If checking method fails, return null
+            return null;
         }
         
         // Only create logger if Database exists and is usable
