@@ -67,9 +67,11 @@ class CloudinaryStorage {
         
         // Only create logger if Database exists and is usable
         if (self::$loggingService === null) {
+            // CRITICAL: Use @ suppression on the new operator itself to prevent any errors
+            // Also wrap in try-catch to catch ANY errors during instantiation
+            // CloudinaryLoggingService constructor is now completely safe and won't throw errors
             try {
-                // Wrap in try-catch to catch ANY errors during instantiation
-                // CloudinaryLoggingService constructor is now completely safe and won't throw errors
+                // Use @ suppression to prevent any errors from being thrown during instantiation
                 self::$loggingService = @new \App\Services\CloudinaryLoggingService();
                 
                 // If logger was created but is disabled, that's fine - return it anyway
