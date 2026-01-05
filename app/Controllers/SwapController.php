@@ -664,20 +664,18 @@ class SwapController {
         $customer_name = trim($_POST['customer_name'] ?? '');
         $customer_phone = trim($_POST['customer_contact'] ?? '');
         
-        // Get customer_id - check both select and hidden input (in case of duplicate names)
+        // Get customer_id - check both select and backup input
         $customer_id = null;
         if (!empty($_POST['customer_id'])) {
-            // Handle array if both select and hidden input have same name
-            if (is_array($_POST['customer_id'])) {
-                $customer_id = !empty($_POST['customer_id'][0]) ? intval($_POST['customer_id'][0]) : 
-                              (!empty($_POST['customer_id'][1]) ? intval($_POST['customer_id'][1]) : null);
-            } else {
-                $customer_id = intval($_POST['customer_id']);
-            }
+            $customer_id = intval($_POST['customer_id']);
+        } elseif (!empty($_POST['customer_id_backup'])) {
+            // Fallback to backup input if main select didn't submit
+            $customer_id = intval($_POST['customer_id_backup']);
         }
         
         // Debug log
         error_log("Swap create: customer_id from POST = " . var_export($_POST['customer_id'] ?? 'not set', true));
+        error_log("Swap create: customer_id_backup from POST = " . var_export($_POST['customer_id_backup'] ?? 'not set', true));
         error_log("Swap create: parsed customer_id = " . var_export($customer_id, true));
         
         // If customer_id is not provided but customer name and phone are, create or find customer
