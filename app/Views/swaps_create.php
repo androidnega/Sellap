@@ -654,7 +654,16 @@
         if (clearBtn) {
             clearBtn.addEventListener('click', function() {
                 searchInput.value = '';
+                // Reset hidden select to default
+                hiddenSelect.innerHTML = '<option value="">Select existing customer (optional)</option>';
                 hiddenSelect.value = '';
+                
+                // Clear backup hidden input
+                const customerIdBackup = document.getElementById('customer_id_backup');
+                if (customerIdBackup) {
+                    customerIdBackup.value = '';
+                }
+                
                 dropdown.classList.add('hidden');
                 selectedInfo.classList.add('hidden');
                 
