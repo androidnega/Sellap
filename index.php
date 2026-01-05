@@ -320,6 +320,9 @@ try {
     // Load database configuration
     require_once __DIR__ . '/config/database.php';
     
+    // Load Cloudinary storage helper AFTER database is loaded
+    require_once __DIR__ . '/app/Helpers/CloudinaryStorage.php';
+    
     $router = new Router();
     
     // Load routes
