@@ -103,34 +103,13 @@ define('ASSETS_PATH', BASE_PATH . '/assets');
 // Session timeout: 30 minutes of inactivity (in seconds)
 define('SESSION_TIMEOUT', 30 * 60); // 1800 seconds = 30 minutes
 
-// Set custom session save path for cPanel/shared hosting compatibility
-// This fixes the "Read-only file system" error on cPanel
+// Use database sessions instead of file system to prevent disk space usage
+// Load database session handler before any session_start() calls
 if (session_status() === PHP_SESSION_NONE) {
-    $sessionDir = STORAGE_PATH . '/sessions';
-    
-    // Create session directory if it doesn't exist
-    if (!is_dir($sessionDir)) {
-        @mkdir($sessionDir, 0755, true);
-    }
-    
-    // Set session save path to writable directory
-    // Only set if directory exists and is writable
-    if (is_dir($sessionDir) && is_writable($sessionDir)) {
-        session_save_path($sessionDir);
-    } else {
-        // Fallback: try to use a directory in the user's home directory
-        // This is common for cPanel environments
-        $homeDir = getenv('HOME');
-        if ($homeDir && is_dir($homeDir)) {
-            $fallbackDir = $homeDir . '/sellapp_sessions';
-            if (!is_dir($fallbackDir)) {
-                @mkdir($fallbackDir, 0755, true);
-            }
-            if (is_dir($fallbackDir) && is_writable($fallbackDir)) {
-                session_save_path($fallbackDir);
-            }
-        }
-    }
+    // Load database session handler
+    require_once __DIR__ . '/../app/Services/DatabaseSessionHandler.php';
+    $sessionHandler = new \App\Services\DatabaseSessionHandler();
+    session_set_save_handler($sessionHandler, true);
 }
 
 // Only set session configuration if session is not already active

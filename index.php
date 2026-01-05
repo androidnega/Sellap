@@ -5,6 +5,9 @@
  * cPanel Shared Hosting Compatible
  */
 
+// Load Cloudinary storage helper early
+require_once __DIR__ . '/app/Helpers/CloudinaryStorage.php';
+
 // Register fatal error handler early to catch fatal errors that cause 503
 register_shutdown_function(function() {
     $error = error_get_last();
@@ -14,8 +17,13 @@ register_shutdown_function(function() {
             ob_end_clean();
         }
         
-        // Log the fatal error
-        error_log("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
+        // Log the fatal error to Cloudinary (not file system)
+        try {
+            CloudinaryStorage::logError("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
+        } catch (\Exception $e) {
+            // Fallback to PHP error_log only if Cloudinary fails
+            error_log("Fatal error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']);
+        }
         
         // Determine if this is an API request
         $isApiRequest = strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false;

@@ -52,6 +52,7 @@ class Database {
         } else {
             // Production/Live server database credentials (sellapp.store)
             $host = getenv('DB_HOST') ?: 'localhost';
+            
             $dbname = getenv('DB_NAME') ?: 'manuelc8_sellapp';
             $username = getenv('DB_USER') ?: 'manuelc8_sellapp';
             $password = getenv('DB_PASS') ?: 'Atomic2@2020^';
