@@ -210,8 +210,14 @@ class CloudinaryStorage {
     public static function logError($message, $context = []) {
         // Only try to log if Database class is available
         // This prevents errors when called before database config is loaded
-        if (!class_exists('Database')) {
+        if (!class_exists('Database') || !class_exists('\Database')) {
             // Fallback to PHP error_log if Database not available
+            error_log($message);
+            return;
+        }
+        
+        // Additional check - verify Database methods exist
+        if (!method_exists('Database', 'getInstance')) {
             error_log($message);
             return;
         }
@@ -224,8 +230,14 @@ class CloudinaryStorage {
                 // Fallback to PHP error_log if logger not available
                 error_log($message);
             }
+        } catch (\Error $e) {
+            // Catch Error (class not found, etc.) - fallback to error_log
+            error_log($message);
         } catch (\Exception $e) {
             // Fallback to PHP error_log if Cloudinary logging fails
+            error_log($message);
+        } catch (\Throwable $e) {
+            // Catch any other throwable - fallback to error_log
             error_log($message);
         }
     }
