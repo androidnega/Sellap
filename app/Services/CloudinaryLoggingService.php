@@ -31,6 +31,7 @@ class CloudinaryLoggingService {
                 return;
             }
             
+            // Try to get Database instance - this will throw Error if class not found
             $db = \Database::getInstance()->getConnection();
             $settingsQuery = $db->query("SELECT setting_key, setting_value FROM system_settings");
             $settings = $settingsQuery->fetchAll(\PDO::FETCH_KEY_PAIR);
@@ -42,11 +43,14 @@ class CloudinaryLoggingService {
             if ($this->cloudinaryService->isConfigured()) {
                 $this->enabled = true;
             }
+        } catch (\Error $e) {
+            // Catch Error first (class not found, etc.) - logging is optional
+            $this->enabled = false;
         } catch (\Exception $e) {
             // Silently fail - logging is optional
             $this->enabled = false;
-        } catch (\Error $e) {
-            // Also catch Error (not just Exception) for class not found errors
+        } catch (\Throwable $e) {
+            // Catch any other throwable - logging is optional
             $this->enabled = false;
         }
     }
