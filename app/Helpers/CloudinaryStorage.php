@@ -16,8 +16,14 @@ class CloudinaryStorage {
     public static function getService() {
         if (self::$cloudinaryService === null) {
             try {
-                // Check if Database class is available
-                if (!class_exists('Database')) {
+                // CRITICAL: Check Database class availability BEFORE doing anything else
+                // Use @ suppression and false flag to prevent autoload errors
+                if (!@class_exists('Database', false) && !@class_exists('\Database', false)) {
+                    return null;
+                }
+                
+                // Additional check - verify Database methods exist
+                if (!@method_exists('Database', 'getInstance')) {
                     return null;
                 }
                 
@@ -27,8 +33,14 @@ class CloudinaryStorage {
                 
                 self::$cloudinaryService = new \App\Services\CloudinaryService();
                 self::$cloudinaryService->loadFromSettings($settings);
+            } catch (\Error $e) {
+                // Return null if Database class not found or any error
+                return null;
             } catch (\Exception $e) {
                 // Return null if Cloudinary not configured
+                return null;
+            } catch (\Throwable $e) {
+                // Return null for any other throwable
                 return null;
             }
         }
