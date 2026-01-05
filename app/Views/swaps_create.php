@@ -406,7 +406,22 @@
             const productBrand = item.getAttribute('data-brand');
             const productPrice = parseFloat(item.getAttribute('data-price'));
             
-            // Set hidden select value
+            if (!productId) {
+                console.error('Product ID is missing');
+                return;
+            }
+            
+            // Clear existing options except the default
+            hiddenSelect.innerHTML = '<option value="">Select product to give customer</option>';
+            
+            // Create and add option for selected product
+            const option = document.createElement('option');
+            option.value = productId;
+            option.textContent = `${productName} - ${productBrand}`;
+            option.selected = true;
+            hiddenSelect.appendChild(option);
+            
+            // Also set the value directly to ensure it's set
             hiddenSelect.value = productId;
             
             // Update search input
@@ -422,6 +437,13 @@
             
             // Update product details display
             updateStoreProductInfo(productName, productPrice);
+            
+            // Debug log
+            console.log('Product selected:', {
+                productId: productId,
+                selectValue: hiddenSelect.value,
+                hasOption: hiddenSelect.querySelector(`option[value="${productId}"]`) !== null
+            });
         });
         
         // Clear product selection
@@ -812,7 +834,23 @@ document.addEventListener('DOMContentLoaded', function() {
             let errorMessage = '';
             
             // Validate store product
-            if (!storeProductId || !storeProductId.value || storeProductId.value === '') {
+            const selectedProductValue = storeProductId ? storeProductId.value : '';
+            const selectedProductOption = storeProductId ? storeProductId.options[storeProductId.selectedIndex] : null;
+            const hasValidProduct = selectedProductValue && 
+                                   selectedProductValue !== '' && 
+                                   selectedProductValue !== '0' &&
+                                   selectedProductOption &&
+                                   selectedProductOption.value !== '';
+            
+            console.log('Product validation:', {
+                storeProductId: storeProductId,
+                value: selectedProductValue,
+                selectedIndex: storeProductId ? storeProductId.selectedIndex : -1,
+                hasValidProduct: hasValidProduct,
+                option: selectedProductOption
+            });
+            
+            if (!hasValidProduct) {
                 isValid = false;
                 errorMessage = 'Please select a store product from the dropdown';
                 const productSearch = document.getElementById('product_search');
