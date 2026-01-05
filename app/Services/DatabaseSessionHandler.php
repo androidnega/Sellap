@@ -77,7 +77,7 @@ class DatabaseSessionHandler implements \SessionHandlerInterface {
             
             return $stmt->execute([$sessionId, $data, time()]);
         } catch (\Exception $e) {
-            CloudinaryStorage::logError("Session write error: " . $e->getMessage());
+            // Don't use CloudinaryStorage here to avoid circular dependency
             return false;
         }
     }
@@ -87,7 +87,7 @@ class DatabaseSessionHandler implements \SessionHandlerInterface {
             $stmt = $this->db->prepare("DELETE FROM {$this->tableName} WHERE id = ?");
             return $stmt->execute([$sessionId]);
         } catch (\Exception $e) {
-            CloudinaryStorage::logError("Session destroy error: " . $e->getMessage());
+            // Don't use CloudinaryStorage here to avoid circular dependency
             return false;
         }
     }
@@ -98,7 +98,7 @@ class DatabaseSessionHandler implements \SessionHandlerInterface {
             $oldest = time() - $maxLifetime;
             return $stmt->execute([$oldest]);
         } catch (\Exception $e) {
-            CloudinaryStorage::logError("Session GC error: " . $e->getMessage());
+            // Don't use CloudinaryStorage here to avoid circular dependency
             return false;
         }
     }
