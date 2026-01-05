@@ -20,11 +20,17 @@ class CloudinaryLoggingService {
         $this->enabled = false;
         
         // Check if Database class is available FIRST - before any other operations
-        if (!class_exists('Database')) {
+        // Use function_exists check as well for extra safety
+        if (!class_exists('Database') || !function_exists('Database')) {
             return; // Exit early if Database not available
         }
         
         try {
+            // Double-check Database class exists before using it
+            if (!class_exists('Database')) {
+                return;
+            }
+            
             $db = \Database::getInstance()->getConnection();
             $settingsQuery = $db->query("SELECT setting_key, setting_value FROM system_settings");
             $settings = $settingsQuery->fetchAll(\PDO::FETCH_KEY_PAIR);
@@ -38,6 +44,9 @@ class CloudinaryLoggingService {
             }
         } catch (\Exception $e) {
             // Silently fail - logging is optional
+            $this->enabled = false;
+        } catch (\Error $e) {
+            // Also catch Error (not just Exception) for class not found errors
             $this->enabled = false;
         }
     }
