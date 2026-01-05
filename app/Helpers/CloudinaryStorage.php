@@ -262,48 +262,34 @@ class CloudinaryStorage {
      * Log error (replaces error_log for errors)
      */
     public static function logError($message, $context = []) {
-        // CRITICAL: Check Database class availability BEFORE doing anything else
-        // Use @ suppression and multiple checks to prevent any autoload errors
-        try {
-            // First check: Does Database class exist? (use false to prevent autoload)
-            if (!@class_exists('Database', false) && !@class_exists('\Database', false)) {
-                // Fallback to PHP error_log if Database not available
-                error_log($message);
-                return;
-            }
-            
-            // Second check: Can we verify Database methods exist?
-            if (!@method_exists('Database', 'getInstance')) {
-                error_log($message);
-                return;
-            }
-        } catch (\Error $e) {
-            // If ANY error occurs checking Database, use error_log
+        // CRITICAL: This method MUST NEVER throw an error, even if Database doesn't exist
+        // Always fallback to error_log() if anything goes wrong
+        
+        // Immediately fallback to error_log if Database doesn't exist
+        // Use @ suppression and false flag to prevent ANY autoload attempts
+        if (!@class_exists('Database', false)) {
             error_log($message);
             return;
-        } catch (\Throwable $e) {
-            // If ANY throwable occurs checking Database, use error_log
+        }
+        
+        // Additional check - verify Database methods exist
+        if (!@method_exists('Database', 'getInstance')) {
             error_log($message);
             return;
         }
         
         // Only try to get logger if Database checks passed
+        // Wrap everything in try-catch to ensure no errors escape
         try {
             $logger = self::getLogger();
-            if ($logger) {
+            if ($logger && $logger->enabled) {
                 $logger->error($message, $context);
             } else {
-                // Fallback to PHP error_log if logger not available
+                // Fallback to PHP error_log if logger not available or disabled
                 error_log($message);
             }
-        } catch (\Error $e) {
-            // Catch Error (class not found, etc.) - fallback to error_log
-            error_log($message);
-        } catch (\Exception $e) {
-            // Fallback to PHP error_log if Cloudinary logging fails
-            error_log($message);
         } catch (\Throwable $e) {
-            // Catch any other throwable - fallback to error_log
+            // Catch ANY throwable (Error, Exception, etc.) - fallback to error_log
             error_log($message);
         }
     }

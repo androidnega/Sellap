@@ -319,9 +319,15 @@ try {
     }
     
     // Load Cloudinary storage helper ONLY AFTER database is confirmed loaded
-    // Double-check Database class exists before loading CloudinaryStorage
-    if (class_exists('Database')) {
-        require_once __DIR__ . '/app/Helpers/CloudinaryStorage.php';
+    // Double-check Database class exists AND is usable before loading CloudinaryStorage
+    // This prevents any CloudinaryStorage calls before Database is ready
+    try {
+        if (class_exists('Database') && method_exists('Database', 'getInstance')) {
+            require_once __DIR__ . '/app/Helpers/CloudinaryStorage.php';
+        }
+    } catch (\Throwable $e) {
+        // If Database check fails, don't load CloudinaryStorage
+        // Application will work without Cloudinary logging
     }
     
     $router = new Router();
