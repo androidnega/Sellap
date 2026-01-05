@@ -282,10 +282,16 @@ class CloudinaryStorage {
         // Wrap everything in try-catch to ensure no errors escape
         try {
             $logger = self::getLogger();
-            if ($logger && $logger->enabled) {
-                $logger->error($message, $context);
+            if ($logger) {
+                // Logger exists - try to use it, but fallback if it fails
+                try {
+                    $logger->error($message, $context);
+                } catch (\Throwable $e) {
+                    // If logger fails, fallback to error_log
+                    error_log($message);
+                }
             } else {
-                // Fallback to PHP error_log if logger not available or disabled
+                // Fallback to PHP error_log if logger not available
                 error_log($message);
             }
         } catch (\Throwable $e) {
