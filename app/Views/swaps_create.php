@@ -40,6 +40,8 @@
                 <select id="customer_id" name="customer_id" class="hidden">
                     <option value="">Select existing customer (optional)</option>
                 </select>
+                <!-- Hidden input to ensure customer_id is submitted even if select fails -->
+                <input type="hidden" id="customer_id_hidden" name="customer_id" value="">
                 
                 <!-- Selected Customer Display -->
                 <div id="selected_customer_info" class="hidden mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
@@ -612,10 +614,17 @@
             option.value = customerId;
             option.textContent = `${customerName} (${customerPhone})`;
             option.selected = true;
+            hiddenSelect.innerHTML = ''; // Clear first
             hiddenSelect.appendChild(option);
             
             // Also set the value directly to ensure it's set
             hiddenSelect.value = customerId;
+            
+            // Also set the hidden input value
+            const customerIdHidden = document.getElementById('customer_id_hidden');
+            if (customerIdHidden) {
+                customerIdHidden.value = customerId;
+            }
             
             // Update search input
             searchInput.value = `${customerName} (${customerPhone})`;
@@ -636,6 +645,7 @@
             console.log('Customer selected:', {
                 customerId: customerId,
                 selectValue: hiddenSelect.value,
+                hiddenInputValue: customerIdHidden ? customerIdHidden.value : 'not found',
                 hasOption: hiddenSelect.querySelector(`option[value="${customerId}"]`) !== null
             });
         });
