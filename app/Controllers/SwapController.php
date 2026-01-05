@@ -663,7 +663,36 @@ class SwapController {
         $company_product_id = intval($_POST['store_product_id'] ?? 0);
         $customer_name = trim($_POST['customer_name'] ?? '');
         $customer_phone = trim($_POST['customer_contact'] ?? '');
-        $customer_id = intval($_POST['customer_id'] ?? 0);
+        $customer_id = !empty($_POST['customer_id']) ? intval($_POST['customer_id']) : null;
+        
+        // If customer_id is not provided but customer name and phone are, create or find customer
+        if (!$customer_id && $customer_name && $customer_phone) {
+            // Try to find existing customer by phone
+            $existingCustomer = $this->customer->findByPhoneInCompany($customer_phone, $companyId);
+            
+            if ($existingCustomer) {
+                // Use existing customer
+                $customer_id = $existingCustomer['id'];
+            } else {
+                // Create new customer
+                try {
+                    $newCustomerId = $this->customer->create([
+                        'company_id' => $companyId,
+                        'full_name' => $customer_name,
+                        'phone_number' => $customer_phone,
+                        'email' => '',
+                        'address' => ''
+                    ]);
+                    
+                    if ($newCustomerId) {
+                        $customer_id = $newCustomerId;
+                    }
+                } catch (\Exception $e) {
+                    error_log("Swap create: Failed to create customer - " . $e->getMessage());
+                    // Continue without customer_id - will be handled by schema check
+                }
+            }
+        }
         
         // Customer product details
         $customer_brand_id = intval($_POST['customer_brand_id'] ?? 0);

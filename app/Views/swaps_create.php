@@ -599,7 +599,22 @@
             const customerName = item.getAttribute('data-name');
             const customerPhone = item.getAttribute('data-phone');
             
-            // Set hidden select value
+            if (!customerId) {
+                console.error('Customer ID is missing');
+                return;
+            }
+            
+            // Clear existing options except the default
+            hiddenSelect.innerHTML = '<option value="">Select existing customer (optional)</option>';
+            
+            // Create and add option for selected customer
+            const option = document.createElement('option');
+            option.value = customerId;
+            option.textContent = `${customerName} (${customerPhone})`;
+            option.selected = true;
+            hiddenSelect.appendChild(option);
+            
+            // Also set the value directly to ensure it's set
             hiddenSelect.value = customerId;
             
             // Update search input
@@ -616,6 +631,13 @@
             // Auto-fill customer name and contact fields
             document.getElementById('customer_name').value = customerName || '';
             document.getElementById('customer_contact').value = customerPhone || '';
+            
+            // Debug log
+            console.log('Customer selected:', {
+                customerId: customerId,
+                selectValue: hiddenSelect.value,
+                hasOption: hiddenSelect.querySelector(`option[value="${customerId}"]`) !== null
+            });
         });
         
         // Clear customer selection
