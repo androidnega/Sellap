@@ -20,7 +20,7 @@ ob_start();
 use App\Helpers\DashboardWidgets;
 $currentYear = date('Y');
 $showNewYear = DashboardWidgets::shouldShowNewYearMessage();
-$todaySales = DashboardWidgets::getTodaySalesCount($companyId, $userId, $userRole);
+$stats = DashboardWidgets::getNewYearMessageStats($companyId, $userId, $userRole);
 ?>
 <div class="p-6">
     <?php if ($showNewYear): ?>
@@ -30,7 +30,23 @@ $todaySales = DashboardWidgets::getTodaySalesCount($companyId, $userId, $userRol
                 <div class="text-2xl">🎉</div>
                 <div>
                     <h2 class="text-lg sm:text-xl font-bold">Happy New Year <?= $currentYear ?>!</h2>
-                    <p class="text-xs sm:text-sm opacity-90"><?= $todaySales > 0 ? "You've made <strong>{$todaySales}</strong> " . ($todaySales === 1 ? 'sale' : 'sales') . " today!" : 'Wishing you a prosperous year ahead!' ?></p>
+                    <p class="text-xs sm:text-sm opacity-90">
+                        <?php
+                        if ($stats['value'] > 0 || $stats['amount'] > 0) {
+                            if ($stats['type'] === 'pending_payments') {
+                                echo "You have <strong>" . number_format($stats['value']) . "</strong> " . $stats['label'] . " worth <strong>₵" . number_format($stats['amount'], 2) . "</strong>!";
+                            } elseif ($stats['type'] === 'revenue') {
+                                echo "You've made <strong>₵" . number_format($stats['amount'], 2) . "</strong> in revenue today!";
+                            } elseif ($stats['type'] === 'swaps') {
+                                echo "You've made <strong>" . number_format($stats['value']) . "</strong> " . $stats['label'] . " today!";
+                            } else {
+                                echo "You've made <strong>" . number_format($stats['value']) . "</strong> " . $stats['label'] . " today!";
+                            }
+                        } else {
+                            echo 'Wishing you a prosperous year ahead!';
+                        }
+                        ?>
+                    </p>
                 </div>
             </div>
         </div>

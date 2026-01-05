@@ -2094,6 +2094,12 @@ $router->get('api/customers/search', function() {
     $controller->quickSearch();
 });
 
+// Swap Customer Search API (live search for swap page)
+$router->get('api/swap/customers', function() {
+    $controller = new \App\Controllers\SwapController();
+    $controller->apiSearchCustomers();
+});
+
 // Update Customer API
 $router->put('api/customers/{id}', function($id) {
     $controller = new \App\Controllers\CustomerController();

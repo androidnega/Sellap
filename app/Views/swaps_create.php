@@ -419,9 +419,8 @@
         totalValue.value = total.toFixed(2);
     }
 
-    // Searchable customer dropdown functionality
+    // Searchable customer dropdown functionality with live search
     (function() {
-        const customers = <?= json_encode($customers) ?>;
         const searchInput = document.getElementById('customer_search');
         const dropdown = document.getElementById('customer_dropdown');
         const hiddenSelect = document.getElementById('customer_id');
@@ -429,16 +428,17 @@
         const selectedName = document.getElementById('selected_customer_name');
         const selectedPhone = document.getElementById('selected_customer_phone');
         const clearBtn = document.getElementById('clear_customer_btn');
+        let searchTimeout = null;
         
         if (!searchInput || !dropdown || !hiddenSelect) return;
         
-        function renderCustomerList(filteredCustomers) {
-            if (!filteredCustomers || filteredCustomers.length === 0) {
+        function renderCustomerList(customers) {
+            if (!customers || customers.length === 0) {
                 dropdown.innerHTML = '<div class="p-3 text-gray-500 text-center">No customers found</div>';
                 return;
             }
             
-            dropdown.innerHTML = filteredCustomers.map(customer => `
+            dropdown.innerHTML = customers.map(customer => `
                 <div class="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0" 
                      data-id="${customer.id}" 
                      data-name="${customer.full_name || ''}" 
@@ -451,37 +451,48 @@
             `).join('');
         }
         
-        // Initial render - show all customers
-        renderCustomerList(customers);
-        
-        // Open dropdown on focus/click
-        searchInput.addEventListener('focus', () => {
-            if (customers.length > 0) {
+        async function searchCustomers(query = '') {
+            try {
+                const url = `<?= BASE_URL_PATH ?>/api/swap/customers${query ? '?q=' + encodeURIComponent(query) : ''}`;
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    renderCustomerList(result.data);
+                    dropdown.classList.remove('hidden');
+                } else {
+                    dropdown.innerHTML = '<div class="p-3 text-gray-500 text-center">No customers found</div>';
+                    dropdown.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Error searching customers:', error);
+                dropdown.innerHTML = '<div class="p-3 text-red-500 text-center">Error loading customers</div>';
                 dropdown.classList.remove('hidden');
             }
+        }
+        
+        // Open dropdown on focus/click and load all customers
+        searchInput.addEventListener('focus', () => {
+            searchCustomers('');
         });
         
         searchInput.addEventListener('click', () => {
-            if (customers.length > 0) {
-                dropdown.classList.remove('hidden');
-            }
+            searchCustomers('');
         });
         
-        // Filter as user types
+        // Live search as user types (debounced)
         searchInput.addEventListener('input', function() {
-            const query = this.value.toLowerCase().trim();
-            if (query === '') {
-                renderCustomerList(customers);
-            } else {
-                const filtered = customers.filter(customer => {
-                    const name = (customer.full_name || '').toLowerCase();
-                    const phone = (customer.phone_number || '').toLowerCase();
-                    const email = (customer.email || '').toLowerCase();
-                    return name.includes(query) || phone.includes(query) || email.includes(query);
-                });
-                renderCustomerList(filtered);
+            const query = this.value.trim();
+            
+            // Clear previous timeout
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
             }
-            dropdown.classList.remove('hidden');
+            
+            // Debounce search - wait 300ms after user stops typing
+            searchTimeout = setTimeout(() => {
+                searchCustomers(query);
+            }, 300);
         });
         
         // Select customer from dropdown

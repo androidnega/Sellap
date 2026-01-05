@@ -485,6 +485,18 @@ $smsConfigured = $smsConfigured ?? false;
                             <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
                     </div>
+                    
+                    <div class="mt-3">
+                        <label for="new-year-message-type" class="block text-xs font-medium text-gray-700 mb-1">Message Type</label>
+                        <select id="new-year-message-type" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                            <option value="auto" <?= ($settings['new_year_message_type'] ?? 'auto') === 'auto' ? 'selected' : '' ?>>Auto (Rotates: Pending Payments, Swaps, Revenue)</option>
+                            <option value="pending_payments" <?= ($settings['new_year_message_type'] ?? '') === 'pending_payments' ? 'selected' : '' ?>>Pending Payments</option>
+                            <option value="revenue" <?= ($settings['new_year_message_type'] ?? '') === 'revenue' ? 'selected' : '' ?>>Daily Revenue</option>
+                            <option value="swaps" <?= ($settings['new_year_message_type'] ?? '') === 'swaps' ? 'selected' : '' ?>>Swaps Made</option>
+                            <option value="sales" <?= ($settings['new_year_message_type'] ?? '') === 'sales' ? 'selected' : '' ?>>Sales Count</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Choose what stat to display in the New Year message</p>
+                    </div>
                         </div>
                         
                         <div class="flex justify-end">
@@ -922,6 +934,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         const newYearValue = settings['new_year_message_enabled'] ?? '1';
                         newYearToggle.checked = newYearValue === '1' || newYearValue === 1 || newYearValue === true;
                     }
+                    // Update New Year message type
+                    const newYearType = document.getElementById('new-year-message-type');
+                    if (newYearType && settings['new_year_message_type']) {
+                        newYearType.value = settings['new_year_message_type'];
+                    }
                     // Update SMS toggle states
                     const purchaseToggle = document.getElementById('sms-purchase-enabled');
                     const repairToggle = document.getElementById('sms-repair-enabled');
@@ -1353,13 +1370,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const repairToggle = document.getElementById('sms-repair-enabled');
             const paymentToggle = document.getElementById('sms-payment-enabled');
             const newYearToggle = document.getElementById('new-year-message-enabled');
+            const newYearType = document.getElementById('new-year-message-type');
             
             const settings = {
                 default_image_quality: document.getElementById('default-image-quality').value,
                 sms_purchase_enabled: purchaseToggle && purchaseToggle.checked ? '1' : '0',
                 sms_repair_enabled: repairToggle && repairToggle.checked ? '1' : '0',
                 sms_payment_enabled: paymentToggle && paymentToggle.checked ? '1' : '0',
-                new_year_message_enabled: newYearToggle && newYearToggle.checked ? '1' : '0'
+                new_year_message_enabled: newYearToggle && newYearToggle.checked ? '1' : '0',
+                new_year_message_type: newYearType ? newYearType.value : 'auto'
             };
             
             console.log('Saving general settings:', settings);

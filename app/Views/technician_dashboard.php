@@ -11,7 +11,7 @@ $userId = $userData['id'] ?? $GLOBALS['userId'] ?? null;
 use App\Helpers\DashboardWidgets;
 $currentYear = date('Y');
 $showNewYear = DashboardWidgets::shouldShowNewYearMessage();
-$todayRepairs = DashboardWidgets::getTodaySalesCount($companyId, $userId, 'technician');
+$stats = DashboardWidgets::getNewYearMessageStats($companyId, $userId, 'technician');
 ?>
 
 <div class="p-3 sm:p-4 pb-4 max-w-full bg-white min-h-screen">
@@ -22,7 +22,15 @@ $todayRepairs = DashboardWidgets::getTodaySalesCount($companyId, $userId, 'techn
                 <div class="text-2xl">🎉</div>
                 <div>
                     <h2 class="text-lg sm:text-xl font-bold">Happy New Year <?= $currentYear ?>!</h2>
-                    <p class="text-xs sm:text-sm opacity-90"><?= $todayRepairs > 0 ? "You've completed <strong>{$todayRepairs}</strong> " . ($todayRepairs === 1 ? 'repair' : 'repairs') . " today!" : 'Wishing you a prosperous year ahead!' ?></p>
+                    <p class="text-xs sm:text-sm opacity-90">
+                        <?php
+                        if ($stats['value'] > 0) {
+                            echo "You've completed <strong>" . number_format($stats['value']) . "</strong> " . $stats['label'] . " today!";
+                        } else {
+                            echo 'Wishing you a prosperous year ahead!';
+                        }
+                        ?>
+                    </p>
                 </div>
             </div>
         </div>

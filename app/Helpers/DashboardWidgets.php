@@ -228,47 +228,183 @@ class DashboardWidgets {
     }
     
     /**
-     * Get today's sales count based on user role
+     * Get dynamic New Year message stats based on user role
+     * Returns array with message type and value
      */
-    public static function getTodaySalesCount($companyId, $userId = null, $userRole = 'salesperson') {
+    public static function getNewYearMessageStats($companyId, $userId = null, $userRole = 'salesperson') {
         try {
             $db = \Database::getInstance()->getConnection();
             $today = date('Y-m-d');
+            $stats = [
+                'type' => 'sales',
+                'value' => 0,
+                'label' => 'sales',
+                'amount' => 0
+            ];
             
-            if (in_array($userRole, ['manager', 'admin'])) {
-                // Manager/Admin - all company sales
-                $stmt = $db->prepare("
-                    SELECT COUNT(*) as count 
-                    FROM pos_sales 
-                    WHERE company_id = ? AND DATE(created_at) = ? AND swap_id IS NULL
-                ");
-                $stmt->execute([$companyId, $today]);
-            } elseif ($userRole === 'technician') {
-                // Technician - repairs completed today
-                $stmt = $db->prepare("
-                    SELECT COUNT(*) as count 
-                    FROM repairs_new 
-                    WHERE company_id = ? AND technician_id = ? AND DATE(created_at) = ? AND status = 'completed'
-                ");
-                $stmt->execute([$companyId, $userId, $today]);
-            } else {
-                // Salesperson - their own sales
-                $stmt = $db->prepare("
-                    SELECT COUNT(*) as count 
-                    FROM pos_sales 
-                    WHERE company_id = ? AND created_by_user_id = ? AND DATE(created_at) = ? 
-                    AND swap_id IS NULL
-                    AND (notes IS NULL OR (notes NOT LIKE '%Repair #%' AND notes NOT LIKE '%Products sold by repairer%'))
-                ");
-                $stmt->execute([$companyId, $userId, $today]);
+            // Get message type preference from settings (default: 'auto' - rotates)
+            $messageType = self::getNewYearMessageType();
+            
+            if ($messageType === 'auto') {
+                // Rotate between different stats based on day of month
+                $dayOfMonth = (int)date('j');
+                if ($dayOfMonth % 3 === 0) {
+                    $messageType = 'pending_payments';
+                } elseif ($dayOfMonth % 3 === 1) {
+                    $messageType = 'swaps';
+                } else {
+                    $messageType = 'revenue';
+                }
             }
             
-            $result = $stmt->fetch(\PDO::FETCH_ASSOC);
-            return (int)($result['count'] ?? 0);
+            if ($messageType === 'pending_payments') {
+                // Get pending payments amount
+                if (\App\Models\CompanyModule::isEnabled($companyId, 'partial_payments')) {
+                    $salePaymentModel = new \App\Models\SalePayment();
+                    $pendingPaymentsSql = "SELECT ps.id, ps.final_amount, ps.payment_status
+                                          FROM pos_sales ps
+                                          WHERE ps.company_id = ?";
+                    $params = [$companyId];
+                    
+                    if ($userRole === 'salesperson' && $userId) {
+                        $pendingPaymentsSql .= " AND ps.created_by_user_id = ?";
+                        $params[] = $userId;
+                    }
+                    
+                    $pendingPaymentsSql .= " AND (ps.payment_status = 'PARTIAL' OR ps.payment_status = 'UNPAID')
+                                          AND (ps.notes IS NULL OR (ps.notes NOT LIKE '%Repair #%' AND ps.notes NOT LIKE '%Products sold by repairer%'))";
+                    
+                    $stmt = $db->prepare($pendingPaymentsSql);
+                    $stmt->execute($params);
+                    $partialSales = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+                    
+                    $pendingAmount = 0;
+                    foreach ($partialSales as $sale) {
+                        $paymentStats = $salePaymentModel->getPaymentStatsForSale($sale['id']);
+                        $pendingAmount += $paymentStats['remaining'] ?? 0;
+                    }
+                    
+                    $stats['type'] = 'pending_payments';
+                    $stats['value'] = count($partialSales);
+                    $stats['amount'] = $pendingAmount;
+                    $stats['label'] = 'pending payment' . (count($partialSales) !== 1 ? 's' : '');
+                } else {
+                    // Fallback to sales if partial payments not enabled
+                    $messageType = 'sales';
+                }
+            }
+            
+            if ($messageType === 'swaps') {
+                // Get today's swaps
+                $swapsSql = "SELECT COUNT(*) as count 
+                            FROM swaps 
+                            WHERE company_id = ? AND DATE(created_at) = ?";
+                $params = [$companyId, $today];
+                
+                if ($userRole === 'salesperson' && $userId) {
+                    // Check which column exists for user reference
+                    $hasCreatedByUserId = false;
+                    $hasHandledBy = false;
+                    try {
+                        $checkCol = $db->query("SHOW COLUMNS FROM swaps LIKE 'created_by_user_id'");
+                        $hasCreatedByUserId = $checkCol->rowCount() > 0;
+                        $checkCol2 = $db->query("SHOW COLUMNS FROM swaps LIKE 'handled_by'");
+                        $hasHandledBy = $checkCol2->rowCount() > 0;
+                    } catch (\Exception $e) {}
+                    
+                    if ($hasCreatedByUserId) {
+                        $swapsSql .= " AND created_by_user_id = ?";
+                        $params[] = $userId;
+                    } elseif ($hasHandledBy) {
+                        $swapsSql .= " AND handled_by = ?";
+                        $params[] = $userId;
+                    }
+                }
+                
+                $stmt = $db->prepare($swapsSql);
+                $stmt->execute($params);
+                $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+                $swapCount = (int)($result['count'] ?? 0);
+                
+                $stats['type'] = 'swaps';
+                $stats['value'] = $swapCount;
+                $stats['label'] = 'swap' . ($swapCount !== 1 ? 's' : '');
+            }
+            
+            if ($messageType === 'revenue' || $messageType === 'sales') {
+                // Get today's sales/revenue
+                if (in_array($userRole, ['manager', 'admin'])) {
+                    $stmt = $db->prepare("
+                        SELECT COUNT(*) as count, COALESCE(SUM(final_amount), 0) as revenue
+                        FROM pos_sales 
+                        WHERE company_id = ? AND DATE(created_at) = ? AND swap_id IS NULL
+                    ");
+                    $stmt->execute([$companyId, $today]);
+                } elseif ($userRole === 'technician') {
+                    // Technician - repairs completed today
+                    $stmt = $db->prepare("
+                        SELECT COUNT(*) as count 
+                        FROM repairs_new 
+                        WHERE company_id = ? AND technician_id = ? AND DATE(created_at) = ? AND status = 'completed'
+                    ");
+                    $stmt->execute([$companyId, $userId, $today]);
+                    $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+                    $stats['type'] = 'repairs';
+                    $stats['value'] = (int)($result['count'] ?? 0);
+                    $stats['label'] = 'repair' . ($stats['value'] !== 1 ? 's' : '');
+                    return $stats;
+                } else {
+                    // Salesperson - their own sales
+                    $stmt = $db->prepare("
+                        SELECT COUNT(*) as count, COALESCE(SUM(final_amount), 0) as revenue
+                        FROM pos_sales 
+                        WHERE company_id = ? AND created_by_user_id = ? AND DATE(created_at) = ? 
+                        AND swap_id IS NULL
+                        AND (notes IS NULL OR (notes NOT LIKE '%Repair #%' AND notes NOT LIKE '%Products sold by repairer%'))
+                    ");
+                    $stmt->execute([$companyId, $userId, $today]);
+                }
+                
+                $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+                $stats['type'] = $messageType === 'revenue' ? 'revenue' : 'sales';
+                $stats['value'] = (int)($result['count'] ?? 0);
+                $stats['amount'] = (float)($result['revenue'] ?? 0);
+                $stats['label'] = $messageType === 'revenue' ? 'revenue' : ('sale' . ($stats['value'] !== 1 ? 's' : ''));
+            }
+            
+            return $stats;
         } catch (\Exception $e) {
-            error_log("Error getting today's sales count: " . $e->getMessage());
-            return 0;
+            error_log("Error getting New Year message stats: " . $e->getMessage());
+            return [
+                'type' => 'sales',
+                'value' => 0,
+                'label' => 'sales',
+                'amount' => 0
+            ];
         }
+    }
+    
+    /**
+     * Get New Year message type preference from settings
+     */
+    private static function getNewYearMessageType() {
+        try {
+            $db = \Database::getInstance()->getConnection();
+            $stmt = $db->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'new_year_message_type'");
+            $stmt->execute();
+            $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+            return $result ? $result['setting_value'] : 'auto'; // Default to auto (rotates)
+        } catch (\Exception $e) {
+            return 'auto';
+        }
+    }
+    
+    /**
+     * Get today's sales count based on user role (kept for backward compatibility)
+     */
+    public static function getTodaySalesCount($companyId, $userId = null, $userRole = 'salesperson') {
+        $stats = self::getNewYearMessageStats($companyId, $userId, $userRole);
+        return $stats['value'];
     }
 
     /**

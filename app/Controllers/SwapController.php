@@ -518,7 +518,8 @@ class SwapController {
         $companyId = $user['company_id'];
         
         $storeProducts = $this->swap->getAvailableProductsForSwap($companyId);
-        $customers = $this->customer->findByCompany($companyId, 100);
+        // Load all customers (no limit) for search functionality
+        $customers = $this->customer->findByCompany($companyId, 10000);
         $pendingSwappedItems = $this->swappedItem->getPendingResales($companyId);
         
         $title = 'New Swap';
@@ -1633,6 +1634,55 @@ class SwapController {
             echo json_encode([
                 'success' => false,
                 'message' => 'Error deleting swap: ' . $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+
+    /**
+     * API: Search customers for swap page (live search)
+     * GET /api/swap/customers?q=search_term
+     */
+    public function apiSearchCustomers() {
+        header('Content-Type: application/json');
+        
+        // Start session if not already started
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
+        // Check authentication
+        $user = $_SESSION['user'] ?? null;
+        if (!$user) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'error' => 'Authentication required']);
+            exit;
+        }
+        
+        $companyId = $user['company_id'];
+        $searchTerm = $_GET['q'] ?? '';
+        
+        try {
+            // If search term is empty, return all customers (up to 10000)
+            if (empty($searchTerm)) {
+                $customers = $this->customer->findByCompany($companyId, 10000);
+            } else {
+                // Use search method for filtered results
+                $customers = $this->customer->search($searchTerm, $companyId, 10000);
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'data' => $customers,
+                'count' => count($customers)
+            ]);
+        } catch (\Exception $e) {
+            error_log("Error searching customers for swap: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Error searching customers',
+                'data' => []
             ]);
         }
         exit;
