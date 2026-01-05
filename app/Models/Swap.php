@@ -1001,8 +1001,52 @@ class Swap {
                    NULL as company_spec_battery,";
         }
         
+        // Build transaction_code select explicitly
+        $transactionCodeSelect = '';
+        if ($hasTransactionCode) {
+            $transactionCodeSelect = "s.transaction_code,";
+        } else {
+            // Fallback: generate transaction code from ID
+            $transactionCodeSelect = "CONCAT('SWAP-', LPAD(s.id, 8, '0')) as transaction_code,";
+        }
+        
+        // Build status select - check both status and swap_status columns
+        $hasStatus = $this->swapsHasColumn('status');
+        $hasSwapStatus = $this->swapsHasColumn('swap_status');
+        $statusSelect = '';
+        if ($hasStatus) {
+            $statusSelect = "s.status,";
+        } elseif ($hasSwapStatus) {
+            $statusSelect = "s.swap_status as status,";
+        } else {
+            $statusSelect = "NULL as status,";
+        }
+        
+        // Build total_value select - check both total_value and final_price columns
+        $hasTotalValue = $this->swapsHasColumn('total_value');
+        $hasFinalPrice = $this->swapsHasColumn('final_price');
+        $totalValueSelect = '';
+        if ($hasTotalValue) {
+            $totalValueSelect = "s.total_value,";
+        } elseif ($hasFinalPrice) {
+            $totalValueSelect = "s.final_price as total_value,";
+        } else {
+            $totalValueSelect = "COALESCE(s.added_cash, 0) as total_value,";
+        }
+        
         $sql = "
-            SELECT s.*, 
+            SELECT s.id, s.company_id, s.customer_id,
+                   {$transactionCodeSelect}
+                   {$statusSelect}
+                   {$totalValueSelect}
+                   s.added_cash, s.estimated_value,
+                   " . ($hasSwapDate ? "s.swap_date," : "s.created_at as swap_date,") . "
+                   " . ($hasCompanyProductId ? "s.company_product_id," : "") . "
+                   " . ($hasNewPhoneId ? "s.new_phone_id," : "") . "
+                   " . ($userRefCol ? "s.{$userRefCol}," : "") . "
+                   " . ($hasCustomerName ? "s.customer_name," : "") . "
+                   " . ($hasCustomerPhone ? "s.customer_phone," : "") . "
+                   s.notes,
                    " . ($hasCompanyProductId ? "sp.name as company_product_name, sp.price as company_product_price," : "NULL as company_product_name, NULL as company_product_price,") . "
                    " . ($hasCompanyProductId ? "sp.specs as company_specs_json," : "NULL as company_specs_json,") . "
                    {$specsFromTableSelect}
