@@ -231,9 +231,12 @@
         </div>
 
         <!-- Form Actions -->
-        <div class="flex justify-end space-x-4">
-            <a href="<?= BASE_URL_PATH ?>/dashboard/swaps" class="btn btn-outline">Cancel</a>
-            <button type="submit" class="btn btn-primary">Complete Swap</button>
+        <div class="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-6">
+            <a href="<?= BASE_URL_PATH ?>/dashboard/swaps" class="w-full sm:w-auto px-4 py-2 sm:py-2.5 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-center text-sm sm:text-base font-medium">Cancel</a>
+            <button type="submit" id="completeSwapBtn" class="w-full sm:w-auto px-4 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors text-sm sm:text-base font-medium flex items-center justify-center">
+                <i class="fas fa-exchange-alt mr-2"></i>
+                <span>Complete Swap</span>
+            </button>
         </div>
     </form>
 </div>
