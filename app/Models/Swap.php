@@ -1034,12 +1034,21 @@ class Swap {
             $totalValueSelect = "COALESCE(s.added_cash, 0) as total_value,";
         }
         
+        // Check if added_cash and estimated_value columns exist
+        $hasAddedCash = $this->swapsHasColumn('added_cash');
+        $hasEstimatedValue = $this->swapsHasColumn('estimated_value');
+        
+        // Build added_cash and estimated_value selects
+        $addedCashSelect = $hasAddedCash ? "s.added_cash," : "NULL as added_cash,";
+        $estimatedValueSelect = $hasEstimatedValue ? "s.estimated_value," : "NULL as estimated_value,";
+        
         $sql = "
             SELECT s.id, s.company_id, s.customer_id,
                    {$transactionCodeSelect}
                    {$statusSelect}
                    {$totalValueSelect}
-                   s.added_cash, s.estimated_value,
+                   {$addedCashSelect}
+                   {$estimatedValueSelect}
                    " . ($hasSwapDate ? "s.swap_date," : "s.created_at as swap_date,") . "
                    s.created_at,
                    " . ($hasCompanyProductId ? "s.company_product_id," : "") . "
