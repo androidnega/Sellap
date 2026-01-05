@@ -16,41 +16,66 @@ class CloudinaryLoggingService {
     private $enabled = true;
     
     public function __construct() {
-        // Always start with disabled state
+        // Always start with disabled state - set this FIRST before any other code
         $this->enabled = false;
         
-        // Check if Database class is available FIRST - before any other operations
-        // Use function_exists check as well for extra safety
-        if (!class_exists('Database') || !function_exists('Database')) {
-            return; // Exit early if Database not available
-        }
-        
+        // Wrap EVERYTHING in try-catch to prevent any fatal errors
         try {
-            // Double-check Database class exists before using it
-            if (!class_exists('Database')) {
+            // Check if Database class is available FIRST - before any other operations
+            // Use multiple checks and wrap in try-catch
+            if (!@class_exists('Database') && !@class_exists('\Database')) {
+                return; // Exit early if Database not available
+            }
+            
+            // Additional safety check - verify Database methods exist
+            if (!@method_exists('Database', 'getInstance')) {
                 return;
             }
             
-            // Try to get Database instance - this will throw Error if class not found
-            $db = \Database::getInstance()->getConnection();
-            $settingsQuery = $db->query("SELECT setting_key, setting_value FROM system_settings");
-            $settings = $settingsQuery->fetchAll(\PDO::FETCH_KEY_PAIR);
+            // Try to get Database instance - wrap in try-catch
+            try {
+                $db = \Database::getInstance()->getConnection();
+            } catch (\Error $e) {
+                // Database class not found or not instantiable
+                return;
+            } catch (\Exception $e) {
+                // Database connection failed
+                return;
+            } catch (\Throwable $e) {
+                // Any other error
+                return;
+            }
             
-            $this->cloudinaryService = new CloudinaryService();
-            $this->cloudinaryService->loadFromSettings($settings);
-            
-            // Check if Cloudinary is configured
-            if ($this->cloudinaryService->isConfigured()) {
-                $this->enabled = true;
+            // If we got here, Database is available - try to get settings
+            try {
+                $settingsQuery = $db->query("SELECT setting_key, setting_value FROM system_settings");
+                $settings = $settingsQuery->fetchAll(\PDO::FETCH_KEY_PAIR);
+                
+                $this->cloudinaryService = new CloudinaryService();
+                $this->cloudinaryService->loadFromSettings($settings);
+                
+                // Check if Cloudinary is configured
+                if ($this->cloudinaryService->isConfigured()) {
+                    $this->enabled = true;
+                }
+            } catch (\Error $e) {
+                // Settings query failed - logging is optional
+                $this->enabled = false;
+            } catch (\Exception $e) {
+                // Settings query failed - logging is optional
+                $this->enabled = false;
+            } catch (\Throwable $e) {
+                // Any other error - logging is optional
+                $this->enabled = false;
             }
         } catch (\Error $e) {
-            // Catch Error first (class not found, etc.) - logging is optional
+            // Catch any Error that might occur during initialization
             $this->enabled = false;
         } catch (\Exception $e) {
-            // Silently fail - logging is optional
+            // Catch any Exception that might occur during initialization
             $this->enabled = false;
         } catch (\Throwable $e) {
-            // Catch any other throwable - logging is optional
+            // Catch any other Throwable that might occur during initialization
             $this->enabled = false;
         }
     }

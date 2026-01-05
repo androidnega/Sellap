@@ -40,24 +40,25 @@ class CloudinaryStorage {
      */
     public static function getLogger() {
         // Only create logger if Database class is available
-        // Use multiple checks to ensure Database is truly available
-        if (!class_exists('Database') || !class_exists('\Database')) {
+        // Use multiple checks with @ suppression to prevent autoload errors
+        if (!@class_exists('Database') && !@class_exists('\Database')) {
             return null;
         }
         
         // Additional check - verify Database methods exist
-        if (!method_exists('Database', 'getInstance')) {
+        if (!@method_exists('Database', 'getInstance')) {
             return null;
         }
         
         if (self::$loggingService === null) {
             try {
+                // Wrap in try-catch to catch any errors during instantiation
                 self::$loggingService = new \App\Services\CloudinaryLoggingService();
+            } catch (\Error $e) {
+                // Catch Error first (class not found, etc.)
+                return null;
             } catch (\Exception $e) {
                 // If logger creation fails, return null
-                return null;
-            } catch (\Error $e) {
-                // Also catch Error (class not found, etc.)
                 return null;
             } catch (\Throwable $e) {
                 // Catch any other throwable
