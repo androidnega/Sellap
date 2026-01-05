@@ -103,16 +103,18 @@
                 <div class="relative">
                     <input type="text" id="product_search" placeholder="Type product name, brand, or model (e.g. iPhone 13, Samsung Galaxy)" 
                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                           autocomplete="off" required
+                           autocomplete="off"
                            aria-required="true"
                            aria-describedby="product_search_help">
                     <div id="product_dropdown" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg hidden max-h-60 overflow-y-auto mt-1"></div>
                 </div>
                 <p id="product_search_help" class="mt-1 text-xs text-gray-500">Select a product from the dropdown that appears as you type</p>
                 <!-- Hidden select for form submission -->
-                <select id="store_product_id" name="store_product_id" class="hidden" required>
+                <select id="store_product_id" name="store_product_id" class="hidden">
                     <option value="">Select product to give customer</option>
                 </select>
+                <!-- Hidden input to track if product is selected -->
+                <input type="hidden" id="store_product_selected" value="0">
             </div>
             
             <div id="storeProductInfo" class="mt-4 p-4 bg-gray-50 rounded-lg hidden">
@@ -796,30 +798,79 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (swapForm && completeSwapBtn) {
         swapForm.addEventListener('submit', function(e) {
+            e.preventDefault(); // Always prevent default to do custom validation
+            
             // Validate required fields
             const storeProductId = document.getElementById('store_product_id');
             const customerName = document.getElementById('customer_name');
             const customerContact = document.getElementById('customer_contact');
+            const customerBrandId = document.getElementById('customer_brand_id');
+            const customerModel = document.getElementById('customer_model');
+            const swapValue = document.getElementById('swap_value');
             
-            if (!storeProductId || !storeProductId.value) {
-                e.preventDefault();
-                alert('Please select a store product');
+            let isValid = true;
+            let errorMessage = '';
+            
+            // Validate store product
+            if (!storeProductId || !storeProductId.value || storeProductId.value === '') {
+                isValid = false;
+                errorMessage = 'Please select a store product from the dropdown';
                 const productSearch = document.getElementById('product_search');
-                if (productSearch) productSearch.focus();
-                return false;
+                if (productSearch) {
+                    productSearch.focus();
+                    productSearch.classList.add('border-red-500');
+                    setTimeout(() => productSearch.classList.remove('border-red-500'), 3000);
+                }
             }
             
-            if (!customerName || !customerName.value.trim()) {
-                e.preventDefault();
-                alert('Please enter customer name');
+            // Validate customer name
+            if (isValid && (!customerName || !customerName.value.trim())) {
+                isValid = false;
+                errorMessage = 'Please enter customer name';
                 customerName.focus();
-                return false;
+                customerName.classList.add('border-red-500');
+                setTimeout(() => customerName.classList.remove('border-red-500'), 3000);
             }
             
-            if (!customerContact || !customerContact.value.trim()) {
-                e.preventDefault();
-                alert('Please enter customer contact');
+            // Validate customer contact
+            if (isValid && (!customerContact || !customerContact.value.trim())) {
+                isValid = false;
+                errorMessage = 'Please enter customer phone number';
                 customerContact.focus();
+                customerContact.classList.add('border-red-500');
+                setTimeout(() => customerContact.classList.remove('border-red-500'), 3000);
+            }
+            
+            // Validate customer brand
+            if (isValid && (!customerBrandId || !customerBrandId.value || customerBrandId.value === '')) {
+                isValid = false;
+                errorMessage = 'Please select the brand of the customer\'s product';
+                customerBrandId.focus();
+                customerBrandId.classList.add('border-red-500');
+                setTimeout(() => customerBrandId.classList.remove('border-red-500'), 3000);
+            }
+            
+            // Validate customer model
+            if (isValid && (!customerModel || !customerModel.value.trim())) {
+                isValid = false;
+                errorMessage = 'Please enter the model of the customer\'s product';
+                customerModel.focus();
+                customerModel.classList.add('border-red-500');
+                setTimeout(() => customerModel.classList.remove('border-red-500'), 3000);
+            }
+            
+            // Validate swap value
+            if (isValid && (!swapValue || !swapValue.value || parseFloat(swapValue.value) <= 0)) {
+                isValid = false;
+                errorMessage = 'Please enter a valid estimated value for the customer\'s product';
+                swapValue.focus();
+                swapValue.classList.add('border-red-500');
+                setTimeout(() => swapValue.classList.remove('border-red-500'), 3000);
+            }
+            
+            if (!isValid) {
+                // Show error message
+                alert(errorMessage);
                 return false;
             }
             
@@ -827,8 +878,8 @@ document.addEventListener('DOMContentLoaded', function() {
             completeSwapBtn.disabled = true;
             completeSwapBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i><span>Processing...</span>';
             
-            // Form will submit normally
-            return true;
+            // Submit the form programmatically
+            swapForm.submit();
         });
     }
 });
