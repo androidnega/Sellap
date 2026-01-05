@@ -633,10 +633,14 @@ class BackupController {
                 exit;
             }
 
-            // Validate time format
-            if (!preg_match('/^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/', $backupTime)) {
+            // Normalize time format: accept HH:MM or HH:MM:SS, convert to HH:MM:SS
+            if (preg_match('/^([01]\d|2[0-3]):([0-5]\d)$/', $backupTime)) {
+                // HH:MM format - add seconds
+                $backupTime .= ':00';
+            } elseif (!preg_match('/^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/', $backupTime)) {
+                // Invalid format
                 http_response_code(400);
-                echo json_encode(['success' => false, 'error' => 'Invalid time format']);
+                echo json_encode(['success' => false, 'error' => 'Invalid time format. Expected HH:MM or HH:MM:SS']);
                 exit;
             }
 
