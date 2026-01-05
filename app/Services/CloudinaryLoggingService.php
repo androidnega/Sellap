@@ -17,23 +17,22 @@ class CloudinaryLoggingService {
     
     public function __construct() {
         // CRITICAL: This constructor MUST NEVER throw an error, even if Database doesn't exist
-        // Wrap EVERYTHING in a try-catch to ensure no errors escape
+        // Wrap EVERYTHING including property initialization in try-catch
         
-        // Set enabled to false FIRST - this is safe and won't cause errors
-        $this->enabled = false;
+        // Set enabled to false FIRST - wrap in try-catch to be absolutely safe
+        try {
+            $this->enabled = false;
+        } catch (\Throwable $e) {
+            // If even setting enabled fails, we're in trouble - but continue
+        }
         
         // CRITICAL: Check Database class availability using the SAFEST possible method
         // Use @ suppression with false flag AND wrap in try-catch
         // Return immediately if Database doesn't exist - don't even try
         try {
             // Check if Database class exists WITHOUT triggering autoload
-            $dbExists = false;
-            try {
-                $dbExists = @class_exists('Database', false);
-            } catch (\Throwable $e) {
-                // If even checking class_exists fails, Database definitely doesn't exist
-                return;
-            }
+            // Use @ suppression and false flag to prevent ANY autoload attempts
+            $dbExists = @class_exists('Database', false);
             
             if (!$dbExists) {
                 return; // Exit immediately - Database not available
@@ -42,6 +41,9 @@ class CloudinaryLoggingService {
             // If ANY error occurs checking Database, exit immediately
             return;
         }
+        
+        // If we get here, Database exists - but wrap everything else in try-catch
+        // to ensure no errors escape
         
         // Wrap EVERYTHING in try-catch to prevent any fatal errors
         try {

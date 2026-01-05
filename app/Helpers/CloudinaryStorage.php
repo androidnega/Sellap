@@ -264,38 +264,44 @@ class CloudinaryStorage {
     public static function logError($message, $context = []) {
         // CRITICAL: This method MUST NEVER throw an error, even if Database doesn't exist
         // Always fallback to error_log() if anything goes wrong
+        // Wrap EVERYTHING in try-catch to ensure no errors escape
         
-        // Immediately fallback to error_log if Database doesn't exist
-        // Use @ suppression and false flag to prevent ANY autoload attempts
-        if (!@class_exists('Database', false)) {
-            error_log($message);
-            return;
-        }
-        
-        // Additional check - verify Database methods exist
-        if (!@method_exists('Database', 'getInstance')) {
-            error_log($message);
-            return;
-        }
-        
-        // Only try to get logger if Database checks passed
-        // Wrap everything in try-catch to ensure no errors escape
         try {
-            $logger = self::getLogger();
-            if ($logger) {
-                // Logger exists - try to use it, but fallback if it fails
-                try {
-                    $logger->error($message, $context);
-                } catch (\Throwable $e) {
-                    // If logger fails, fallback to error_log
+            // Immediately fallback to error_log if Database doesn't exist
+            // Use @ suppression and false flag to prevent ANY autoload attempts
+            if (!@class_exists('Database', false)) {
+                error_log($message);
+                return;
+            }
+            
+            // Additional check - verify Database methods exist
+            if (!@method_exists('Database', 'getInstance')) {
+                error_log($message);
+                return;
+            }
+            
+            // Only try to get logger if Database checks passed
+            // Wrap everything in try-catch to ensure no errors escape
+            try {
+                $logger = self::getLogger();
+                if ($logger) {
+                    // Logger exists - try to use it, but fallback if it fails
+                    try {
+                        $logger->error($message, $context);
+                    } catch (\Throwable $e) {
+                        // If logger fails, fallback to error_log
+                        error_log($message);
+                    }
+                } else {
+                    // Fallback to PHP error_log if logger not available
                     error_log($message);
                 }
-            } else {
-                // Fallback to PHP error_log if logger not available
+            } catch (\Throwable $e) {
+                // Catch ANY throwable (Error, Exception, etc.) - fallback to error_log
                 error_log($message);
             }
         } catch (\Throwable $e) {
-            // Catch ANY throwable (Error, Exception, etc.) - fallback to error_log
+            // Catch ANY throwable at the top level - always fallback to error_log
             error_log($message);
         }
     }
