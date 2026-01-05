@@ -175,7 +175,13 @@ class CloudinaryStorage {
      */
     public static function log($message, $level = 'info') {
         // Only try to log if Database class is available
-        if (!class_exists('Database')) {
+        if (!class_exists('Database') || !class_exists('\Database')) {
+            error_log($message);
+            return;
+        }
+        
+        // Additional check - verify Database methods exist
+        if (!method_exists('Database', 'getInstance')) {
             error_log($message);
             return;
         }
@@ -187,7 +193,13 @@ class CloudinaryStorage {
             } else {
                 error_log($message);
             }
+        } catch (\Error $e) {
+            // Catch Error (class not found, etc.) - fallback to error_log
+            error_log($message);
         } catch (\Exception $e) {
+            error_log($message);
+        } catch (\Throwable $e) {
+            // Catch any other throwable - fallback to error_log
             error_log($message);
         }
     }
