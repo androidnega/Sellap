@@ -156,13 +156,24 @@ $companyId = $user['company_id'] ?? null;
                     <strong>Important:</strong> Automatic backups require a cron job to be set up. 
                     The "backup time" setting indicates when backups should run, but the cron job must be configured to trigger the scheduler.
                 </p>
-                <p class="text-xs text-yellow-700">
-                    <strong>Option 1 (Recommended):</strong> Set up a webhook/cron service to call this URL daily:<br>
-                    <code class="bg-yellow-100 px-2 py-1 rounded mt-1 inline-block">GET <?= BASE_URL_PATH ?>/api/admin/backups/run-cron?token=sellapp_backup_cron_2024</code>
-                </p>
-                <p class="text-xs text-yellow-700 mt-2">
-                    <strong>Option 2:</strong> Use the "Run Scheduled Backups Now" button below to manually trigger backups for testing.
-                </p>
+                <div class="mt-2 space-y-2">
+                    <p class="text-xs text-yellow-700">
+                        <strong>Option 1 (Recommended):</strong> Set up a webhook/cron service to call this URL daily:<br>
+                        <code class="bg-yellow-100 px-2 py-1 rounded mt-1 inline-block break-all">GET <?= BASE_URL_PATH ?>/api/admin/backups/run-cron?token=sellapp_backup_cron_2024</code>
+                    </p>
+                    <p class="text-xs text-yellow-700">
+                        <strong>Test Endpoint:</strong> Verify your cron setup works by calling:<br>
+                        <code class="bg-yellow-100 px-2 py-1 rounded mt-1 inline-block break-all">GET <?= BASE_URL_PATH ?>/api/admin/backups/test-cron?token=sellapp_backup_cron_2024</code>
+                    </p>
+                    <p class="text-xs text-yellow-700">
+                        <strong>Popular Cron Services:</strong>
+                        <a href="https://cron-job.org" target="_blank" class="text-blue-600 hover:underline ml-1">cron-job.org</a>,
+                        <a href="https://www.easycron.com" target="_blank" class="text-blue-600 hover:underline">EasyCron</a>, or your hosting provider's cron job manager.
+                    </p>
+                    <p class="text-xs text-yellow-700 mt-2">
+                        <strong>Option 2:</strong> Use the "Run Scheduled Backups Now" button below to manually trigger backups for testing.
+                    </p>
+                </div>
             </div>
             <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
                 <button id="btnRunScheduled" class="bg-purple-600 hover:bg-purple-700 text-white rounded px-4 py-2 text-sm">

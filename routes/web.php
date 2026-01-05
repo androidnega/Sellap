@@ -3359,6 +3359,13 @@ $router->get('api/admin/backups/run-cron', function() {
     $controller->runCron();
 });
 
+// Test cron endpoint (without running backups)
+// Usage: GET /api/admin/backups/test-cron?token=your_secret_token
+$router->get('api/admin/backups/test-cron', function() {
+    $controller = new \App\Controllers\BackupSchedulerController();
+    $controller->testCron();
+});
+
 // Company Backup Settings Routes
 $router->get('api/company/{id}/backup-settings', function($id) {
     $controller = new \App\Controllers\BackupController();
