@@ -125,11 +125,18 @@
                     <label for="customer_brand_id" class="block text-sm font-medium text-gray-700 mb-1">
                         Brand <span class="text-red-500">*</span>
                     </label>
-                    <select id="customer_brand_id" name="customer_brand_id" required 
-                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">Select Brand</option>
-                        <!-- Brands will be loaded dynamically -->
-                    </select>
+                    <div class="relative">
+                        <select id="customer_brand_id" name="customer_brand_id" required 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer">
+                            <option value="">Select Brand</option>
+                            <!-- Brands will be loaded dynamically -->
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                    </div>
                     <!-- Hidden input to store brand name for form submission -->
                     <input type="hidden" id="customer_brand" name="customer_brand">
                 </div>
@@ -155,12 +162,19 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <div>
                     <label for="customer_condition" class="block text-sm font-medium text-gray-700 mb-1">Condition</label>
-                    <select id="customer_condition" name="customer_condition" 
-                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="used">Used</option>
-                        <option value="new">New</option>
-                        <option value="faulty">Faulty</option>
-                    </select>
+                    <div class="relative">
+                        <select id="customer_condition" name="customer_condition" 
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer">
+                            <option value="used">Used</option>
+                            <option value="new">New</option>
+                            <option value="faulty">Faulty</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                    </div>
                 </div>
                 
                 <div>
