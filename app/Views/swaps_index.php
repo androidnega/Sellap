@@ -270,18 +270,28 @@
                                 if ($isResold && $resellPrice > 0) {
                                     // Item is resold - show resold value as main price
                                     $mainPrice = $resellPrice;
+                                    $mainLabel = 'Resold for';
                                     $subPrice = $totalValue; // Show original total_value underneath
+                                    $subLabel = 'Swap value';
                                 } else {
                                     // Item not resold - show total_value as main price
                                     $mainPrice = $totalValue;
+                                    $mainLabel = 'Swap value';
                                     // Show resell_price if available, otherwise estimated_value as faint red underneath
                                     $subPrice = $resellPrice > 0 ? $resellPrice : ($estimatedValue > 0 ? $estimatedValue : 0);
+                                    $subLabel = $resellPrice > 0 ? 'Expected resale' : ($estimatedValue > 0 ? 'Est. value' : '');
                                 }
                                 ?>
-                                <div class="flex flex-col">
-                                    <span class="text-sm font-semibold text-gray-900">₵<?= number_format($mainPrice, 2) ?></span>
-                                    <?php if ($subPrice > 0): ?>
-                                        <span class="text-xs text-red-300 font-medium">₵<?= number_format($subPrice, 2) ?></span>
+                                <div class="flex flex-col gap-0.5">
+                                    <div class="flex flex-col">
+                                        <span class="text-xs text-gray-500 leading-tight"><?= htmlspecialchars($mainLabel) ?></span>
+                                        <span class="text-sm font-semibold text-gray-900">₵<?= number_format($mainPrice, 2) ?></span>
+                                    </div>
+                                    <?php if ($subPrice > 0 && !empty($subLabel)): ?>
+                                        <div class="flex flex-col mt-0.5">
+                                            <span class="text-xs text-red-400 leading-tight"><?= htmlspecialchars($subLabel) ?></span>
+                                            <span class="text-xs text-red-300 font-medium">₵<?= number_format($subPrice, 2) ?></span>
+                                        </div>
                                     <?php endif; ?>
                                 </div>
                             </td>
