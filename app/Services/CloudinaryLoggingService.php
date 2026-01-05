@@ -32,24 +32,45 @@ class CloudinaryLoggingService {
                 return;
             }
             
-            // Try to get Database instance - wrap in try-catch
+            // Try to get Database instance - wrap in try-catch and use @ suppression
+            $db = null;
             try {
-                $db = \Database::getInstance()->getConnection();
+                // Use @ suppression to prevent any errors from being thrown
+                $dbInstance = @\Database::getInstance();
+                if ($dbInstance === null) {
+                    return; // Database::getInstance() returned null
+                }
+                $db = @$dbInstance->getConnection();
+                if ($db === null) {
+                    return; // getConnection() returned null
+                }
             } catch (\Error $e) {
-                // Database class not found or not instantiable
+                // Database class not found or not instantiable - silently fail
                 return;
             } catch (\Exception $e) {
-                // Database connection failed
+                // Database connection failed - silently fail
                 return;
             } catch (\Throwable $e) {
-                // Any other error
+                // Any other error - silently fail
                 return;
             }
             
             // If we got here, Database is available - try to get settings
+            // But add null check and @ suppression just in case
             try {
-                $settingsQuery = $db->query("SELECT setting_key, setting_value FROM system_settings");
-                $settings = $settingsQuery->fetchAll(\PDO::FETCH_KEY_PAIR);
+                if ($db === null) {
+                    return; // Safety check - db should not be null here
+                }
+                
+                $settingsQuery = @$db->query("SELECT setting_key, setting_value FROM system_settings");
+                if ($settingsQuery === false) {
+                    return; // Query failed
+                }
+                
+                $settings = @$settingsQuery->fetchAll(\PDO::FETCH_KEY_PAIR);
+                if ($settings === false) {
+                    return; // Fetch failed
+                }
                 
                 $this->cloudinaryService = new CloudinaryService();
                 $this->cloudinaryService->loadFromSettings($settings);
