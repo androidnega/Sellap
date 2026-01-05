@@ -258,7 +258,32 @@
                                 <div class="text-xs text-gray-500"><?= htmlspecialchars($swap['customer_phone'] ?? '') ?></div>
                             </td>
                             <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
-                                <span class="text-sm font-semibold text-gray-900">₵<?= number_format($swap['total_value'] ?? 0, 2) ?></span>
+                                <?php
+                                $totalValue = floatval($swap['total_value'] ?? 0);
+                                $resellPrice = floatval($swap['resell_price'] ?? 0);
+                                $estimatedValue = floatval($swap['customer_product_value'] ?? $swap['estimated_value'] ?? 0);
+                                $resaleStatus = $swap['resale_status'] ?? null;
+                                $isResold = ($resaleStatus === 'sold' || ($swap['status'] ?? null) === 'resold');
+                                
+                                // When resold, show the resold value (resell_price) instead of total_value
+                                // Otherwise show total_value as main price and resell_price/estimated_value as faint red underneath
+                                if ($isResold && $resellPrice > 0) {
+                                    // Item is resold - show resold value as main price
+                                    $mainPrice = $resellPrice;
+                                    $subPrice = $totalValue; // Show original total_value underneath
+                                } else {
+                                    // Item not resold - show total_value as main price
+                                    $mainPrice = $totalValue;
+                                    // Show resell_price if available, otherwise estimated_value as faint red underneath
+                                    $subPrice = $resellPrice > 0 ? $resellPrice : ($estimatedValue > 0 ? $estimatedValue : 0);
+                                }
+                                ?>
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-semibold text-gray-900">₵<?= number_format($mainPrice, 2) ?></span>
+                                    <?php if ($subPrice > 0): ?>
+                                        <span class="text-xs text-red-300 font-medium">₵<?= number_format($subPrice, 2) ?></span>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                             <?php if ($isManager): ?>
                             <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
