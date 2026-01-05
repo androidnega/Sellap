@@ -802,9 +802,10 @@ class BackupService {
      * @param int $companyId
      * @param int|null $userId User creating the backup
      * @param bool $isAutomatic Whether this is an automatic scheduled backup
+     * @param string $backupDestination Destination preference: 'email', 'cloudinary', or 'both'
      * @return int Backup ID
      */
-    public function createCompanyBackup($companyId, $userId = null, $isAutomatic = false) {
+    public function createCompanyBackup($companyId, $userId = null, $isAutomatic = false, $backupDestination = 'email') {
         try {
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
@@ -814,7 +815,7 @@ class BackupService {
                 $userId = $_SESSION['user']['id'];
             }
             
-            $result = $this->exportCompanyData($companyId, 'json', $userId, $isAutomatic);
+            $result = $this->exportCompanyData($companyId, 'json', $userId, $isAutomatic, $backupDestination);
             
             if (!$result['success']) {
                 throw new \Exception($result['error'] ?? 'Failed to create backup');
