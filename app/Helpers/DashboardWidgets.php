@@ -280,7 +280,7 @@ class DashboardWidgets {
                     
                     $pendingAmount = 0;
                     foreach ($partialSales as $sale) {
-                        $paymentStats = $salePaymentModel->getPaymentStatsForSale($sale['id']);
+                        $paymentStats = $salePaymentModel->getPaymentStats($sale['id'], $companyId);
                         $pendingAmount += $paymentStats['remaining'] ?? 0;
                     }
                     
