@@ -56,8 +56,17 @@ $stats = DashboardWidgets::getNewYearMessageStats($companyId, null, 'manager');
                     <p class="text-sm sm:text-base text-gray-600">Complete overview of your business performance</p>
                 </div>
                 <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                    <!-- Period Quick Filter -->
+                    <div class="flex gap-1 sm:gap-2">
+                        <button id="btn-period-month" onclick="setPeriod('month')" class="px-2 sm:px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-xs sm:text-sm whitespace-nowrap transition-colors">
+                            This Month
+                        </button>
+                        <button id="btn-period-all" onclick="setPeriod('all')" class="px-2 sm:px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-xs sm:text-sm whitespace-nowrap transition-colors">
+                            All Time
+                        </button>
+                    </div>
                     <!-- Date Range Filter -->
-                    <input type="date" id="date-from" class="px-2 sm:px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm flex-1 sm:flex-none" value="<?= date('Y-m-d', strtotime('-30 days')) ?>">
+                    <input type="date" id="date-from" class="px-2 sm:px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm flex-1 sm:flex-none" value="<?= date('Y-m-01') ?>">
                     <input type="date" id="date-to" class="px-2 sm:px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm flex-1 sm:flex-none" value="<?= date('Y-m-d') ?>">
                     <button onclick="loadManagerOverview()" class="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-xs sm:text-sm whitespace-nowrap">
                         <i class="fas fa-filter mr-1 sm:mr-2"></i><span class="hidden sm:inline">Apply Filter</span><span class="sm:hidden">Filter</span>
@@ -162,7 +171,7 @@ $stats = DashboardWidgets::getNewYearMessageStats($companyId, null, 'manager');
                                 <i class="fas fa-chart-line text-green-600 mr-2"></i>
                                 Business Performance
                             </h3>
-                            <span class="text-xs text-gray-500" id="performance-date-range">Period: Last 30 days</span>
+                            <span class="text-xs text-gray-500" id="performance-date-range">Period: This Month</span>
                         </div>
                     </div>
                     <div class="p-4 sm:p-6">
@@ -1156,6 +1165,43 @@ $stats = DashboardWidgets::getNewYearMessageStats($companyId, null, 'manager');
         } else {
             // DOM already loaded - initialize immediately
             initializeManagerDashboard();
+        }
+        
+        // Period quick filter function
+        function setPeriod(period) {
+            const dateFromEl = document.getElementById('date-from');
+            const dateToEl = document.getElementById('date-to');
+            const today = new Date();
+            
+            // Update button styles
+            const monthBtn = document.getElementById('btn-period-month');
+            const allBtn = document.getElementById('btn-period-all');
+            
+            if (period === 'month') {
+                // Set to current month
+                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                dateFromEl.value = firstDay.toISOString().split('T')[0];
+                dateToEl.value = today.toISOString().split('T')[0];
+                
+                // Update button styles
+                monthBtn.classList.remove('bg-gray-200', 'text-gray-700');
+                monthBtn.classList.add('bg-blue-600', 'text-white');
+                allBtn.classList.remove('bg-blue-600', 'text-white');
+                allBtn.classList.add('bg-gray-200', 'text-gray-700');
+            } else if (period === 'all') {
+                // Set to all time (use a very old date)
+                dateFromEl.value = '2020-01-01';
+                dateToEl.value = today.toISOString().split('T')[0];
+                
+                // Update button styles
+                allBtn.classList.remove('bg-gray-200', 'text-gray-700');
+                allBtn.classList.add('bg-blue-600', 'text-white');
+                monthBtn.classList.remove('bg-blue-600', 'text-white');
+                monthBtn.classList.add('bg-gray-200', 'text-gray-700');
+            }
+            
+            // Automatically load data
+            loadManagerOverview();
         }
         
         document.addEventListener('DOMContentLoaded', function() {

@@ -3013,9 +3013,9 @@ class DashboardController {
             throw new \Exception('Company ID is required');
         }
         
-        // Default to last 30 days if not specified
-        if (!$dateFrom) $dateFrom = date('Y-m-d', strtotime('-30 days'));
-        if (!$dateTo) $dateTo = date('Y-m-d');
+        // Default to current month if not specified
+        if (!$dateFrom) $dateFrom = date('Y-m-01'); // First day of current month
+        if (!$dateTo) $dateTo = date('Y-m-d'); // Today
         
         // 1. OVERVIEW METRICS
         try {
