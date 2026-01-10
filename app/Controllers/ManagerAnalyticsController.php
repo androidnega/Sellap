@@ -145,8 +145,12 @@ class ManagerAnalyticsController {
             }
 
             // Get date filters
-            $dateFrom = $_GET['date_from'] ?? null;
-            $dateTo = $_GET['date_to'] ?? null;
+            $dateFrom = $_GET['date_from'] ?? date('Y-m-01'); // Default to first day of current month
+            $dateTo = $_GET['date_to'] ?? date('Y-m-d');
+
+            // Handle empty strings
+            if (empty($dateFrom)) $dateFrom = date('Y-m-01');
+            if (empty($dateTo)) $dateTo = date('Y-m-d');
 
             // Get enabled modules
             $enabledModules = [];
