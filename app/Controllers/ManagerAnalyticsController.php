@@ -504,8 +504,12 @@ class ManagerAnalyticsController {
 
             // Get chart type and date range
             $chartType = $_GET['type'] ?? 'all'; // revenue, profit, products, customers, all
-            $dateFrom = $_GET['date_from'] ?? date('Y-m-d', strtotime('-30 days'));
+            $dateFrom = $_GET['date_from'] ?? date('Y-m-01'); // Default to first day of current month
             $dateTo = $_GET['date_to'] ?? date('Y-m-d');
+            
+            // Handle empty strings
+            if (empty($dateFrom)) $dateFrom = date('Y-m-01');
+            if (empty($dateTo)) $dateTo = date('Y-m-d');
 
             // Get enabled modules
             $enabledModules = [];

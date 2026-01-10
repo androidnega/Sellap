@@ -201,8 +201,6 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
                 if ($canSell || $userRole === 'system_admin'):
                 ?>
                     <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos', 'fas fa-cash-register', 'POS', $currentPage, 'pos') ?>
-                <?php else: ?>
-                    <?= sidebarLink(BASE_URL_PATH . '/dashboard/audit-trail', 'fas fa-chart-bar', 'Audit Trail', $currentPage, 'audit-trail') ?>
                 <?php endif; ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos/sales-history', 'fas fa-history', 'Sales History', $currentPage, 'sales-history') ?>
                 <?php if (CompanyModule::isEnabled($companyId, 'partial_payments')): ?>
