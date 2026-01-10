@@ -1249,19 +1249,24 @@ class AnalyticsService {
         
         // EXCLUDE swap transactions - swaps should only be tracked on swap page
         // Use swap_id IS NULL to exclude all swap-related sales
+        // Calculate cost by summing item costs, not as a correlated subquery within SUM
         $profitQuery = $this->db->prepare("
             SELECT 
                 COALESCE(SUM(ps.final_amount), 0) as revenue,
-                COALESCE(SUM(
-                    (SELECT COALESCE(SUM(psi.quantity * {$costColumn}), 0)
-                     FROM pos_sale_items psi 
-                     LEFT JOIN {$productsTable} p ON (
-                         (psi.item_id = p.id AND p.company_id = ps.company_id)
-                         OR ((psi.item_id IS NULL OR psi.item_id = 0) AND LOWER(TRIM(psi.item_description)) = LOWER(TRIM(p.name)) AND p.company_id = ps.company_id)
-                     )
-                     WHERE psi.pos_sale_id = ps.id AND p.id IS NOT NULL)
-                ), 0) as cost
+                COALESCE(SUM(psi_cost.total_cost), 0) as cost
             FROM pos_sales ps
+            LEFT JOIN (
+                SELECT 
+                    psi.pos_sale_id,
+                    SUM(psi.quantity * {$costColumn}) as total_cost
+                FROM pos_sale_items psi 
+                LEFT JOIN {$productsTable} p ON (
+                    (psi.item_id = p.id AND p.company_id = (SELECT company_id FROM pos_sales WHERE id = psi.pos_sale_id LIMIT 1))
+                    OR ((psi.item_id IS NULL OR psi.item_id = 0) AND LOWER(TRIM(psi.item_description)) = LOWER(TRIM(p.name)) AND p.company_id = (SELECT company_id FROM pos_sales WHERE id = psi.pos_sale_id LIMIT 1))
+                )
+                WHERE p.id IS NOT NULL
+                GROUP BY psi.pos_sale_id
+            ) psi_cost ON psi_cost.pos_sale_id = ps.id
             WHERE {$where}
             AND ps.swap_id IS NULL
         ");
