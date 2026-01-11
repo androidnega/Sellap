@@ -2902,7 +2902,9 @@ class ManagerAnalyticsController {
                 return [$yesterday, $yesterday];
             
             case 'this_week':
-                $start = date('Y-m-d', strtotime('monday this week'));
+                // Calculate from Sunday (day 0) of current week to today
+                $dayOfWeek = date('w'); // 0 (Sunday) through 6 (Saturday)
+                $start = date('Y-m-d', strtotime("-{$dayOfWeek} days"));
                 return [$start, $today];
             
             case 'last_week':
