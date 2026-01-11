@@ -62,7 +62,7 @@ $companyId = 11; // Update this to your actual company ID
                     'label' => 'Today'
                 ],
                 'this_week' => [
-                    'from' => date('Y-m-d', strtotime('sunday this week', strtotime($today))),
+                    'from' => date('Y-m-d', strtotime($today . ' -' . date('w', strtotime($today)) . ' days')),
                     'to' => $today,
                     'label' => 'This Week (Sunday to Today)'
                 ],
