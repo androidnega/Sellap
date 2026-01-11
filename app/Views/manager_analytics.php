@@ -3203,7 +3203,8 @@ $userRole = $user['role'] ?? 'manager';
             if (todayData) {
                 todaySales = parseInt(todayData.sales_count || 0);
                 todayRevenue = parseFloat(todayData.revenue || 0);
-                todayProfit = parseFloat(todayData.profit || 0);
+                // Use sales_profit only (not total profit which includes swap profit)
+                todayProfit = parseFloat(todayData.sales_profit || todayData.profit || 0);
             }
         }
         
@@ -3211,6 +3212,14 @@ $userRole = $user['role'] ?? 'manager';
         if (todaySales === 0 && todayRevenue === 0 && data.sales && data.sales.today) {
             todaySales = parseInt(data.sales.today.count || 0);
             todayRevenue = parseFloat(data.sales.today.revenue || 0);
+        }
+        
+        // Get today's profit from profit data (sales profit only, not including swap)
+        if (todayProfit === 0 && data.profit) {
+            // Calculate today's sales profit from revenue and cost
+            const todayCost = parseFloat(data.profit.cost || 0);
+            todayProfit = todayRevenue - todayCost;
+            if (todayProfit < 0) todayProfit = 0;
         }
         
         if (!todayWithinRange) {

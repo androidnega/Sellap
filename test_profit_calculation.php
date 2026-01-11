@@ -105,11 +105,18 @@ try {
     // Test 2: Check sample products with costs
     output("\nTest 2: Sample Products Cost Data", 'INFO');
     
+    // Build dynamic SELECT based on available columns
+    $selectColumns = "id, name";
+    if ($hasCostPrice) {
+        $selectColumns .= ", COALESCE(cost_price, 0) as cost_price";
+    }
+    if ($hasCost) {
+        $selectColumns .= ", COALESCE(cost, 0) as cost";
+    }
+    $selectColumns .= ", COALESCE(price, 0) as price";
+    
     $sampleProducts = $db->prepare("
-        SELECT id, name, 
-               COALESCE(cost_price, 0) as cost_price, 
-               COALESCE(cost, 0) as cost,
-               COALESCE(price, 0) as price
+        SELECT {$selectColumns}
         FROM {$productsTable}
         WHERE company_id = ?
         LIMIT 5
@@ -120,9 +127,16 @@ try {
     if (count($products) > 0) {
         output("Found " . count($products) . " sample products", 'SUCCESS');
         if (php_sapi_name() !== 'cli') {
-            echo "<table><tr><th>ID</th><th>Name</th><th>Cost Price</th><th>Cost</th><th>Selling Price</th></tr>";
+            echo "<table><tr><th>ID</th><th>Name</th>";
+            if ($hasCostPrice) echo "<th>Cost Price</th>";
+            if ($hasCost) echo "<th>Cost</th>";
+            echo "<th>Selling Price</th></tr>";
+            
             foreach ($products as $p) {
-                echo "<tr><td>{$p['id']}</td><td>{$p['name']}</td><td>" . formatCurrency($p['cost_price']) . "</td><td>" . formatCurrency($p['cost']) . "</td><td>" . formatCurrency($p['price']) . "</td></tr>";
+                echo "<tr><td>{$p['id']}</td><td>{$p['name']}</td>";
+                if ($hasCostPrice) echo "<td>" . formatCurrency($p['cost_price'] ?? 0) . "</td>";
+                if ($hasCost) echo "<td>" . formatCurrency($p['cost'] ?? 0) . "</td>";
+                echo "<td>" . formatCurrency($p['price']) . "</td></tr>";
             }
             echo "</table>";
         }
