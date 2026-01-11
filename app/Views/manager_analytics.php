@@ -58,8 +58,9 @@ $userRole = $user['role'] ?? 'manager';
                 <div class="flex flex-wrap gap-2">
                     <button id="btnToday" class="date-filter-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm transition-colors" data-range="today">Today</button>
                     <button id="btnThisWeek" class="date-filter-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm transition-colors" data-range="this_week">This Week</button>
-                    <button id="btnThisMonth" class="date-filter-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm active transition-colors" data-range="this_month">This Month</button>
+                    <button id="btnThisMonth" class="date-filter-btn bg-blue-100 hover:bg-blue-200 border border-blue-400 rounded px-3 py-2 text-sm active transition-colors bg-blue-600 text-white" data-range="this_month">This Month</button>
                     <button id="btnThisYear" class="date-filter-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm transition-colors" data-range="this_year">This Year</button>
+                    <button id="btnAllTime" class="date-filter-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm transition-colors" data-range="all_time">All Time</button>
                     <div class="flex items-center gap-2">
                         <label for="monthSelector" class="text-xs sm:text-sm text-gray-600 font-medium whitespace-nowrap">Select Month:</label>
                         <input type="month" id="monthSelector" class="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="">
@@ -725,8 +726,12 @@ $userRole = $user['role'] ?? 'manager';
         // Activate "This Month" button by default
         const btnThisMonth = document.getElementById('btnThisMonth');
         if (btnThisMonth) {
-            document.querySelectorAll('.date-filter-btn').forEach(btn => btn.classList.remove('active'));
-            btnThisMonth.classList.add('active');
+            document.querySelectorAll('.date-filter-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-400');
+                btn.classList.add('bg-gray-100', 'text-gray-900');
+            });
+            btnThisMonth.classList.remove('bg-gray-100', 'text-gray-900');
+            btnThisMonth.classList.add('active', 'bg-blue-600', 'text-white', 'border-blue-400');
         }
         
         // Load all data on page load
@@ -892,11 +897,24 @@ $userRole = $user['role'] ?? 'manager';
         }
     }
 
+    // Helper function to update period labels across the dashboard
+    function updatePeriodLabel(label) {
+        const periodLabels = document.querySelectorAll('#salesPeriodLabel, #profitPeriodLabel, #repairsPeriodLabel, #swapsPeriodLabel');
+        periodLabels.forEach(el => {
+            if (el) el.textContent = label;
+        });
+    }
+
     // Get current date range from filters
     function getCurrentDateRange() {
         // ALWAYS check explicit date inputs first - they take priority over button ranges
         const dateFrom = document.getElementById('filterDateFrom').value;
         const dateTo = document.getElementById('filterDateTo').value;
+        
+        // Check if both dates are empty (All Time mode)
+        if (!dateFrom && !dateTo) {
+            return 'all_time';
+        }
         
         // If explicit dates are set, use 'custom' to ensure backend uses these exact dates
         if (dateFrom && dateTo) {
@@ -911,6 +929,14 @@ $userRole = $user['role'] ?? 'manager';
                 return 'today';
             }
             
+            // Check if dates match "this week" (from Sunday to today)
+            const weekStart = new Date(todayDate);
+            weekStart.setDate(todayDate.getDate() - todayDate.getDay()); // Go to Sunday
+            const weekStartStr = weekStart.toISOString().split('T')[0];
+            if (dateFrom === weekStartStr && dateTo === today) {
+                return 'this_week';
+            }
+            
             // Check if dates match "this month" (from 1st of current month to today)
             const monthStart = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
             const monthStartStr = monthStart.toISOString().split('T')[0];
@@ -920,6 +946,13 @@ $userRole = $user['role'] ?? 'manager';
                 if (activeFilter && activeFilter.dataset.range === 'this_month') {
                     return 'this_month';
                 }
+            }
+            
+            // Check if dates match "this year" (from Jan 1 to today)
+            const yearStart = new Date(todayDate.getFullYear(), 0, 1);
+            const yearStartStr = yearStart.toISOString().split('T')[0];
+            if (dateFrom === yearStartStr && dateTo === today) {
+                return 'this_year';
             }
             
             // For any other explicit date range, use 'custom' to ensure exact dates are used
@@ -1472,38 +1505,62 @@ $userRole = $user['role'] ?? 'manager';
         }
         // Date quick filters
         document.getElementById('btnToday').addEventListener('click', async function() {
-            // Update active button
-            document.querySelectorAll('.date-filter-btn').forEach(btn => btn.classList.remove('active'));
-            this.classList.add('active');
+            // Update active button with proper styling
+            document.querySelectorAll('.date-filter-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-400');
+                btn.classList.add('bg-gray-100', 'text-gray-900');
+            });
+            this.classList.remove('bg-gray-100', 'text-gray-900');
+            this.classList.add('active', 'bg-blue-600', 'text-white', 'border-blue-400');
             
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('filterDateFrom').value = today;
             document.getElementById('filterDateTo').value = today;
             
+            // Clear month selector
+            document.getElementById('monthSelector').value = '';
+            
+            // Update period label
+            updatePeriodLabel('Today');
+            
             await refreshDashboardData();
         });
 
         document.getElementById('btnThisWeek').addEventListener('click', async function() {
-            // Update active button
-            document.querySelectorAll('.date-filter-btn').forEach(btn => btn.classList.remove('active'));
-            this.classList.add('active');
+            // Update active button with proper styling
+            document.querySelectorAll('.date-filter-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-400');
+                btn.classList.add('bg-gray-100', 'text-gray-900');
+            });
+            this.classList.remove('bg-gray-100', 'text-gray-900');
+            this.classList.add('active', 'bg-blue-600', 'text-white', 'border-blue-400');
             
             const today = new Date();
+            // Calculate week start (Sunday)
             const weekStart = new Date(today);
-            weekStart.setDate(today.getDate() - today.getDay()); // Monday
-            const weekEnd = new Date(weekStart);
-            weekEnd.setDate(weekStart.getDate() + 6); // Sunday
+            weekStart.setDate(today.getDate() - today.getDay()); // Go to Sunday
             
+            // Week end is today
             document.getElementById('filterDateFrom').value = weekStart.toISOString().split('T')[0];
-            document.getElementById('filterDateTo').value = weekEnd.toISOString().split('T')[0];
+            document.getElementById('filterDateTo').value = today.toISOString().split('T')[0];
+            
+            // Clear month selector
+            document.getElementById('monthSelector').value = '';
+            
+            // Update period label
+            updatePeriodLabel('This Week');
             
             await refreshDashboardData();
         });
 
         document.getElementById('btnThisMonth').addEventListener('click', async function() {
-            // Update active button
-            document.querySelectorAll('.date-filter-btn').forEach(btn => btn.classList.remove('active'));
-            this.classList.add('active');
+            // Update active button with proper styling
+            document.querySelectorAll('.date-filter-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-400');
+                btn.classList.add('bg-gray-100', 'text-gray-900');
+            });
+            this.classList.remove('bg-gray-100', 'text-gray-900');
+            this.classList.add('active', 'bg-blue-600', 'text-white', 'border-blue-400');
             
             const today = new Date();
             const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -1516,27 +1573,66 @@ $userRole = $user['role'] ?? 'manager';
             const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
             monthInput.value = currentMonth;
             
+            // Update period label
+            updatePeriodLabel('This Month');
+            
             await refreshDashboardData();
         });
 
         const btnThisYear = document.getElementById('btnThisYear');
         if (btnThisYear) {
             btnThisYear.addEventListener('click', async function() {
-                // Update active button
-                document.querySelectorAll('.date-filter-btn').forEach(btn => btn.classList.remove('active'));
-                this.classList.add('active');
+                // Update active button with proper styling
+                document.querySelectorAll('.date-filter-btn').forEach(btn => {
+                    btn.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-400');
+                    btn.classList.add('bg-gray-100', 'text-gray-900');
+                });
+                this.classList.remove('bg-gray-100', 'text-gray-900');
+                this.classList.add('active', 'bg-blue-600', 'text-white', 'border-blue-400');
                 
                 const today = new Date();
                 const yearStart = new Date(today.getFullYear(), 0, 1);
-                const yearEnd = new Date(today.getFullYear(), 11, 31);
+                // Use today instead of year end
                 document.getElementById('filterDateFrom').value = yearStart.toISOString().split('T')[0];
-                document.getElementById('filterDateTo').value = yearEnd.toISOString().split('T')[0];
+                document.getElementById('filterDateTo').value = today.toISOString().split('T')[0];
                 
                 // Clear month selector
                 const monthSelector = document.getElementById('monthSelector');
                 if (monthSelector) {
                     monthSelector.value = '';
                 }
+                
+                // Update period label
+                updatePeriodLabel('This Year');
+                
+                await refreshDashboardData();
+            });
+        }
+        
+        // All Time button handler
+        const btnAllTime = document.getElementById('btnAllTime');
+        if (btnAllTime) {
+            btnAllTime.addEventListener('click', async function() {
+                // Update active button with proper styling
+                document.querySelectorAll('.date-filter-btn').forEach(btn => {
+                    btn.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-400');
+                    btn.classList.add('bg-gray-100', 'text-gray-900');
+                });
+                this.classList.remove('bg-gray-100', 'text-gray-900');
+                this.classList.add('active', 'bg-blue-600', 'text-white', 'border-blue-400');
+                
+                // Clear date inputs to trigger all-time mode
+                document.getElementById('filterDateFrom').value = '';
+                document.getElementById('filterDateTo').value = '';
+                
+                // Clear month selector
+                const monthSelector = document.getElementById('monthSelector');
+                if (monthSelector) {
+                    monthSelector.value = '';
+                }
+                
+                // Update period label
+                updatePeriodLabel('All Time');
                 
                 await refreshDashboardData();
             });
@@ -1566,6 +1662,73 @@ $userRole = $user['role'] ?? 'manager';
         // Month selector change handler
         document.getElementById('monthSelector').addEventListener('change', async function() {
             const selectedMonth = this.value;
+            
+            // Deactivate all quick filter buttons when using month selector
+            document.querySelectorAll('.date-filter-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-400');
+                btn.classList.add('bg-gray-100', 'text-gray-900');
+            });
+            
+            if (!selectedMonth) {
+                // If month selector is cleared, show "All Time"
+                document.getElementById('filterDateFrom').value = '';
+                document.getElementById('filterDateTo').value = '';
+                updatePeriodLabel('All Time');
+            } else {
+                // Month selected - set date range for that specific month
+                const [year, month] = selectedMonth.split('-');
+                const monthStart = new Date(parseInt(year), parseInt(month) - 1, 1);
+                const monthEnd = new Date(parseInt(year), parseInt(month), 0); // Last day of the month
+                
+                const monthStartStr = monthStart.toISOString().split('T')[0];
+                const monthEndStr = monthEnd.toISOString().split('T')[0];
+                
+                document.getElementById('filterDateFrom').value = monthStartStr;
+                document.getElementById('filterDateTo').value = monthEndStr;
+                
+                // Format month name for label
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                                    'July', 'August', 'September', 'October', 'November', 'December'];
+                const monthName = monthNames[parseInt(month) - 1];
+                updatePeriodLabel(`${monthName} ${year}`);
+            }
+            
+            await refreshDashboardData();
+        });
+        
+        // Manual date input change handlers
+        document.getElementById('filterDateFrom').addEventListener('change', function() {
+            // Deactivate all quick filter buttons when manually changing dates
+            document.querySelectorAll('.date-filter-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-400');
+                btn.classList.add('bg-gray-100', 'text-gray-900');
+            });
+            
+            const dateFrom = this.value;
+            const dateTo = document.getElementById('filterDateTo').value;
+            if (dateFrom && dateTo) {
+                updatePeriodLabel('Custom Range');
+            }
+        });
+        
+        document.getElementById('filterDateTo').addEventListener('change', function() {
+            // Deactivate all quick filter buttons when manually changing dates
+            document.querySelectorAll('.date-filter-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-400');
+                btn.classList.add('bg-gray-100', 'text-gray-900');
+            });
+            
+            const dateFrom = document.getElementById('filterDateFrom').value;
+            const dateTo = this.value;
+            if (dateFrom && dateTo) {
+                updatePeriodLabel('Custom Range');
+            }
+        });
+        
+        // Apply Filters button
+        document.getElementById('btnApplyFilters').addEventListener('click', async function() {
+            await refreshDashboardData();
+        });
             
             // Update active button - remove active from all buttons
             document.querySelectorAll('.date-filter-btn').forEach(btn => btn.classList.remove('active'));
