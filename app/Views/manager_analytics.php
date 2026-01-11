@@ -1536,13 +1536,24 @@ $userRole = $user['role'] ?? 'manager';
             this.classList.add('active', 'bg-blue-600', 'text-white', 'border-blue-400');
             
             const today = new Date();
+            debugLog('This Week button clicked - Today:', today.toISOString());
+            debugLog('Today day of week:', today.getDay()); // 0 = Sunday, 6 = Saturday
+            
             // Calculate week start (Sunday)
             const weekStart = new Date(today);
             weekStart.setDate(today.getDate() - today.getDay()); // Go to Sunday
             
+            debugLog('Week Start (Sunday):', weekStart.toISOString());
+            debugLog('Week End (Today):', today.toISOString());
+            
             // Week end is today
-            document.getElementById('filterDateFrom').value = weekStart.toISOString().split('T')[0];
-            document.getElementById('filterDateTo').value = today.toISOString().split('T')[0];
+            const weekStartStr = weekStart.toISOString().split('T')[0];
+            const todayStr = today.toISOString().split('T')[0];
+            
+            document.getElementById('filterDateFrom').value = weekStartStr;
+            document.getElementById('filterDateTo').value = todayStr;
+            
+            debugLog('Date inputs set to:', { from: weekStartStr, to: todayStr });
             
             // Clear month selector
             document.getElementById('monthSelector').value = '';
@@ -1550,6 +1561,7 @@ $userRole = $user['role'] ?? 'manager';
             // Update period label
             updatePeriodLabel('This Week');
             
+            debugLog('Calling refreshDashboardData for This Week...');
             await refreshDashboardData();
         });
 
