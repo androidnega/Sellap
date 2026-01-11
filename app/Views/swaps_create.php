@@ -27,7 +27,7 @@
             <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
                 <label for="customer_search" class="block text-sm font-medium text-gray-700 mb-2">
                     <i class="fas fa-search mr-1 text-blue-600"></i>Search Existing Customer
-                </label>
+                    </label>
                 <p class="text-xs text-gray-600 mb-2">Quickly find and select a customer from your database</p>
                 <div class="relative">
                     <input type="text" id="customer_search" placeholder="Type customer name or phone number to search..." 
@@ -154,13 +154,13 @@
                         <i class="fas fa-tag mr-1 text-blue-600"></i>Brand <span class="text-red-500">*</span>
                     </label>
                     <div class="relative">
-                        <select id="customer_brand_id" name="customer_brand_id" required 
+                    <select id="customer_brand_id" name="customer_brand_id" required 
                                class="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
                                aria-required="true"
                                aria-describedby="customer_brand_help">
-                            <option value="">Select Brand</option>
-                            <!-- Brands will be loaded dynamically -->
-                        </select>
+                        <option value="">Select Brand</option>
+                        <!-- Brands will be loaded dynamically -->
+                    </select>
                         <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -202,13 +202,13 @@
                         <i class="fas fa-check-circle mr-1 text-blue-600"></i>Condition
                     </label>
                     <div class="relative">
-                        <select id="customer_condition" name="customer_condition" 
+                    <select id="customer_condition" name="customer_condition" 
                                 class="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
                                 aria-describedby="customer_condition_help">
                             <option value="used">Used - Good working condition</option>
                             <option value="new">New - Unused, sealed</option>
                             <option value="faulty">Faulty - Has issues or damage</option>
-                        </select>
+                    </select>
                         <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>

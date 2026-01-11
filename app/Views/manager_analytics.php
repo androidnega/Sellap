@@ -604,8 +604,8 @@ $userRole = $user['role'] ?? 'manager';
 <script>
 (function() {
     const BASE = window.APP_BASE_PATH || '';
-    // Debug mode - set to true to see console logs
-    const DEBUG_MODE = true;
+    // Debug mode - set to false for production
+    const DEBUG_MODE = false;
     
     // Debug logging helper
     function debugLog(...args) {
