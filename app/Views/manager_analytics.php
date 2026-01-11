@@ -1729,33 +1729,6 @@ $userRole = $user['role'] ?? 'manager';
         document.getElementById('btnApplyFilters').addEventListener('click', async function() {
             await refreshDashboardData();
         });
-            
-            // Update active button - remove active from all buttons
-            document.querySelectorAll('.date-filter-btn').forEach(btn => btn.classList.remove('active'));
-            
-            if (!selectedMonth) {
-                // Month selector cleared - show ALL-TIME data (no date filter)
-                document.getElementById('filterDateFrom').value = '';
-                document.getElementById('filterDateTo').value = '';
-            } else {
-                // Month selected - set date range for that specific month
-                const [year, month] = selectedMonth.split('-');
-                const monthStart = new Date(parseInt(year), parseInt(month) - 1, 1);
-                const monthEnd = new Date(parseInt(year), parseInt(month), 0); // Last day of the month
-                
-                const monthStartStr = monthStart.toISOString().split('T')[0];
-                const monthEndStr = monthEnd.toISOString().split('T')[0];
-                
-                document.getElementById('filterDateFrom').value = monthStartStr;
-                document.getElementById('filterDateTo').value = monthEndStr;
-            }
-            
-            await refreshDashboardData();
-        });
-
-        document.getElementById('btnApplyFilters').addEventListener('click', async function() {
-            await refreshDashboardData();
-        });
 
         // Trace modal
         document.getElementById('btnOpenTraceModal').addEventListener('click', function() {
