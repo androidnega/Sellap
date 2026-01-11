@@ -379,68 +379,6 @@ $userRole = $user['role'] ?? 'manager';
         </div>
     </div>
 
-    <!-- All Staff Summary Section (shown when no staff is selected) -->
-    <div id="allStaffSummarySection" class="mb-4 sm:mb-6">
-        <div class="bg-white rounded-lg shadow p-3 sm:p-6">
-            <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3 sm:mb-4">All Staff Summary</h3>
-            
-            <!-- Staff Breakdown by Period -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                <div class="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
-                    <h4 class="text-base sm:text-lg font-semibold text-gray-700 mb-2 sm:mb-3">Today</h4>
-                    <div class="space-y-2">
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-600">Sales:</span>
-                            <span class="text-sm font-medium" id="allStaffTodaySales">0</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-600">Revenue:</span>
-                            <span class="text-sm font-medium" id="allStaffTodayRevenue">₵0.00</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-600">Profit:</span>
-                            <span class="text-sm font-medium text-green-600" id="allStaffTodayProfit">₵0.00</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
-                    <h4 class="text-base sm:text-lg font-semibold text-gray-700 mb-2 sm:mb-3">This Week</h4>
-                    <div class="space-y-2">
-                        <div class="flex justify-between">
-                            <span class="text-xs sm:text-sm text-gray-600">Sales:</span>
-                            <span class="text-xs sm:text-sm font-medium" id="allStaffWeekSales">0</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-xs sm:text-sm text-gray-600">Revenue:</span>
-                            <span class="text-xs sm:text-sm font-medium" id="allStaffWeekRevenue">₵0.00</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-xs sm:text-sm text-gray-600">Profit:</span>
-                            <span class="text-xs sm:text-sm font-medium text-green-600" id="allStaffWeekProfit">₵0.00</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
-                    <h4 class="text-base sm:text-lg font-semibold text-gray-700 mb-2 sm:mb-3">This Month</h4>
-                    <div class="space-y-2">
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-600">Sales:</span>
-                            <span class="text-sm font-medium" id="allStaffMonthSales">0</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-600">Revenue:</span>
-                            <span class="text-sm font-medium" id="allStaffMonthRevenue">₵0.00</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-600">Profit:</span>
-                            <span class="text-sm font-medium text-green-600" id="allStaffMonthProfit">₵0.00</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Charts Section -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
         <div class="bg-white rounded-lg shadow p-4 sm:p-6">
@@ -1339,17 +1277,11 @@ $userRole = $user['role'] ?? 'manager';
                 }
                 
                 // If staff is selected, load staff details
-                // Update All Staff Summary if no staff is selected
                 if (staffId) {
                     loadStaffDetails(staffId);
-                    document.getElementById('allStaffSummarySection').classList.add('hidden');
                 } else {
                     // Hide staff detail section if no staff selected
                     document.getElementById('staffDetailSection').classList.add('hidden');
-                    // Show all staff summary section
-                    document.getElementById('allStaffSummarySection').classList.remove('hidden');
-                    // Update all staff summary with data
-                    updateAllStaffSummary(data);
                 }
             } else {
                 // Handle API error response without displaying raw JSON
@@ -1618,14 +1550,12 @@ $userRole = $user['role'] ?? 'manager';
                 if (staffId) {
                     // Show staff detail section and load details
                     document.getElementById('staffDetailSection').classList.remove('hidden');
-                    document.getElementById('allStaffSummarySection').classList.add('hidden');
                     
                     await refreshDashboardData();
                     loadStaffDetails(staffId);
                 } else {
                     // Hide staff detail section and show all data
                     document.getElementById('staffDetailSection').classList.add('hidden');
-                    document.getElementById('allStaffSummarySection').classList.remove('hidden');
                     // Hide repairer parts section when viewing all staff
                     document.getElementById('repairerPartsSection').classList.add('hidden');
                     await refreshDashboardData();
@@ -3178,157 +3108,7 @@ $userRole = $user['role'] ?? 'manager';
     window.clearStaffSelection = function() {
         document.getElementById('filterStaff').value = '';
         document.getElementById('staffDetailSection').classList.add('hidden');
-        document.getElementById('allStaffSummarySection').classList.remove('hidden');
         loadAnalytics(); // Reload without staff filter
-    }
-    
-    // Update All Staff Summary with data
-    function updateAllStaffSummary(data) {
-        const bounds = getSelectedDateBounds();
-        const todayDateObj = new Date();
-        // Get today's date
-        const today = todayDateObj.toISOString().split('T')[0];
-        const todayWithinRange = doesRangeOverlap(bounds, todayDateObj, todayDateObj);
-        
-        // Get today's profit from daily breakdown
-        let todaySales = 0;
-        let todayRevenue = 0;
-        let todayProfit = 0;
-        
-        if (data.profit_loss_breakdown && data.profit_loss_breakdown.daily && data.profit_loss_breakdown.daily.length > 0) {
-            const todayData = data.profit_loss_breakdown.daily.find(d => {
-                const dateStr = d.date || d.date_str || '';
-                return dateStr === today || dateStr.startsWith(today);
-            });
-            if (todayData) {
-                todaySales = parseInt(todayData.sales_count || 0);
-                todayRevenue = parseFloat(todayData.revenue || 0);
-                // Use sales_profit only (not total profit which includes swap profit)
-                todayProfit = parseFloat(todayData.sales_profit || todayData.profit || 0);
-            }
-        }
-        
-        // If no daily breakdown, try to get from sales data
-        if (todaySales === 0 && todayRevenue === 0 && data.sales && data.sales.today) {
-            todaySales = parseInt(data.sales.today.count || 0);
-            todayRevenue = parseFloat(data.sales.today.revenue || 0);
-        }
-        
-        // Get today's profit from profit data (sales profit only, not including swap)
-        if (todayProfit === 0 && data.profit) {
-            // Calculate today's sales profit from revenue and cost
-            const todayCost = parseFloat(data.profit.cost || 0);
-            todayProfit = todayRevenue - todayCost;
-            if (todayProfit < 0) todayProfit = 0;
-        }
-        
-        if (!todayWithinRange) {
-            todaySales = 0;
-            todayRevenue = 0;
-            todayProfit = 0;
-        }
-        
-        // Get week profit from weekly breakdown
-        let weekSales = 0;
-        let weekRevenue = 0;
-        let weekProfit = 0;
-        
-        if (data.profit_loss_breakdown && data.profit_loss_breakdown.weekly && data.profit_loss_breakdown.weekly.length > 0) {
-            // Get the latest week (first in array)
-            const latestWeek = data.profit_loss_breakdown.weekly[0];
-            weekSales = parseInt(latestWeek.sales_count || 0);
-            weekRevenue = parseFloat(latestWeek.revenue || 0);
-            weekProfit = parseFloat(latestWeek.profit || 0);
-        }
-        
-        // If no weekly breakdown, try to get from sales data
-        if (weekSales === 0 && weekRevenue === 0 && data.sales) {
-            const weekRevenueData = data.sales.period?.revenue || data.sales.weekly?.revenue || 0;
-            const weekCount = data.sales.period?.count || data.sales.weekly?.count || 0;
-            weekSales = parseInt(weekCount || 0);
-            weekRevenue = parseFloat(weekRevenueData || 0);
-        }
-        
-        const weekStart = new Date(todayDateObj);
-        weekStart.setDate(todayDateObj.getDate() - todayDateObj.getDay());
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-        const weekWithinRange = doesRangeOverlap(bounds, weekStart, weekEnd);
-        if (!weekWithinRange) {
-            weekSales = 0;
-            weekRevenue = 0;
-            weekProfit = 0;
-        }
-        
-        // Get month profit from monthly breakdown
-        let monthSales = 0;
-        let monthRevenue = 0;
-        let monthProfit = 0;
-        
-        if (data.profit_loss_breakdown && data.profit_loss_breakdown.monthly && data.profit_loss_breakdown.monthly.length > 0) {
-            // Get the latest month (first in array)
-            const latestMonth = data.profit_loss_breakdown.monthly[0];
-            monthSales = parseInt(latestMonth.sales_count || 0);
-            monthRevenue = parseFloat(latestMonth.revenue || 0);
-            monthProfit = parseFloat(latestMonth.profit || 0);
-        }
-        
-        // If no monthly breakdown, try to get from sales data
-        if (monthSales === 0 && monthRevenue === 0 && data.sales) {
-            monthSales = parseInt(data.sales.monthly?.count || 0);
-            monthRevenue = parseFloat(data.sales.monthly?.revenue || 0);
-        }
-        
-        const monthStart = new Date(todayDateObj.getFullYear(), todayDateObj.getMonth(), 1);
-        const monthEnd = new Date(todayDateObj.getFullYear(), todayDateObj.getMonth() + 1, 0);
-        const monthWithinRange = doesRangeOverlap(bounds, monthStart, monthEnd);
-        if (!monthWithinRange) {
-            monthSales = 0;
-            monthRevenue = 0;
-            monthProfit = 0;
-        }
-        
-        // Add swap profit to totals (swap profit is realized when customer item is resold)
-        // Swap profit should be included in the profit calculation
-        if (data.swaps) {
-            const todaySwapProfit = parseFloat(data.swaps.today?.profit || data.swaps.period?.profit || 0);
-            const weekSwapProfit = parseFloat(data.swaps.weekly?.profit || data.swaps.period?.profit || 0);
-            const monthSwapProfit = parseFloat(data.swaps.monthly?.profit || data.swaps.period?.profit || 0);
-            
-            todayProfit += todaySwapProfit;
-            weekProfit += weekSwapProfit;
-            monthProfit += monthSwapProfit;
-        }
-        
-        if (data.repairs) {
-            const repairCount = data.repairs.today?.count || 0;
-            const repairRevenue = data.repairs.today?.revenue || 0;
-            todaySales += parseInt(repairCount || 0);
-            todayRevenue += parseFloat(repairRevenue || 0);
-            
-            const weekRepairCount = data.repairs.weekly?.count || data.repairs.period?.count || 0;
-            const weekRepairRevenue = data.repairs.weekly?.revenue || data.repairs.period?.revenue || 0;
-            weekSales += parseInt(weekRepairCount || 0);
-            weekRevenue += parseFloat(weekRepairRevenue || 0);
-            
-            const monthRepairCount = data.repairs.monthly?.count || 0;
-            const monthRepairRevenue = data.repairs.monthly?.revenue || 0;
-            monthSales += parseInt(monthRepairCount || 0);
-            monthRevenue += parseFloat(monthRepairRevenue || 0);
-        }
-        
-        // Update the UI
-        safeSetText('allStaffTodaySales', todaySales);
-        safeSetText('allStaffTodayRevenue', formatCurrency(todayRevenue));
-        safeSetText('allStaffTodayProfit', formatCurrency(todayProfit));
-        
-        safeSetText('allStaffWeekSales', weekSales);
-        safeSetText('allStaffWeekRevenue', formatCurrency(weekRevenue));
-        safeSetText('allStaffWeekProfit', formatCurrency(weekProfit));
-        
-        safeSetText('allStaffMonthSales', monthSales);
-        safeSetText('allStaffMonthRevenue', formatCurrency(monthRevenue));
-        safeSetText('allStaffMonthProfit', formatCurrency(monthProfit));
     }
 
     // Update repairer stats (card style - showing totals across all repairers)
