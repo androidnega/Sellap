@@ -493,6 +493,9 @@ class ProfileController {
                                         <input type="tel" id="phone" name="phone" 
                                                value="<?= htmlspecialchars($user['phone'] ?? $user['phone_number'] ?? '') ?>"
                                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                        <?php if ($userRole === 'manager'): ?>
+                                        <p class="mt-1 text-sm text-gray-500">This number will appear in SMS receipts sent to customers (purchases, repairs, swaps)</p>
+                                        <?php endif; ?>
                                     </div>
                                     
                                     <div class="flex justify-end">

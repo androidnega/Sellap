@@ -366,23 +366,37 @@ class SMSService {
      * @return array Send result
      */
     public function sendPurchaseConfirmation($phoneNumber, $purchaseData, $companyId = null) {
-        // Get company name and contact for personalized message
+        // Get company name and manager contact for personalized message
         $companyName = 'SellApp';
-        $companyContact = null;
+        $managerContact = null;
         if ($companyId !== null) {
             try {
                 $companyModel = new \App\Models\Company();
                 $company = $companyModel->find($companyId);
-                if ($company) {
-                    if (!empty($company['name'])) {
-                        $companyName = $company['name'];
-                    }
-                    if (!empty($company['phone_number'])) {
-                        $companyContact = $company['phone_number'];
-                    }
+                if ($company && !empty($company['name'])) {
+                    $companyName = $company['name'];
+                }
+                
+                // Get manager's contact number (preferred over company phone)
+                $db = \Database::getInstance()->getConnection();
+                $managerQuery = $db->prepare("
+                    SELECT phone_number 
+                    FROM users 
+                    WHERE company_id = ? AND role = 'manager' AND is_active = 1 
+                    ORDER BY id ASC 
+                    LIMIT 1
+                ");
+                $managerQuery->execute([$companyId]);
+                $manager = $managerQuery->fetch(\PDO::FETCH_ASSOC);
+                
+                if ($manager && !empty($manager['phone_number'])) {
+                    $managerContact = $manager['phone_number'];
+                } elseif ($company && !empty($company['phone_number'])) {
+                    // Fallback to company phone if manager contact not set
+                    $managerContact = $company['phone_number'];
                 }
             } catch (\Exception $e) {
-                error_log("SMSService::sendPurchaseConfirmation: Could not fetch company details: " . $e->getMessage());
+                error_log("SMSService::sendPurchaseConfirmation: Could not fetch company/manager details: " . $e->getMessage());
             }
         }
         
@@ -412,9 +426,9 @@ class SMSService {
         
         $message .= "\nThank you for choosing {$companyName}!";
         
-        // Add company contact information if available
-        if ($companyContact) {
-            $message .= "\nContact us: {$companyContact}";
+        // Add manager contact information if available
+        if ($managerContact) {
+            $message .= "\nContact us: {$managerContact}";
         }
         
         // Use sendRealSMS for instant delivery without simulation fallback
@@ -435,8 +449,9 @@ class SMSService {
         $repairId = $repairData['repair_id'] ?? 'N/A';
         $device = $repairData['device'] ?? 'Device';
         
-        // Get company name for personalized message
+        // Get company name and manager contact for personalized message
         $companyName = 'SellApp';
+        $managerContact = null;
         if ($companyId !== null) {
             try {
                 $companyModel = new \App\Models\Company();
@@ -444,8 +459,27 @@ class SMSService {
                 if ($company && !empty($company['name'])) {
                     $companyName = $company['name'];
                 }
+                
+                // Get manager's contact number (preferred over company phone)
+                $db = \Database::getInstance()->getConnection();
+                $managerQuery = $db->prepare("
+                    SELECT phone_number 
+                    FROM users 
+                    WHERE company_id = ? AND role = 'manager' AND is_active = 1 
+                    ORDER BY id ASC 
+                    LIMIT 1
+                ");
+                $managerQuery->execute([$companyId]);
+                $manager = $managerQuery->fetch(\PDO::FETCH_ASSOC);
+                
+                if ($manager && !empty($manager['phone_number'])) {
+                    $managerContact = $manager['phone_number'];
+                } elseif ($company && !empty($company['phone_number'])) {
+                    // Fallback to company phone if manager contact not set
+                    $managerContact = $company['phone_number'];
+                }
             } catch (\Exception $e) {
-                error_log("SMSService::sendRepairStatusUpdate: Could not fetch company name: " . $e->getMessage());
+                error_log("SMSService::sendRepairStatusUpdate: Could not fetch company/manager details: " . $e->getMessage());
             }
         }
         
@@ -458,6 +492,9 @@ class SMSService {
                 $message .= "Status: Repair in progress\n\n";
                 $message .= "We'll notify you when it's ready for pickup.\n";
                 $message .= "Thank you for choosing {$companyName}!";
+                if ($managerContact) {
+                    $message .= "\nContact: {$managerContact}";
+                }
                 break;
                 
             case 'repair_ready':
@@ -467,6 +504,9 @@ class SMSService {
                 $message .= "Status: Completed\n\n";
                 $message .= "Please visit us to collect your device.\n";
                 $message .= "Thank you for choosing {$companyName}!";
+                if ($managerContact) {
+                    $message .= "\nContact: {$managerContact}";
+                }
                 break;
                 
             case 'repair_failed':
@@ -476,6 +516,9 @@ class SMSService {
                 $message .= "Status: Repair Failed\n\n";
                 $message .= "Please contact us to discuss next steps.\n";
                 $message .= "Thank you for choosing {$companyName}!";
+                if ($managerContact) {
+                    $message .= "\nContact: {$managerContact}";
+                }
                 break;
                 
             default:
@@ -485,6 +528,9 @@ class SMSService {
                 $message .= "Status: {$repairData['status']}\n";
                 $message .= "Estimated completion: {$repairData['completion_date']}\n";
                 $message .= "Thank you for choosing {$companyName}!";
+                if ($managerContact) {
+                    $message .= "\nContact: {$managerContact}";
+                }
                 break;
         }
         
@@ -501,14 +547,34 @@ class SMSService {
      * @return array Send result
      */
     public function sendSwapNotification($phoneNumber, $swapData, $companyId = null) {
-        // Get company name for personalized message
+        // Get company name and manager contact for personalized message
         $companyName = 'SellApp';
+        $managerContact = null;
         if ($companyId !== null) {
             try {
                 $companyModel = new \App\Models\Company();
                 $company = $companyModel->find($companyId);
                 if ($company && !empty($company['name'])) {
                     $companyName = $company['name'];
+                }
+                
+                // Get manager's contact number (preferred over company phone)
+                $db = \Database::getInstance()->getConnection();
+                $managerQuery = $db->prepare("
+                    SELECT phone_number 
+                    FROM users 
+                    WHERE company_id = ? AND role = 'manager' AND is_active = 1 
+                    ORDER BY id ASC 
+                    LIMIT 1
+                ");
+                $managerQuery->execute([$companyId]);
+                $manager = $managerQuery->fetch(\PDO::FETCH_ASSOC);
+                
+                if ($manager && !empty($manager['phone_number'])) {
+                    $managerContact = $manager['phone_number'];
+                } elseif ($company && !empty($company['phone_number'])) {
+                    // Fallback to company phone if manager contact not set
+                    $managerContact = $company['phone_number'];
                 }
             } catch (\Exception $e) {
                 error_log("SMSService::sendSwapNotification: Could not fetch company name: " . $e->getMessage());
@@ -625,23 +691,37 @@ class SMSService {
      * @return array Send result
      */
     public function sendPartialPaymentNotification($phoneNumber, $paymentData, $companyId = null) {
-        // Get company name and contact for personalized message
+        // Get company name and manager contact for personalized message
         $companyName = 'SellApp';
-        $companyContact = null;
+        $managerContact = null;
         if ($companyId !== null) {
             try {
                 $companyModel = new \App\Models\Company();
                 $company = $companyModel->find($companyId);
-                if ($company) {
-                    if (!empty($company['name'])) {
-                        $companyName = $company['name'];
-                    }
-                    if (!empty($company['phone_number'])) {
-                        $companyContact = $company['phone_number'];
-                    }
+                if ($company && !empty($company['name'])) {
+                    $companyName = $company['name'];
+                }
+                
+                // Get manager's contact number (preferred over company phone)
+                $db = \Database::getInstance()->getConnection();
+                $managerQuery = $db->prepare("
+                    SELECT phone_number 
+                    FROM users 
+                    WHERE company_id = ? AND role = 'manager' AND is_active = 1 
+                    ORDER BY id ASC 
+                    LIMIT 1
+                ");
+                $managerQuery->execute([$companyId]);
+                $manager = $managerQuery->fetch(\PDO::FETCH_ASSOC);
+                
+                if ($manager && !empty($manager['phone_number'])) {
+                    $managerContact = $manager['phone_number'];
+                } elseif ($company && !empty($company['phone_number'])) {
+                    // Fallback to company phone if manager contact not set
+                    $managerContact = $company['phone_number'];
                 }
             } catch (\Exception $e) {
-                error_log("SMSService::sendPartialPaymentNotification: Could not fetch company details: " . $e->getMessage());
+                error_log("SMSService::sendPartialPaymentNotification: Could not fetch company/manager details: " . $e->getMessage());
             }
         }
         
@@ -658,8 +738,8 @@ class SMSService {
             $message .= "Total Amount: ₵{$total}\n";
             $message .= "Thank you for your payment!\n\n";
             $message .= "{$companyName}";
-            if ($companyContact) {
-                $message .= "\nContact: {$companyContact}";
+            if ($managerContact) {
+                $message .= "\nContact: {$managerContact}";
             }
         } else {
             // Partial payment
@@ -670,8 +750,8 @@ class SMSService {
             $message .= "Total Amount: ₵{$total}\n\n";
             $message .= "Please complete your payment.\n\n";
             $message .= "{$companyName}";
-            if ($companyContact) {
-                $message .= "\nContact: {$companyContact}";
+            if ($managerContact) {
+                $message .= "\nContact: {$managerContact}";
             }
         }
         
