@@ -595,6 +595,9 @@ class SMSService {
             $message .= "Cash Added: ₵" . number_format($swapData['added_cash'], 2) . "\n";
         }
         $message .= "\nThank you for choosing {$companyName}!";
+        if ($managerContact) {
+            $message .= "\nContact: {$managerContact}";
+        }
         
         // Use sendRealSMS for instant delivery without simulation fallback
         // Pass 'swap' as message type for proper logging
