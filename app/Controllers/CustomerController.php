@@ -346,6 +346,7 @@ class CustomerController {
         
         if (!$companyId) {
             http_response_code(400);
+            error_log("CustomerController::store - Company ID not found. User: " . json_encode($user ?? null));
             echo json_encode([
                 'success' => false,
                 'error' => 'Company ID not found'
@@ -353,7 +354,23 @@ class CustomerController {
             return;
         }
         
-        $data = json_decode(file_get_contents('php://input'), true);
+        $rawInput = file_get_contents('php://input');
+        $data = json_decode($rawInput, true);
+        
+        // Log the incoming request for debugging
+        error_log("CustomerController::store - Company ID: {$companyId}, User Role: {$userRole}, User ID: " . ($userId ?? 'null'));
+        error_log("CustomerController::store - Raw input: " . $rawInput);
+        error_log("CustomerController::store - Parsed data: " . json_encode($data));
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            http_response_code(400);
+            error_log("CustomerController::store - JSON decode error: " . json_last_error_msg());
+            echo json_encode([
+                'success' => false,
+                'error' => 'Invalid JSON data: ' . json_last_error_msg()
+            ]);
+            return;
+        }
         
         // Check if this is a walk-in customer (only phone number required)
         $isWalkIn = isset($data['is_walk_in']) && $data['is_walk_in'] === true;
@@ -374,9 +391,14 @@ class CustomerController {
             // For regular customers, both name and phone are required
             if (empty($data['full_name']) || empty($data['phone_number'])) {
                 http_response_code(400);
+                error_log("CustomerController::store - Validation failed: full_name=" . ($data['full_name'] ?? 'empty') . ", phone_number=" . ($data['phone_number'] ?? 'empty'));
                 echo json_encode([
                     'success' => false,
-                    'error' => 'Full name and phone number are required'
+                    'error' => 'Full name and phone number are required',
+                    'details' => [
+                        'full_name' => !empty($data['full_name']) ? 'provided' : 'missing',
+                        'phone_number' => !empty($data['phone_number']) ? 'provided' : 'missing'
+                    ]
                 ]);
                 return;
             }

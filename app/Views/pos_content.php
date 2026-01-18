@@ -2400,6 +2400,34 @@ function setupEventListeners() {
                         throw new Error('Invalid response from server');
                     }
                     
+                    // Log response for debugging
+                    console.log('Customer creation response:', {
+                        status: response.status,
+                        ok: response.ok,
+                        data: data
+                    });
+                    
+                    if (!response.ok) {
+                        // Handle error response
+                        const errorMsg = data.error || `Server error (${response.status})`;
+                        const details = data.details ? JSON.stringify(data.details) : '';
+                        const existingCustomer = data.existing_customer;
+                        
+                        let fullErrorMsg = errorMsg;
+                        if (existingCustomer) {
+                            fullErrorMsg += `\n\nExisting customer: ${existingCustomer.full_name} (${existingCustomer.phone_number})`;
+                        }
+                        if (details) {
+                            fullErrorMsg += `\nDetails: ${details}`;
+                        }
+                        
+                        console.error('Customer creation failed:', fullErrorMsg);
+                        showNotification(fullErrorMsg, 'error');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                        return;
+                    }
+                    
                     if (data.success && data.data) {
                         const newCustomer = data.data;
                         
@@ -2425,7 +2453,9 @@ function setupEventListeners() {
                         
                         showNotification('Customer added and selected successfully!', 'success');
                     } else {
-                        showNotification(data.error || 'Failed to add customer', 'error');
+                        const errorMsg = data.error || 'Failed to add customer';
+                        console.error('Customer creation failed:', errorMsg);
+                        showNotification(errorMsg, 'error');
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = originalText;
                     }
