@@ -2442,16 +2442,6 @@ function setupEventListeners() {
     // Attach handler on page load
     attachNewCustomerFormHandler();
     
-    // Also attach when modal is opened (in case form is dynamically created)
-    const originalOpenNewCustomerModal = window.openNewCustomerModal || openNewCustomerModal;
-    window.openNewCustomerModal = function(isWalkIn = false) {
-        originalOpenNewCustomerModal(isWalkIn);
-        // Re-attach handler after modal opens
-        setTimeout(() => {
-            attachNewCustomerFormHandler();
-        }, 100);
-    };
-    
     // Contact form handling
     const quickContactForm = document.getElementById('quickContactForm');
     if (quickContactForm) {
@@ -3394,6 +3384,13 @@ function openNewCustomerModal(isWalkIn = false) {
         nameField.setAttribute('required', 'required');
         document.getElementById('newCustomerName').focus();
         if (modalTitle) modalTitle.textContent = 'Add New Customer';
+    }
+    
+    // Re-attach form handler when modal opens (in case form was reset)
+    if (typeof attachNewCustomerFormHandler === 'function') {
+        setTimeout(() => {
+            attachNewCustomerFormHandler();
+        }, 50);
     }
 }
 
