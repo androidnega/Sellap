@@ -1707,7 +1707,7 @@ $userRole = $user['role'] ?? 'manager';
             
             await refreshDashboardData();
         });
-        
+
         // Manual date input change handlers
         document.getElementById('filterDateFrom').addEventListener('change', function() {
             // Deactivate all quick filter buttons when manually changing dates

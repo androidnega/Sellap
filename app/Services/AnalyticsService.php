@@ -1260,12 +1260,12 @@ class AnalyticsService {
                 SELECT 
                     psi.pos_sale_id,
                     SUM(psi.quantity * {$costColumn}) as total_cost
-                FROM pos_sale_items psi 
+                     FROM pos_sale_items psi 
                 INNER JOIN pos_sales ps_inner ON psi.pos_sale_id = ps_inner.id
-                LEFT JOIN {$productsTable} p ON (
+                     LEFT JOIN {$productsTable} p ON (
                     (psi.item_id = p.id AND p.company_id = ps_inner.company_id)
                     OR ((psi.item_id IS NULL OR psi.item_id = 0) AND LOWER(TRIM(psi.item_description)) = LOWER(TRIM(p.name)) AND p.company_id = ps_inner.company_id)
-                )
+                     )
                 WHERE {$where}
                 AND p.id IS NOT NULL
                 GROUP BY psi.pos_sale_id
