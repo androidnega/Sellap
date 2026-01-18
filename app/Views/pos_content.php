@@ -2330,84 +2330,127 @@ function setupEventListeners() {
     });
 
     // New Customer Form handling
-    const newCustomerForm = document.getElementById('newCustomerForm');
-    if (newCustomerForm) {
-        newCustomerForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
+    function attachNewCustomerFormHandler() {
+        const newCustomerForm = document.getElementById('newCustomerForm');
+        if (newCustomerForm) {
+            // Remove any existing listeners by cloning the form
+            const newForm = newCustomerForm.cloneNode(true);
+            newCustomerForm.parentNode.replaceChild(newForm, newCustomerForm);
             
-            // Check if this is walk-in mode (name field is hidden)
-            const nameField = document.getElementById('newCustomerName');
-            const isWalkIn = nameField.closest('div').style.display === 'none';
-            
-            const formData = {
-                phone_number: document.getElementById('newCustomerPhone').value.trim(),
-                is_walk_in: isWalkIn
-            };
-            
-            // Only add name and email if not walk-in
-            if (!isWalkIn) {
-                formData.full_name = document.getElementById('newCustomerName').value.trim();
-                formData.email = document.getElementById('newCustomerEmail').value.trim() || null;
+            // Attach event listener to the new form
+            newForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
                 
-                if (!formData.full_name || !formData.phone_number) {
-                    showNotification('Name and phone number are required', 'error');
-                    return;
-                }
-            } else {
-                // For walk-in, set default name
-                formData.full_name = 'Walk-in Customer';
+                const submitBtn = newForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
                 
-                if (!formData.phone_number) {
-                    showNotification('Phone number is required for SMS', 'error');
-                    return;
-                }
-            }
-            
-            try {
-                const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
-                const response = await fetch(basePath + '/api/customers', {
-                    method: 'POST',
-                    headers: {
-                        ...getAuthHeaders(),
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'same-origin', // Include session cookies for authentication
-                    body: JSON.stringify(formData)
-                });
+                // Disable button and show loading state
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
                 
-                const data = await response.json();
-                
-                if (data.success && data.data) {
-                    const newCustomer = data.data;
+                try {
+                    // Check if this is walk-in mode (name field is hidden)
+                    const nameField = document.getElementById('newCustomerName');
+                    const isWalkIn = nameField && nameField.closest('div').style.display === 'none';
                     
-                    // Add to customers array
-                    customers.push(newCustomer);
-                    
-                    // Select the new customer
-                    window.selectedCustomer = {
-                        id: newCustomer.id,
-                        name: newCustomer.full_name,
-                        phone: newCustomer.phone_number
+                    const formData = {
+                        phone_number: document.getElementById('newCustomerPhone').value.trim(),
+                        is_walk_in: isWalkIn
                     };
                     
-                    // Update button to show selected
-                    document.querySelectorAll('.customer-type-btn[data-type="new"]').forEach(btn => {
-                        btn.className = btn.className.replace('bg-gray-100 text-gray-700 border-gray-300', 'bg-blue-100 text-blue-700 border-blue-300');
+                    // Only add name and email if not walk-in
+                    if (!isWalkIn) {
+                        formData.full_name = document.getElementById('newCustomerName').value.trim();
+                        formData.email = document.getElementById('newCustomerEmail').value.trim() || null;
+                        
+                        if (!formData.full_name || !formData.phone_number) {
+                            showNotification('Name and phone number are required', 'error');
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalText;
+                            return;
+                        }
+                    } else {
+                        // For walk-in, set default name
+                        formData.full_name = 'Walk-in Customer';
+                        
+                        if (!formData.phone_number) {
+                            showNotification('Phone number is required for SMS', 'error');
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalText;
+                            return;
+                        }
+                    }
+                    
+                    const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+                    const response = await fetch(basePath + '/api/customers', {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        credentials: 'same-origin',
+                        body: JSON.stringify(formData)
                     });
                     
-                    // Close modal
-                    closeNewCustomerModal();
+                    const responseText = await response.text();
+                    let data;
+                    try {
+                        data = JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('JSON parse error:', parseError);
+                        console.error('Response text:', responseText);
+                        throw new Error('Invalid response from server');
+                    }
                     
-                    showNotification('Customer added and selected successfully!', 'success');
-                } else {
-                    showNotification(data.error || 'Failed to add customer', 'error');
+                    if (data.success && data.data) {
+                        const newCustomer = data.data;
+                        
+                        // Add to customers array
+                        if (typeof customers !== 'undefined' && Array.isArray(customers)) {
+                            customers.push(newCustomer);
+                        }
+                        
+                        // Select the new customer
+                        window.selectedCustomer = {
+                            id: newCustomer.id,
+                            name: newCustomer.full_name,
+                            phone: newCustomer.phone_number
+                        };
+                        
+                        // Update button to show selected
+                        document.querySelectorAll('.customer-type-btn[data-type="new"]').forEach(btn => {
+                            btn.className = btn.className.replace('bg-gray-100 text-gray-700 border-gray-300', 'bg-blue-100 text-blue-700 border-blue-300');
+                        });
+                        
+                        // Close modal
+                        closeNewCustomerModal();
+                        
+                        showNotification('Customer added and selected successfully!', 'success');
+                    } else {
+                        showNotification(data.error || 'Failed to add customer', 'error');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                    }
+                } catch (error) {
+                    console.error('Error adding customer:', error);
+                    showNotification('Error adding customer: ' + (error.message || 'Unknown error'), 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
                 }
-            } catch (error) {
-                console.error('Error adding customer:', error);
-                showNotification('Error adding customer: ' + error.message, 'error');
-            }
-        });
+            });
+        }
     }
+    
+    // Attach handler on page load
+    attachNewCustomerFormHandler();
+    
+    // Also attach when modal is opened (in case form is dynamically created)
+    const originalOpenNewCustomerModal = window.openNewCustomerModal || openNewCustomerModal;
+    window.openNewCustomerModal = function(isWalkIn = false) {
+        originalOpenNewCustomerModal(isWalkIn);
+        // Re-attach handler after modal opens
+        setTimeout(() => {
+            attachNewCustomerFormHandler();
+        }, 100);
+    };
     
     // Contact form handling
     const quickContactForm = document.getElementById('quickContactForm');
