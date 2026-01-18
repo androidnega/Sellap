@@ -366,17 +366,23 @@ class SMSService {
      * @return array Send result
      */
     public function sendPurchaseConfirmation($phoneNumber, $purchaseData, $companyId = null) {
-        // Get company name for personalized message
+        // Get company name and contact for personalized message
         $companyName = 'SellApp';
+        $companyContact = null;
         if ($companyId !== null) {
             try {
                 $companyModel = new \App\Models\Company();
                 $company = $companyModel->find($companyId);
-                if ($company && !empty($company['name'])) {
-                    $companyName = $company['name'];
+                if ($company) {
+                    if (!empty($company['name'])) {
+                        $companyName = $company['name'];
+                    }
+                    if (!empty($company['phone_number'])) {
+                        $companyContact = $company['phone_number'];
+                    }
                 }
             } catch (\Exception $e) {
-                error_log("SMSService::sendPurchaseConfirmation: Could not fetch company name: " . $e->getMessage());
+                error_log("SMSService::sendPurchaseConfirmation: Could not fetch company details: " . $e->getMessage());
             }
         }
         
@@ -403,7 +409,13 @@ class SMSService {
         if (!empty($purchaseData['items'])) {
             $message .= "Items: {$purchaseData['items']}\n";
         }
-        $message .= "Thank you for choosing {$companyName}!";
+        
+        $message .= "\nThank you for choosing {$companyName}!";
+        
+        // Add company contact information if available
+        if ($companyContact) {
+            $message .= "\nContact us: {$companyContact}";
+        }
         
         // Use sendRealSMS for instant delivery without simulation fallback
         // This will use company-branded sender name if custom SMS is enabled
@@ -613,17 +625,23 @@ class SMSService {
      * @return array Send result
      */
     public function sendPartialPaymentNotification($phoneNumber, $paymentData, $companyId = null) {
-        // Get company name for personalized message
+        // Get company name and contact for personalized message
         $companyName = 'SellApp';
+        $companyContact = null;
         if ($companyId !== null) {
             try {
                 $companyModel = new \App\Models\Company();
                 $company = $companyModel->find($companyId);
-                if ($company && !empty($company['name'])) {
-                    $companyName = $company['name'];
+                if ($company) {
+                    if (!empty($company['name'])) {
+                        $companyName = $company['name'];
+                    }
+                    if (!empty($company['phone_number'])) {
+                        $companyContact = $company['phone_number'];
+                    }
                 }
             } catch (\Exception $e) {
-                error_log("SMSService::sendPartialPaymentNotification: Could not fetch company name: " . $e->getMessage());
+                error_log("SMSService::sendPartialPaymentNotification: Could not fetch company details: " . $e->getMessage());
             }
         }
         
@@ -640,6 +658,9 @@ class SMSService {
             $message .= "Total Amount: ₵{$total}\n";
             $message .= "Thank you for your payment!\n\n";
             $message .= "{$companyName}";
+            if ($companyContact) {
+                $message .= "\nContact: {$companyContact}";
+            }
         } else {
             // Partial payment
             $message = "Payment Received\n\n";
@@ -649,6 +670,9 @@ class SMSService {
             $message .= "Total Amount: ₵{$total}\n\n";
             $message .= "Please complete your payment.\n\n";
             $message .= "{$companyName}";
+            if ($companyContact) {
+                $message .= "\nContact: {$companyContact}";
+            }
         }
         
         // Use sendRealSMS for instant delivery without simulation fallback
