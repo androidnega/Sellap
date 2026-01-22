@@ -16,28 +16,37 @@ class POSSale {
 
     /**
      * Generate custom sale code (e.g., SEL-SALE-001)
+     * Uses timestamp + random to prevent collisions
      */
     private function generateSaleCode($companyId = null) {
         try {
-            // Get the highest existing sale code number
-            // If company_id is provided, we could scope it per company, but for simplicity, we'll use global numbering
-            $stmt = $this->conn->query("SELECT unique_id FROM {$this->table} WHERE unique_id IS NOT NULL AND unique_id LIKE 'SEL-SALE-%' ORDER BY unique_id DESC LIMIT 1");
-            $lastCode = $stmt->fetch(PDO::FETCH_ASSOC);
+            // Use timestamp-based approach with random component to prevent collisions
+            $timestamp = date('YmdHis');
+            $random = rand(1000, 9999);
+            $baseCode = 'SEL-SALE-' . $timestamp . '-' . $random;
             
-            $nextNumber = 1;
-            if ($lastCode && !empty($lastCode['unique_id'])) {
-                // Extract number from last code (e.g., "SEL-SALE-001" -> 1)
-                if (preg_match('/SEL-SALE-(\d+)/', $lastCode['unique_id'], $matches)) {
-                    $nextNumber = (int)$matches[1] + 1;
+            // Check if this code already exists (very unlikely but check anyway)
+            $maxAttempts = 5;
+            $attempt = 0;
+            while ($attempt < $maxAttempts) {
+                $stmt = $this->conn->prepare("SELECT id FROM {$this->table} WHERE unique_id = :unique_id LIMIT 1");
+                $stmt->execute(['unique_id' => $baseCode]);
+                if ($stmt->rowCount() === 0) {
+                    return $baseCode;
                 }
+                // If collision (very rare), generate new one
+                $timestamp = date('YmdHis');
+                $random = rand(1000, 9999);
+                $baseCode = 'SEL-SALE-' . $timestamp . '-' . $random;
+                $attempt++;
             }
             
-            // Generate new code with zero-padding (001, 002, etc.)
-            return 'SEL-SALE-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+            // Final fallback if all attempts fail (should never happen)
+            return 'SEL-SALE-' . time() . '-' . uniqid();
         } catch (\Exception $e) {
             error_log("POSSale::generateSaleCode error: " . $e->getMessage());
             // Fallback to timestamp-based ID if generation fails
-            return 'SEL-SALE-' . date('YmdHis') . '-' . rand(100, 999);
+            return 'SEL-SALE-' . time() . '-' . uniqid();
         }
     }
 
@@ -45,6 +54,15 @@ class POSSale {
      * Create a new POS sale (Multi-tenant)
      */
     public function create($data) {
+        // Validate required fields
+        if (empty($data['company_id'])) {
+            throw new \Exception('company_id is required to create a sale');
+        }
+        
+        if (empty($data['created_by_user_id']) && empty($data['cashier_id'])) {
+            throw new \Exception('created_by_user_id is required to create a sale');
+        }
+        
         // Generate custom sale code
         $saleCode = $this->generateSaleCode($data['company_id'] ?? null);
         
@@ -89,24 +107,54 @@ class POSSale {
             'final_amount' => $finalAmount,
             'payment_method' => $paymentMethod,
             'payment_status' => strtoupper($data['payment_status'] ?? 'PAID'),
-            'created_by_user_id' => $data['created_by_user_id'] ?? $data['cashier_id'] ?? 1,
+            'created_by_user_id' => $data['created_by_user_id'] ?? $data['cashier_id'] ?? null,
             'notes' => $data['notes'] ?? null
         ];
         
         // Only add swap columns if they exist
         if ($columnsExist) {
             $params['swap_id'] = $data['swap_id'] ?? null;
-            $params['is_swap_mode'] = $data['is_swap_mode'] ?? false;
+            $params['is_swap_mode'] = $data['is_swap_mode'] ?? false ? 1 : 0;
         }
         
         try {
             $stmt->execute($params);
-            return $this->conn->lastInsertId();
+            $insertId = $this->conn->lastInsertId();
+            
+            // Validate that we got a valid insert ID
+            if (!$insertId || $insertId <= 0) {
+                // Try to get the ID by querying with unique_id as fallback
+                $checkStmt = $this->conn->prepare("SELECT id FROM {$this->table} WHERE unique_id = :unique_id LIMIT 1");
+                $checkStmt->execute(['unique_id' => $params['unique_id']]);
+                $result = $checkStmt->fetch(PDO::FETCH_ASSOC);
+                if ($result && isset($result['id'])) {
+                    return $result['id'];
+                }
+                throw new \Exception('Failed to create sale - no valid ID returned from database');
+            }
+            
+            return $insertId;
         } catch (\PDOException $e) {
-            error_log("POSSale create error: " . $e->getMessage());
+            $errorCode = $e->getCode();
+            $errorMessage = $e->getMessage();
+            
+            error_log("POSSale create error [Code: {$errorCode}]: " . $errorMessage);
             error_log("POSSale create SQL: " . $sql);
             error_log("POSSale create params: " . json_encode($params));
-            throw new \Exception('Failed to create sale: ' . $e->getMessage());
+            
+            // Provide more specific error messages
+            if ($errorCode == 23000 || strpos($errorMessage, 'Duplicate entry') !== false) {
+                throw new \Exception('Failed to create sale: Duplicate unique_id. Please try again.');
+            } elseif (strpos($errorMessage, 'Foreign key constraint') !== false) {
+                throw new \Exception('Failed to create sale: Invalid company_id, customer_id, or user_id reference.');
+            } elseif (strpos($errorMessage, 'Column') !== false && strpos($errorMessage, 'cannot be null') !== false) {
+                throw new \Exception('Failed to create sale: Required field is missing.');
+            } else {
+                throw new \Exception('Failed to create sale: ' . $errorMessage);
+            }
+        } catch (\Exception $e) {
+            error_log("POSSale create general error: " . $e->getMessage());
+            throw $e;
         }
     }
     

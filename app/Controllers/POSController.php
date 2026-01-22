@@ -1672,10 +1672,13 @@ class POSController {
                     error_log("Audit logging error (non-fatal): " . $auditError->getMessage());
                 }
             } catch (\Exception $saleError) {
-                error_log("POS Sale Creation Error: " . $saleError->getMessage());
+                $errorMessage = $saleError->getMessage();
+                error_log("POS Sale Creation Error: " . $errorMessage);
                 error_log("POS Sale Creation Trace: " . $saleError->getTraceAsString());
                 error_log("POS Sale Creation Data: company_id={$companyId}, user_id={$userId}, subtotal={$subtotal}, discount={$discount}, tax={$tax}");
-                throw new \Exception('Failed to create sale: ' . $saleError->getMessage());
+                
+                // Re-throw with original message for better debugging
+                throw $saleError;
             }
             
             // Add sale items and update product quantities
@@ -2123,6 +2126,16 @@ class POSController {
             
             if (strpos($errorMessage, 'Authentication') !== false) {
                 $userMessage = 'Authentication failed. Please login again.';
+            } elseif (strpos($errorMessage, 'company_id is required') !== false) {
+                $userMessage = 'Company information is missing. Please contact support.';
+            } elseif (strpos($errorMessage, 'created_by_user_id is required') !== false) {
+                $userMessage = 'User information is missing. Please login again.';
+            } elseif (strpos($errorMessage, 'Duplicate unique_id') !== false || strpos($errorMessage, 'Duplicate entry') !== false) {
+                $userMessage = 'A sale with this ID already exists. Please try again.';
+            } elseif (strpos($errorMessage, 'Foreign key constraint') !== false || strpos($errorMessage, 'Invalid company_id') !== false) {
+                $userMessage = 'Invalid data reference. Please check customer or company information.';
+            } elseif (strpos($errorMessage, 'Required field is missing') !== false) {
+                $userMessage = 'Required information is missing. Please check all fields and try again.';
             } elseif (strpos($errorMessage, 'sale') !== false || strpos($errorMessage, 'Sale') !== false) {
                 $userMessage = 'Failed to create sale record. Please try again.';
             } elseif (strpos($errorMessage, 'database') !== false || strpos($errorMessage, 'Database') !== false || strpos($errorMessage, 'SQL') !== false) {
