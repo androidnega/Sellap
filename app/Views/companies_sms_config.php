@@ -195,7 +195,7 @@
                 </div>
 
                 <!-- SMS Management Actions -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4">
                     <div class="flex items-center mb-3">
                       <div class="bg-green-100 rounded-lg p-2 mr-3">
@@ -219,6 +219,36 @@
                         <i class="fas fa-plus mr-1"></i>Add
                       </button>
                     </div>
+                  </div>
+                  
+                  <div class="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+                    <div class="flex items-center mb-3">
+                      <div class="bg-purple-100 rounded-lg p-2 mr-3">
+                        <i class="fas fa-edit text-purple-600 text-sm"></i>
+                      </div>
+                      <h4 class="text-sm font-semibold text-gray-800">Adjust SMS Used</h4>
+                    </div>
+                    <p class="text-xs text-gray-600 mb-3">
+                      <span class="font-medium text-purple-600">Correct discrepancies:</span> Set exact used count
+                    </p>
+                    <div class="flex gap-2">
+                      <input 
+                        type="number" 
+                        class="adjust-used-amount flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                        data-company-id="<?= $company['id'] ?>"
+                        min="0" 
+                        max="<?= $totalSMS ?>"
+                        value="<?= $usedSMS ?>"
+                        placeholder="Used count"
+                      >
+                      <button 
+                        class="adjust-used-sms-btn px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition text-sm font-medium whitespace-nowrap"
+                        data-company-id="<?= $company['id'] ?>"
+                      >
+                        <i class="fas fa-edit mr-1"></i>Adjust
+                      </button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Current: <?= number_format($usedSMS) ?> used</p>
                   </div>
                   
                   <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
@@ -653,6 +683,49 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Set Total SMS
+  // Adjust SMS Used
+  document.querySelectorAll('.adjust-used-sms-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      const companyId = this.getAttribute('data-company-id');
+      const input = document.querySelector(`.adjust-used-amount[data-company-id="${companyId}"]`);
+      const smsUsed = parseInt(input.value || '0');
+      
+      if (smsUsed < 0) {
+        showNotification('Please enter a valid amount (0 or greater)', 'error');
+        return;
+      }
+      
+      // Get current values for confirmation
+      const companyCard = document.getElementById(`company-${companyId}`);
+      const currentUsed = parseInt(input.getAttribute('value') || '0');
+      
+      if (!confirm(`Adjust SMS used count from ${currentUsed.toLocaleString()} to ${smsUsed.toLocaleString()}?\n\nThis will correct the SMS usage count. Remaining credits will be automatically recalculated.`)) {
+        return;
+      }
+      
+      const result = await apiRequest(
+        `${baseUrl}/api/admin/company/${companyId}/sms/adjust-used`,
+        'POST',
+        { sms_used: smsUsed }
+      );
+      
+      if (result.success) {
+        const adjustment = result.adjustment || {};
+        const diff = adjustment.difference || 0;
+        let message = result.message || 'SMS used count adjusted successfully';
+        
+        if (diff !== 0) {
+          message += `\n\nChange: ${diff > 0 ? '+' : ''}${diff.toLocaleString()} SMS`;
+        }
+        
+        showNotification(message);
+        setTimeout(() => location.reload(), 500);
+      } else {
+        showNotification(result.error || 'Failed to adjust SMS used count', 'error');
+      }
+    });
+  });
+
   document.querySelectorAll('.set-total-sms-btn').forEach(btn => {
     btn.addEventListener('click', async function() {
       const companyId = this.getAttribute('data-company-id');

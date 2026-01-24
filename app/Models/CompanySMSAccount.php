@@ -389,6 +389,60 @@ class CompanySMSAccount {
     }
 
     /**
+     * Adjust SMS used count directly (admin function to correct discrepancies)
+     * 
+     * @param int $companyId Company ID
+     * @param int $smsUsed New SMS used count
+     * @return bool Success status
+     */
+    public function adjustSMSUsed($companyId, $smsUsed) {
+        try {
+            if ($smsUsed < 0) {
+                error_log("CompanySMSAccount::adjustSMSUsed - Invalid sms_used value: {$smsUsed} for company {$companyId}");
+                return false;
+            }
+            
+            $account = $this->getOrCreateAccount($companyId);
+            
+            if (!$account) {
+                error_log("CompanySMSAccount::adjustSMSUsed - Failed to get or create account for company {$companyId}");
+                return false;
+            }
+            
+            // Ensure sms_used doesn't exceed total_sms
+            $totalSMS = $account['total_sms'] ?? 0;
+            $smsUsed = min($smsUsed, $totalSMS);
+            
+            $oldSmsUsed = $account['sms_used'] ?? 0;
+            error_log("CompanySMSAccount::adjustSMSUsed - Company {$companyId}: Adjusting sms_used from {$oldSmsUsed} to {$smsUsed}");
+            
+            $stmt = $this->conn->prepare("
+                UPDATE {$this->table} 
+                SET sms_used = ?, updated_at = NOW() 
+                WHERE company_id = ?
+            ");
+            $result = $stmt->execute([$smsUsed, $companyId]);
+            
+            if (!$result) {
+                $errorInfo = $stmt->errorInfo();
+                error_log("CompanySMSAccount::adjustSMSUsed - SQL Error: " . json_encode($errorInfo));
+                return false;
+            }
+            
+            if ($stmt->rowCount() === 0) {
+                error_log("CompanySMSAccount::adjustSMSUsed - WARNING: No rows updated for company {$companyId}");
+                return false;
+            }
+            
+            error_log("CompanySMSAccount::adjustSMSUsed - Successfully adjusted SMS used for company {$companyId}");
+            return true;
+        } catch (\Exception $e) {
+            error_log("CompanySMSAccount::adjustSMSUsed error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Toggle custom SMS sender name enabled status
      * 
      * @param int $companyId Company ID

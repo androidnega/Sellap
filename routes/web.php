@@ -3128,6 +3128,23 @@ $router->post('api/admin/company/{id}/sms/set-total', function($id) use ($ensure
     }
 });
 
+// Adjust SMS used count (admin function to correct discrepancies)
+$router->post('api/admin/company/{id}/sms/adjust-used', function($id) use ($ensureJsonOutput) {
+    $ensureJsonOutput();
+    try {
+        $controller = new \App\Controllers\AdminCompanySMSController();
+        $controller->adjustSMSUsed($id);
+    } catch (\Exception $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    } catch (\Error $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Internal server error']);
+    }
+});
+
 // Set company SMS sender name
 $router->post('api/admin/company/{id}/sms/sender-name', function($id) use ($ensureJsonOutput) {
     $ensureJsonOutput();

@@ -447,6 +447,83 @@ class AdminCompanySMSController {
     }
 
     /**
+     * Adjust SMS used count directly (admin function to correct discrepancies)
+     * POST /api/admin/company/{id}/sms/adjust-used
+     */
+    public function adjustSMSUsed($companyId) {
+        // Set JSON header first to prevent HTML errors
+        header('Content-Type: application/json');
+        
+        try {
+            // Check authentication - System Admin only (uses session or JWT)
+            $this->checkAuth();
+            
+            // Validate company ID
+            if (!$companyId || !is_numeric($companyId)) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Invalid company ID'
+                ]);
+                return;
+            }
+            
+            $input = json_decode(file_get_contents('php://input'), true);
+            $smsUsed = isset($input['sms_used']) ? (int)$input['sms_used'] : null;
+            
+            if ($smsUsed === null || $smsUsed < 0) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Invalid SMS used value. Must be 0 or greater.'
+                ]);
+                return;
+            }
+            
+            // Get current balance for logging
+            $balanceBefore = $this->smsAccountModel->getSMSBalance($companyId);
+            $oldSmsUsed = $balanceBefore['sms_used'] ?? 0;
+            
+            error_log("AdminCompanySMSController::adjustSMSUsed - Company {$companyId}: Adjusting sms_used from {$oldSmsUsed} to {$smsUsed}");
+            
+            $result = $this->smsAccountModel->adjustSMSUsed($companyId, $smsUsed);
+            
+            if (!$result) {
+                http_response_code(500);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Failed to adjust SMS used count'
+                ]);
+                return;
+            }
+            
+            // Get updated balance
+            $balance = $this->smsAccountModel->getSMSBalance($companyId);
+            
+            error_log("AdminCompanySMSController::adjustSMSUsed - Successfully adjusted SMS used for company {$companyId}. Old: {$oldSmsUsed}, New: {$smsUsed}");
+            
+            http_response_code(200);
+            echo json_encode([
+                'success' => true,
+                'message' => "SMS used count adjusted from {$oldSmsUsed} to {$smsUsed}",
+                'data' => $balance,
+                'adjustment' => [
+                    'old_used' => $oldSmsUsed,
+                    'new_used' => $smsUsed,
+                    'difference' => $smsUsed - $oldSmsUsed
+                ]
+            ]);
+        } catch (\Exception $e) {
+            error_log("AdminCompanySMSController::adjustSMSUsed error: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Failed to adjust SMS used count: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
      * Get SMS usage logs for a company
      * GET /api/admin/company/{id}/sms/logs
      */
