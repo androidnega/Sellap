@@ -730,9 +730,18 @@ class AdminController {
             }
             
             try {
-                $repairsResult = $db->query("SELECT COUNT(*) FROM repairs");
+                // Check which repairs table exists
+                $checkRepairsNew = $db->query("SHOW TABLES LIKE 'repairs_new'");
+                $hasRepairsNew = $checkRepairsNew && $checkRepairsNew->rowCount() > 0;
+                
+                if ($hasRepairsNew) {
+                    $repairsResult = $db->query("SELECT COUNT(*) FROM repairs_new");
+                } else {
+                    $repairsResult = $db->query("SELECT COUNT(*) FROM repairs");
+                }
                 $repairsCount = $repairsResult ? (int)$repairsResult->fetchColumn() : 0;
             } catch (\Exception $e) {
+                error_log("Error getting repairs count: " . $e->getMessage());
                 $repairsCount = 0;
             }
             
