@@ -274,7 +274,7 @@
     error_log("Login page image error: " . $e->getMessage());
   }
   $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
-  $defaultImage = $basePath . '/assets/images/login-bg.jpg';
+  $defaultImage = $basePath . '/assets/images/happy-professional-african-american-women-600nw-2510417147.webp';
   $imageUrl = $loginImageUrl ?: $defaultImage;
   ?>
   
