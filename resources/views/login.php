@@ -46,20 +46,28 @@
       max-width: 380px;
     }
     
-    /* Right: Section with background image - selling/retail with computer */
+    /* Right: Section with background image - inventory/warehouse */
     .login-image-section {
       position: relative;
       overflow: hidden;
       background: #1e293b;
+    }
+    
+    .login-image-bg {
+      position: absolute;
+      inset: 0;
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
+      opacity: 0.65;
+      z-index: 0;
     }
     
     .login-image-overlay {
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, rgba(79, 70, 229, 0.55) 0%, rgba(30, 41, 59, 0.75) 100%);
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.5) 0%, rgba(30, 41, 59, 0.7) 100%);
+      z-index: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -260,8 +268,8 @@
   } catch (\Exception $e) {
     error_log("Login page image error: " . $e->getMessage());
   }
-  // Unsplash - person at computer/desk, retail/business (not water/sea)
-  $defaultImage = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=85';
+  // Inventory/warehouse management image - resonates with SellApp
+  $defaultImage = 'https://acctivate.com/wp-content/uploads/2023/06/inventory-and-warehouse-management-complete-guide-1.jpg';
   $imageUrl = $loginImageUrl ?: $defaultImage;
   ?>
   
@@ -330,8 +338,9 @@
       </div>
     </section>
     
-    <!-- Right: Section background (retail/selling with computer) + SellApp branding -->
-    <section class="login-image-section" style="background-image: url('<?php echo htmlspecialchars($imageUrl); ?>');">
+    <!-- Right: Section background (inventory/warehouse) + SellApp branding -->
+    <section class="login-image-section">
+      <div class="login-image-bg" style="background-image: url('<?php echo htmlspecialchars($imageUrl); ?>');"></div>
       <div class="login-image-overlay">
         <h1 class="login-brand-on-image">SellApp</h1>
         <p class="login-tagline-on-image">Multi-Tenant Phone Management System</p>
