@@ -269,7 +269,7 @@
     error_log("Login page image error: " . $e->getMessage());
   }
   $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
-  $defaultImage = 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=1200&q=80';
+  $defaultImage = $basePath . '/assets/images/login-bg.jpg';
   $imageUrl = $loginImageUrl ?: $defaultImage;
   ?>
   
