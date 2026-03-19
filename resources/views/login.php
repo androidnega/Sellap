@@ -46,7 +46,7 @@
       max-width: 380px;
     }
     
-    /* Right: Section with background image - inventory/warehouse */
+    /* Right: Section with background image */
     .login-image-section {
       position: relative;
       overflow: hidden;
@@ -59,14 +59,14 @@
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
-      opacity: 0.65;
+      opacity: 1;
       z-index: 0;
     }
     
     .login-image-overlay {
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, rgba(79, 70, 229, 0.5) 0%, rgba(30, 41, 59, 0.7) 100%);
+      background: linear-gradient(to bottom, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.4) 100%);
       z-index: 1;
       display: flex;
       flex-direction: column;
@@ -268,9 +268,8 @@
   } catch (\Exception $e) {
     error_log("Login page image error: " . $e->getMessage());
   }
-  // Local inventory/warehouse image - reliable, no external dependency
   $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
-  $defaultImage = $basePath . '/assets/images/login-bg.jpg';
+  $defaultImage = 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=1200&q=80';
   $imageUrl = $loginImageUrl ?: $defaultImage;
   ?>
   
