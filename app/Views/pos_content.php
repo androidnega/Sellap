@@ -2572,8 +2572,7 @@ async function clearCart() {
         const data = await response.json();
         if (data.success) {
             cart = {};
-            renderCart();
-            updateCartSummary();
+            updateCartDisplay();
             showNotification('Cart cleared successfully', 'success');
         }
     } catch (error) {
