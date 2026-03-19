@@ -19,81 +19,8 @@ $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
     <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
     
-    <!-- Robust Tailwind CSS loader with online/offline detection and retry mechanism -->
-    <script>
-        (function() {
-            let tailwindLoaded = false;
-            let retryCount = 0;
-            const maxRetries = 10;
-            const retryDelay = 1000; // 1 second
-            
-            function loadTailwind() {
-                // Check if already loaded
-                if (tailwindLoaded || window.tailwind) {
-                    return;
-                }
-                
-                // Check if script already exists
-                const existingScript = document.querySelector('script[data-tailwind-loader]');
-                if (existingScript) {
-                    return;
-                }
-                
-                const script = document.createElement('script');
-                script.src = 'https://cdn.tailwindcss.com';
-                script.async = true;
-                script.setAttribute('data-tailwind-loader', 'true');
-                
-                script.onload = function() {
-                    tailwindLoaded = true;
-                    retryCount = 0;
-                    // Trigger a re-render to apply styles
-                    if (window.tailwind && typeof window.tailwind.refresh === 'function') {
-                        window.tailwind.refresh();
-                    }
-                    // Dispatch custom event for other scripts
-                    window.dispatchEvent(new CustomEvent('tailwindLoaded'));
-                };
-                
-                script.onerror = function() {
-                    // Script failed to load
-                    if (retryCount < maxRetries) {
-                        retryCount++;
-                        setTimeout(loadTailwind, retryDelay);
-                    }
-                };
-                
-                document.head.appendChild(script);
-            }
-            
-            // Try loading immediately
-            loadTailwind();
-            
-            // Listen for online event and retry
-            window.addEventListener('online', function() {
-                if (!tailwindLoaded) {
-                    retryCount = 0; // Reset retry count when back online
-                    loadTailwind();
-                }
-            });
-            
-            // Periodic check when offline (in case online event doesn't fire)
-            let offlineCheckInterval = setInterval(function() {
-                if (navigator.onLine && !tailwindLoaded) {
-                    retryCount = 0;
-                    loadTailwind();
-                }
-            }, 2000); // Check every 2 seconds
-            
-            // Clear interval when Tailwind is loaded
-            const checkLoaded = setInterval(function() {
-                if (tailwindLoaded) {
-                    clearInterval(offlineCheckInterval);
-                    clearInterval(checkLoaded);
-                }
-            }, 500);
-        })();
-    </script>
+    <!-- Tailwind CSS - loaded synchronously to prevent FOUC -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">

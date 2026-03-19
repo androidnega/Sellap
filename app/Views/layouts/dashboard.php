@@ -17,112 +17,23 @@
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
     <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
     
+    <!-- Tailwind CSS - loaded synchronously to prevent FOUC (flash of unstyled content) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
     <script>
         window.APP_BASE_PATH = '<?php echo defined("BASE_URL_PATH") ? BASE_URL_PATH : ""; ?>';
         const BASE = window.APP_BASE_PATH || '';
         
         // Suppress harmless "Tracking Prevention" warnings from CDN resources
-        // These are browser privacy warnings and don't affect functionality
         (function() {
             const originalWarn = console.warn;
             console.warn = function(...args) {
                 const message = args.join(' ');
-                // Filter out tracking prevention warnings from CDN resources
                 if (message.includes('Tracking Prevention blocked access to storage')) {
-                    return; // Suppress this warning
+                    return;
                 }
                 originalWarn.apply(console, args);
             };
-        })();
-        
-        // Robust Tailwind CSS loader with online/offline detection and retry mechanism
-        (function() {
-            let tailwindLoaded = false;
-            let retryCount = 0;
-            const maxRetries = 10;
-            const retryDelay = 1000; // 1 second
-            
-            function loadTailwind() {
-                // Check if already loaded
-                if (tailwindLoaded || window.tailwind) {
-                    return;
-                }
-                
-                // Check if script already exists
-                const existingScript = document.querySelector('script[data-tailwind-loader]');
-                if (existingScript) {
-                    return;
-                }
-                
-                const script = document.createElement('script');
-                script.src = 'https://cdn.tailwindcss.com';
-                script.async = true;
-                script.setAttribute('data-tailwind-loader', 'true');
-                
-                script.onload = function() {
-                    tailwindLoaded = true;
-                    retryCount = 0;
-                    // Trigger a re-render to apply styles
-                    if (window.tailwind && typeof window.tailwind.refresh === 'function') {
-                        window.tailwind.refresh();
-                    }
-                    // Show body once Tailwind is loaded (with null check)
-                    if (document.body) {
-                        document.body.classList.add('tailwind-loaded');
-                    }
-                    // Dispatch custom event for other scripts
-                    window.dispatchEvent(new CustomEvent('tailwindLoaded'));
-                };
-                
-                script.onerror = function() {
-                    // Script failed to load
-                    if (retryCount < maxRetries) {
-                        retryCount++;
-                        setTimeout(loadTailwind, retryDelay);
-                    }
-                };
-                
-                document.head.appendChild(script);
-            }
-            
-            // Try loading immediately
-            loadTailwind();
-            
-            // Listen for online event and retry
-            window.addEventListener('online', function() {
-                if (!tailwindLoaded) {
-                    retryCount = 0; // Reset retry count when back online
-                    loadTailwind();
-                }
-            });
-            
-            // Periodic check when offline (in case online event doesn't fire)
-            let offlineCheckInterval = setInterval(function() {
-                if (navigator.onLine && !tailwindLoaded) {
-                    retryCount = 0;
-                    loadTailwind();
-                }
-            }, 2000); // Check every 2 seconds
-            
-            // Clear interval when Tailwind is loaded
-            const checkLoaded = setInterval(function() {
-                if (tailwindLoaded) {
-                    clearInterval(offlineCheckInterval);
-                    clearInterval(checkLoaded);
-                }
-            }, 500);
-            
-            // Show body immediately - don't wait for Tailwind
-            if (document.body) {
-                document.body.classList.add('tailwind-loaded');
-            }
-            
-            // Fallback: Ensure body is visible after 1 second even if Tailwind hasn't loaded
-            setTimeout(function() {
-                if (!tailwindLoaded && document.body) {
-                    document.body.classList.add('tailwind-loaded');
-                }
-            }, 1000);
         })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -156,17 +67,6 @@
     
     <!-- Custom Styles for Layout Fix -->
     <style>
-        /* Show body immediately - don't hide it */
-        body {
-            visibility: visible;
-            opacity: 1;
-        }
-        
-        body.tailwind-loaded {
-            visibility: visible;
-            opacity: 1;
-        }
-        
         /* Reset any conflicting styles */
         * {
             box-sizing: border-box;
