@@ -32,46 +32,7 @@
       min-height: 100vh;
     }
     
-    /* Left: Image section */
-    .login-image-section {
-      position: relative;
-      overflow: hidden;
-      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-    }
-    
-    .login-image-section img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 0.9;
-    }
-    
-    .login-image-overlay {
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, rgba(79, 70, 229, 0.4) 0%, rgba(30, 41, 59, 0.6) 100%);
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      padding: 3rem;
-    }
-    
-    .login-image-caption {
-      color: rgba(255, 255, 255, 0.95);
-      font-size: 1.5rem;
-      font-weight: 600;
-      line-height: 1.4;
-      max-width: 360px;
-      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    }
-    
-    .login-image-sub {
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 0.9rem;
-      margin-top: 0.5rem;
-    }
-    
-    /* Right: Form section */
+    /* Left: Form section only */
     .login-form-section {
       display: flex;
       align-items: center;
@@ -85,31 +46,44 @@
       max-width: 380px;
     }
     
-    .login-logo {
-      display: inline-flex;
+    /* Right: Image section with SellApp branding */
+    .login-image-section {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    }
+    
+    .login-image-section img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.85;
+    }
+    
+    .login-image-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.5) 0%, rgba(30, 41, 59, 0.7) 100%);
+      display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      width: 52px;
-      height: 52px;
-      background: linear-gradient(135deg, var(--login-accent), #6366f1);
-      border-radius: 14px;
-      font-size: 1.6rem;
+      padding: 3rem;
+    }
+    
+    .login-brand-on-image {
+      font-size: 3.5rem;
+      font-weight: 800;
       color: white;
-      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
-      margin-bottom: 1rem;
+      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      margin: 0 0 0.5rem 0;
+      letter-spacing: -0.02em;
     }
     
-    .login-brand {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: var(--login-text);
-      margin: 0 0 0.25rem 0;
-    }
-    
-    .login-tagline {
-      color: var(--login-muted);
-      font-size: 0.9rem;
-      margin-bottom: 2rem;
+    .login-tagline-on-image {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1.1rem;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
     
     .login-card {
@@ -242,30 +216,26 @@
     @media (max-width: 900px) {
       .login-split {
         grid-template-columns: 1fr;
-      }
-      
-      .login-image-section {
-        min-height: 220px;
-        max-height: 280px;
-      }
-      
-      .login-image-overlay {
-        justify-content: center;
-        padding: 2rem;
-      }
-      
-      .login-image-caption {
-        font-size: 1.25rem;
-        text-align: center;
-        max-width: none;
-      }
-      
-      .login-image-sub {
-        text-align: center;
+        grid-template-rows: auto 1fr;
       }
       
       .login-form-section {
+        order: 2;
         padding: 1.5rem 1rem;
+      }
+      
+      .login-image-section {
+        order: 1;
+        min-height: 200px;
+        max-height: 240px;
+      }
+      
+      .login-brand-on-image {
+        font-size: 2.25rem;
+      }
+      
+      .login-tagline-on-image {
+        font-size: 0.95rem;
       }
     }
     
@@ -274,8 +244,8 @@
         padding: 1.5rem;
       }
       
-      .login-brand {
-        font-size: 1.5rem;
+      .login-brand-on-image {
+        font-size: 1.9rem;
       }
     }
   </style>
@@ -294,27 +264,15 @@
   } catch (\Exception $e) {
     error_log("Login page image error: " . $e->getMessage());
   }
-  $defaultImage = 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80';
+  // Picsum.photos - reliable, always loads, no broken images
+  $defaultImage = 'https://picsum.photos/seed/sellapp/1200/800';
   $imageUrl = $loginImageUrl ?: $defaultImage;
   ?>
   
   <div class="login-split">
-    <!-- Left: Image -->
-    <section class="login-image-section">
-      <img src="<?php echo htmlspecialchars($imageUrl); ?>" alt="Retail store" loading="eager">
-      <div class="login-image-overlay">
-        <p class="login-image-caption">Manage your retail business with ease</p>
-        <span class="login-image-sub">Sales, inventory, and customer management in one place</span>
-      </div>
-    </section>
-    
-    <!-- Right: Login form -->
+    <!-- Left: Login form only -->
     <section class="login-form-section">
       <div class="login-form-wrapper">
-        <div class="login-logo">📱</div>
-        <h1 class="login-brand">SellApp</h1>
-        <p class="login-tagline">Multi-Tenant Phone Management System</p>
-        
         <div class="login-card">
           <h2>Welcome back</h2>
           <p class="subtitle">Sign in to continue to your account</p>
@@ -373,6 +331,15 @@
             </div>
           </form>
         </div>
+      </div>
+    </section>
+    
+    <!-- Right: Image with SellApp branding -->
+    <section class="login-image-section">
+      <img src="<?php echo htmlspecialchars($imageUrl); ?>" alt="" loading="eager" onerror="this.style.display='none'">
+      <div class="login-image-overlay">
+        <h1 class="login-brand-on-image">SellApp</h1>
+        <p class="login-tagline-on-image">Multi-Tenant Phone Management System</p>
       </div>
     </section>
   </div>
