@@ -388,7 +388,7 @@ error_log("POS View: User role = {$role}, isReadOnly = {$isReadOnly}");
                         <i class="fas fa-boxes mr-2"></i>
                         <span id="productCountText">Loading products...</span>
                     </div>
-                    <div id="productsGrid" class="space-y-2 sm:space-y-3 max-h-[calc(100vh-20rem)] overflow-y-auto products-scroll" style="scrollbar-width: none; -ms-overflow-style: none;">
+                    <div id="productsGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 max-h-[calc(100vh-20rem)] overflow-y-auto products-scroll" style="scrollbar-width: none; -ms-overflow-style: none;">
                         <!-- Products will be loaded here -->
                     </div>
                 </div>
@@ -1280,14 +1280,14 @@ function renderProducts(productsToRender) {
             // Construct proper image URL with base path
             const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
             const imageUrl = product.image_url.startsWith('http') ? product.image_url : basePath + '/' + product.image_url;
-            // Use actual product image
-            imageHtml = `<img src="${imageUrl}" alt="${product.name || 'Product'}" class="w-16 h-16 object-cover rounded-lg" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                         <div class="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center" style="display: none;">
+            // Use actual product image - w-full h-full to fill grid card container
+            imageHtml = `<img src="${imageUrl}" alt="${product.name || 'Product'}" class="w-full h-full object-cover rounded-lg" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                         <div class="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center" style="display: none;">
                              ${getCategoryIcon(product.category_name || product.category || '', product.name || '')}
                          </div>`;
         } else {
             // Use category-based icon
-            imageHtml = `<div class="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+            imageHtml = `<div class="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
                              ${getCategoryIcon(product.category_name || product.category || '', product.name || '')}
                          </div>`;
         }
@@ -1351,109 +1351,106 @@ function renderProducts(productsToRender) {
         // Removed ring/border for selected products
         
         return `
-            <div class="${cardClasses.trim()}" data-product-id="${productId}" data-is-swapped="${isSwappedItem ? 'true' : 'false'}" ${cardStyle ? `style="${cardStyle}"` : ''} ${isSwappedItem ? `onmouseover="this.style.backgroundColor='#e9d5ff'; this.style.borderColor='#8b5cf6';" onmouseout="this.style.backgroundColor='#f3e8ff'; this.style.borderColor='#a78bfa';"` : ''}>
-                <div class="flex items-start sm:items-center space-x-1.5 sm:space-x-2 md:space-x-3">
-                    <!-- Product Image -->
-                    <div class="flex-shrink-0 flex flex-col items-center">
-                        <div class="relative w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12">
-                            ${imageHtml}
+            <div class="${cardClasses.trim()} flex flex-col h-full" data-product-id="${productId}" data-is-swapped="${isSwappedItem ? 'true' : 'false'}" ${cardStyle ? `style="${cardStyle}"` : ''} ${isSwappedItem ? `onmouseover="this.style.backgroundColor='#e9d5ff'; this.style.borderColor='#8b5cf6';" onmouseout="this.style.backgroundColor='#f3e8ff'; this.style.borderColor='#a78bfa';"` : ''}>
+                <!-- Product Image -->
+                <div class="flex-shrink-0 flex flex-col items-center mb-4">
+                    <div class="relative w-12 h-12 sm:w-14 sm:h-14">
+                        ${imageHtml}
+                    </div>
+                    ${stockBadge ? `<div class="mt-0.5 text-xs">${stockBadge}</div>` : ''}
+                </div>
+                
+                <!-- Product Details -->
+                <div class="flex-1 min-w-0 flex flex-col">
+                    <!-- Product Name -->
+                    <h3 class="font-semibold ${isSwappedItem ? 'text-purple-900' : 'text-gray-800'} text-xs sm:text-sm leading-tight mb-0.5 line-clamp-2" style="${isSwappedItem ? 'color: #6b21a8 !important;' : ''}">${product.name || 'Unnamed Product'}</h3>
+                    
+                    <!-- Category Badge -->
+                    ${product.category_name ? `
+                        <div class="mb-0.5">
+                            <span class="inline-block ${isSwappedItem ? 'bg-white text-purple-800' : 'bg-blue-100 text-blue-800'} text-xs font-medium px-1 sm:px-1.5 py-0.5 rounded-full" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">
+                                <i class="fas fa-tag mr-0.5 text-xs" style="${isSwappedItem ? 'color: #6b21a8 !important;' : ''}"></i><span class="text-xs">${product.category_name}</span>
+                            </span>
                         </div>
-                        ${stockBadge ? `<div class="mt-0.5 text-xs">${stockBadge}</div>` : ''}
+                    ` : ''}
+                    
+                    <!-- Swapped Item Badge -->
+                    ${isSwappedItem ? `
+                        <div class="mb-0.5">
+                            <span class="inline-block bg-white text-purple-800 text-xs font-bold px-1 sm:px-1.5 py-0.5 rounded-full border" style="background-color: #c4b5fd !important; color: #6b21a8 !important; border-color: #8b5cf6 !important;">
+                                <i class="fas fa-exchange-alt mr-0.5 text-xs" style="color: #6b21a8 !important;"></i><span class="text-xs">Swapped Item - For Resale</span>
+                            </span>
+                        </div>
+                    ` : ''}
+                    
+                    <!-- Additional Tags -->
+                    <div class="flex flex-wrap gap-0.5 mb-0.5">
+                        ${tags.filter(tag => tag !== product.category_name && tag !== 'Swapped Item').slice(0, 2).map(tag => `
+                            <span class="inline-block ${isSwappedItem ? 'bg-white text-purple-800' : 'bg-gray-100 text-gray-700'} text-xs px-1 sm:px-1.5 py-0.5 rounded-full" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">${tag}</span>
+                        `).join('')}
+                        ${tags.filter(tag => tag !== product.category_name && tag !== 'Swapped Item').length > 2 ? `<span class="inline-block ${isSwappedItem ? 'bg-white text-purple-800' : 'bg-gray-100 text-gray-700'} text-xs px-1 sm:px-1.5 py-0.5 rounded-full" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">+${tags.filter(tag => tag !== product.category_name && tag !== 'Swapped Item').length - 2}</span>` : ''}
                     </div>
                     
-                    <!-- Product Details -->
-                    <div class="flex-1 min-w-0">
-                        <!-- Product Name -->
-                        <h3 class="font-semibold ${isSwappedItem ? 'text-purple-900' : 'text-gray-800'} text-xs sm:text-sm leading-tight mb-0.5 line-clamp-2" style="${isSwappedItem ? 'color: #6b21a8 !important;' : ''}">${product.name || 'Unnamed Product'}</h3>
-                        
-                        <!-- Category Badge -->
-                        ${product.category_name ? `
-                            <div class="mb-0.5">
-                                <span class="inline-block ${isSwappedItem ? 'bg-white text-purple-800' : 'bg-blue-100 text-blue-800'} text-xs font-medium px-1 sm:px-1.5 py-0.5 rounded-full" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">
-                                    <i class="fas fa-tag mr-0.5 text-xs" style="${isSwappedItem ? 'color: #6b21a8 !important;' : ''}"></i><span class="text-xs">${product.category_name}</span>
-                                </span>
-                            </div>
-                        ` : ''}
-                        
-                        <!-- Swapped Item Badge -->
+                    <!-- Stock Info -->
+                    <div class="flex flex-wrap items-center gap-1 mb-0.5">
                         ${isSwappedItem ? `
-                            <div class="mb-0.5">
-                                <span class="inline-block bg-white text-purple-800 text-xs font-bold px-1 sm:px-1.5 py-0.5 rounded-full border" style="background-color: #c4b5fd !important; color: #6b21a8 !important; border-color: #8b5cf6 !important;">
-                                    <i class="fas fa-exchange-alt mr-0.5 text-xs" style="color: #6b21a8 !important;"></i><span class="text-xs">Swapped Item - For Resale</span>
-                                </span>
-                            </div>
-                        ` : ''}
-                        
-                        <!-- Additional Tags -->
-                        <div class="flex flex-wrap gap-0.5 mb-0.5">
-                            ${tags.filter(tag => tag !== product.category_name && tag !== 'Swapped Item').slice(0, 2).map(tag => `
-                                <span class="inline-block ${isSwappedItem ? 'bg-white text-purple-800' : 'bg-gray-100 text-gray-700'} text-xs px-1 sm:px-1.5 py-0.5 rounded-full" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">${tag}</span>
-                            `).join('')}
-                            ${tags.filter(tag => tag !== product.category_name && tag !== 'Swapped Item').length > 2 ? `<span class="inline-block ${isSwappedItem ? 'bg-white text-purple-800' : 'bg-gray-100 text-gray-700'} text-xs px-1 sm:px-1.5 py-0.5 rounded-full" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">+${tags.filter(tag => tag !== product.category_name && tag !== 'Swapped Item').length - 2}</span>` : ''}
-                        </div>
-                        
-                        <!-- Stock Info -->
-                        <div class="flex flex-wrap items-center gap-1 mb-0.5">
-                            ${isSwappedItem ? `
-                                <span class="text-xs font-medium whitespace-nowrap" style="color: #6b21a8 !important;">Status: <span class="font-bold stock-display" style="color: #6b21a8 !important;">For Resale</span></span>
-                                <span class="text-xs font-medium px-1 sm:px-1.5 py-0.5 rounded-full whitespace-nowrap" style="background-color: #c4b5fd !important; color: #6b21a8 !important;">
-                                    <i class="fas fa-exchange-alt mr-0.5 text-xs" style="color: #6b21a8 !important;"></i>Swapped Item
-                                </span>
-                            ` : `
-                                <span class="text-xs text-gray-600 whitespace-nowrap">Stock: <span class="font-medium text-gray-800 stock-display">${remainingStock}</span></span>
-                            `}
-                            ${isSelected ? `<span class="text-xs ${isSwappedItem ? '' : 'text-blue-600 bg-blue-100'} font-medium px-1 sm:px-1.5 py-0.5 rounded-full whitespace-nowrap" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">In Cart: ${cartQuantity}</span>` : ''}
-                        </div>
-                        
-                        ${!productId ? '<p class="text-xs text-red-500 mt-0.5">No ID</p>' : ''}
-                    </div>
-                    
-                    <!-- Price and Add Button -->
-                    <div class="flex-shrink-0 text-right min-w-0">
-                        ${isSwappedItem ? `
-                            <div class="text-xs font-medium mb-0.5 whitespace-nowrap" style="color: #6b21a8 !important;">For Resale</div>
-                            ${parseFloat(product.price || product.resell_price || 0) >= 1000000 ? `
-                                <div class="text-sm sm:text-base md:text-lg font-bold mb-1 break-words overflow-hidden" style="color: #6b21a8 !important;" title="₵${getFullCurrencyAmount(parseFloat(product.price || product.resell_price || 0))}">₵${formatCurrency(parseFloat(product.price || product.resell_price || 0))}</div>
-                            ` : `
-                                <div class="text-sm sm:text-base md:text-lg font-bold mb-1 break-words overflow-hidden" style="color: #6b21a8 !important;">₵${formatCurrency(parseFloat(product.price || product.resell_price || 0))}</div>
-                            `}
-                            ${parseFloat(product.price || product.resell_price || 0) === 0 ? `
-                                <div class="text-xs mb-1" style="color: #d97706 !important;">⚠ Price not set</div>
-                            ` : ''}
+                            <span class="text-xs font-medium whitespace-nowrap" style="color: #6b21a8 !important;">Status: <span class="font-bold stock-display" style="color: #6b21a8 !important;">For Resale</span></span>
+                            <span class="text-xs font-medium px-1 sm:px-1.5 py-0.5 rounded-full whitespace-nowrap" style="background-color: #c4b5fd !important; color: #6b21a8 !important;">
+                                <i class="fas fa-exchange-alt mr-0.5 text-xs" style="color: #6b21a8 !important;"></i>Swapped Item
+                            </span>
                         ` : `
-                            ${parseFloat(product.price || 0) >= 1000000 ? `
-                                <div class="text-sm sm:text-base md:text-lg font-bold text-green-600 mb-1 break-words overflow-hidden" title="₵${getFullCurrencyAmount(parseFloat(product.price || 0))}">₵${formatCurrency(parseFloat(product.price || 0))}</div>
-                            ` : `
-                                <div class="text-sm sm:text-base md:text-lg font-bold text-green-600 mb-1 break-words overflow-hidden">₵${formatCurrency(parseFloat(product.price || 0))}</div>
-                            `}
+                            <span class="text-xs text-gray-600 whitespace-nowrap">Stock: <span class="font-medium text-gray-800 stock-display">${remainingStock}</span></span>
                         `}
+                        ${isSelected ? `<span class="text-xs ${isSwappedItem ? '' : 'text-blue-600 bg-blue-100'} font-medium px-1 sm:px-1.5 py-0.5 rounded-full whitespace-nowrap" style="${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}">In Cart: ${cartQuantity}</span>` : ''}
+                    </div>
+                    
+                    ${!productId ? '<p class="text-xs text-red-500 mt-0.5">No ID</p>' : ''}
+                </div>
+                
+                <!-- Price and Add Button -->
+                <div class="flex-shrink-0 mt-auto pt-2">
+                    ${isSwappedItem ? `
+                        <div class="text-xs font-medium mb-0.5 whitespace-nowrap" style="color: #6b21a8 !important;">For Resale</div>
+                        ${parseFloat(product.price || product.resell_price || 0) >= 1000000 ? `
+                            <div class="text-sm sm:text-base font-bold mb-1 break-words overflow-hidden" style="color: #6b21a8 !important;" title="₵${getFullCurrencyAmount(parseFloat(product.price || product.resell_price || 0))}">₵${formatCurrency(parseFloat(product.price || product.resell_price || 0))}</div>
+                        ` : `
+                            <div class="text-sm sm:text-base font-bold mb-1 break-words overflow-hidden" style="color: #6b21a8 !important;">₵${formatCurrency(parseFloat(product.price || product.resell_price || 0))}</div>
+                        `}
+                        ${parseFloat(product.price || product.resell_price || 0) === 0 ? `
+                            <div class="text-xs mb-1" style="color: #d97706 !important;">⚠ Price not set</div>
+                        ` : ''}
+                    ` : `
+                        ${parseFloat(product.price || 0) >= 1000000 ? `
+                            <div class="text-sm sm:text-base font-bold text-green-600 mb-1 break-words overflow-hidden" title="₵${getFullCurrencyAmount(parseFloat(product.price || 0))}">₵${formatCurrency(parseFloat(product.price || 0))}</div>
+                        ` : `
+                            <div class="text-sm sm:text-base font-bold text-green-600 mb-1 break-words overflow-hidden">₵${formatCurrency(parseFloat(product.price || 0))}</div>
+                        `}
+                    `}
         ${isAvailable ? `
                             ${POS_READ_ONLY ? `
-                                <button disabled class="bg-gray-400 text-white px-2 py-1 rounded text-xs font-medium cursor-not-allowed">
+                                <button disabled class="w-full bg-gray-400 text-white px-2 py-1 rounded text-xs font-medium cursor-not-allowed">
                                     <i class=\"fas fa-ban mr-0.5\"></i>View Only
                                 </button>
                             ` : product.available_for_swap ? `
-                                <div class="flex gap-1 flex-col sm:flex-row">
+                                <div class="flex gap-1 flex-wrap">
                                     ${swapButton}
                                     <button onclick=\"event.stopPropagation(); addToCart(${productId})\" 
                                             class=\"bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium flex items-center justify-center transition-colors\">
-                                        <i class=\"fas fa-cart-plus mr-0.5\"></i><span class="hidden sm:inline">Sell</span>
+                                        <i class=\"fas fa-cart-plus mr-0.5\"></i>Sell
                                     </button>
                                 </div>
                             ` : `
                                 <button onclick=\"event.stopPropagation(); addToCart(${productId})\" 
-                                        class=\"${isSwappedItem ? 'bg-white text-purple-800 hover:bg-purple-50' : 'bg-blue-600 hover:bg-blue-700 text-white'} px-2 py-1 rounded text-xs font-medium flex items-center justify-center transition-colors whitespace-nowrap\" style=\"${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}\">
+                                        class=\"w-full ${isSwappedItem ? 'bg-white text-purple-800 hover:bg-purple-50' : 'bg-blue-600 hover:bg-blue-700 text-white'} px-2 py-1 rounded text-xs font-medium flex items-center justify-center transition-colors whitespace-nowrap\" style=\"${isSwappedItem ? 'background-color: #c4b5fd !important; color: #6b21a8 !important;' : ''}\">
                                     <i class=\"${isSwappedItem ? 'fas fa-tag' : 'fas fa-cart-plus'} mr-0.5\" style=\"${isSwappedItem ? 'color: #6b21a8 !important;' : ''}\"></i>
-                                    <span class="hidden sm:inline">${isSwappedItem ? 'Resale' : 'Add'}</span><span class="sm:hidden">+</span>
+                                    ${isSwappedItem ? 'Resale' : 'Sell'}
                                 </button>
                             `}
                         ` : `
-                            <button disabled class="bg-gray-400 text-white px-2 py-1 rounded text-xs font-medium cursor-not-allowed whitespace-nowrap">
-                                <i class="fas fa-times mr-0.5"></i>
-                                <span class="hidden sm:inline">Out</span><span class="sm:hidden">×</span>
+                            <button disabled class="w-full bg-gray-400 text-white px-2 py-1 rounded text-xs font-medium cursor-not-allowed whitespace-nowrap">
+                                <i class="fas fa-times mr-0.5"></i>Out of Stock
                             </button>
                         `}
-                    </div>
                 </div>
             </div>
         `;
