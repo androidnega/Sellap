@@ -4,276 +4,390 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SellApp | Login</title>
-  <!-- Custom Favicon -->
   <link rel="icon" type="image/svg+xml" href="<?php echo defined('BASE_URL_PATH') ? BASE_URL_PATH : ''; ?>/assets/images/favicon.svg">
   <link rel="shortcut icon" type="image/svg+xml" href="<?php echo defined('BASE_URL_PATH') ? BASE_URL_PATH : ''; ?>/assets/images/favicon.svg">
   <link rel="apple-touch-icon" href="<?php echo defined('BASE_URL_PATH') ? BASE_URL_PATH : ''; ?>/assets/images/favicon.svg">
   
-  <!-- Bulma CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  
-  <!-- Font Awesome for icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   
   <link rel="stylesheet" href="<?php echo defined('BASE_URL_PATH') ? BASE_URL_PATH : ''; ?>/assets/css/styles.css">
   <style>
-    /* Custom styles for login page */
-    body {
-      min-height: 100vh;
-      position: relative;
-      overflow-x: hidden;
+    :root {
+      --login-accent: #4f46e5;
+      --login-accent-hover: #4338ca;
+      --login-bg: #f8fafc;
+      --login-text: #1e293b;
+      --login-muted: #64748b;
     }
     
-    .login-background {
-      position: fixed;
-      top: 0;
-      left: 0;
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif; min-height: 100vh; }
+    
+    .login-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 100vh;
+    }
+    
+    /* Left: Image section */
+    .login-image-section {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    }
+    
+    .login-image-section img {
       width: 100%;
       height: 100%;
-      z-index: 0;
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      background-attachment: fixed;
-      filter: blur(10px);
-      transform: scale(1.1);
+      object-fit: cover;
+      opacity: 0.9;
     }
     
-    .login-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.6);
-      z-index: 1;
+    .login-image-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.4) 0%, rgba(30, 41, 59, 0.6) 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 3rem;
     }
     
-    .login-container {
-      position: relative;
-      z-index: 10;
-      min-height: 100vh;
+    .login-image-caption {
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 1.5rem;
+      font-weight: 600;
+      line-height: 1.4;
+      max-width: 360px;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    .login-image-sub {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+    
+    /* Right: Form section */
+    .login-form-section {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 2rem 1rem;
+      padding: 2rem;
+      background: var(--login-bg);
     }
     
-    .login-card {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 12px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+    .login-form-wrapper {
       width: 100%;
-      max-width: 400px;
+      max-width: 380px;
     }
     
-    .logo-container {
+    .login-logo {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 48px;
-      height: 48px;
-      background: rgba(255, 255, 255, 0.9);
-      backdrop-filter: blur(10px);
-      border-radius: 12px;
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-      font-size: 1.5rem;
-    }
-    
-    .brand-title {
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, var(--login-accent), #6366f1);
+      border-radius: 14px;
+      font-size: 1.6rem;
       color: white;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-      font-weight: 700;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+      margin-bottom: 1rem;
     }
     
-    .brand-subtitle {
-      color: rgba(255, 255, 255, 0.9);
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    .login-brand {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--login-text);
+      margin: 0 0 0.25rem 0;
+    }
+    
+    .login-tagline {
+      color: var(--login-muted);
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+    }
+    
+    .login-card {
+      background: white;
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(0, 0, 0, 0.04);
+    }
+    
+    .login-card h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--login-text);
+      margin: 0 0 0.25rem 0;
+    }
+    
+    .login-card .subtitle {
+      color: var(--login-muted);
+      font-size: 0.875rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .login-field label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--login-text);
+      margin-bottom: 0.35rem;
+    }
+    
+    .login-input-wrap {
+      position: relative;
+    }
+    
+    .login-input-wrap .icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--login-muted);
+      font-size: 0.95rem;
+      pointer-events: none;
+    }
+    
+    .login-input {
+      width: 100%;
+      padding: 0.75rem 1rem 0.75rem 2.75rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    
+    .login-input:focus {
+      outline: none;
+      border-color: var(--login-accent);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+    
+    .login-input::placeholder {
+      color: #94a3b8;
+    }
+    
+    .login-field {
+      margin-bottom: 1.25rem;
+    }
+    
+    .login-btn {
+      width: 100%;
+      padding: 0.85rem 1.5rem;
+      background: linear-gradient(135deg, var(--login-accent), #6366f1);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+    }
+    
+    .login-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+    }
+    
+    .login-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+    
+    .login-notification {
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      margin-bottom: 1.25rem;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    
+    .login-notification.is-danger {
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+    
+    .login-notification .delete-btn {
+      background: none;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      padding: 0;
+      margin-left: auto;
+      opacity: 0.7;
+    }
+    
+    .login-notification .delete-btn:hover {
+      opacity: 1;
+    }
+    
+    /* Responsive */
+    @media (max-width: 900px) {
+      .login-split {
+        grid-template-columns: 1fr;
+      }
+      
+      .login-image-section {
+        min-height: 220px;
+        max-height: 280px;
+      }
+      
+      .login-image-overlay {
+        justify-content: center;
+        padding: 2rem;
+      }
+      
+      .login-image-caption {
+        font-size: 1.25rem;
+        text-align: center;
+        max-width: none;
+      }
+      
+      .login-image-sub {
+        text-align: center;
+      }
+      
+      .login-form-section {
+        padding: 1.5rem 1rem;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .login-card {
+        padding: 1.5rem;
+      }
+      
+      .login-brand {
+        font-size: 1.5rem;
+      }
     }
   </style>
 </head>
-<?php
-// Get login page image URL from system settings or Cloudinary
-$loginImageUrl = null;
-
-try {
+<body>
+  <?php
+  $loginImageUrl = null;
+  try {
     require_once __DIR__ . '/../../config/database.php';
     $db = \Database::getInstance()->getConnection();
-    
-    // Try to get image URL from system settings
     $stmt = $db->query("SELECT setting_value FROM system_settings WHERE setting_key = 'login_page_image_url' LIMIT 1");
     $result = $stmt->fetch(\PDO::FETCH_ASSOC);
-    
     if ($result && !empty($result['setting_value'])) {
-        $loginImageUrl = $result['setting_value'];
-    } else {
-        // Try to upload image if Cloudinary is configured
-        if (class_exists('\App\Services\CloudinaryService')) {
-            $settingsQuery = $db->query("SELECT setting_key, setting_value FROM system_settings");
-            $settings = $settingsQuery->fetchAll(\PDO::FETCH_KEY_PAIR);
-            
-            if (!empty($settings['cloudinary_cloud_name'])) {
-                $cloudinaryService = new \App\Services\CloudinaryService();
-                $cloudinaryService->loadFromSettings($settings);
-                
-                if ($cloudinaryService->isConfigured()) {
-                    $imagePath = __DIR__ . '/../../assets/images/login page.png';
-                    if (file_exists($imagePath)) {
-                        $uploadResult = $cloudinaryService->uploadImage($imagePath, 'sellapp/login', [
-                            'public_id' => 'login_page_background',
-                            'overwrite' => true
-                        ]);
-                        
-                        if ($uploadResult['success']) {
-                            $loginImageUrl = $uploadResult['secure_url'];
-                            // Save to settings
-                            $saveStmt = $db->prepare("
-                                INSERT INTO system_settings (setting_key, setting_value) 
-                                VALUES ('login_page_image_url', ?)
-                                ON DUPLICATE KEY UPDATE setting_value = ?
-                            ");
-                            $saveStmt->execute([$loginImageUrl, $loginImageUrl]);
-                        }
-                    }
-                }
-            }
-        }
+      $loginImageUrl = $result['setting_value'];
     }
-} catch (\Exception $e) {
+  } catch (\Exception $e) {
     error_log("Login page image error: " . $e->getMessage());
-}
-?>
-<body>
-  <!-- Background with blur effect -->
-  <?php if ($loginImageUrl): ?>
-  <div class="login-background" style="background-image: url('<?php echo htmlspecialchars($loginImageUrl); ?>');"></div>
-  <?php endif; ?>
+  }
+  $defaultImage = 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1200&q=80';
+  $imageUrl = $loginImageUrl ?: $defaultImage;
+  ?>
   
-  <!-- Dark Overlay -->
-  <div class="login-overlay"></div>
-  
-  <!-- Content -->
-  <div class="login-container">
-    <div style="width: 100%; max-width: 400px;">
-      <!-- Logo and Branding (Above Card) -->
-      <div class="has-text-centered mb-5">
-        <div class="is-flex is-justify-content-center is-align-items-center mb-3" style="gap: 0.5rem;">
-          <div class="logo-container">
-            <span>📱</span>
-          </div>
-          <h1 class="brand-title title is-3 mb-0">SellApp</h1>
-        </div>
-        <p class="brand-subtitle is-size-7 has-text-weight-medium">Multi-Tenant Phone Management System</p>
+  <div class="login-split">
+    <!-- Left: Image -->
+    <section class="login-image-section">
+      <img src="<?php echo htmlspecialchars($imageUrl); ?>" alt="Retail store" loading="eager">
+      <div class="login-image-overlay">
+        <p class="login-image-caption">Manage your retail business with ease</p>
+        <span class="login-image-sub">Sales, inventory, and customer management in one place</span>
       </div>
-      
-      <!-- Login Card -->
-      <div class="login-card">
-        <div class="card-content">
-          <!-- Login Form -->
-          <div class="content">
-            <h2 class="title is-4 has-text-centered mb-2">Welcome Back</h2>
-            <p class="has-text-centered has-text-grey is-size-7 mb-5">Sign in to continue to your account</p>
+    </section>
+    
+    <!-- Right: Login form -->
+    <section class="login-form-section">
+      <div class="login-form-wrapper">
+        <div class="login-logo">📱</div>
+        <h1 class="login-brand">SellApp</h1>
+        <p class="login-tagline">Multi-Tenant Phone Management System</p>
+        
+        <div class="login-card">
+          <h2>Welcome back</h2>
+          <p class="subtitle">Sign in to continue to your account</p>
           
           <?php
-          // Display error message if present
           $error = $_GET['error'] ?? '';
           if (!empty($error)):
           ?>
-          <div class="notification is-danger is-light mb-5">
-            <button class="delete"></button>
-            <?php echo htmlspecialchars(urldecode($error)); ?>
+          <div class="login-notification is-danger" id="errorNotification">
+            <span><?php echo htmlspecialchars(urldecode($error)); ?></span>
+            <button type="button" class="delete-btn" aria-label="Dismiss" onclick="this.parentElement.remove()">
+              <i class="fas fa-times"></i>
+            </button>
           </div>
           <?php endif; ?>
           
           <form method="post" action="<?php echo htmlspecialchars(BASE_URL_PATH . '/login' . (!empty($_GET['redirect']) ? '?redirect=' . urlencode($_GET['redirect']) : '')); ?>">
-            <!-- Username Field -->
-            <div class="field mb-4">
-              <label class="label is-size-7 has-text-weight-semibold">Username or Email</label>
-              <div class="control has-icons-left">
-                <input 
-                  class="input" 
-                  type="text" 
+            <div class="login-field">
+              <label for="username">Username or Email</label>
+              <div class="login-input-wrap">
+                <i class="fas fa-user icon"></i>
+                <input
+                  class="login-input"
+                  type="text"
                   name="username"
-                  id="username" 
+                  id="username"
                   placeholder="Enter username or email"
                   required
                   autocomplete="username"
                   value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>"
                 >
-                <span class="icon is-small is-left">
-                  <i class="fas fa-user"></i>
-                </span>
               </div>
             </div>
             
-            <!-- Password Field -->
-            <div class="field mb-5">
-              <label class="label is-size-7 has-text-weight-semibold">Password</label>
-              <div class="control has-icons-left">
-                <input 
-                  class="input" 
-                  type="password" 
+            <div class="login-field">
+              <label for="password">Password</label>
+              <div class="login-input-wrap">
+                <i class="fas fa-lock icon"></i>
+                <input
+                  class="login-input"
+                  type="password"
                   name="password"
-                  id="password" 
+                  id="password"
                   placeholder="Enter your password"
                   required
                   autocomplete="current-password"
                 >
-                <span class="icon is-small is-left">
-                  <i class="fas fa-lock"></i>
-                </span>
               </div>
             </div>
             
-            <!-- Submit Button -->
-            <div class="field">
-              <div class="control">
-                <button 
-                  type="submit" 
-                  id="loginSubmitBtn"
-                  class="button is-primary is-fullwidth is-medium"
-                >
-                  <span class="icon">
-                    <i class="fas fa-sign-in-alt"></i>
-                  </span>
-                  <span>Sign In</span>
-                </button>
-              </div>
+            <div class="login-field" style="margin-bottom: 0;">
+              <button type="submit" id="loginSubmitBtn" class="login-btn">
+                <i class="fas fa-sign-in-alt"></i>
+                <span>Sign In</span>
+              </button>
             </div>
           </form>
         </div>
       </div>
-    </div>
+    </section>
   </div>
   
   <script>
-    // Handle notification dismiss
     document.addEventListener('DOMContentLoaded', function() {
-      // Close notification on delete button click
-      (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
-        const $notification = $delete.parentNode;
-        $delete.addEventListener('click', () => {
-          $notification.parentNode.removeChild($notification);
-        });
-      });
-      
-      // Form submission handling
       const form = document.querySelector('form[method="post"]');
       const submitBtn = document.getElementById('loginSubmitBtn');
-      
       if (form && submitBtn) {
-        form.addEventListener('submit', function(e) {
-          // Disable button during submission
-          submitBtn.classList.add('is-loading');
+        form.addEventListener('submit', function() {
           submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Signing in...</span>';
         });
       }
     });
   </script>
-
 </body>
 </html>
