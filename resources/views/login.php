@@ -46,24 +46,20 @@
       max-width: 380px;
     }
     
-    /* Right: Image section with SellApp branding */
+    /* Right: Section with background image - selling/retail with computer */
     .login-image-section {
       position: relative;
       overflow: hidden;
-      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-    }
-    
-    .login-image-section img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 0.85;
+      background: #1e293b;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
     }
     
     .login-image-overlay {
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, rgba(79, 70, 229, 0.5) 0%, rgba(30, 41, 59, 0.7) 100%);
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.55) 0%, rgba(30, 41, 59, 0.75) 100%);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -84,16 +80,6 @@
       color: rgba(255, 255, 255, 0.9);
       font-size: 1.1rem;
       text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-      margin-bottom: 1.5rem;
-    }
-    
-    .login-hero-image {
-      max-width: 320px;
-      width: 100%;
-      border-radius: 12px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-      border: 3px solid rgba(255, 255, 255, 0.2);
-      object-fit: cover;
     }
     
     .login-card {
@@ -246,11 +232,6 @@
       
       .login-tagline-on-image {
         font-size: 0.95rem;
-        margin-bottom: 1rem;
-      }
-      
-      .login-hero-image {
-        max-width: 240px;
       }
     }
     
@@ -279,8 +260,8 @@
   } catch (\Exception $e) {
     error_log("Login page image error: " . $e->getMessage());
   }
-  // Unsplash - clean smartphone/retail image for Phone Management System
-  $defaultImage = 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=640&q=85';
+  // Unsplash - person at computer/desk, retail/business (not water/sea)
+  $defaultImage = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=85';
   $imageUrl = $loginImageUrl ?: $defaultImage;
   ?>
   
@@ -349,12 +330,11 @@
       </div>
     </section>
     
-    <!-- Right: SellApp branding + image -->
-    <section class="login-image-section">
+    <!-- Right: Section background (retail/selling with computer) + SellApp branding -->
+    <section class="login-image-section" style="background-image: url('<?php echo htmlspecialchars($imageUrl); ?>');">
       <div class="login-image-overlay">
         <h1 class="login-brand-on-image">SellApp</h1>
         <p class="login-tagline-on-image">Multi-Tenant Phone Management System</p>
-        <img src="<?php echo htmlspecialchars($imageUrl); ?>" alt="Phone retail" class="login-hero-image" loading="eager" onerror="this.onerror=null; this.src='https://picsum.photos/seed/phones/640/480';">
       </div>
     </section>
   </div>
