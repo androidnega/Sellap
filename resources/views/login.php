@@ -268,8 +268,9 @@
   } catch (\Exception $e) {
     error_log("Login page image error: " . $e->getMessage());
   }
-  // Inventory/warehouse management image - resonates with SellApp
-  $defaultImage = 'https://acctivate.com/wp-content/uploads/2023/06/inventory-and-warehouse-management-complete-guide-1.jpg';
+  // Local inventory/warehouse image - reliable, no external dependency
+  $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+  $defaultImage = $basePath . '/assets/images/login-bg.jpg';
   $imageUrl = $loginImageUrl ?: $defaultImage;
   ?>
   
