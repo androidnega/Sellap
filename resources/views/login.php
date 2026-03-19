@@ -84,6 +84,16 @@
       color: rgba(255, 255, 255, 0.9);
       font-size: 1.1rem;
       text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      margin-bottom: 1.5rem;
+    }
+    
+    .login-hero-image {
+      max-width: 320px;
+      width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      border: 3px solid rgba(255, 255, 255, 0.2);
+      object-fit: cover;
     }
     
     .login-card {
@@ -236,6 +246,11 @@
       
       .login-tagline-on-image {
         font-size: 0.95rem;
+        margin-bottom: 1rem;
+      }
+      
+      .login-hero-image {
+        max-width: 240px;
       }
     }
     
@@ -264,8 +279,8 @@
   } catch (\Exception $e) {
     error_log("Login page image error: " . $e->getMessage());
   }
-  // Picsum.photos - reliable, always loads, no broken images
-  $defaultImage = 'https://picsum.photos/seed/sellapp/1200/800';
+  // Unsplash - clean smartphone/retail image for Phone Management System
+  $defaultImage = 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=640&q=85';
   $imageUrl = $loginImageUrl ?: $defaultImage;
   ?>
   
@@ -334,12 +349,12 @@
       </div>
     </section>
     
-    <!-- Right: Image with SellApp branding -->
+    <!-- Right: SellApp branding + image -->
     <section class="login-image-section">
-      <img src="<?php echo htmlspecialchars($imageUrl); ?>" alt="" loading="eager" onerror="this.style.display='none'">
       <div class="login-image-overlay">
         <h1 class="login-brand-on-image">SellApp</h1>
         <p class="login-tagline-on-image">Multi-Tenant Phone Management System</p>
+        <img src="<?php echo htmlspecialchars($imageUrl); ?>" alt="Phone retail" class="login-hero-image" loading="eager" onerror="this.onerror=null; this.src='https://picsum.photos/seed/phones/640/480';">
       </div>
     </section>
   </div>
