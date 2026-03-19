@@ -809,6 +809,25 @@ function showNotification(message, type = 'success') {
     }, 3000);
 }
 
+// Play barcode scanner beep when item added to cart
+function playCartAddBeep() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.frequency.value = 2400;
+        oscillator.type = 'sine';
+        gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.06);
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.06);
+    } catch (e) {
+        console.warn('Could not play cart beep:', e);
+    }
+}
+
 // Load POS quick stats
 async function loadPOSQuickStats() {
     try {
@@ -1661,6 +1680,7 @@ async function addToCart(productId) {
         const data = await response.json();
         
         if (data.success) {
+            playCartAddBeep();
             // Update cart immediately
             cart = data.cart || [];
             updateCartDisplay();
