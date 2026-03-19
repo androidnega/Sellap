@@ -51,14 +51,16 @@
       position: relative;
       overflow: hidden;
       background: #1e293b;
+      min-height: 100vh;
     }
     
     .login-image-bg {
       position: absolute;
       inset: 0;
       background-size: cover;
-      background-position: center;
+      background-position: center center;
       background-repeat: no-repeat;
+      background-origin: border-box;
       opacity: 1;
       z-index: 0;
     }
@@ -230,8 +232,8 @@
       
       .login-image-section {
         order: 1;
-        min-height: 200px;
-        max-height: 240px;
+        min-height: 220px;
+        max-height: 280px;
       }
       
       .login-brand-on-image {
