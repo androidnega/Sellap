@@ -66,7 +66,7 @@
     .login-image-overlay {
       position: absolute;
       inset: 0;
-      background: linear-gradient(to bottom, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.4) 100%);
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.55) 0%, rgba(15, 23, 42, 0.75) 50%, rgba(30, 41, 59, 0.65) 100%);
       z-index: 1;
       display: flex;
       flex-direction: column;
