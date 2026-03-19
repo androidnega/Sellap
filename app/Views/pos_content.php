@@ -636,11 +636,7 @@ const POS_READ_ONLY = <?= $isReadOnly ?>;
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('POS page loaded');
     
-    // Check if partial payments module is enabled (with delay to ensure DOM is ready)
-    setTimeout(async () => {
-        console.log('Checking partial payments module...');
-        await checkPartialPaymentsModule();
-    }, 500);
+    // Bootstrap loads products, customers, cart, stats, modules in one request
     
     // Add event listener for amount received input
     const amountReceivedInput = document.getElementById('amountReceived');
@@ -656,22 +652,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
-    // Clear cart on page load/refresh
-    clearCartOnLoad();
-    
     // Check authentication (non-blocking - session cookies will handle auth)
     const token = getAuthToken();
     if (!token) {
         console.warn('No authentication token found in localStorage - will use session cookies for authentication');
-    } else {
-        console.log('POS page loaded with authentication token');
     }
-    
-    // Load quick stats
-    loadPOSQuickStats();
-    
-    // Refresh stats every 30 seconds
-    setInterval(loadPOSQuickStats, 30000);
     
     // Load products/customers OR show metrics for manager
     if (POS_READ_ONLY) {
@@ -685,12 +670,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         initPOSReportControls();
         loadInventoryStats();
         loadAuditData();
-        // Refresh audit data every 30 seconds
-        setInterval(loadAuditData, 30000);
+        setInterval(loadAuditData, 60000);
     } else {
-        loadProducts();
-        loadCustomers();
-        loadCart();
+        loadPOSBootstrap();
     }
     
     // Setup event listeners
@@ -768,11 +750,12 @@ async function clearCartAfterSale() {
         const response = await fetch(basePath + '/pos/cart/clear', {
             method: 'POST',
             headers: getAuthHeaders(),
-            credentials: 'same-origin' // Include session cookies for authentication
+            credentials: 'same-origin',
+            body: JSON.stringify({})
         });
         const data = await response.json();
         if (data.success) {
-            console.log('Cart cleared after successful sale');
+            // Cart cleared
         }
     } catch (error) {
         console.log('Cart clear after sale failed:', error);
@@ -897,7 +880,65 @@ async function loadPOSQuickStats() {
     }
 }
 
-// Load products
+// Load POS bootstrap - single request for products, customers, cart, stats, modules
+async function loadPOSBootstrap() {
+    try {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+        const response = await fetch(basePath + '/api/pos/bootstrap', {
+            headers: getAuthHeaders(),
+            credentials: 'same-origin'
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const text = await response.text();
+        if (!text?.trim()) throw new Error('Empty response');
+        const data = JSON.parse(text);
+        if (!data.success || !data.data) throw new Error(data.error || 'Bootstrap failed');
+
+        const d = data.data;
+        products = d.products || [];
+        customers = d.customers || [];
+        cart = d.cart || {};
+        partialPaymentsEnabled = !!d.partial_payments_enabled;
+
+        renderProducts(products);
+        updateProductCount();
+        initializeFilters(products);
+        updateCartDisplay();
+        updatePartialPaymentSectionVisibility();
+
+        if (d.quick_stats) {
+            const s = d.quick_stats;
+            const el = id => document.getElementById(id);
+            if (el('posTotalItems')) el('posTotalItems').textContent = s.total_items ?? 0;
+            if (el('posSalesToday')) el('posSalesToday').textContent = s.sales_today ?? 0;
+            if (el('posRevenueToday')) el('posRevenueToday').textContent = '₵' + (parseFloat(s.revenue_today ?? 0) + parseFloat(s.swap_revenue_today ?? 0)).toLocaleString('en-US', { minimumFractionDigits: 2 });
+            if (el('posSwapsToday')) el('posSwapsToday').textContent = s.swap_count_today ?? 0;
+            if (el('posSwapRevenueToday')) el('posSwapRevenueToday').textContent = '₵' + (parseFloat(s.swap_revenue_today ?? 0)).toLocaleString('en-US', { minimumFractionDigits: 2 });
+        }
+
+        startStatsPolling();
+    } catch (e) {
+        console.error('Bootstrap error:', e);
+        showNotification('Failed to load POS data: ' + (e.message || 'Unknown error'), 'error');
+        products = [];
+        customers = [];
+        cart = {};
+        renderProducts([]);
+        updateCartDisplay();
+    }
+}
+
+// Stats polling - only when tab visible, every 60s
+let statsPollInterval = null;
+function startStatsPolling() {
+    if (statsPollInterval) clearInterval(statsPollInterval);
+    const poll = () => {
+        if (document.visibilityState === 'visible') loadPOSQuickStats();
+    };
+    statsPollInterval = setInterval(poll, 60000);
+}
+
+// Load products (used after sale completion to refresh inventory)
 async function loadProducts() {
     try {
         const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
@@ -1013,9 +1054,9 @@ function initializeFilters(productsData) {
         brandSelect.addEventListener('change', applyFiltersAndRender);
         sortSelect.addEventListener('change', applyFiltersAndRender);
         
-        // Search input with debounce - respects all filters
+        // Search input with debounce - respects all filters (300ms to reduce requests)
         if (searchInput) {
-            searchInput.addEventListener('input', debounce(applyFiltersAndRender, 150));
+            searchInput.addEventListener('input', debounce(applyFiltersAndRender, 300));
         }
         
         filtersInitialized = true;
@@ -2589,39 +2630,18 @@ async function clearCart() {
         const response = await fetch(basePath + '/pos/cart/clear', {
             method: 'POST',
             headers: getAuthHeaders(),
-            credentials: 'same-origin' // Include session cookies for authentication
+            credentials: 'same-origin',
+            body: JSON.stringify({})
         });
         const data = await response.json();
         if (data.success) {
-            cart = {};
+            cart = data.cart || {};
             updateCartDisplay();
             showNotification('Cart cleared successfully', 'success');
         }
     } catch (error) {
         console.error('Error clearing cart:', error);
         showNotification('Error clearing cart', 'error');
-    }
-}
-
-// Clear cart on page load/refresh
-async function clearCartOnLoad() {
-    try {
-        if (POS_READ_ONLY) { return; }
-        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
-        const response = await fetch(basePath + '/pos/cart/clear', {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            credentials: 'same-origin' // Include session cookies for authentication
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-            console.log('Cart cleared on page load');
-            cart = {};
-            updateCartDisplay();
-        }
-    } catch (error) {
-        console.error('Error clearing cart on load:', error);
     }
 }
 

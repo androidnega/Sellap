@@ -2052,7 +2052,13 @@ $router->get('api/audit-trail/data', function() {
 // POS API ROUTES
 // ========================================
 
-// POS Products API
+// POS Bootstrap API - single request for products, customers, cart, stats, modules
+$router->get('api/pos/bootstrap', function() {
+    $controller = new \App\Controllers\POSController();
+    $controller->apiBootstrap();
+});
+
+// POS Products API (fallback for refresh)
 $router->get('api/pos/products', function() {
     $controller = new \App\Controllers\POSController();
     $controller->apiProducts();

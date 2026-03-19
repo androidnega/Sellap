@@ -3024,6 +3024,136 @@ class POSController {
     }
 
     /**
+     * API endpoint: Bootstrap POS - single request for products, customers, cart, stats, modules
+     * Reduces initial page load from 5+ requests to 1 JSON request
+     */
+    public function apiBootstrap() {
+        ob_start();
+        error_reporting(0);
+        ini_set('display_errors', 0);
+        header('Content-Type: application/json');
+
+        try {
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+
+            $user = $this->getAuthenticatedUser();
+            if (!$user) {
+                http_response_code(401);
+                ob_clean();
+                echo json_encode(['success' => false, 'error' => 'Authentication required']);
+                exit;
+            }
+
+            $userRole = $user['role'] ?? '';
+            $allowedRoles = ['system_admin', 'admin', 'manager', 'salesperson'];
+            if (!in_array($userRole, $allowedRoles)) {
+                http_response_code(403);
+                ob_clean();
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                exit;
+            }
+
+            $companyId = $user['company_id'] ?? null;
+            if (!$companyId) {
+                $companyId = 2;
+            }
+
+            // 1. Clear cart
+            $_SESSION['pos_cart'] = [];
+            $cart = [];
+
+            // 2. Products
+            try {
+                $products = $this->product->findByCompanyForPOS($companyId, 10000, null);
+                if (!is_array($products)) $products = [];
+                foreach ($products as &$p) {
+                    if (!is_array($p)) continue;
+                    $hasIsSwapped = isset($p['is_swapped_item']) && (intval($p['is_swapped_item'] ?? 0) > 0);
+                    $hasSwapRef = isset($p['swap_ref_id']) && trim(strval($p['swap_ref_id'] ?? '')) !== '' && intval($p['swap_ref_id']) > 0;
+                    if ($hasIsSwapped || $hasSwapRef) {
+                        if (($p['quantity'] ?? 0) > 0) {
+                            $p['is_swapped_item'] = 1;
+                            $p['is_swapped_for_resale'] = true;
+                            $p['quantity'] = 1;
+                            $p['status'] = 'available';
+                            if (isset($p['resell_price']) && floatval($p['resell_price']) > 0) {
+                                $p['price'] = floatval($p['resell_price']);
+                            } elseif (isset($p['display_price']) && floatval($p['display_price']) > 0) {
+                                $p['price'] = floatval($p['display_price']);
+                            }
+                        }
+                    }
+                }
+                unset($p);
+            } catch (\Exception $e) {
+                $products = [];
+            }
+
+            // 3. Customers
+            try {
+                $customers = $this->customer->allByCompany($companyId);
+                if (!is_array($customers)) $customers = [];
+            } catch (\Exception $e) {
+                $customers = [];
+            }
+
+            // 4. Quick stats
+            $stats = ['total_items' => 0, 'sales_today' => 0, 'revenue_today' => 0, 'swap_count_today' => 0, 'swap_revenue_today' => 0];
+            try {
+                $db = \Database::getInstance()->getConnection();
+                $itemsQ = $db->prepare("SELECT COUNT(*) as total FROM products WHERE company_id = ?");
+                $itemsQ->execute([$companyId]);
+                $stats['total_items'] = (int)($itemsQ->fetch()['total'] ?? 0);
+
+                $salesQ = $db->prepare("SELECT COUNT(*) as c FROM pos_sales WHERE company_id = ? AND DATE(created_at) = CURDATE()");
+                $salesQ->execute([$companyId]);
+                $stats['sales_today'] = (int)($salesQ->fetch()['c'] ?? 0);
+
+                $revQ = $db->prepare("SELECT COALESCE(SUM(final_amount), 0) as r FROM pos_sales WHERE company_id = ? AND DATE(created_at) = CURDATE() AND swap_id IS NULL");
+                $revQ->execute([$companyId]);
+                $stats['revenue_today'] = (float)($revQ->fetch()['r'] ?? 0);
+
+                $swapQ = $db->prepare("SELECT COUNT(*) as c FROM swaps WHERE company_id = ? AND DATE(created_at) = CURDATE()");
+                $swapQ->execute([$companyId]);
+                $stats['swap_count_today'] = (int)($swapQ->fetch()['c'] ?? 0);
+
+                $checkCol = $db->query("SHOW COLUMNS FROM swaps LIKE 'total_value'");
+                if ($checkCol->rowCount() > 0) {
+                    $swapRevQ = $db->prepare("SELECT COALESCE(SUM(total_value), 0) as r FROM swaps WHERE company_id = ? AND DATE(created_at) = CURDATE()");
+                    $swapRevQ->execute([$companyId]);
+                    $stats['swap_revenue_today'] = (float)($swapRevQ->fetch()['r'] ?? 0);
+                }
+            } catch (\Exception $e) {
+                // keep defaults
+            }
+
+            // 5. Partial payments module
+            $partialPaymentsEnabled = $this->checkModuleEnabled($companyId, 'partial_payments', $userRole);
+
+            ob_clean();
+            echo json_encode([
+                'success' => true,
+                'data' => [
+                    'products' => $products,
+                    'customers' => $customers,
+                    'cart' => $cart,
+                    'quick_stats' => $stats,
+                    'partial_payments_enabled' => $partialPaymentsEnabled
+                ]
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit;
+
+        } catch (\Exception $e) {
+            ob_clean();
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            exit;
+        }
+    }
+
+    /**
      * API endpoint: Get quick stats for POS (items, sales today, revenue today)
      */
     public function apiQuickStats() {
