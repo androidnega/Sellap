@@ -145,8 +145,8 @@ class AuthMiddleware {
             return;
         }
         
-        // Get session timeout (default to 30 minutes if not defined)
-        $timeout = defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT : (30 * 60);
+        // Get session timeout (default to 45 minutes if not defined)
+        $timeout = defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT : (45 * 60);
         
         // Get last activity time
         $lastActivity = $_SESSION['last_activity'] ?? null;

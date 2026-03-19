@@ -12,7 +12,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_set_save_handler($sessionHandler, true);
     
     // Set session configuration
-    ini_set('session.gc_maxlifetime', defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT : 1800);
+    ini_set('session.gc_maxlifetime', defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT : 2700);
     
     // Detect HTTPS
     $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
@@ -21,7 +21,7 @@ if (session_status() === PHP_SESSION_NONE) {
     
     $sessionPath = defined('BASE_URL_PATH') && !empty(BASE_URL_PATH) ? BASE_URL_PATH : '/';
     session_set_cookie_params([
-        'lifetime' => defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT : 1800,
+        'lifetime' => defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT : 2700,
         'path' => $sessionPath,
         'domain' => '',
         'secure' => $isSecure,

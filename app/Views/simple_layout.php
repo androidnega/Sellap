@@ -964,7 +964,7 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
     <!-- Session Monitoring Script -->
     <script>
         // Session timeout in milliseconds (30 minutes)
-        const SESSION_TIMEOUT_MS = <?php echo defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT * 1000 : 30 * 60 * 1000; ?>;
+        const SESSION_TIMEOUT_MS = <?php echo defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT * 1000 : 45 * 60 * 1000; ?>;
         let lastActivityTime = Date.now();
         let sessionCheckInterval = null;
         let isModalShown = false;

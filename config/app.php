@@ -100,8 +100,8 @@ define('VIEWS_PATH', BASE_PATH . '/resources/views');
 define('ASSETS_PATH', BASE_PATH . '/assets');
 
 // Session Configuration
-// Session timeout: 30 minutes of inactivity (in seconds)
-define('SESSION_TIMEOUT', 30 * 60); // 1800 seconds = 30 minutes
+// Session timeout: 45 minutes of inactivity (in seconds)
+define('SESSION_TIMEOUT', 45 * 60); // 2700 seconds = 45 minutes
 
 // Note: Database session handler will be initialized AFTER database.php is loaded
 // This is done in index.php to ensure Database class is available
