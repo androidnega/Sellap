@@ -263,7 +263,10 @@
     $stmt = $db->query("SELECT setting_value FROM system_settings WHERE setting_key = 'login_page_image_url' LIMIT 1");
     $result = $stmt->fetch(\PDO::FETCH_ASSOC);
     if ($result && !empty($result['setting_value'])) {
-      $loginImageUrl = $result['setting_value'];
+      $dbUrl = $result['setting_value'];
+      if (stripos($dbUrl, 'cloudinary') === false) {
+        $loginImageUrl = $dbUrl;
+      }
     }
   } catch (\Exception $e) {
     error_log("Login page image error: " . $e->getMessage());
