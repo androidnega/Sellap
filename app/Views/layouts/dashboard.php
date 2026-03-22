@@ -35,6 +35,16 @@
                 originalWarn.apply(console, args);
             };
         })();
+        /** Move modal overlays to document.body so position:fixed is viewport-relative (avoids scroll/hidden issues). */
+        window.ensureModalInBody = function(modalEl) {
+            if (!modalEl) return;
+            if (modalEl.parentNode !== document.body) {
+                document.body.appendChild(modalEl);
+            }
+            if (!modalEl.style.zIndex || parseInt(modalEl.style.zIndex, 10) < 10000) {
+                modalEl.style.zIndex = '10050';
+            }
+        };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -268,12 +278,16 @@
             }
         }
         
-        /* Prevent blur/backdrop effects during transitions */
-        .sidebar,
-        .main-content-container {
+        /* GPU hint on sidebar only — transform on .main-content-container breaks position:fixed modals
+           inside <main> (they anchor to the container instead of the viewport when user has scrolled). */
+        .sidebar {
             will-change: auto;
             backface-visibility: hidden;
             transform: translateZ(0);
+        }
+        .main-content-container {
+            will-change: auto;
+            backface-visibility: hidden;
         }
         
         /* Mobile responsive */

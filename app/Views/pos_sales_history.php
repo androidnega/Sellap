@@ -314,8 +314,8 @@
     </div>
 </div>
 
-<!-- Sale Details Modal -->
-<div id="saleDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+<!-- Sale Details Modal (z-index set via ensureModalInBody when moved to body) -->
+<div id="saleDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[10050] overflow-y-auto">
     <div class="flex items-center justify-center min-h-screen p-4">
         <div class="bg-white rounded shadow-xl max-w-2xl w-full p-6">
             <div class="flex items-center justify-between mb-6">
@@ -333,7 +333,7 @@
 </div>
 
 <!-- Payment Modal -->
-<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[10050] overflow-y-auto">
     <div class="flex items-center justify-center min-h-screen p-4">
         <div class="bg-white rounded shadow-xl max-w-md w-full p-6">
             <div class="flex items-center justify-between mb-6">
@@ -391,6 +391,12 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    ['saleDetailsModal', 'paymentModal'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && typeof window.ensureModalInBody === 'function') {
+            window.ensureModalInBody(el);
+        }
+    });
     loadPermissions();
     loadSalesHistory();
     setupEventListeners();
@@ -521,14 +527,17 @@ function setupEventListeners() {
     // Close modals
     document.getElementById('closeSaleDetailsModal').addEventListener('click', () => {
         document.getElementById('saleDetailsModal').classList.add('hidden');
+        document.body.style.overflow = '';
     });
     
     document.getElementById('closePaymentModal').addEventListener('click', () => {
         document.getElementById('paymentModal').classList.add('hidden');
+        document.body.style.overflow = '';
     });
     
     document.getElementById('cancelPaymentBtn').addEventListener('click', () => {
         document.getElementById('paymentModal').classList.add('hidden');
+        document.body.style.overflow = '';
     });
     
     // Payment form submission
@@ -1127,7 +1136,10 @@ async function viewSaleDetails(saleId) {
                 </div>
             `;
             
-            document.getElementById('saleDetailsModal').classList.remove('hidden');
+            var sd = document.getElementById('saleDetailsModal');
+            if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(sd);
+            sd.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
         } else {
             alert('Error: ' + (data.error || data.message || 'Failed to load sale details'));
             console.error('Failed to load sale details:', data);
@@ -1186,8 +1198,10 @@ async function openPaymentModal(saleId) {
             document.getElementById('paymentMethod').value = 'CASH';
             document.getElementById('paymentNotes').value = '';
             
-            // Show modal
-            document.getElementById('paymentModal').classList.remove('hidden');
+            var pm = document.getElementById('paymentModal');
+            if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(pm);
+            pm.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
         } else {
             alert('Error: ' + (data.message || 'Failed to load payment information'));
         }
@@ -1234,6 +1248,7 @@ async function submitPayment() {
         if (data.success) {
             alert('Payment recorded successfully!');
             document.getElementById('paymentModal').classList.add('hidden');
+            document.body.style.overflow = '';
             loadSalesHistory(); // Reload sales to update payment status
         } else {
             alert('Error: ' + (data.message || 'Failed to record payment'));

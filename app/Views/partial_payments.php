@@ -160,8 +160,8 @@
     </div>
 </div>
 
-<!-- Payment Modal (Reuse from sales history) -->
-<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 backdrop-blur-sm">
+<!-- Payment Modal (Reuse from sales history) — ensureModalInBody + z-index when moved to body -->
+<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[10050] backdrop-blur-sm overflow-y-auto">
     <div class="flex items-center justify-center min-h-screen p-4">
         <div class="bg-white rounded-lg shadow-2xl max-w-md w-full p-6 border border-gray-200">
             <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
@@ -223,7 +223,7 @@
 </div>
 
 <!-- Payment History Modal -->
-<div id="paymentHistoryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 backdrop-blur-sm">
+<div id="paymentHistoryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[10050] backdrop-blur-sm overflow-y-auto">
     <div class="flex items-center justify-center min-h-screen p-4">
         <div class="bg-white rounded-lg shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto border border-gray-200">
             <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
@@ -245,6 +245,12 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    ['paymentModal', 'paymentHistoryModal'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && typeof window.ensureModalInBody === 'function') {
+            window.ensureModalInBody(el);
+        }
+    });
     loadPartialPayments();
     setupEventListeners();
 });
@@ -532,10 +538,12 @@ function setupEventListeners() {
     // Payment modal
     document.getElementById('closePaymentModal').addEventListener('click', () => {
         document.getElementById('paymentModal').classList.add('hidden');
+        document.body.style.overflow = '';
     });
     
     document.getElementById('cancelPaymentBtn').addEventListener('click', () => {
         document.getElementById('paymentModal').classList.add('hidden');
+        document.body.style.overflow = '';
     });
     
     document.getElementById('paymentForm').addEventListener('submit', async (e) => {
@@ -546,6 +554,7 @@ function setupEventListeners() {
     // Payment history modal
     document.getElementById('closePaymentHistoryModal').addEventListener('click', () => {
         document.getElementById('paymentHistoryModal').classList.add('hidden');
+        document.body.style.overflow = '';
     });
 }
 
@@ -587,7 +596,10 @@ async function openPaymentModal(saleId) {
             document.getElementById('paymentMethod').value = 'CASH';
             document.getElementById('paymentNotes').value = '';
             
-            document.getElementById('paymentModal').classList.remove('hidden');
+            var pm = document.getElementById('paymentModal');
+            if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(pm);
+            pm.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
         } else {
             alert('Error: ' + (data.message || 'Failed to load payment information'));
         }
@@ -634,6 +646,7 @@ async function submitPayment() {
         if (data.success) {
             alert('Payment recorded successfully!');
             document.getElementById('paymentModal').classList.add('hidden');
+            document.body.style.overflow = '';
             loadPartialPayments();
         } else {
             alert('Error: ' + (data.message || 'Failed to record payment'));
@@ -716,7 +729,10 @@ async function viewPaymentHistory(saleId) {
             }
             
             document.getElementById('paymentHistoryContent').innerHTML = historyHTML;
-            document.getElementById('paymentHistoryModal').classList.remove('hidden');
+            var ph = document.getElementById('paymentHistoryModal');
+            if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(ph);
+            ph.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
         } else {
             alert('Error: ' + (data.message || 'Failed to load payment history'));
         }
