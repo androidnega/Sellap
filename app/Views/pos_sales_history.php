@@ -314,8 +314,8 @@
     </div>
 </div>
 
-<!-- Sale Details Modal (z-index set via ensureModalInBody when moved to body) -->
-<div id="saleDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[10050] overflow-y-auto">
+<!-- Sale Details Modal: modal-viewport-layer + ensureModalInBody → body + viewport-fixed (see dashboard layout) -->
+<div id="saleDetailsModal" class="modal-viewport-layer fixed inset-0 bg-black bg-opacity-50 hidden z-[10050] overflow-y-auto">
     <div class="flex items-center justify-center min-h-screen p-4">
         <div class="bg-white rounded shadow-xl max-w-2xl w-full p-6">
             <div class="flex items-center justify-between mb-6">
@@ -333,7 +333,7 @@
 </div>
 
 <!-- Payment Modal -->
-<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[10050] overflow-y-auto">
+<div id="paymentModal" class="modal-viewport-layer fixed inset-0 bg-black bg-opacity-50 hidden z-[10050] overflow-y-auto">
     <div class="flex items-center justify-center min-h-screen p-4">
         <div class="bg-white rounded shadow-xl max-w-md w-full p-6">
             <div class="flex items-center justify-between mb-6">
@@ -528,16 +528,19 @@ function setupEventListeners() {
     document.getElementById('closeSaleDetailsModal').addEventListener('click', () => {
         document.getElementById('saleDetailsModal').classList.add('hidden');
         document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
     });
     
     document.getElementById('closePaymentModal').addEventListener('click', () => {
         document.getElementById('paymentModal').classList.add('hidden');
         document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
     });
     
     document.getElementById('cancelPaymentBtn').addEventListener('click', () => {
         document.getElementById('paymentModal').classList.add('hidden');
         document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
     });
     
     // Payment form submission
@@ -1140,6 +1143,7 @@ async function viewSaleDetails(saleId) {
             if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(sd);
             sd.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
+            document.documentElement.style.overflow = 'hidden';
         } else {
             alert('Error: ' + (data.error || data.message || 'Failed to load sale details'));
             console.error('Failed to load sale details:', data);
@@ -1202,6 +1206,7 @@ async function openPaymentModal(saleId) {
             if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(pm);
             pm.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
+            document.documentElement.style.overflow = 'hidden';
         } else {
             alert('Error: ' + (data.message || 'Failed to load payment information'));
         }
@@ -1249,6 +1254,7 @@ async function submitPayment() {
             alert('Payment recorded successfully!');
             document.getElementById('paymentModal').classList.add('hidden');
             document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
             loadSalesHistory(); // Reload sales to update payment status
         } else {
             alert('Error: ' + (data.message || 'Failed to record payment'));

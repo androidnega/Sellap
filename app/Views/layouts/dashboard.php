@@ -35,15 +35,27 @@
                 originalWarn.apply(console, args);
             };
         })();
-        /** Move modal overlays to document.body so position:fixed is viewport-relative (avoids scroll/hidden issues). */
+        /**
+         * Move modal overlays to document.body and pin to the *browser viewport*.
+         * If a modal stays inside <main class="overflow-y:auto">, position:fixed is often anchored to that
+         * scroll container — the overlay opens at y=0 of main (off-screen when user scrolled down).
+         */
         window.ensureModalInBody = function(modalEl) {
             if (!modalEl) return;
             if (modalEl.parentNode !== document.body) {
                 document.body.appendChild(modalEl);
             }
-            if (!modalEl.style.zIndex || parseInt(modalEl.style.zIndex, 10) < 10000) {
-                modalEl.style.zIndex = '10050';
-            }
+            modalEl.classList.add('modal-viewport-layer');
+            modalEl.style.position = 'fixed';
+            modalEl.style.top = '0';
+            modalEl.style.left = '0';
+            modalEl.style.right = '0';
+            modalEl.style.bottom = '0';
+            modalEl.style.width = '100%';
+            modalEl.style.minHeight = '100vh';
+            modalEl.style.margin = '0';
+            modalEl.style.boxSizing = 'border-box';
+            modalEl.style.zIndex = '10050';
         };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -278,6 +290,22 @@
             }
         }
         
+        /* Full-screen modals appended to body — belt-and-suspenders vs Tailwind / ancestor overflow */
+        .modal-viewport-layer {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100% !important;
+            min-height: 100vh !important;
+            min-height: 100dvh !important;
+            max-width: 100vw !important;
+            margin: 0 !important;
+            box-sizing: border-box !important;
+            z-index: 10050 !important;
+        }
+        
         /* GPU hint on sidebar only — transform on .main-content-container breaks position:fixed modals
            inside <main> (they anchor to the container instead of the viewport when user has scrolled). */
         .sidebar {
@@ -287,7 +315,8 @@
         }
         .main-content-container {
             will-change: auto;
-            backface-visibility: hidden;
+            /* backface-visibility removed here — it can create compositing layers that interact badly
+               with descendants that were position:fixed before being moved to body */
         }
         
         /* Mobile responsive */
