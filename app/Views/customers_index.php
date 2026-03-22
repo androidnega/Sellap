@@ -249,10 +249,9 @@
     <?= \App\Helpers\PaginationHelper::render($pagination) ?>
 </div>
 
-<!-- Customer Creation Modal (ensureModalInBody moves to body for viewport-fixed overlay) -->
-<div id="customerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[10050] overflow-y-auto">
-    <div class="h-full w-full flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" style="scroll-behavior: smooth;">
+<!-- Customer Creation Modal: Tailwind viewport overlay + moveModalToViewport → <body> -->
+<div id="customerModal" class="modal-viewport-layer fixed inset-0 z-[10050] flex items-center justify-center overflow-y-auto bg-black/50 p-4 hidden">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" style="scroll-behavior: smooth;">
         <div class="px-6 py-4 border-b border-gray-200">
             <div class="flex justify-between items-center">
                 <h3 class="text-lg font-semibold text-gray-800">Create New Customer</h3>
@@ -304,12 +303,11 @@
                 </button>
             </div>
         </form>
-        </div>
     </div>
 </div>
 
 <!-- Customer View Modal -->
-<div id="viewCustomerModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[10050] hidden overflow-y-auto">
+<div id="viewCustomerModal" class="modal-viewport-layer fixed inset-0 z-[10050] flex items-center justify-center overflow-y-auto bg-gray-900/75 p-4 hidden">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         <div class="px-6 py-4 border-b border-gray-200">
             <div class="flex justify-between items-center">
@@ -366,7 +364,7 @@
 </div>
 
 <!-- Customer History Modal -->
-<div id="customerHistoryModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[10050] hidden overflow-y-auto">
+<div id="customerHistoryModal" class="modal-viewport-layer fixed inset-0 z-[10050] flex items-center justify-center overflow-y-auto bg-gray-900/75 p-4 hidden">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 my-8 max-h-[90vh] flex flex-col">
         <div class="px-6 py-4 border-b border-gray-200 flex-shrink-0">
             <div class="flex justify-between items-center">
@@ -461,7 +459,7 @@
 </div>
 
 <!-- Customer Edit Modal -->
-<div id="editCustomerModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[10050] hidden overflow-y-auto">
+<div id="editCustomerModal" class="modal-viewport-layer fixed inset-0 z-[10050] flex items-center justify-center overflow-y-auto bg-gray-900/75 p-4 hidden">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         <div class="px-6 py-4 border-b border-gray-200">
             <div class="flex justify-between items-center">
@@ -530,7 +528,7 @@
 </div>
 
 <!-- Error Modal -->
-<div id="errorModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[10050] flex items-center justify-center overflow-y-auto">
+<div id="errorModal" class="modal-viewport-layer fixed inset-0 z-[10050] flex items-center justify-center overflow-y-auto bg-black/50 p-4 hidden">
     <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div class="p-6">
             <div class="flex items-center mb-4">
@@ -594,7 +592,7 @@ function showErrorModal(message) {
     if (errorModal) {
         moveModalToViewport(errorModal);
         errorModal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
+        if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
     } else {
         // Fallback to alert if modal doesn't exist
         alert(message);
@@ -606,7 +604,7 @@ function closeErrorModal() {
     const errorModal = document.getElementById('errorModal');
     if (errorModal) {
         errorModal.classList.add('hidden');
-        document.body.style.overflow = 'auto';
+        if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
     }
 }
 
@@ -635,16 +633,14 @@ document.addEventListener('DOMContentLoaded', function() {
         openBtn.addEventListener('click', function() {
             moveModalToViewport(modal);
             modal.classList.remove('hidden');
-            modal.style.display = 'block';
-            document.body.style.overflow = 'hidden';
+            if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
         });
     }
 
     // Close modal
     function closeModal() {
         modal.classList.add('hidden');
-        modal.style.display = '';
-        document.body.style.overflow = 'auto';
+        if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
         if (form) form.reset();
     }
 
@@ -820,7 +816,7 @@ async function viewCustomer(customerId) {
             const viewEl = document.getElementById('viewCustomerModal');
             moveModalToViewport(viewEl);
             viewEl.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
+            if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
         } else {
             if (typeof showNotification === 'function') {
                 showNotification(result.error || 'Failed to load customer details', 'error');
@@ -846,7 +842,7 @@ async function viewCustomerHistory(customerId, customerName) {
     const histEl = document.getElementById('customerHistoryModal');
     moveModalToViewport(histEl);
     histEl.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
+    if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
     
     // Load history
     await loadCustomerHistory(customerId);
@@ -1038,7 +1034,7 @@ async function editCustomer(customerId) {
             const editEl = document.getElementById('editCustomerModal');
             moveModalToViewport(editEl);
             editEl.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
+            if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
         } else {
             showNotification(result.error || 'Failed to load customer details', 'error');
         }
@@ -1168,7 +1164,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (viewModal) {
             viewModal.classList.add('hidden');
         }
-        document.body.style.overflow = 'auto';
+        if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
     }
     
     // History modal event listeners
@@ -1184,7 +1180,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (historyModal) {
             historyModal.classList.add('hidden');
         }
-        document.body.style.overflow = 'auto';
+        if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
         // Reset history section
         const historyLoading = document.getElementById('customerHistoryLoading');
         const historyContent = document.getElementById('customerHistoryContent');
@@ -1277,7 +1273,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (editModal) {
             editModal.classList.add('hidden');
         }
-        document.body.style.overflow = 'auto';
+        if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
         if (editForm) editForm.reset();
     }
     

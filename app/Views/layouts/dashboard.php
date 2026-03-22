@@ -36,9 +36,9 @@
             };
         })();
         /**
-         * Move modal overlays to document.body and pin to the *browser viewport*.
-         * If a modal stays inside <main class="overflow-y:auto">, position:fixed is often anchored to that
-         * scroll container — the overlay opens at y=0 of main (off-screen when user scrolled down).
+         * Move modal overlays to document.body (modal root) so position:fixed is viewport-based.
+         * Parent <main overflow-y:auto> otherwise breaks fixed positioning.
+         * Pair with Tailwind: fixed inset-0 flex items-center justify-center z-[10050] …
          */
         window.ensureModalInBody = function(modalEl) {
             if (!modalEl) return;
@@ -46,16 +46,18 @@
                 document.body.appendChild(modalEl);
             }
             modalEl.classList.add('modal-viewport-layer');
-            modalEl.style.position = 'fixed';
-            modalEl.style.top = '0';
-            modalEl.style.left = '0';
-            modalEl.style.right = '0';
-            modalEl.style.bottom = '0';
-            modalEl.style.width = '100%';
-            modalEl.style.minHeight = '100vh';
-            modalEl.style.margin = '0';
-            modalEl.style.boxSizing = 'border-box';
-            modalEl.style.zIndex = '10050';
+        };
+        /** Lock background scroll (use class, not body { position:fixed } — avoids scroll-jump bugs). */
+        window.setDashboardModalScrollLock = function(locked) {
+            var root = document.documentElement;
+            var body = document.body;
+            if (locked) {
+                root.classList.add('modal-open');
+                body.classList.add('modal-open');
+            } else {
+                root.classList.remove('modal-open');
+                body.classList.remove('modal-open');
+            }
         };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -290,13 +292,10 @@
             }
         }
         
-        /* Full-screen modals appended to body — belt-and-suspenders vs Tailwind / ancestor overflow */
+        /* Viewport modal shell (Tailwind supplies flex/center/bg; this enforces true viewport box + z-index) */
         .modal-viewport-layer {
             position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            bottom: 0 !important;
+            inset: 0 !important;
             width: 100% !important;
             min-height: 100vh !important;
             min-height: 100dvh !important;
@@ -304,6 +303,11 @@
             margin: 0 !important;
             box-sizing: border-box !important;
             z-index: 10050 !important;
+        }
+        /* Do NOT use body.modal-open { position: fixed } — it resets scroll / shifts layout */
+        html.modal-open,
+        body.modal-open {
+            overflow: hidden !important;
         }
         
         /* GPU hint on sidebar only — transform on .main-content-container breaks position:fixed modals

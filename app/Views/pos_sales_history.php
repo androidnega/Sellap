@@ -314,36 +314,36 @@
     </div>
 </div>
 
-<!-- Sale Details Modal: modal-viewport-layer + ensureModalInBody → body + viewport-fixed (see dashboard layout) -->
-<div id="saleDetailsModal" class="modal-viewport-layer fixed inset-0 bg-black bg-opacity-50 hidden z-[10050] overflow-y-auto">
-    <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white rounded shadow-xl max-w-2xl w-full p-6">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-xl font-semibold text-gray-800">Sale Details</h3>
-                <button id="closeSaleDetailsModal" class="text-gray-400 hover:text-gray-600">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-            
-            <div id="saleDetailsContent">
-                <!-- Sale details will be loaded here -->
-            </div>
+<!--
+  Viewport modal (Tailwind): fixed inset-0 + flex center + high z-index.
+  ensureModalInBody() moves this to <body> so parents (table/main overflow) never break position:fixed.
+-->
+<div id="saleDetailsModal" class="modal-viewport-layer fixed inset-0 z-[10050] flex items-center justify-center overflow-y-auto bg-black/50 p-4 hidden">
+    <div class="bg-white rounded shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-semibold text-gray-800">Sale Details</h3>
+            <button id="closeSaleDetailsModal" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div id="saleDetailsContent">
+            <!-- Sale details will be loaded here -->
         </div>
     </div>
 </div>
 
 <!-- Payment Modal -->
-<div id="paymentModal" class="modal-viewport-layer fixed inset-0 bg-black bg-opacity-50 hidden z-[10050] overflow-y-auto">
-    <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white rounded shadow-xl max-w-md w-full p-6">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-xl font-semibold text-gray-800">Record Payment</h3>
-                <button id="closePaymentModal" class="text-gray-400 hover:text-gray-600">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-            
-            <div id="paymentModalContent">
+<div id="paymentModal" class="modal-viewport-layer fixed inset-0 z-[10050] flex items-center justify-center overflow-y-auto bg-black/50 p-4 hidden">
+    <div class="bg-white rounded shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-semibold text-gray-800">Record Payment</h3>
+            <button id="closePaymentModal" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div id="paymentModalContent">
                 <div class="mb-4">
                     <p class="text-sm text-gray-600 mb-2">Sale ID: <span id="paymentSaleId" class="font-semibold"></span></p>
                     <p class="text-sm text-gray-600 mb-2">Total Amount: <span id="paymentTotalAmount" class="font-semibold"></span></p>
@@ -384,7 +384,6 @@
                         </button>
                     </div>
                 </form>
-            </div>
         </div>
     </div>
 </div>
@@ -527,20 +526,17 @@ function setupEventListeners() {
     // Close modals
     document.getElementById('closeSaleDetailsModal').addEventListener('click', () => {
         document.getElementById('saleDetailsModal').classList.add('hidden');
-        document.body.style.overflow = '';
-        document.documentElement.style.overflow = '';
+        if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
     });
     
     document.getElementById('closePaymentModal').addEventListener('click', () => {
         document.getElementById('paymentModal').classList.add('hidden');
-        document.body.style.overflow = '';
-        document.documentElement.style.overflow = '';
+        if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
     });
     
     document.getElementById('cancelPaymentBtn').addEventListener('click', () => {
         document.getElementById('paymentModal').classList.add('hidden');
-        document.body.style.overflow = '';
-        document.documentElement.style.overflow = '';
+        if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
     });
     
     // Payment form submission
@@ -1142,8 +1138,7 @@ async function viewSaleDetails(saleId) {
             var sd = document.getElementById('saleDetailsModal');
             if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(sd);
             sd.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-            document.documentElement.style.overflow = 'hidden';
+            if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
         } else {
             alert('Error: ' + (data.error || data.message || 'Failed to load sale details'));
             console.error('Failed to load sale details:', data);
@@ -1205,8 +1200,7 @@ async function openPaymentModal(saleId) {
             var pm = document.getElementById('paymentModal');
             if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(pm);
             pm.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-            document.documentElement.style.overflow = 'hidden';
+            if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
         } else {
             alert('Error: ' + (data.message || 'Failed to load payment information'));
         }
@@ -1253,8 +1247,7 @@ async function submitPayment() {
         if (data.success) {
             alert('Payment recorded successfully!');
             document.getElementById('paymentModal').classList.add('hidden');
-            document.body.style.overflow = '';
-            document.documentElement.style.overflow = '';
+            if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
             loadSalesHistory(); // Reload sales to update payment status
         } else {
             alert('Error: ' + (data.message || 'Failed to record payment'));

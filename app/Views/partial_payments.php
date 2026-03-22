@@ -160,10 +160,9 @@
     </div>
 </div>
 
-<!-- Payment Modal (Reuse from sales history) — ensureModalInBody + z-index when moved to body -->
-<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[10050] backdrop-blur-sm overflow-y-auto">
-    <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white rounded-lg shadow-2xl max-w-md w-full p-6 border border-gray-200">
+<!-- Payment Modal: Tailwind viewport overlay + ensureModalInBody → <body> -->
+<div id="paymentModal" class="modal-viewport-layer fixed inset-0 z-[10050] flex items-center justify-center overflow-y-auto bg-black/50 backdrop-blur-sm p-4 hidden">
+    <div class="bg-white rounded-lg shadow-2xl max-w-md w-full p-6 border border-gray-200 max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
                 <h3 class="text-xl font-semibold text-gray-800 flex items-center">
                     <i class="fas fa-money-bill-wave text-blue-600 mr-2"></i>
@@ -218,14 +217,12 @@
                     </div>
                 </form>
             </div>
-        </div>
     </div>
 </div>
 
 <!-- Payment History Modal -->
-<div id="paymentHistoryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[10050] backdrop-blur-sm overflow-y-auto">
-    <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white rounded-lg shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto border border-gray-200">
+<div id="paymentHistoryModal" class="modal-viewport-layer fixed inset-0 z-[10050] flex items-center justify-center overflow-y-auto bg-black/50 backdrop-blur-sm p-4 hidden">
+    <div class="bg-white rounded-lg shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto border border-gray-200">
             <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
                 <h3 class="text-xl font-semibold text-gray-800 flex items-center">
                     <i class="fas fa-history text-blue-600 mr-2"></i>
@@ -239,7 +236,6 @@
             <div id="paymentHistoryContent">
                 <!-- Payment history will be loaded here -->
             </div>
-        </div>
     </div>
 </div>
 
@@ -538,12 +534,12 @@ function setupEventListeners() {
     // Payment modal
     document.getElementById('closePaymentModal').addEventListener('click', () => {
         document.getElementById('paymentModal').classList.add('hidden');
-        document.body.style.overflow = '';
+        if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
     });
     
     document.getElementById('cancelPaymentBtn').addEventListener('click', () => {
         document.getElementById('paymentModal').classList.add('hidden');
-        document.body.style.overflow = '';
+        if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
     });
     
     document.getElementById('paymentForm').addEventListener('submit', async (e) => {
@@ -554,7 +550,7 @@ function setupEventListeners() {
     // Payment history modal
     document.getElementById('closePaymentHistoryModal').addEventListener('click', () => {
         document.getElementById('paymentHistoryModal').classList.add('hidden');
-        document.body.style.overflow = '';
+        if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
     });
 }
 
@@ -599,7 +595,7 @@ async function openPaymentModal(saleId) {
             var pm = document.getElementById('paymentModal');
             if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(pm);
             pm.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
+            if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
         } else {
             alert('Error: ' + (data.message || 'Failed to load payment information'));
         }
@@ -646,7 +642,7 @@ async function submitPayment() {
         if (data.success) {
             alert('Payment recorded successfully!');
             document.getElementById('paymentModal').classList.add('hidden');
-            document.body.style.overflow = '';
+            if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
             loadPartialPayments();
         } else {
             alert('Error: ' + (data.message || 'Failed to record payment'));
@@ -732,7 +728,7 @@ async function viewPaymentHistory(saleId) {
             var ph = document.getElementById('paymentHistoryModal');
             if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(ph);
             ph.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
+            if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
         } else {
             alert('Error: ' + (data.message || 'Failed to load payment history'));
         }
