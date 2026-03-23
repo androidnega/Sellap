@@ -6,85 +6,77 @@ if (!defined('BASE_URL_PATH')) {
 $base = rtrim(BASE_URL_PATH, '/');
 $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
 ?><!DOCTYPE html>
-<html lang="en" class="h-full bg-white text-gray-900">
+<html lang="en" class="pwa-root">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>SellApp Scanner</title>
     <link rel="manifest" href="<?php echo htmlspecialchars($assetBase . '/pwa/manifest.webmanifest', ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="apple-touch-icon" href="<?php echo htmlspecialchars($assetBase . '/assets/images/favicon.svg', ENT_QUOTES, 'UTF-8'); ?>">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($assetBase . '/assets/css/pwa.css', ENT_QUOTES, 'UTF-8'); ?>">
 </head>
-<body class="h-full min-h-[100dvh] flex flex-col bg-white">
-    <header class="shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
+<body class="pwa-body pwa-body--scan">
+    <header class="pwa-header">
         <div>
-            <h1 class="text-lg font-semibold text-gray-900">Scanner</h1>
-            <p id="roleLabel" class="text-xs text-gray-500"></p>
+            <h1>Scanner</h1>
+            <p id="roleLabel" class="pwa-header__sub"></p>
         </div>
-        <button type="button" id="logoutBtn" class="text-sm text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100">Log out</button>
+        <button type="button" id="logoutBtn" class="pwa-btn-text">Log out</button>
     </header>
 
-    <main class="flex-1 flex flex-col min-h-0 bg-white">
-        <div class="relative bg-black w-full h-40 max-h-[42vh] sm:h-48 shrink-0 overflow-hidden border-b border-gray-200">
-            <video id="video" class="w-full h-full object-cover" playsinline muted autoplay></video>
-            <div class="absolute top-1 left-1 right-1 flex items-center gap-2 z-10">
-                <label class="sr-only" for="cameraSelect">Camera</label>
-                <select id="cameraSelect" class="text-xs flex-1 min-w-0 rounded-md border border-gray-300 bg-white/95 px-2 py-1.5 text-gray-800 shadow-sm max-w-[85%]"></select>
+    <main class="pwa-main">
+        <div class="pwa-camera">
+            <video id="video" class="pwa-video" playsinline muted autoplay></video>
+            <div class="pwa-camera__toolbar">
+                <label class="pwa-sr-only" for="cameraSelect">Camera</label>
+                <select id="cameraSelect" class="pwa-select-cam"></select>
             </div>
-            <div class="absolute inset-x-0 bottom-0 p-2 bg-white/95 backdrop-blur-sm border-t border-gray-100 space-y-2">
-                <p id="scanHint" class="text-xs text-gray-700 text-center">Point the camera at a barcode — use the menu above if the image is blurry</p>
-                <div class="flex gap-2 items-center max-w-md mx-auto">
-                    <input type="text" id="manualBarcode" inputmode="numeric" autocomplete="off" placeholder="Or type SKU / barcode"
-                        class="flex-1 min-w-0 text-xs rounded-md border border-gray-300 bg-white px-2 py-1.5 text-gray-900">
-                    <button type="button" id="manualLookupBtn"
-                        class="shrink-0 text-xs rounded-md bg-gray-800 text-white px-3 py-1.5 font-medium">Look up</button>
+            <div class="pwa-camera__footer">
+                <p id="scanHint">Point the camera at a barcode — use the menu above if the image is blurry</p>
+                <div class="pwa-manual-row">
+                    <input type="text" id="manualBarcode" inputmode="numeric" autocomplete="off" placeholder="Or type SKU / barcode">
+                    <button type="button" id="manualLookupBtn" class="pwa-btn-small">Look up</button>
                 </div>
             </div>
         </div>
 
         <!-- Sales -->
-        <div id="salesPanel" class="hidden flex-1 flex flex-col p-4 gap-3 overflow-hidden bg-white">
-            <div id="lastProduct" class="rounded-xl border border-gray-200 bg-white p-3 text-sm min-h-[4rem]">
-                <p class="text-gray-500 text-xs mb-1">Last scan</p>
-                <p id="lastProductText" class="text-gray-800">—</p>
+        <div id="salesPanel" class="pwa-panel">
+            <div id="lastProduct" class="pwa-card pwa-card--min4">
+                <p class="pwa-card__label">Last scan</p>
+                <p id="lastProductText" class="pwa-card__body">—</p>
             </div>
-            <div class="flex-1 overflow-y-auto rounded-xl border border-gray-200 bg-white">
-                <div class="flex items-center justify-between px-3 py-2 border-b border-gray-200">
-                    <span class="text-sm font-medium text-gray-900">Cart</span>
-                    <span id="cartCount" class="text-xs text-gray-500">0 items</span>
+            <div class="pwa-cart">
+                <div class="pwa-cart__head">
+                    <span>Cart</span>
+                    <span id="cartCount" class="pwa-cart__count">0 items</span>
                 </div>
-                <ul id="cartList" class="divide-y divide-gray-100 text-sm text-gray-800"></ul>
-                <div class="px-3 py-2 flex justify-between text-sm border-t border-gray-200">
-                    <span class="text-gray-600">Total</span>
-                    <span id="cartTotal" class="font-semibold tabular-nums text-gray-900">0.00</span>
+                <ul id="cartList" class="pwa-cart__list"></ul>
+                <div class="pwa-cart__total">
+                    <span>Total</span>
+                    <strong id="cartTotal">0.00</strong>
                 </div>
             </div>
-            <button type="button" id="checkoutBtn"
-                class="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3.5 text-base disabled:opacity-40 disabled:pointer-events-none">
-                Checkout
-            </button>
+            <button type="button" id="checkoutBtn" class="pwa-btn pwa-btn--emerald">Checkout</button>
         </div>
 
         <!-- Stock -->
-        <div id="stockPanel" class="hidden flex-1 flex flex-col p-4 gap-3 overflow-hidden bg-white">
-            <div id="stockProduct" class="rounded-xl border border-gray-200 bg-white p-3 text-sm min-h-[5rem]">
-                <p class="text-gray-500 text-xs mb-1">Product</p>
-                <p id="stockProductText" class="text-gray-800">Scan a barcode to select a product</p>
+        <div id="stockPanel" class="pwa-panel">
+            <div id="stockProduct" class="pwa-card pwa-card--min5">
+                <p class="pwa-card__label">Product</p>
+                <p id="stockProductText" class="pwa-card__body">Scan a barcode to select a product</p>
             </div>
-            <label class="block text-xs text-gray-600">Quantity to add</label>
-            <input type="number" id="stockQty" min="1" value="1"
-                class="w-full rounded-xl bg-white border border-gray-200 px-4 py-3 text-base text-gray-900 focus:ring-2 focus:ring-amber-500 focus:border-amber-400 outline-none">
-            <button type="button" id="addStockBtn"
-                class="w-full rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold py-3.5 text-base disabled:opacity-40 disabled:pointer-events-none">
-                Add to inventory
-            </button>
+            <label class="pwa-label" for="stockQty">Quantity to add</label>
+            <input type="number" id="stockQty" min="1" value="1" class="pwa-input pwa-input--amber">
+            <button type="button" id="addStockBtn" class="pwa-btn pwa-btn--amber">Add to inventory</button>
         </div>
     </main>
 
-    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-sm opacity-0 pointer-events-none transition-opacity z-50 max-w-[90vw] text-center border border-gray-200 bg-white text-gray-900 shadow-lg"></div>
+    <div id="toast" class="pwa-toast" role="status" aria-live="polite"></div>
 
     <script type="module">
     const BASE = <?php echo json_encode($base, JSON_UNESCAPED_SLASHES); ?>;
@@ -108,11 +100,9 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
     function toast(msg, ok = true) {
         const el = document.getElementById('toast');
         el.textContent = msg;
-        el.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-sm z-50 max-w-[90vw] text-center border shadow-lg bg-white text-gray-900 ' +
-            (ok ? 'border-emerald-300' : 'border-red-300');
-        el.style.opacity = '1';
+        el.className = 'pwa-toast is-visible ' + (ok ? 'pwa-toast--ok' : 'pwa-toast--err');
         clearTimeout(toast._t);
-        toast._t = setTimeout(() => { el.style.opacity = '0'; }, 2600);
+        toast._t = setTimeout(() => { el.classList.remove('is-visible'); }, 2600);
     }
 
     /** Shared context so mobile can play after unlock(); short high = scan read, lower = success */
@@ -197,10 +187,10 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
         items.forEach((line, idx) => {
             total += line.total_price;
             const li = document.createElement('li');
-            li.className = 'px-3 py-2 flex items-center justify-between gap-2';
-            li.innerHTML = `<div class="flex-1 min-w-0"><span class="truncate block">${escapeHtml(line.name)} × ${line.quantity}</span></div>` +
-                `<span class="tabular-nums shrink-0">${line.total_price.toFixed(2)}</span>` +
-                `<button type="button" data-i="${idx}" class="text-red-600 text-xs px-2 py-1 rounded hover:bg-gray-50 remove-line">✕</button>`;
+            li.className = 'pwa-cart-line';
+            li.innerHTML = `<div class="pwa-cart-line__name"><span>${escapeHtml(line.name)} × ${line.quantity}</span></div>` +
+                `<span class="pwa-cart-line__price">${line.total_price.toFixed(2)}</span>` +
+                `<button type="button" data-i="${idx}" class="pwa-cart-line__remove remove-line">✕</button>`;
             ul.appendChild(li);
         });
         ul.querySelectorAll('.remove-line').forEach((b) => {
@@ -393,11 +383,11 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
             if (isStockMode) {
                 selectedProduct = p;
                 document.getElementById('stockProductText').innerHTML =
-                    `<strong>${escapeHtml(p.name)}</strong><br><span class="text-gray-500">Stock: ${p.quantity} · Price: ${Number(p.price).toFixed(2)}</span>`;
+                    `<strong>${escapeHtml(p.name)}</strong><br><span class="pwa-muted">Stock: ${p.quantity} · Price: ${Number(p.price).toFixed(2)}</span>`;
                 toast('Product loaded — set quantity', true);
             } else {
                 document.getElementById('lastProductText').innerHTML =
-                    `<strong>${escapeHtml(p.name)}</strong><br><span class="text-gray-500">${p.quantity} in stock · ${Number(p.price).toFixed(2)} each</span>`;
+                    `<strong>${escapeHtml(p.name)}</strong><br><span class="pwa-muted">${p.quantity} in stock · ${Number(p.price).toFixed(2)} each</span>`;
                 const cart = loadCart();
                 const ix = cart.findIndex((c) => c.product_id === p.id);
                 const unit = Number(p.price);
@@ -446,9 +436,9 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
 
     // Panels
     if (isStockMode) {
-        document.getElementById('stockPanel').classList.remove('hidden');
+        document.getElementById('stockPanel').classList.add('is-visible');
     } else {
-        document.getElementById('salesPanel').classList.remove('hidden');
+        document.getElementById('salesPanel').classList.add('is-visible');
         renderCart();
     }
 
@@ -515,7 +505,7 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
             selectedProduct = j.product || selectedProduct;
             if (j.product) {
                 document.getElementById('stockProductText').innerHTML =
-                    `<strong>${escapeHtml(j.product.name)}</strong><br><span class="text-gray-500">Stock: ${j.product.quantity} · Price: ${Number(j.product.price).toFixed(2)}</span>`;
+                    `<strong>${escapeHtml(j.product.name)}</strong><br><span class="pwa-muted">Stock: ${j.product.quantity} · Price: ${Number(j.product.price).toFixed(2)}</span>`;
             }
             beep();
             toast('Stock updated', true);

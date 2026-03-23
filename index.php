@@ -88,7 +88,8 @@ $requestPath = parse_url($requestUri, PHP_URL_PATH);
 $requestPath = strtok($requestPath, '?');
 
 // Check if this is a static asset request by extension or path
-$staticExtensions = ['css', 'js', 'jpg', 'jpeg', 'png', 'gif', 'ico', 'svg', 'woff', 'woff2', 'ttf', 'eot', 'pdf', 'zip', 'mp4', 'mp3', 'json', 'webmanifest'];
+// Note: omit 'webmanifest' — dynamic route pwa/manifest.webmanifest is served by PwaScannerController, not as a static file.
+$staticExtensions = ['css', 'js', 'jpg', 'jpeg', 'png', 'gif', 'ico', 'svg', 'woff', 'woff2', 'ttf', 'eot', 'pdf', 'zip', 'mp4', 'mp3', 'json'];
 $extension = strtolower(pathinfo($requestPath, PATHINFO_EXTENSION));
 $isStaticFile = in_array($extension, $staticExtensions) || strpos($requestPath, 'assets/') !== false;
 

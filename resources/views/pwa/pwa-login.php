@@ -9,40 +9,36 @@ if (!defined('BASE_URL_PATH')) {
 $base = rtrim(BASE_URL_PATH, '/');
 $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
 ?><!DOCTYPE html>
-<html lang="en" class="h-full bg-white text-gray-900">
+<html lang="en" class="pwa-root">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>SellApp Scanner — Sign in</title>
     <link rel="manifest" href="<?php echo htmlspecialchars($assetBase . '/pwa/manifest.webmanifest', ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="apple-touch-icon" href="<?php echo htmlspecialchars($assetBase . '/assets/images/favicon.svg', ENT_QUOTES, 'UTF-8'); ?>">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($assetBase . '/assets/css/pwa.css', ENT_QUOTES, 'UTF-8'); ?>">
 </head>
-<body class="h-full min-h-[100dvh] flex flex-col items-center justify-center p-6 bg-white">
-    <div class="w-full max-w-sm space-y-8">
-        <div class="text-center space-y-2">
-            <h1 class="text-2xl font-semibold tracking-tight text-gray-900">SellApp Scanner</h1>
-            <p class="text-sm text-gray-600">Sign in with your username or email</p>
+<body class="pwa-body pwa-body--login">
+    <div class="pwa-login">
+        <div class="pwa-login__brand">
+            <h1>SellApp Scanner</h1>
+            <p>Sign in with your username or email</p>
         </div>
-        <form id="loginForm" class="space-y-4">
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Username or email</label>
-                <input type="text" name="username" autocomplete="username" required
-                    class="w-full rounded-xl bg-white border border-gray-200 px-4 py-3 text-base text-gray-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-400 outline-none">
+        <form id="loginForm" class="pwa-form">
+            <div class="pwa-field">
+                <label for="pwa-username">Username or email</label>
+                <input type="text" id="pwa-username" name="username" autocomplete="username" required class="pwa-input">
             </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Password</label>
-                <input type="password" name="password" autocomplete="current-password" required
-                    class="w-full rounded-xl bg-white border border-gray-200 px-4 py-3 text-base text-gray-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-400 outline-none">
+            <div class="pwa-field">
+                <label for="pwa-password">Password</label>
+                <input type="password" id="pwa-password" name="password" autocomplete="current-password" required class="pwa-input">
             </div>
-            <p id="err" class="text-sm text-red-600 hidden"></p>
-            <button type="submit" id="btn"
-                class="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3.5 text-base active:scale-[0.99] transition">
-                Continue
-            </button>
+            <p id="err" class="pwa-error hidden" role="alert"></p>
+            <button type="submit" id="btn" class="pwa-btn pwa-btn--primary">Continue</button>
         </form>
     </div>
     <script>
