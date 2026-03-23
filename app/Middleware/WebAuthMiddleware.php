@@ -47,8 +47,16 @@ class WebAuthMiddleware {
                 error_log("WebAuthMiddleware: _auth parameter present but user authenticated - allowing page load");
             }
             
-            if (!empty($allowedRoles) && !in_array($userData['role'], $allowedRoles)) {
-                self::redirectToLogin('You do not have permission to access this page');
+            if (!empty($allowedRoles)) {
+                $role = strtolower(trim((string)($userData['role'] ?? '')));
+                $allowed = array_map('strtolower', $allowedRoles);
+                if (!in_array($role, $allowed, true)) {
+                    $base = defined('BASE_URL_PATH') ? rtrim((string)BASE_URL_PATH, '/') . '/dashboard' : '/dashboard';
+                    \App\Helpers\AdminBlockHelper::showAccessDenied(
+                        'You do not have permission to access this page.',
+                        $base
+                    );
+                }
             }
             
             error_log("WebAuthMiddleware: User authenticated successfully - Role: " . $userData['role']);
@@ -81,9 +89,17 @@ class WebAuthMiddleware {
             $auth = new AuthService();
             $payload = $auth->validateToken($token);
             
-            // Check role-based access if roles are specified
-            if (!empty($allowedRoles) && !in_array($payload->role, $allowedRoles)) {
-                self::redirectToLogin('You do not have permission to access this page');
+            // Check role-based access if roles are specified (403 if logged in but wrong role)
+            if (!empty($allowedRoles)) {
+                $role = strtolower(trim((string)($payload->role ?? '')));
+                $allowed = array_map('strtolower', $allowedRoles);
+                if (!in_array($role, $allowed, true)) {
+                    $base = defined('BASE_URL_PATH') ? rtrim((string)BASE_URL_PATH, '/') . '/dashboard' : '/dashboard';
+                    \App\Helpers\AdminBlockHelper::showAccessDenied(
+                        'You do not have permission to access this page.',
+                        $base
+                    );
+                }
             }
             
             // Store user info in session for easy access
@@ -275,7 +291,8 @@ HTML;
             'categories' => ['system_admin', 'admin', 'manager'],
             'brands' => ['system_admin', 'admin', 'manager'],
             'subcategories' => ['system_admin', 'admin', 'manager'],
-            'inventory' => ['system_admin', 'admin', 'manager', 'salesperson', 'technician'],
+            /* Full inventory management UI — not salesperson/technician (use /dashboard/products for read-only) */
+            'inventory' => ['system_admin', 'manager'],
             'products' => ['system_admin', 'admin', 'manager', 'salesperson', 'technician'],
             'customers' => ['system_admin', 'admin', 'manager', 'salesperson'],
             'repairs' => ['system_admin', 'admin', 'manager', 'technician'],

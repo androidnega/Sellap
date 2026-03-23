@@ -35,13 +35,13 @@ if (!class_exists('App\Helpers\RoleHelper')) {
             ],
             'salesperson' => [
                 'dashboard',
-                'dashboard/inventory',
+                'dashboard/products',
                 'dashboard/sales',
                 'dashboard/customers'
             ],
             'technician' => [
                 'dashboard',
-                'dashboard/inventory',
+                'dashboard/products',
                 'dashboard/repairs'
             ]
         ];
@@ -89,13 +89,13 @@ if (!class_exists('App\Helpers\RoleHelper')) {
             ],
             'salesperson' => [
                 'dashboard' => 'Dashboard',
-                'dashboard/inventory' => 'Product Management',
+                'dashboard/products' => 'Products (read-only)',
                 'dashboard/sales' => 'Sales',
                 'dashboard/customers' => 'Customers'
             ],
             'technician' => [
                 'dashboard' => 'Dashboard',
-                'dashboard/inventory' => 'Product Management',
+                'dashboard/products' => 'Products',
                 'dashboard/repairs' => 'Repairs'
             ]
         ];

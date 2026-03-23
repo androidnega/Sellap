@@ -650,7 +650,8 @@ $router->get('dashboard/inventory', function() {
         );
     }
     
-    \App\Middleware\WebAuthMiddleware::handle(['manager', 'salesperson', 'technician', 'system_admin']);
+    /* Manager inventory only — salespeople use /dashboard/products (read-only) */
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'system_admin']);
     $GLOBALS['currentPage'] = 'inventory';
     $controller = new \App\Controllers\InventoryController();
     $controller->index();
@@ -672,7 +673,7 @@ $router->post('dashboard/inventory/store', function() {
 
 // Inventory View
 $router->get('dashboard/inventory/view/{id}', function($id) {
-    \App\Middleware\WebAuthMiddleware::handle();
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'system_admin']);
     $GLOBALS['currentPage'] = 'inventory';
     $controller = new \App\Controllers\InventoryController();
     $controller->view($id);
@@ -722,7 +723,7 @@ $router->post('api/inventory/product/{id}/generate-barcode', function($id) {
 
 // Restock Index
 $router->get('dashboard/restock', function() {
-    \App\Middleware\WebAuthMiddleware::handle();
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'admin', 'system_admin']);
     $GLOBALS['currentPage'] = 'restock';
     $controller = new \App\Controllers\RestockController();
     $controller->index();
@@ -730,7 +731,7 @@ $router->get('dashboard/restock', function() {
 
 // Restock Show (single product restock)
 $router->get('dashboard/restock/{id}', function($id) {
-    \App\Middleware\WebAuthMiddleware::handle();
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'admin', 'system_admin']);
     $GLOBALS['currentPage'] = 'restock';
     $controller = new \App\Controllers\RestockController();
     $controller->show($id);

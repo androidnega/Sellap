@@ -63,8 +63,8 @@ class InventoryController {
     public function index() {
         // BLOCK ADMIN IMMEDIATELY - Must be first thing in method
         \App\Helpers\AdminBlockHelper::blockAdmin(
-            ['manager', 'salesperson', 'technician', 'system_admin'],
-            "You do not have permission to access inventory pages.",
+            ['manager', 'system_admin'],
+            "You do not have permission to access inventory management. Sales staff should use Products from the menu.",
             BASE_URL_PATH . '/dashboard'
         );
         
@@ -833,8 +833,8 @@ class InventoryController {
     public function view($id) {
         // BLOCK ADMIN IMMEDIATELY - Must be first thing in method
         \App\Helpers\AdminBlockHelper::blockAdmin(
-            ['manager', 'salesperson', 'technician', 'system_admin'],
-            "You do not have permission to view inventory.",
+            ['manager', 'system_admin'],
+            "You do not have permission to view this page. Use Products for read-only catalog access.",
             BASE_URL_PATH . '/dashboard'
         );
         
@@ -1084,6 +1084,13 @@ class InventoryController {
 
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
+        }
+
+        $role = strtolower(trim((string)($_SESSION['user']['role'] ?? '')));
+        if (!in_array($role, ['manager', 'system_admin'], true)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Access denied']);
+            return;
         }
 
         try {
