@@ -6,6 +6,7 @@ if (!defined('BASE_URL_PATH')) {
 $base = rtrim(BASE_URL_PATH, '/');
 $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
 ?><!DOCTYPE html>
+<!-- sellapp-pwa-scan build: 2025-03-24 minimal-ui (view: resources/views/pwa/pwa-scan.php) -->
 <html lang="en" class="pwa-root">
 <head>
     <meta charset="utf-8">

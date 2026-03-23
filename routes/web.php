@@ -310,9 +310,17 @@ $router->get('api/auth/validate', function() {
 // PWA Scanner (mobile) — pages + JSON API
 // ========================================
 $router->get('pwa-login', function() {
+    if (!headers_sent()) {
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+    }
     require VIEWS_PATH . '/pwa/pwa-login.php';
 });
 $router->get('pwa-scan', function() {
+    if (!headers_sent()) {
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+    }
     require VIEWS_PATH . '/pwa/pwa-scan.php';
 });
 $router->get('pwa/manifest.webmanifest', function() {
