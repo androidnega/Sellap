@@ -14,15 +14,15 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <title>SellApp Scanner</title>
+    <title>Scan</title>
     <link rel="manifest" href="<?php echo htmlspecialchars($assetBase . '/api/pwa/manifest.webmanifest', ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="apple-touch-icon" href="<?php echo htmlspecialchars($assetBase . '/assets/images/favicon.svg', ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="stylesheet" href="<?php echo htmlspecialchars($assetBase . '/assets/css/pwa.css', ENT_QUOTES, 'UTF-8'); ?>">
 </head>
 <body class="pwa-body pwa-body--scan">
-    <header class="pwa-header pwa-header--barcode">
+    <header class="pwa-header pwa-header--scan">
         <nav class="pwa-crumb" aria-label="Breadcrumb">
-            <span class="pwa-crumb__current">Barcode</span>
+            <span class="pwa-crumb__current">Scan</span>
             <span class="pwa-crumb__sep" aria-hidden="true">/</span>
             <button type="button" id="openSettings" class="pwa-crumb__link">Settings</button>
         </nav>
@@ -69,7 +69,6 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
             <div class="pwa-settings__body">
                 <label class="pwa-settings__label" for="cameraSelect">Camera</label>
                 <select id="cameraSelect" class="pwa-select-cam" title="Camera"></select>
-                <p class="pwa-settings__note">Barcode only. Choose a different camera if the preview is blurry.</p>
             </div>
         </div>
     </div>
@@ -231,7 +230,7 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
         return true;
     }
 
-    // --- ZXing: 1D barcodes only, primary rear camera, TRY_HARDER ---
+    // ZXing: retail symbologies, primary rear camera
     let reader = null;
     const videoEl = document.getElementById('video');
     const cameraSelect = document.getElementById('cameraSelect');
@@ -526,7 +525,7 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
 
     document.getElementById('addStockBtn')?.addEventListener('click', async () => {
         if (!selectedProduct) {
-            toast('Scan a product first', false);
+            toast('Scan first', false);
             return;
         }
         const qty = Math.max(1, parseInt(document.getElementById('stockQty').value, 10) || 1);

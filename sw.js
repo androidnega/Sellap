@@ -1,7 +1,7 @@
 /**
  * SellApp PWA — offline shell + runtime cache for static assets.
  */
-const CACHE = 'sellapp-pwa-v12';
+const CACHE = 'sellapp-pwa-v13';
 const SHELL = [
   './pwa-login',
   './pwa-scan',
