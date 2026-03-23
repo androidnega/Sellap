@@ -315,6 +315,10 @@ $router->get('pwa-login', function() {
 $router->get('pwa-scan', function() {
     require VIEWS_PATH . '/pwa/pwa-scan.php';
 });
+$router->get('pwa/manifest.webmanifest', function() {
+    $c = new \App\Controllers\PwaScannerController();
+    $c->manifestWebManifest();
+});
 
 $router->get('api/pwa/products/by-barcode', function() {
     $c = new \App\Controllers\PwaScannerController();
@@ -691,6 +695,12 @@ $router->post('dashboard/inventory/bulk-delete', function() {
 $router->get('api/inventory/search', function() {
     $controller = new \App\Controllers\InventoryController();
     $controller->apiSearch();
+});
+
+// Generate / assign product barcode SKU (manager — session auth)
+$router->post('api/inventory/product/{id}/generate-barcode', function($id) {
+    $controller = new \App\Controllers\InventoryController();
+    $controller->apiGenerateBarcode((int)$id);
 });
 
 // ========================================

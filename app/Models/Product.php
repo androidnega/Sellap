@@ -733,11 +733,12 @@ class Product {
         }
         
         $sql = "
-            SELECT 
+            SELECT
                 p.id,
                 p.company_id,
                 p.name,
                 COALESCE(p.product_id, CONCAT('PID-', LPAD(p.id, 3, '0'))) as product_id,
+                p.sku,
                 p.category_id,
                 p.brand_id,
                 p.price,
@@ -937,6 +938,14 @@ class Product {
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Update SKU only (e.g. barcode assignment from inventory)
+     */
+    public function updateSku($id, $companyId, $sku) {
+        $stmt = $this->db->prepare("UPDATE {$this->table} SET sku = ? WHERE id = ? AND company_id = ?");
+        return $stmt->execute([$sku, $id, $companyId]);
     }
 
     /**

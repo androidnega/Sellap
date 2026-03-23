@@ -4,76 +4,77 @@ if (!defined('BASE_URL_PATH')) {
     exit('Configuration error');
 }
 $base = rtrim(BASE_URL_PATH, '/');
+$assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
 ?><!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<html lang="en" class="h-full bg-slate-50 text-slate-900">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#f8fafc">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>SellApp Scanner</title>
-    <link rel="manifest" href="<?php echo htmlspecialchars($base . '/manifest.json', ENT_QUOTES, 'UTF-8'); ?>">
-    <link rel="apple-touch-icon" href="<?php echo htmlspecialchars($base . '/assets/images/favicon.svg', ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="manifest" href="<?php echo htmlspecialchars($assetBase . '/pwa/manifest.webmanifest', ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="apple-touch-icon" href="<?php echo htmlspecialchars($assetBase . '/assets/images/favicon.svg', ENT_QUOTES, 'UTF-8'); ?>">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="h-full min-h-[100dvh] flex flex-col">
-    <header class="shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
+    <header class="shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white shadow-sm">
         <div>
-            <h1 class="text-lg font-semibold">Scanner</h1>
+            <h1 class="text-lg font-semibold text-slate-900">Scanner</h1>
             <p id="roleLabel" class="text-xs text-slate-500"></p>
         </div>
-        <button type="button" id="logoutBtn" class="text-sm text-slate-400 px-2 py-1 rounded-lg hover:bg-slate-800">Log out</button>
+        <button type="button" id="logoutBtn" class="text-sm text-slate-600 px-2 py-1 rounded-lg hover:bg-slate-100">Log out</button>
     </header>
 
     <main class="flex-1 flex flex-col min-h-0">
-        <div class="relative bg-black aspect-[4/3] max-h-[45vh] w-full">
+        <div class="relative bg-neutral-200 w-full h-28 max-h-[22vh] sm:h-32 sm:max-h-[26vh] shrink-0 overflow-hidden border-b border-slate-200">
             <video id="video" class="w-full h-full object-cover" playsinline muted></video>
-            <div class="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-                <p id="scanHint" class="text-xs text-slate-300 text-center">Point the camera at a barcode</p>
+            <div class="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 to-transparent">
+                <p id="scanHint" class="text-xs text-white text-center drop-shadow-sm">Point the camera at a barcode</p>
             </div>
         </div>
 
         <!-- Sales -->
         <div id="salesPanel" class="hidden flex-1 flex flex-col p-4 gap-3 overflow-hidden">
-            <div id="lastProduct" class="rounded-xl border border-slate-800 bg-slate-900/80 p-3 text-sm min-h-[4rem]">
+            <div id="lastProduct" class="rounded-xl border border-slate-200 bg-white shadow-sm p-3 text-sm min-h-[4rem]">
                 <p class="text-slate-500 text-xs mb-1">Last scan</p>
-                <p id="lastProductText" class="text-slate-400">—</p>
+                <p id="lastProductText" class="text-slate-700">—</p>
             </div>
-            <div class="flex-1 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/50">
-                <div class="flex items-center justify-between px-3 py-2 border-b border-slate-800">
-                    <span class="text-sm font-medium">Cart</span>
+            <div class="flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div class="flex items-center justify-between px-3 py-2 border-b border-slate-200">
+                    <span class="text-sm font-medium text-slate-900">Cart</span>
                     <span id="cartCount" class="text-xs text-slate-500">0 items</span>
                 </div>
-                <ul id="cartList" class="divide-y divide-slate-800 text-sm"></ul>
-                <div class="px-3 py-2 flex justify-between text-sm border-t border-slate-800">
-                    <span class="text-slate-400">Total</span>
-                    <span id="cartTotal" class="font-semibold tabular-nums">0.00</span>
+                <ul id="cartList" class="divide-y divide-slate-100 text-sm text-slate-800"></ul>
+                <div class="px-3 py-2 flex justify-between text-sm border-t border-slate-200">
+                    <span class="text-slate-600">Total</span>
+                    <span id="cartTotal" class="font-semibold tabular-nums text-slate-900">0.00</span>
                 </div>
             </div>
             <button type="button" id="checkoutBtn"
-                class="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3.5 text-base disabled:opacity-40 disabled:pointer-events-none">
+                class="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3.5 text-base disabled:opacity-40 disabled:pointer-events-none shadow-sm">
                 Checkout
             </button>
         </div>
 
         <!-- Stock -->
         <div id="stockPanel" class="hidden flex-1 flex flex-col p-4 gap-3 overflow-hidden">
-            <div id="stockProduct" class="rounded-xl border border-slate-800 bg-slate-900/80 p-3 text-sm min-h-[5rem]">
+            <div id="stockProduct" class="rounded-xl border border-slate-200 bg-white shadow-sm p-3 text-sm min-h-[5rem]">
                 <p class="text-slate-500 text-xs mb-1">Product</p>
-                <p id="stockProductText" class="text-slate-300">Scan a barcode to select a product</p>
+                <p id="stockProductText" class="text-slate-700">Scan a barcode to select a product</p>
             </div>
-            <label class="block text-xs text-slate-400">Quantity to add</label>
+            <label class="block text-xs text-slate-600">Quantity to add</label>
             <input type="number" id="stockQty" min="1" value="1"
-                class="w-full rounded-xl bg-slate-900 border border-slate-700 px-4 py-3 text-base">
+                class="w-full rounded-xl bg-white border border-slate-300 px-4 py-3 text-base text-slate-900 shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none">
             <button type="button" id="addStockBtn"
-                class="w-full rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold py-3.5 text-base disabled:opacity-40 disabled:pointer-events-none">
+                class="w-full rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold py-3.5 text-base disabled:opacity-40 disabled:pointer-events-none shadow-sm">
                 Add to inventory
             </button>
         </div>
     </main>
 
-    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-slate-800 text-sm shadow-lg opacity-0 pointer-events-none transition-opacity z-50 max-w-[90vw] text-center"></div>
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-sm shadow-md opacity-0 pointer-events-none transition-opacity z-50 max-w-[90vw] text-center border"></div>
 
     <script type="module">
     const BASE = <?php echo json_encode($base, JSON_UNESCAPED_SLASHES); ?>;
@@ -97,8 +98,8 @@ $base = rtrim(BASE_URL_PATH, '/');
     function toast(msg, ok = true) {
         const el = document.getElementById('toast');
         el.textContent = msg;
-        el.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-sm shadow-lg z-50 max-w-[90vw] text-center ' +
-            (ok ? 'bg-emerald-900 text-emerald-100' : 'bg-red-900 text-red-100');
+        el.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-sm shadow-md z-50 max-w-[90vw] text-center border ' +
+            (ok ? 'bg-emerald-50 text-emerald-900 border-emerald-200' : 'bg-red-50 text-red-800 border-red-200');
         el.style.opacity = '1';
         clearTimeout(toast._t);
         toast._t = setTimeout(() => { el.style.opacity = '0'; }, 2600);
@@ -159,7 +160,7 @@ $base = rtrim(BASE_URL_PATH, '/');
             li.className = 'px-3 py-2 flex items-center justify-between gap-2';
             li.innerHTML = `<div class="flex-1 min-w-0"><span class="truncate block">${escapeHtml(line.name)} × ${line.quantity}</span></div>` +
                 `<span class="tabular-nums shrink-0">${line.total_price.toFixed(2)}</span>` +
-                `<button type="button" data-i="${idx}" class="text-red-400 text-xs px-2 py-1 rounded hover:bg-slate-800 remove-line">✕</button>`;
+                `<button type="button" data-i="${idx}" class="text-red-600 text-xs px-2 py-1 rounded hover:bg-red-50 remove-line">✕</button>`;
             ul.appendChild(li);
         });
         ul.querySelectorAll('.remove-line').forEach((b) => {

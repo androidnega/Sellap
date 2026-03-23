@@ -1115,6 +1115,116 @@ class InventoryController {
         }
         exit;
     }
+
+    /**
+     * API: Generate or return barcode SKU for a product (managers / admins only).
+     * POST JSON: { "regenerate": false } — if product has SKU and regenerate is false, returns existing.
+     */
+    public function apiGenerateBarcode($productId) {
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        header('Content-Type: application/json; charset=utf-8');
+
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        if (!isset($_SESSION['user']['id'])) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'error' => 'Unauthorized']);
+            exit;
+        }
+
+        $role = $_SESSION['user']['role'] ?? '';
+        if (!in_array($role, ['manager', 'admin', 'system_admin'], true)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Only managers can generate barcodes']);
+            exit;
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+            exit;
+        }
+
+        $companyId = (int)($_SESSION['user']['company_id'] ?? 0);
+        $productId = (int)$productId;
+        if (!$companyId || !$productId) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Invalid product or company']);
+            exit;
+        }
+
+        $input = json_decode((string)file_get_contents('php://input'), true) ?: [];
+        $regenerate = !empty($input['regenerate']);
+
+        try {
+            $product = $this->productModel->find($productId, $companyId);
+            if (!$product) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'error' => 'Product not found']);
+                exit;
+            }
+
+            $currentSku = trim((string)($product['sku'] ?? ''));
+            if ($currentSku !== '' && !$regenerate) {
+                echo json_encode([
+                    'success' => true,
+                    'sku' => $currentSku,
+                    'product_name' => $product['name'] ?? '',
+                    'generated' => false,
+                ]);
+                exit;
+            }
+
+            $newSku = $this->buildUniqueBarcodeSku($companyId, $productId, $regenerate);
+
+            if (!$this->productModel->updateSku($productId, $companyId, $newSku)) {
+                http_response_code(500);
+                echo json_encode(['success' => false, 'error' => 'Failed to save barcode']);
+                exit;
+            }
+
+            echo json_encode([
+                'success' => true,
+                'sku' => $newSku,
+                'product_name' => $product['name'] ?? '',
+                'generated' => true,
+            ]);
+            exit;
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ]);
+            exit;
+        }
+    }
+
+    /**
+     * Build a unique Code128-friendly SKU for scanning (alphanumeric).
+     */
+    private function buildUniqueBarcodeSku(int $companyId, int $productId, bool $regenerate): string {
+        if ($regenerate) {
+            $base = 'S' . str_pad((string)$companyId, 4, '0', STR_PAD_LEFT) . 'P' . $productId . 'R';
+        } else {
+            $base = 'S' . str_pad((string)$companyId, 4, '0', STR_PAD_LEFT) . 'P' . $productId;
+        }
+
+        $sku = $base;
+        for ($i = 0; $i < 80; $i++) {
+            $found = $this->productModel->findBySku($sku, $companyId);
+            if (!$found || (int)$found['id'] === $productId) {
+                return $sku;
+            }
+            $sku = $base . strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));
+        }
+
+        return $base . strtoupper(bin2hex(random_bytes(5)));
+    }
     
     /**
      * Update supplier product tracking

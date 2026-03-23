@@ -1,4 +1,8 @@
 <?php $basePhp = defined('BASE_URL_PATH') ? BASE_URL_PATH : (rtrim(dirname($_SERVER['SCRIPT_NAME']), '/') ?: ''); ?>
+<?php
+$invUserRole = $_SESSION['user']['role'] ?? '';
+$canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin'], true);
+?>
 <div class="mb-6">
         <h2 class="text-3xl font-bold text-gray-800">Product Management</h2>
         <p class="text-gray-600">Manage your product inventory and stock levels</p>
@@ -135,6 +139,7 @@
                 <th class="p-3 text-left">Brand</th>
                 <th class="p-3 text-left">Model</th>
                 <th class="p-3 text-left">Category</th>
+                <th class="p-3 text-left">SKU / Barcode</th>
                 <th class="p-3 text-left">Price</th>
                 <th class="p-3 text-left">Quantity</th>
                 <th class="p-3 text-left">Location</th>
@@ -186,6 +191,8 @@
                 $qty = intval($product['quantity'] ?? $product['qty'] ?? 0);
                 ?>
                 <tr class="border-b inventory-row" data-product-id="<?= $product['id'] ?>" data-quantity="<?= $qty ?>"
+                    data-product-name="<?= htmlspecialchars($product['name'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                    data-sku="<?= htmlspecialchars(trim((string)($product['sku'] ?? '')), ENT_QUOTES, 'UTF-8') ?>"
                     <?php if ($isSwappedItem): ?>
                         style="background-color: #fee2e2; color: #991b1b;" 
                         onmouseover="this.style.backgroundColor='#fecaca'" 
@@ -208,6 +215,9 @@
                     <td class="p-3" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>><?= htmlspecialchars($product['brand_name'] ?? 'N/A') ?></td>
                     <td class="p-3" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>><?= htmlspecialchars($product['model_name'] ?? 'N/A') ?></td>
                     <td class="p-3" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>><?= htmlspecialchars($product['category_name'] ?? 'N/A') ?></td>
+                    <td class="p-3 font-mono text-xs max-w-[140px]" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>>
+                        <span class="inv-sku-cell"><?= htmlspecialchars(trim((string)($product['sku'] ?? '')) !== '' ? (string)$product['sku'] : '—') ?></span>
+                    </td>
                     <td class="p-3" <?= $isSwappedItem ? 'style="color: #991b1b; font-weight: 600;"' : '' ?>>₵<?= number_format($product['price'] ?? 0, 2) ?></td>
                     <td class="p-3">
                         <span class="px-2 py-1 rounded text-xs <?= $isSwappedItem ? '' : (($product['quantity'] ?? 0) > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') ?>" <?= $isSwappedItem ? 'style="background-color: #fca5a5; color: #991b1b;"' : '' ?>>
@@ -220,7 +230,10 @@
                             <?= ucfirst($product['status'] ?? 'out_of_stock') ?>
                         </span>
                     </td>
-                    <td class="p-3 text-right space-x-2">
+                    <td class="p-3 text-right space-x-2 whitespace-nowrap">
+                        <?php if ($canManageBarcodes): ?>
+                            <button type="button" class="inv-barcode-btn text-purple-600 hover:underline text-sm font-medium" data-id="<?= (int)$product['id'] ?>">Barcode</button>
+                        <?php endif; ?>
                         <a href="<?= $basePhp ?>/dashboard/inventory/view/<?= $product['id'] ?>" class="hover:underline<?= !$isSwappedItem ? ' text-green-600' : '' ?>" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>>View</a>
                         <a href="<?= $basePhp ?>/dashboard/inventory/edit/<?= $product['id'] ?>" class="hover:underline<?= !$isSwappedItem ? ' text-blue-600' : '' ?>" <?= $isSwappedItem ? 'style="color: #fca5a5;"' : '' ?>>Edit</a>
                         <a href="<?= $basePhp ?>/dashboard/inventory/delete/<?= $product['id'] ?>" class="hover:underline<?= !$isSwappedItem ? ' text-red-600' : '' ?>" <?= $isSwappedItem ? 'style="color: #fca5a5;"' : '' ?> onclick="return confirm('Delete this product?')">Delete</a>
@@ -228,7 +241,7 @@
                 </tr>
             <?php endforeach; ?>
             <?php if (empty($products)): ?>
-                <tr><td colspan="11" class="p-3 text-center text-gray-500">No products found</td></tr>
+                <tr><td colspan="12" class="p-3 text-center text-gray-500">No products found</td></tr>
             <?php endif; ?>
         </tbody>
     </table>
@@ -246,7 +259,35 @@
     .main-content-container main {
         min-height: auto !important;
     }
+    @media print {
+        body * { visibility: hidden; }
+        #invBarcodePrintArea, #invBarcodePrintArea * { visibility: visible; }
+        #invBarcodePrintArea { position: absolute; left: 0; top: 0; width: 100%; }
+    }
 </style>
+
+<script>window.INVENTORY_CAN_MANAGE_BARCODES = <?= !empty($canManageBarcodes) ? 'true' : 'false' ?>;</script>
+
+<!-- Barcode modal (managers) -->
+<?php if (!empty($canManageBarcodes)): ?>
+<div id="invBarcodeModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4" aria-modal="true" role="dialog">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-1">Product barcode</h3>
+        <p id="invBarcodeProductName" class="text-sm text-gray-600 mb-4"></p>
+        <div id="invBarcodePrintArea" class="flex flex-col items-center justify-center py-4 bg-gray-50 rounded border border-gray-200">
+            <svg id="invBarcodeSvg" class="max-w-full h-auto"></svg>
+            <p id="invBarcodeSkuText" class="mt-2 font-mono text-sm text-gray-800"></p>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-4 justify-end">
+            <button type="button" id="invBarcodeGenBtn" class="px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">Generate code</button>
+            <button type="button" id="invBarcodeRegenBtn" class="hidden px-3 py-2 bg-amber-600 text-white text-sm rounded hover:bg-amber-700">Regenerate</button>
+            <button type="button" id="invBarcodePrintBtn" class="px-3 py-2 bg-gray-200 text-gray-800 text-sm rounded hover:bg-gray-300">Print</button>
+            <button type="button" id="invBarcodeCloseBtn" class="px-3 py-2 border border-gray-300 text-sm rounded hover:bg-gray-50">Close</button>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+<?php endif; ?>
 
 <script>
 (function(){
@@ -329,8 +370,12 @@
         const qty = parseInt(p.quantity || p.qty || 0, 10);
         const id = p.id;
         const name = escapeHtml(p.name || '');
+        const skuRaw = String(p.sku || '').trim();
+        const skuDisp = skuRaw ? escapeHtml(skuRaw) : '—';
+        const canBarcode = window.INVENTORY_CAN_MANAGE_BARCODES;
+        const barcodeBtn = canBarcode ? `<button type="button" class="inv-barcode-btn text-purple-600 hover:underline text-sm font-medium" data-id="${id}">Barcode</button>` : '';
         return `
-            <tr class="border-b hover:bg-gray-50 inventory-row" data-product-id="${id}" data-quantity="${qty}">
+            <tr class="border-b hover:bg-gray-50 inventory-row" data-product-id="${id}" data-quantity="${qty}" data-product-name="${name}" data-sku="${escapeHtml(skuRaw)}">
                 <td class="p-3">
                     <input type="checkbox" class="product-checkbox cursor-pointer" data-product-id="${id}" data-product-name="${name}">
                 </td>
@@ -339,11 +384,13 @@
                 <td class="p-3">${escapeHtml(p.brand_name || 'N/A')}</td>
                 <td class="p-3">${escapeHtml(p.model_name || 'N/A')}</td>
                 <td class="p-3">${escapeHtml(p.category_name || 'N/A')}</td>
+                <td class="p-3 font-mono text-xs max-w-[140px]"><span class="inv-sku-cell">${skuDisp}</span></td>
                 <td class="p-3">₵${Number(p.price||0).toFixed(2)}</td>
                 <td class="p-3"><span class="px-2 py-1 rounded text-xs ${qty>0?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${qty}</span></td>
                 <td class="p-3 text-xs">${escapeHtml(p.item_location || 'N/A')}</td>
                 <td class="p-3"><span class="px-2 py-1 rounded text-xs ${status==='available'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${status.charAt(0).toUpperCase()+status.slice(1)}</span></td>
-                <td class="p-3 text-right space-x-2">
+                <td class="p-3 text-right space-x-2 whitespace-nowrap">
+                    ${barcodeBtn}
                     <a href="${(typeof BASE_URL_PATH!=='undefined'?BASE_URL_PATH:'')}/dashboard/inventory/view/${id}" class="text-green-600 hover:underline">View</a>
                     <a href="${(typeof BASE_URL_PATH!=='undefined'?BASE_URL_PATH:'')}/dashboard/inventory/edit/${id}" class="text-blue-600 hover:underline">Edit</a>
                     <a href="${(typeof BASE_URL_PATH!=='undefined'?BASE_URL_PATH:'')}/dashboard/inventory/delete/${id}" class="text-red-600 hover:underline" onclick="return confirm('Delete this product?')">Delete</a>
@@ -407,7 +454,7 @@
                 // If query changed while awaiting, ignore
                 if (lastQuery !== q) return;
                 if (!results || results.length === 0) {
-                    tbody.innerHTML = '<tr data-empty-placeholder="1"><td colspan="11" class="p-3 text-center text-gray-500">No matching products</td></tr>';
+                    tbody.innerHTML = '<tr data-empty-placeholder="1"><td colspan="12" class="p-3 text-center text-gray-500">No matching products</td></tr>';
                     filteredCountEl.textContent = 0;
                     totalCountEl.textContent = 0;
                     info.classList.remove('hidden');
@@ -594,3 +641,115 @@
     updateSelectedCount();
 })();
 </script>
+
+<?php if (!empty($canManageBarcodes)): ?>
+<script>
+(function () {
+    if (typeof JsBarcode === 'undefined') return;
+
+    const modal = document.getElementById('invBarcodeModal');
+    const nameEl = document.getElementById('invBarcodeProductName');
+    const skuText = document.getElementById('invBarcodeSkuText');
+    const svg = document.getElementById('invBarcodeSvg');
+    const btnGen = document.getElementById('invBarcodeGenBtn');
+    const btnRegen = document.getElementById('invBarcodeRegenBtn');
+    const btnPrint = document.getElementById('invBarcodePrintBtn');
+    const btnClose = document.getElementById('invBarcodeCloseBtn');
+    if (!modal || !svg) return;
+
+    let currentProductId = null;
+
+    function basePath() {
+        return (typeof BASE_URL_PATH !== 'undefined') ? BASE_URL_PATH : (window.APP_BASE_PATH || '');
+    }
+
+    function renderBarcode(value) {
+        const v = (value || '').trim();
+        svg.innerHTML = '';
+        skuText.textContent = v || '—';
+        if (!v) return;
+        try {
+            JsBarcode(svg, v, {
+                format: 'CODE128',
+                width: 2,
+                height: 56,
+                displayValue: true,
+                fontSize: 14,
+                margin: 8
+            });
+        } catch (e) {
+            skuText.textContent = v + ' (could not render — use alphanumeric)';
+        }
+    }
+
+    function updateRowSku(productId, sku) {
+        const row = document.querySelector('tr.inventory-row[data-product-id="' + productId + '"]');
+        if (!row) return;
+        row.setAttribute('data-sku', sku);
+        const cell = row.querySelector('.inv-sku-cell');
+        if (cell) cell.textContent = sku || '—';
+    }
+
+    function setButtonsForSku(hasSku) {
+        if (btnGen) btnGen.classList.toggle('hidden', !!hasSku);
+        if (btnRegen) btnRegen.classList.toggle('hidden', !hasSku);
+    }
+
+    function openModal(productId) {
+        currentProductId = productId;
+        const row = document.querySelector('tr.inventory-row[data-product-id="' + productId + '"]');
+        const name = row ? (row.getAttribute('data-product-name') || row.querySelector('td:nth-child(3)')?.textContent?.trim() || '') : '';
+        let sku = row ? (row.getAttribute('data-sku') || '').trim() : '';
+        nameEl.textContent = name;
+        setButtonsForSku(!!sku);
+        renderBarcode(sku);
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeModal() {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        currentProductId = null;
+    }
+
+    async function callApi(regenerate) {
+        if (!currentProductId) return;
+        const url = basePath() + '/api/inventory/product/' + currentProductId + '/generate-barcode';
+        const res = await fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ regenerate: !!regenerate })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+            alert(data.error || 'Request failed');
+            return;
+        }
+        const sku = data.sku || '';
+        updateRowSku(currentProductId, sku);
+        setButtonsForSku(!!sku);
+        renderBarcode(sku);
+    }
+
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('.inv-barcode-btn');
+        if (!btn) return;
+        e.preventDefault();
+        const id = parseInt(btn.getAttribute('data-id'), 10);
+        if (id) openModal(id);
+    });
+
+    if (btnGen) btnGen.addEventListener('click', function () { callApi(false); });
+    if (btnRegen) btnRegen.addEventListener('click', function () {
+        if (confirm('Generate a new barcode code? The old code will stop working for scans.')) callApi(true);
+    });
+    if (btnPrint) btnPrint.addEventListener('click', function () { window.print(); });
+    if (btnClose) btnClose.addEventListener('click', closeModal);
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeModal();
+    });
+})();
+</script>
+<?php endif; ?>

@@ -16,6 +16,45 @@ class PwaScannerController
         $this->product = new Product();
     }
 
+    /**
+     * Web app manifest — uses APP_URL (production: https://sellapp.store) plus BASE_URL_PATH for subfolders.
+     */
+    public function manifestWebManifest(): void
+    {
+        $origin = rtrim(defined('APP_URL') ? APP_URL : 'https://sellapp.store', '/');
+        $pathPrefix = (defined('BASE_URL_PATH') && BASE_URL_PATH !== '') ? rtrim(BASE_URL_PATH, '/') : '';
+        $base = $pathPrefix !== '' ? ($origin . '/' . $pathPrefix) : $origin;
+
+        if (!headers_sent()) {
+            header('Content-Type: application/manifest+json; charset=utf-8');
+            header('Cache-Control: public, max-age=3600');
+        }
+
+        $data = [
+            'name' => 'SellApp Scanner',
+            'short_name' => 'Scanner',
+            'description' => 'Barcode scanning for POS and inventory',
+            'id' => $base . '/',
+            'start_url' => $base . '/pwa-login',
+            'scope' => $base . '/',
+            'display' => 'standalone',
+            'orientation' => 'portrait-primary',
+            'background_color' => '#f8fafc',
+            'theme_color' => '#f8fafc',
+            'icons' => [
+                [
+                    'src' => $base . '/assets/images/favicon.svg',
+                    'sizes' => 'any',
+                    'type' => 'image/svg+xml',
+                    'purpose' => 'any maskable',
+                ],
+            ],
+        ];
+
+        echo json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     private function getAuthenticatedUser(): ?array
     {
         if (session_status() === PHP_SESSION_NONE) {
