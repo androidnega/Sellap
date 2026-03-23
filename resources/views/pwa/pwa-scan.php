@@ -21,7 +21,11 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
 </head>
 <body class="pwa-body pwa-body--scan">
     <header class="pwa-header pwa-header--barcode">
-        <h1 class="pwa-header__title">Barcode</h1>
+        <nav class="pwa-crumb" aria-label="Breadcrumb">
+            <span class="pwa-crumb__current">Barcode</span>
+            <span class="pwa-crumb__sep" aria-hidden="true">/</span>
+            <button type="button" id="openSettings" class="pwa-crumb__link">Settings</button>
+        </nav>
         <button type="button" id="logoutBtn" class="pwa-btn-text" aria-label="Log out">Out</button>
     </header>
 
@@ -29,14 +33,6 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
         <div class="pwa-camera">
             <video id="video" class="pwa-video" playsinline muted autoplay></video>
             <div class="pwa-scan-sweep" aria-hidden="true"></div>
-            <div class="pwa-camera__toolbar">
-                <label class="pwa-sr-only" for="cameraSelect">Camera</label>
-                <select id="cameraSelect" class="pwa-select-cam" title="Camera"></select>
-            </div>
-            <div class="pwa-camera__bar">
-                <input type="text" id="manualBarcode" inputmode="numeric" autocomplete="off" placeholder="Code" enterkeyhint="go">
-                <button type="button" id="manualLookupBtn" class="pwa-btn-small">Go</button>
-            </div>
         </div>
 
         <div id="salesPanel" class="pwa-panel">
@@ -62,6 +58,21 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
             <button type="button" id="addStockBtn" class="pwa-btn pwa-btn--amber">Add stock</button>
         </div>
     </main>
+
+    <div id="settingsSheet" class="pwa-settings" aria-hidden="true">
+        <button type="button" class="pwa-settings__backdrop" id="settingsBackdrop" aria-label="Close settings"></button>
+        <div class="pwa-settings__panel" role="dialog" aria-labelledby="settingsTitle">
+            <div class="pwa-settings__head">
+                <h2 id="settingsTitle" class="pwa-settings__title">Settings</h2>
+                <button type="button" id="closeSettings" class="pwa-settings__close" aria-label="Close">×</button>
+            </div>
+            <div class="pwa-settings__body">
+                <label class="pwa-settings__label" for="cameraSelect">Camera</label>
+                <select id="cameraSelect" class="pwa-select-cam" title="Camera"></select>
+                <p class="pwa-settings__note">Barcode only. Choose a different camera if the preview is blurry.</p>
+            </div>
+        </div>
+    </div>
 
     <div id="toast" class="pwa-toast" role="status" aria-live="polite"></div>
 
@@ -457,15 +468,20 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
 
     await initScanner();
 
-    document.getElementById('manualLookupBtn').addEventListener('click', () => {
-        const raw = document.getElementById('manualBarcode').value || '';
-        onBarcode(raw);
-    });
-    document.getElementById('manualBarcode').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            onBarcode(e.target.value || '');
-        }
+    const settingsSheet = document.getElementById('settingsSheet');
+    function openSettings() {
+        settingsSheet.classList.add('is-open');
+        settingsSheet.setAttribute('aria-hidden', 'false');
+    }
+    function closeSettings() {
+        settingsSheet.classList.remove('is-open');
+        settingsSheet.setAttribute('aria-hidden', 'true');
+    }
+    document.getElementById('openSettings').addEventListener('click', openSettings);
+    document.getElementById('closeSettings').addEventListener('click', closeSettings);
+    document.getElementById('settingsBackdrop').addEventListener('click', closeSettings);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && settingsSheet.classList.contains('is-open')) closeSettings();
     });
 
     document.getElementById('logoutBtn').addEventListener('click', () => {
