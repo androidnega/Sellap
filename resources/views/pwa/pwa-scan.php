@@ -20,52 +20,30 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
     <link rel="stylesheet" href="<?php echo htmlspecialchars($assetBase . '/assets/css/pwa.css', ENT_QUOTES, 'UTF-8'); ?>">
 </head>
 <body class="pwa-body pwa-body--scan">
-    <header class="pwa-header">
-        <div>
-            <h1>Scanner</h1>
-            <p id="roleLabel" class="pwa-header__sub"></p>
-        </div>
-        <button type="button" id="logoutBtn" class="pwa-btn-text">Log out</button>
+    <header class="pwa-header pwa-header--barcode">
+        <h1 class="pwa-header__title">Barcode</h1>
+        <button type="button" id="logoutBtn" class="pwa-btn-text" aria-label="Log out">Out</button>
     </header>
 
     <main class="pwa-main">
         <div class="pwa-camera">
             <video id="video" class="pwa-video" playsinline muted autoplay></video>
+            <div class="pwa-scan-sweep" aria-hidden="true"></div>
             <div class="pwa-camera__toolbar">
                 <label class="pwa-sr-only" for="cameraSelect">Camera</label>
-                <select id="cameraSelect" class="pwa-select-cam"></select>
+                <select id="cameraSelect" class="pwa-select-cam" title="Camera"></select>
             </div>
-            <div class="pwa-camera__footer">
-                <details class="pwa-fold" open>
-                    <summary class="pwa-fold__summary">Scan type (barcode vs QR)</summary>
-                    <div class="pwa-segment" role="group" aria-label="Scan type">
-                        <button type="button" class="pwa-segment__btn is-active" data-scan-mode="all" id="modeAll">All</button>
-                        <button type="button" class="pwa-segment__btn" data-scan-mode="1d" id="mode1d">Barcode</button>
-                        <button type="button" class="pwa-segment__btn" data-scan-mode="qr" id="modeQr">QR</button>
-                    </div>
-                    <p class="pwa-fold__hint">Phones scan both 1D barcodes and QR codes. Use <strong>Barcode</strong> for shelf labels; <strong>QR</strong> for square codes. Hold steady — move closer if it does not read.</p>
-                    <p id="scanHint" class="pwa-scan-hint">Point the camera at the code. Switch camera above if blurry.</p>
-                </details>
-                <details class="pwa-fold" open>
-                    <summary class="pwa-fold__summary">Or type SKU / barcode</summary>
-                    <div class="pwa-manual-row">
-                        <input type="text" id="manualBarcode" inputmode="text" autocomplete="off" placeholder="SKU, barcode, or QR text">
-                        <button type="button" id="manualLookupBtn" class="pwa-btn-small">Look up</button>
-                    </div>
-                </details>
+            <div class="pwa-camera__bar">
+                <input type="text" id="manualBarcode" inputmode="numeric" autocomplete="off" placeholder="Code" enterkeyhint="go">
+                <button type="button" id="manualLookupBtn" class="pwa-btn-small">Go</button>
             </div>
         </div>
 
-        <!-- Sales -->
         <div id="salesPanel" class="pwa-panel">
-            <div id="lastProduct" class="pwa-card pwa-card--min4">
-                <p class="pwa-card__label">Last scan</p>
-                <p id="lastProductText" class="pwa-card__body">—</p>
-            </div>
             <div class="pwa-cart">
                 <div class="pwa-cart__head">
                     <span>Cart</span>
-                    <span id="cartCount" class="pwa-cart__count">0 items</span>
+                    <span id="cartCount" class="pwa-cart__count">0</span>
                 </div>
                 <ul id="cartList" class="pwa-cart__list"></ul>
                 <div class="pwa-cart__total">
@@ -73,18 +51,15 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                     <strong id="cartTotal">0.00</strong>
                 </div>
             </div>
-            <button type="button" id="checkoutBtn" class="pwa-btn pwa-btn--emerald">Checkout</button>
+            <button type="button" id="checkoutBtn" class="pwa-btn pwa-btn--emerald">Pay</button>
         </div>
 
-        <!-- Stock -->
         <div id="stockPanel" class="pwa-panel">
-            <div id="stockProduct" class="pwa-card pwa-card--min5">
-                <p class="pwa-card__label">Product</p>
-                <p id="stockProductText" class="pwa-card__body">Scan a barcode to select a product</p>
+            <div id="stockProduct" class="pwa-card pwa-card--stock">
+                <p id="stockProductText" class="pwa-card__body">—</p>
             </div>
-            <label class="pwa-label" for="stockQty">Quantity to add</label>
-            <input type="number" id="stockQty" min="1" value="1" class="pwa-input pwa-input--amber">
-            <button type="button" id="addStockBtn" class="pwa-btn pwa-btn--amber">Add to inventory</button>
+            <input type="number" id="stockQty" min="1" value="1" class="pwa-input pwa-input--amber" aria-label="Qty">
+            <button type="button" id="addStockBtn" class="pwa-btn pwa-btn--amber">Add stock</button>
         </div>
     </main>
 
@@ -105,9 +80,6 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
     }
 
     const isStockMode = ['manager', 'admin', 'system_admin'].includes(user.role);
-
-    document.getElementById('roleLabel').textContent =
-        isStockMode ? 'Restock mode' : 'Point of sale';
 
     function toast(msg, ok = true) {
         const el = document.getElementById('toast');
@@ -145,10 +117,20 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
         } catch (e) {}
     }
     function beepScan() {
-        beepTone(880, 0.06, 0.08);
+        beepTone(880, 0.06, 0.07);
     }
-    function beep() {
-        beepTone(660, 0.08, 0.09);
+
+    /** One beep per scan burst — avoids stacked beeps from repeated decode frames */
+    let lastBeepAt = 0;
+    const BEEP_MIN_GAP_MS = 2200;
+    function maybeBeep() {
+        const t = Date.now();
+        if (t - lastBeepAt < BEEP_MIN_GAP_MS) return;
+        lastBeepAt = t;
+        beepScan();
+        try {
+            if (navigator.vibrate) navigator.vibrate(35);
+        } catch (e) {}
     }
 
     async function fetchAuth(url, opts = {}) {
@@ -213,7 +195,7 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                 saveCart(next);
             });
         });
-        document.getElementById('cartCount').textContent = items.length + ' line(s)';
+        document.getElementById('cartCount').textContent = String(items.length);
         document.getElementById('cartTotal').textContent = total.toFixed(2);
         document.getElementById('checkoutBtn').disabled = items.length === 0;
     }
@@ -232,25 +214,32 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
     let lastScanAt = 0;
     function dedupe(code) {
         const now = Date.now();
-        if (code === lastScan && now - lastScanAt < 1200) return false;
+        if (code === lastScan && now - lastScanAt < 1800) return false;
         lastScan = code;
         lastScanAt = now;
         return true;
     }
 
-    // --- ZXing: HD stream, TRY_HARDER, barcode vs QR modes, rear camera default ---
+    // --- ZXing: 1D barcodes only, primary rear camera, TRY_HARDER ---
     let reader = null;
-    let scanMode = 'all';
     const videoEl = document.getElementById('video');
     const cameraSelect = document.getElementById('cameraSelect');
-    const scanHintEl = document.getElementById('scanHint');
 
-    function pickDefaultDeviceIndex(devices) {
+    /** Prefer main/primary/wide back camera; avoid ultra-wide, tele, macro, front */
+    function pickPrimaryCameraIndex(devices) {
         if (!devices || !devices.length) return 0;
-        const labels = devices.map((d, i) => ({ i, label: (d.label || '').toLowerCase() }));
-        const hit = labels.find(({ label }) =>
-            /back|rear|environment|wide|ultra|tele|photo|main|world/.test(label));
-        if (hit) return hit.i;
+        const scored = devices.map((d, i) => {
+            const label = (d.label || '').toLowerCase();
+            let s = 0;
+            if (/face|front|selfie|user|portrait/.test(label)) s -= 200;
+            if (/ultra|telephoto|tele\b|macro|depth|virtual|lid|narrow|fisheye/.test(label)) s -= 40;
+            if (/primary|main\b|wide angle(?!.*ultra)|back camera|rear|environment/.test(label)) s += 50;
+            if (/\bwide\b/.test(label) && !/ultra/.test(label)) s += 30;
+            if (/back|rear|environment|world/.test(label)) s += 15;
+            return { i, s };
+        });
+        scored.sort((a, b) => b.s - a.s);
+        if (scored[0].s > -80) return scored[0].i;
         return Math.max(0, devices.length - 1);
     }
 
@@ -302,11 +291,7 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
             function buildReader() {
                 const hints = new Map();
                 hints.set(DecodeHintType.TRY_HARDER, true);
-                if (scanMode === '1d') {
-                    hints.set(DecodeHintType.POSSIBLE_FORMATS, FORMATS_1D);
-                } else if (scanMode === 'qr') {
-                    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE]);
-                }
+                hints.set(DecodeHintType.POSSIBLE_FORMATS, FORMATS_1D);
                 return new BrowserMultiFormatReader(hints);
             }
 
@@ -320,7 +305,7 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                 devices = await BrowserCodeReader.listVideoInputDevices();
             }
             if (!devices.length) {
-                scanHintEl.textContent = 'No camera found. Allow camera access and reload.';
+                toast('No camera — allow access and reload', false);
                 return;
             }
 
@@ -332,7 +317,7 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                     opt.textContent = (d.label && d.label.trim()) ? d.label : ('Camera ' + (idx + 1));
                     cameraSelect.appendChild(opt);
                 });
-                const defIdx = pickDefaultDeviceIndex(devices);
+                const defIdx = pickPrimaryCameraIndex(devices);
                 cameraSelect.selectedIndex = defIdx;
                 cameraSelect.addEventListener('change', () => {
                     const id = cameraSelect.value;
@@ -356,12 +341,7 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                     }
                     text = (text || '').trim();
                     if (!text) return;
-                    try {
-                        if (navigator.vibrate) navigator.vibrate(40);
-                    } catch (e) {}
-                    beepScan();
-                    scanHintEl.textContent = 'Read code: ' + text + ' — looking up…';
-                    onBarcode(text, { fromCamera: true });
+                    onBarcode(text);
                     return;
                 }
                 if (err) {
@@ -376,8 +356,6 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                 try {
                     BrowserCodeReader.releaseAllStreams();
                 } catch (e) { /* noop */ }
-                scanHintEl.textContent = 'Starting camera…';
-
                 const strictConstraints = {
                     video: {
                         deviceId: { exact: deviceId },
@@ -410,58 +388,34 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                     try {
                         await reader.decodeFromVideoDevice(deviceId, videoEl, decodeCallback);
                     } catch (e2) {
-                        scanHintEl.textContent = 'Camera error: ' + (e2.message || e1.message || 'unknown');
+                        toast('Camera: ' + (e2.message || e1.message || 'error'), false);
                         throw e2;
                     }
                 }
                 setTimeout(applyVideoEnhancements, 300);
-                scanHintEl.textContent = 'Point at the code — center it in the frame for distance scanning';
             };
 
-            await startWithDevice(cameraSelect.value || devices[pickDefaultDeviceIndex(devices)].deviceId);
-
-            document.querySelectorAll('[data-scan-mode]').forEach((btn) => {
-                btn.onclick = async () => {
-                    const mode = btn.getAttribute('data-scan-mode');
-                    if (!mode || mode === scanMode) return;
-                    scanMode = mode;
-                    document.querySelectorAll('[data-scan-mode]').forEach((b) => {
-                        b.classList.toggle('is-active', b.getAttribute('data-scan-mode') === mode);
-                    });
-                    scanHintEl.textContent = 'Updating scan mode…';
-                    try {
-                        await startWithDevice(cameraSelect.value);
-                    } catch (e) {
-                        console.error(e);
-                    }
-                };
-            });
+            await startWithDevice(cameraSelect.value || devices[pickPrimaryCameraIndex(devices)].deviceId);
         } catch (e) {
             console.error(e);
-            scanHintEl.textContent = e.message
-                ? ('Camera: ' + e.message)
-                : 'Could not start scanner. Allow camera access and reload.';
+            toast(e.message ? ('Camera: ' + e.message) : 'Camera unavailable', false);
         }
     }
 
     let selectedProduct = null;
 
-    async function onBarcode(text, opts = {}) {
-        const fromCamera = !!opts.fromCamera;
+    async function onBarcode(text) {
         const code = (text || '').trim();
         if (!code || !dedupe(code)) return;
-        scanHintEl.textContent = 'Looking up: ' + code;
         try {
             const p = await lookupProduct(code);
-            if (!fromCamera) beep();
+            maybeBeep();
             if (isStockMode) {
                 selectedProduct = p;
                 document.getElementById('stockProductText').innerHTML =
-                    `<strong>${escapeHtml(p.name)}</strong><br><span class="pwa-muted">Stock: ${p.quantity} · Price: ${Number(p.price).toFixed(2)}</span>`;
-                toast('Product loaded — set quantity', true);
+                    `<strong>${escapeHtml(p.name)}</strong><br><span class="pwa-muted">${p.quantity} · ${Number(p.price).toFixed(2)}</span>`;
+                toast('OK', true);
             } else {
-                document.getElementById('lastProductText').innerHTML =
-                    `<strong>${escapeHtml(p.name)}</strong><br><span class="pwa-muted">${p.quantity} in stock · ${Number(p.price).toFixed(2)} each</span>`;
                 const cart = loadCart();
                 const ix = cart.findIndex((c) => c.product_id === p.id);
                 const unit = Number(p.price);
@@ -480,12 +434,10 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                     });
                 }
                 saveCart(cart);
-                toast('Added to cart', true);
+                toast('Added', true);
             }
         } catch (e) {
-            toast(e.message || 'Scan failed', false);
-        } finally {
-            scanHintEl.textContent = 'Point at the code — center it in the frame; switch camera if blurry';
+            toast(e.message || 'Not found', false);
         }
     }
 
@@ -507,12 +459,12 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
 
     document.getElementById('manualLookupBtn').addEventListener('click', () => {
         const raw = document.getElementById('manualBarcode').value || '';
-        onBarcode(raw, { fromCamera: false });
+        onBarcode(raw);
     });
     document.getElementById('manualBarcode').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            onBarcode(e.target.value || '', { fromCamera: false });
+            onBarcode(e.target.value || '');
         }
     });
 
@@ -550,8 +502,7 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
             }
             localStorage.removeItem(CART_KEY);
             renderCart();
-            toast('Sale recorded', true);
-            document.getElementById('lastProductText').textContent = '—';
+            toast('Done', true);
         } catch (e) {
             toast(e.message || 'Checkout failed', false);
         }
@@ -581,8 +532,8 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                 document.getElementById('stockProductText').innerHTML =
                     `<strong>${escapeHtml(j.product.name)}</strong><br><span class="pwa-muted">Stock: ${j.product.quantity} · Price: ${Number(j.product.price).toFixed(2)}</span>`;
             }
-            beep();
-            toast('Stock updated', true);
+            maybeBeep();
+            toast('Updated', true);
         } catch (e) {
             toast(e.message || 'Failed', false);
         }
