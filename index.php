@@ -88,7 +88,7 @@ $requestPath = parse_url($requestUri, PHP_URL_PATH);
 $requestPath = strtok($requestPath, '?');
 
 // Check if this is a static asset request by extension or path
-$staticExtensions = ['css', 'js', 'jpg', 'jpeg', 'png', 'gif', 'ico', 'svg', 'woff', 'woff2', 'ttf', 'eot', 'pdf', 'zip', 'mp4', 'mp3'];
+$staticExtensions = ['css', 'js', 'jpg', 'jpeg', 'png', 'gif', 'ico', 'svg', 'woff', 'woff2', 'ttf', 'eot', 'pdf', 'zip', 'mp4', 'mp3', 'json', 'webmanifest'];
 $extension = strtolower(pathinfo($requestPath, PATHINFO_EXTENSION));
 $isStaticFile = in_array($extension, $staticExtensions) || strpos($requestPath, 'assets/') !== false;
 
@@ -143,7 +143,9 @@ if ($isStaticFile) {
             'pdf' => 'application/pdf',
             'zip' => 'application/zip',
             'mp4' => 'video/mp4',
-            'mp3' => 'audio/mpeg'
+            'mp3' => 'audio/mpeg',
+            'json' => 'application/json',
+            'webmanifest' => 'application/manifest+json'
         ];
         
         $mimeType = $mimeTypes[$extension] ?? 'application/octet-stream';

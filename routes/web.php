@@ -306,6 +306,41 @@ $router->get('api/auth/validate', function() {
     }
 });
 
+// ========================================
+// PWA Scanner (mobile) — pages + JSON API
+// ========================================
+$router->get('pwa-login', function() {
+    require VIEWS_PATH . '/pwa/pwa-login.php';
+});
+$router->get('pwa-scan', function() {
+    require VIEWS_PATH . '/pwa/pwa-scan.php';
+});
+
+$router->get('api/pwa/products/by-barcode', function() {
+    $c = new \App\Controllers\PwaScannerController();
+    $c->lookupByBarcode();
+});
+$router->get('api/products/find-by-barcode', function() {
+    $c = new \App\Controllers\PwaScannerController();
+    $c->lookupByBarcode();
+});
+$router->post('api/pwa/pos/scan-add', function() {
+    $c = new \App\Controllers\PwaScannerController();
+    $c->scanAdd();
+});
+$router->post('api/pos/scan-add', function() {
+    $c = new \App\Controllers\PwaScannerController();
+    $c->scanAdd();
+});
+$router->post('api/pwa/inventory/add', function() {
+    $c = new \App\Controllers\PwaScannerController();
+    $c->addInventoryStock();
+});
+$router->post('api/inventory/add', function() {
+    $c = new \App\Controllers\PwaScannerController();
+    $c->addInventoryStock();
+});
+
 // Database connection test endpoint (for debugging)
 $router->get('api/test/db', function() {
     header('Content-Type: application/json');
