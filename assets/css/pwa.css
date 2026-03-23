@@ -176,28 +176,35 @@
   background: #fff;
 }
 
-/* Camera block */
+/* Camera block — tall preview on phones so barcodes read sharper (less tiny upscale blur) */
 .pwa-camera {
   position: relative;
   background: #000;
   width: 100%;
-  height: 10rem;
-  max-height: 42vh;
   flex-shrink: 0;
   overflow: hidden;
   border-bottom: 1px solid #e5e7eb;
+  /* Mobile: most of the upper screen for the live feed */
+  height: min(62vh, 30rem);
+  min-height: 16rem;
+  max-height: 75vh;
 }
 
 @media (min-width: 640px) {
   .pwa-camera {
-    height: 12rem;
+    height: min(48vh, 22rem);
+    min-height: 13rem;
+    max-height: 60vh;
   }
 }
 
 .pwa-video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* contain = full frame visible, better for 1D barcodes; slight letterboxing */
+  object-fit: contain;
+  object-position: center center;
+  background: #000;
 }
 
 .pwa-camera__toolbar {
