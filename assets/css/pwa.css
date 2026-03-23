@@ -191,16 +191,16 @@ html.pwa-root {
   overflow: hidden;
   border-bottom: 1px solid #e5e7eb;
   /* Mobile: large preview helps decode at a distance (more pixels on target) */
-  height: min(58vh, 28rem);
-  min-height: 14rem;
-  max-height: 72vh;
+  height: min(64vh, 32rem);
+  min-height: 16rem;
+  max-height: 78vh;
 }
 
 @media (min-width: 640px) {
   .pwa-camera {
-    height: min(46vh, 22rem);
-    min-height: 13rem;
-    max-height: 58vh;
+    height: min(52vh, 24rem);
+    min-height: 14rem;
+    max-height: 64vh;
   }
 }
 
