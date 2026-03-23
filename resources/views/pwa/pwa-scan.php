@@ -28,10 +28,14 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
     </header>
 
     <main class="flex-1 flex flex-col min-h-0 bg-white">
-        <div class="relative bg-white w-full h-28 max-h-[22vh] sm:h-32 sm:max-h-[26vh] shrink-0 overflow-hidden border-b border-gray-200">
-            <video id="video" class="w-full h-full object-cover" playsinline muted></video>
+        <div class="relative bg-black w-full h-40 max-h-[42vh] sm:h-48 shrink-0 overflow-hidden border-b border-gray-200">
+            <video id="video" class="w-full h-full object-cover" playsinline muted autoplay></video>
+            <div class="absolute top-1 left-1 right-1 flex items-center gap-2 z-10">
+                <label class="sr-only" for="cameraSelect">Camera</label>
+                <select id="cameraSelect" class="text-xs flex-1 min-w-0 rounded-md border border-gray-300 bg-white/95 px-2 py-1.5 text-gray-800 shadow-sm max-w-[85%]"></select>
+            </div>
             <div class="absolute inset-x-0 bottom-0 p-2 bg-white/95 backdrop-blur-sm border-t border-gray-100">
-                <p id="scanHint" class="text-xs text-gray-700 text-center">Point the camera at a barcode</p>
+                <p id="scanHint" class="text-xs text-gray-700 text-center">Point the camera at a barcode — use the menu above if the image is blurry</p>
             </div>
         </div>
 
@@ -196,13 +200,128 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
         return true;
     }
 
-    // --- ZXing (@zxing/browser) ---
-    let reader;
-    try {
-        const z = await import('https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/+esm');
-        reader = new z.BrowserMultiFormatReader();
-    } catch (e) {
-        document.getElementById('scanHint').textContent = 'Could not load scanner library. Check your connection.';
+    // --- ZXing: HD stream, rear camera default, multi-camera switch ---
+    let reader = null;
+    const videoEl = document.getElementById('video');
+    const cameraSelect = document.getElementById('cameraSelect');
+    const scanHintEl = document.getElementById('scanHint');
+
+    function pickDefaultDeviceIndex(devices) {
+        if (!devices || !devices.length) return 0;
+        const labels = devices.map((d, i) => ({ i, label: (d.label || '').toLowerCase() }));
+        const hit = labels.find(({ label }) =>
+            /back|rear|environment|wide|ultra|tele|photo|main|world/.test(label));
+        if (hit) return hit.i;
+        return Math.max(0, devices.length - 1);
+    }
+
+    async function ensureCameraPermission() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('Camera not supported in this browser');
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
+            },
+            audio: false,
+        });
+        stream.getTracks().forEach((t) => t.stop());
+    }
+
+    async function initScanner() {
+        try {
+            const { BrowserMultiFormatReader, BrowserCodeReader } = await import('https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/+esm');
+            reader = new BrowserMultiFormatReader();
+
+            await ensureCameraPermission();
+
+            let devices = await BrowserCodeReader.listVideoInputDevices();
+            if (!devices.length) {
+                await new Promise((r) => setTimeout(r, 400));
+                devices = await BrowserCodeReader.listVideoInputDevices();
+            }
+            if (!devices.length) {
+                scanHintEl.textContent = 'No camera found. Allow camera access and reload.';
+                return;
+            }
+
+            cameraSelect.innerHTML = '';
+            devices.forEach((d, idx) => {
+                const opt = document.createElement('option');
+                opt.value = d.deviceId;
+                opt.textContent = (d.label && d.label.trim()) ? d.label : ('Camera ' + (idx + 1));
+                cameraSelect.appendChild(opt);
+            });
+
+            const defIdx = pickDefaultDeviceIndex(devices);
+            cameraSelect.selectedIndex = defIdx;
+
+            const decodeCallback = (result, err) => {
+                if (result) {
+                    let text = '';
+                    try {
+                        text = typeof result.getText === 'function' ? result.getText() : String(result);
+                    } catch (e) {
+                        return;
+                    }
+                    text = (text || '').trim();
+                    if (text) onBarcode(text);
+                    return;
+                }
+                if (err) {
+                    const n = err.name || (err.constructor && err.constructor.name) || '';
+                    if (n === 'NotFoundException') return;
+                }
+            };
+
+            const startWithDevice = async (deviceId) => {
+                if (!reader || !deviceId) return;
+                try {
+                    BrowserCodeReader.releaseAllStreams();
+                } catch (e) { /* noop */ }
+                scanHintEl.textContent = 'Starting camera…';
+
+                const constraints = {
+                    video: {
+                        deviceId: { exact: deviceId },
+                        width: { ideal: 1920, min: 640 },
+                        height: { ideal: 1080, min: 480 },
+                        frameRate: { ideal: 30, max: 60 },
+                    },
+                    audio: false,
+                };
+
+                try {
+                    if (typeof reader.decodeFromConstraints === 'function') {
+                        await reader.decodeFromConstraints(constraints, videoEl, decodeCallback);
+                    } else {
+                        await reader.decodeFromVideoDevice(deviceId, videoEl, decodeCallback);
+                    }
+                } catch (e1) {
+                    try {
+                        await reader.decodeFromVideoDevice(deviceId, videoEl, decodeCallback);
+                    } catch (e2) {
+                        scanHintEl.textContent = 'Camera error: ' + (e2.message || e1.message || 'unknown');
+                        throw e2;
+                    }
+                }
+                scanHintEl.textContent = 'Point the camera at a barcode — switch camera above if blurry';
+            };
+
+            cameraSelect.addEventListener('change', () => {
+                const id = cameraSelect.value;
+                if (id) startWithDevice(id);
+            });
+
+            await startWithDevice(devices[defIdx].deviceId);
+        } catch (e) {
+            console.error(e);
+            scanHintEl.textContent = e.message
+                ? ('Camera: ' + e.message)
+                : 'Could not start scanner. Allow camera access and reload.';
+        }
     }
 
     let selectedProduct = null;
@@ -210,6 +329,7 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
     async function onBarcode(text) {
         const code = (text || '').trim();
         if (!code || !dedupe(code)) return;
+        scanHintEl.textContent = 'Looking up: ' + code;
         try {
             const p = await lookupProduct(code);
             beep();
@@ -243,6 +363,8 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
             }
         } catch (e) {
             toast(e.message || 'Scan failed', false);
+        } finally {
+            scanHintEl.textContent = 'Point the camera at a barcode — switch camera above if blurry';
         }
     }
 
@@ -252,13 +374,7 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
         return d.innerHTML;
     }
 
-    if (reader) {
-        reader.decodeFromVideoDevice(null, 'video', (result, err) => {
-            if (result) {
-                onBarcode(result.getText());
-            }
-        });
-    }
+    await initScanner();
 
     // Panels
     if (isStockMode) {
