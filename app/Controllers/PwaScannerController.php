@@ -39,8 +39,8 @@ class PwaScannerController
             'scope' => $base . '/',
             'display' => 'standalone',
             'orientation' => 'portrait-primary',
-            'background_color' => '#f8fafc',
-            'theme_color' => '#f8fafc',
+            'background_color' => '#ffffff',
+            'theme_color' => '#ffffff',
             'icons' => [
                 [
                     'src' => $base . '/assets/images/favicon.svg',

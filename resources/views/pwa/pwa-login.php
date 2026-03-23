@@ -9,11 +9,11 @@ if (!defined('BASE_URL_PATH')) {
 $base = rtrim(BASE_URL_PATH, '/');
 $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
 ?><!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-50 text-slate-900">
+<html lang="en" class="h-full bg-white text-gray-900">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#f8fafc">
+    <meta name="theme-color" content="#ffffff">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>SellApp Scanner — Sign in</title>
@@ -21,22 +21,22 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
     <link rel="apple-touch-icon" href="<?php echo htmlspecialchars($assetBase . '/assets/images/favicon.svg', ENT_QUOTES, 'UTF-8'); ?>">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="h-full min-h-[100dvh] flex flex-col items-center justify-center p-6">
+<body class="h-full min-h-[100dvh] flex flex-col items-center justify-center p-6 bg-white">
     <div class="w-full max-w-sm space-y-8">
         <div class="text-center space-y-2">
-            <h1 class="text-2xl font-semibold tracking-tight">SellApp Scanner</h1>
-            <p class="text-sm text-slate-600">Sign in with your username or email</p>
+            <h1 class="text-2xl font-semibold tracking-tight text-gray-900">SellApp Scanner</h1>
+            <p class="text-sm text-gray-600">Sign in with your username or email</p>
         </div>
         <form id="loginForm" class="space-y-4">
             <div>
-                <label class="block text-xs font-medium text-slate-600 mb-1">Username or email</label>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Username or email</label>
                 <input type="text" name="username" autocomplete="username" required
-                    class="w-full rounded-xl bg-white border border-slate-300 px-4 py-3 text-base text-slate-900 shadow-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none">
+                    class="w-full rounded-xl bg-white border border-gray-200 px-4 py-3 text-base text-gray-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-400 outline-none">
             </div>
             <div>
-                <label class="block text-xs font-medium text-slate-600 mb-1">Password</label>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Password</label>
                 <input type="password" name="password" autocomplete="current-password" required
-                    class="w-full rounded-xl bg-white border border-slate-300 px-4 py-3 text-base text-slate-900 shadow-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none">
+                    class="w-full rounded-xl bg-white border border-gray-200 px-4 py-3 text-base text-gray-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-400 outline-none">
             </div>
             <p id="err" class="text-sm text-red-600 hidden"></p>
             <button type="submit" id="btn"
