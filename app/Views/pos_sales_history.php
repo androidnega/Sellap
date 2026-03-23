@@ -1139,6 +1139,10 @@ async function viewSaleDetails(saleId) {
             if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(sd);
             sd.classList.remove('hidden');
             if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
+            if (typeof window.resetModalOverlayScroll === 'function') window.resetModalOverlayScroll(sd);
+            requestAnimationFrame(function() {
+                if (typeof window.resetModalOverlayScroll === 'function') window.resetModalOverlayScroll(sd);
+            });
         } else {
             alert('Error: ' + (data.error || data.message || 'Failed to load sale details'));
             console.error('Failed to load sale details:', data);
@@ -1201,6 +1205,10 @@ async function openPaymentModal(saleId) {
             if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(pm);
             pm.classList.remove('hidden');
             if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
+            if (typeof window.resetModalOverlayScroll === 'function') window.resetModalOverlayScroll(pm);
+            requestAnimationFrame(function() {
+                if (typeof window.resetModalOverlayScroll === 'function') window.resetModalOverlayScroll(pm);
+            });
         } else {
             alert('Error: ' + (data.message || 'Failed to load payment information'));
         }

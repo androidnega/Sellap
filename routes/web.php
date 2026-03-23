@@ -319,6 +319,11 @@ $router->get('pwa/manifest.webmanifest', function() {
     $c = new \App\Controllers\PwaScannerController();
     $c->manifestWebManifest();
 });
+// Manifest via /api/ so servers with a real /pwa/ directory still get PHP (avoids 404).
+$router->get('api/pwa/manifest.webmanifest', function() {
+    $c = new \App\Controllers\PwaScannerController();
+    $c->manifestWebManifest();
+});
 
 $router->get('api/pwa/products/by-barcode', function() {
     $c = new \App\Controllers\PwaScannerController();

@@ -580,6 +580,14 @@ function moveModalToViewport(modalEl) {
         document.body.appendChild(modalEl);
     }
 }
+/** After showing a dashboard modal: keep overlay scrolled to top so the panel stays centered in view. */
+function afterModalShown(modalEl) {
+    if (!modalEl || typeof window.resetModalOverlayScroll !== 'function') return;
+    window.resetModalOverlayScroll(modalEl);
+    requestAnimationFrame(function() {
+        window.resetModalOverlayScroll(modalEl);
+    });
+}
 
 // Global error modal function - shows centered modal for errors
 function showErrorModal(message) {
@@ -593,6 +601,7 @@ function showErrorModal(message) {
         moveModalToViewport(errorModal);
         errorModal.classList.remove('hidden');
         if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
+        afterModalShown(errorModal);
     } else {
         // Fallback to alert if modal doesn't exist
         alert(message);
@@ -634,6 +643,7 @@ document.addEventListener('DOMContentLoaded', function() {
             moveModalToViewport(modal);
             modal.classList.remove('hidden');
             if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
+            afterModalShown(modal);
         });
     }
 
@@ -817,6 +827,7 @@ async function viewCustomer(customerId) {
             moveModalToViewport(viewEl);
             viewEl.classList.remove('hidden');
             if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
+            afterModalShown(viewEl);
         } else {
             if (typeof showNotification === 'function') {
                 showNotification(result.error || 'Failed to load customer details', 'error');
@@ -843,6 +854,7 @@ async function viewCustomerHistory(customerId, customerName) {
     moveModalToViewport(histEl);
     histEl.classList.remove('hidden');
     if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
+    afterModalShown(histEl);
     
     // Load history
     await loadCustomerHistory(customerId);
@@ -1035,6 +1047,7 @@ async function editCustomer(customerId) {
             moveModalToViewport(editEl);
             editEl.classList.remove('hidden');
             if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
+            afterModalShown(editEl);
         } else {
             showNotification(result.error || 'Failed to load customer details', 'error');
         }

@@ -596,6 +596,10 @@ async function openPaymentModal(saleId) {
             if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(pm);
             pm.classList.remove('hidden');
             if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
+            if (typeof window.resetModalOverlayScroll === 'function') window.resetModalOverlayScroll(pm);
+            requestAnimationFrame(function() {
+                if (typeof window.resetModalOverlayScroll === 'function') window.resetModalOverlayScroll(pm);
+            });
         } else {
             alert('Error: ' + (data.message || 'Failed to load payment information'));
         }
@@ -729,6 +733,10 @@ async function viewPaymentHistory(saleId) {
             if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(ph);
             ph.classList.remove('hidden');
             if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
+            if (typeof window.resetModalOverlayScroll === 'function') window.resetModalOverlayScroll(ph);
+            requestAnimationFrame(function() {
+                if (typeof window.resetModalOverlayScroll === 'function') window.resetModalOverlayScroll(ph);
+            });
         } else {
             alert('Error: ' + (data.message || 'Failed to load payment history'));
         }

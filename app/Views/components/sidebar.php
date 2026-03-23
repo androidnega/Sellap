@@ -147,7 +147,7 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
 <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <!-- Sidebar -->
-<div id="sidebar" class="sidebar loading h-screen p-4 overflow-y-auto relative" style="background: <?= $config['color'] ?>;">
+<div id="sidebar" class="sidebar loading h-screen p-4 relative" style="background: <?= $config['color'] ?>;">
     <div class="flex items-center mb-6">
         <i class="<?= $config['icon'] ?> text-lg mr-3 sidebar-text flex-shrink-0" style="width: 1.25rem; min-width: 1.25rem;"></i>
         <div class="min-w-0 flex-1">
@@ -304,6 +304,18 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
 <div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <style>
+    /* Scroll long nav lists without showing a scrollbar (all roles) */
+    #sidebar.sidebar {
+        overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+    }
+    #sidebar.sidebar::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
     .sidebar-text {
         color: rgba(255, 255, 255, 0.8);
         transition: color 0.2s ease;

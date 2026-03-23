@@ -46,6 +46,15 @@
                 document.body.appendChild(modalEl);
             }
             modalEl.classList.add('modal-viewport-layer');
+            if (typeof window.resetModalOverlayScroll === 'function') {
+                window.resetModalOverlayScroll(modalEl);
+            }
+        };
+        /** Reset overlay scroll so the dialog stays visually centered (viewport), not below the fold. */
+        window.resetModalOverlayScroll = function(modalEl) {
+            if (!modalEl) return;
+            modalEl.scrollTop = 0;
+            modalEl.scrollLeft = 0;
         };
         /** Lock background scroll (use class, not body { position:fixed } — avoids scroll-jump bugs). */
         window.setDashboardModalScrollLock = function(locked) {
@@ -123,24 +132,30 @@
             position: relative;
         }
         
-        /* Sidebar styles - Fixed position */
+        /* Sidebar — scrollable but scrollbar hidden (all roles / managers) */
+        #sidebar.sidebar,
         .sidebar {
             position: fixed;
             top: 0;
             left: 0;
             width: 14rem; /* w-56 - increased from 12rem */
             height: 100vh;
+            height: 100dvh;
             overflow-y: auto;
             overflow-x: hidden;
             flex-shrink: 0;
             z-index: 40;
-            /* Hide scrollbar but keep functionality */
-            scrollbar-width: none; /* Firefox */
-            -ms-overflow-style: none; /* IE and Edge */
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none !important; /* Firefox */
+            -ms-overflow-style: none !important; /* IE/Edge legacy */
         }
         
+        #sidebar.sidebar::-webkit-scrollbar,
         .sidebar::-webkit-scrollbar {
-            display: none; /* Chrome, Safari, Opera */
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            background: transparent !important;
         }
         
         .main-content-container {
@@ -292,7 +307,7 @@
             }
         }
         
-        /* Viewport modal shell (Tailwind supplies flex/center/bg; this enforces true viewport box + z-index) */
+        /* Viewport modal shell (Tailwind: flex items-center justify-center + min-h on same node) */
         .modal-viewport-layer {
             position: fixed !important;
             inset: 0 !important;
@@ -307,6 +322,10 @@
         /* Do NOT use body.modal-open { position: fixed } — it resets scroll / shifts layout */
         html.modal-open,
         body.modal-open {
+            overflow: hidden !important;
+        }
+        html.modal-open main,
+        body.modal-open main {
             overflow: hidden !important;
         }
         
