@@ -147,8 +147,8 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
 <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <!-- Sidebar -->
-<div id="sidebar" class="sidebar loading h-screen p-4 relative" style="background: <?= $config['color'] ?>;">
-    <div class="flex items-center mb-6">
+<div id="sidebar" class="sidebar loading h-screen min-h-0 p-4 relative flex flex-col overflow-hidden" style="background: <?= $config['color'] ?>;">
+    <div class="flex items-center mb-6 flex-shrink-0">
         <i class="<?= $config['icon'] ?> text-lg mr-3 sidebar-text flex-shrink-0" style="width: 1.25rem; min-width: 1.25rem;"></i>
         <div class="min-w-0 flex-1">
             <h1 class="text-sm font-semibold sidebar-text truncate"><?= $config['title'] ?></h1>
@@ -156,6 +156,8 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
         </div>
     </div>
     
+    <!-- Inner scroll: scrollbar hidden via CSS (outer #sidebar stays overflow:hidden so no gutter shows) -->
+    <div class="sidebar-nav-scroll flex-1 min-h-0 overflow-y-auto overscroll-y-contain">
     <nav class="space-y-1">
         <?php if ($userRole === 'system_admin'): ?>
             <!-- System Admin Navigation -->
@@ -293,6 +295,7 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
             <span class="sidebar-text">Logout</span>
         </a>
     </nav>
+    </div>
     
     <!-- Close button for mobile -->
     <button class="md:hidden absolute top-4 right-4 text-white hover:text-gray-200 transition-colors z-10" onclick="closeSidebar()" aria-label="Close sidebar">
@@ -304,17 +307,24 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
 <div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <style>
-    /* Scroll long nav lists without showing a scrollbar (all roles) */
-    #sidebar.sidebar {
-        overflow-y: auto;
-        overflow-x: hidden;
-        scrollbar-width: none !important;
+    /* Scroll lives on .sidebar-nav-scroll only; scrollbar visually hidden (Chrome/Firefox/Safari) */
+    #sidebar .sidebar-nav-scroll,
+    .sidebar-nav-scroll {
+        scrollbar-width: none !important; /* Firefox */
         -ms-overflow-style: none !important;
+        scrollbar-color: transparent transparent;
     }
-    #sidebar.sidebar::-webkit-scrollbar {
+    #sidebar .sidebar-nav-scroll::-webkit-scrollbar,
+    .sidebar-nav-scroll::-webkit-scrollbar {
         display: none !important;
         width: 0 !important;
+        max-width: 0 !important;
         height: 0 !important;
+        background: transparent !important;
+    }
+    #sidebar .sidebar-nav-scroll::-webkit-scrollbar-thumb,
+    .sidebar-nav-scroll::-webkit-scrollbar-thumb {
+        background: transparent !important;
     }
     .sidebar-text {
         color: rgba(255, 255, 255, 0.8);

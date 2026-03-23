@@ -132,30 +132,46 @@
             position: relative;
         }
         
-        /* Sidebar — scrollable but scrollbar hidden (all roles / managers) */
-        #sidebar.sidebar,
+        /* Sidebar: #sidebar uses inner .sidebar-nav-scroll for scroll so outer has no visible gutter */
         .sidebar {
             position: fixed;
             top: 0;
             left: 0;
-            width: 14rem; /* w-56 - increased from 12rem */
+            width: 14rem; /* w-56 */
             height: 100vh;
             height: 100dvh;
-            overflow-y: auto;
             overflow-x: hidden;
+            overflow-y: auto; /* legacy layouts without inner wrapper */
             flex-shrink: 0;
             z-index: 40;
             -webkit-overflow-scrolling: touch;
-            scrollbar-width: none !important; /* Firefox */
-            -ms-overflow-style: none !important; /* IE/Edge legacy */
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
         }
-        
+        #sidebar.sidebar {
+            overflow: hidden !important;
+            overflow-x: hidden !important;
+            overflow-y: hidden !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
         #sidebar.sidebar::-webkit-scrollbar,
         .sidebar::-webkit-scrollbar {
             display: none !important;
             width: 0 !important;
             height: 0 !important;
             background: transparent !important;
+        }
+        /* Inner nav scroller — hide scrollbar (manager/long menus) */
+        #sidebar .sidebar-nav-scroll {
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+        }
+        #sidebar .sidebar-nav-scroll::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            max-width: 0 !important;
+            height: 0 !important;
         }
         
         .main-content-container {
