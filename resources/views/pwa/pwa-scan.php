@@ -34,8 +34,14 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                 <label class="sr-only" for="cameraSelect">Camera</label>
                 <select id="cameraSelect" class="text-xs flex-1 min-w-0 rounded-md border border-gray-300 bg-white/95 px-2 py-1.5 text-gray-800 shadow-sm max-w-[85%]"></select>
             </div>
-            <div class="absolute inset-x-0 bottom-0 p-2 bg-white/95 backdrop-blur-sm border-t border-gray-100">
+            <div class="absolute inset-x-0 bottom-0 p-2 bg-white/95 backdrop-blur-sm border-t border-gray-100 space-y-2">
                 <p id="scanHint" class="text-xs text-gray-700 text-center">Point the camera at a barcode — use the menu above if the image is blurry</p>
+                <div class="flex gap-2 items-center max-w-md mx-auto">
+                    <input type="text" id="manualBarcode" inputmode="numeric" autocomplete="off" placeholder="Or type SKU / barcode"
+                        class="flex-1 min-w-0 text-xs rounded-md border border-gray-300 bg-white px-2 py-1.5 text-gray-900">
+                    <button type="button" id="manualLookupBtn"
+                        class="shrink-0 text-xs rounded-md bg-gray-800 text-white px-3 py-1.5 font-medium">Look up</button>
+                </div>
             </div>
         </div>
 
@@ -109,18 +115,38 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
         toast._t = setTimeout(() => { el.style.opacity = '0'; }, 2600);
     }
 
-    function beep() {
+    /** Shared context so mobile can play after unlock(); short high = scan read, lower = success */
+    let audioCtx = null;
+    function unlockAudio() {
         try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        } catch (e) {}
+    }
+    ['click', 'touchstart', 'pointerdown'].forEach((ev) => {
+        document.addEventListener(ev, unlockAudio, { passive: true, once: false });
+    });
+
+    function beepTone(freq, durSec, gain) {
+        try {
+            unlockAudio();
+            const ctx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+            if (!audioCtx) audioCtx = ctx;
             const o = ctx.createOscillator();
             const g = ctx.createGain();
             o.connect(g);
             g.connect(ctx.destination);
-            o.frequency.value = 880;
-            g.gain.value = 0.08;
+            o.frequency.value = freq;
+            g.gain.value = gain;
             o.start();
-            o.stop(ctx.currentTime + 0.06);
+            o.stop(ctx.currentTime + durSec);
         } catch (e) {}
+    }
+    function beepScan() {
+        beepTone(880, 0.06, 0.08);
+    }
+    function beep() {
+        beepTone(660, 0.08, 0.09);
     }
 
     async function fetchAuth(url, opts = {}) {
@@ -134,8 +160,18 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
         return fetch(url, Object.assign({}, opts, { headers }));
     }
 
+    async function readJsonSafe(res) {
+        const text = await res.text();
+        try {
+            return text ? JSON.parse(text) : {};
+        } catch (e) {
+            const snippet = text.slice(0, 120).replace(/\s+/g, ' ');
+            throw new Error(res.ok ? 'Invalid JSON from server' : ('Server error: ' + snippet));
+        }
+    }
+
     const valid = await fetchAuth(api('/api/auth/validate'));
-    const vj = await valid.json();
+    const vj = await readJsonSafe(valid);
     if (!valid.ok || !vj.success) {
         localStorage.removeItem('sellapp_token');
         localStorage.removeItem('sellapp_user');
@@ -183,7 +219,7 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
     async function lookupProduct(code) {
         const q = encodeURIComponent(code);
         const res = await fetchAuth(api('/api/products/find-by-barcode?code=' + q));
-        const j = await res.json();
+        const j = await readJsonSafe(res);
         if (!res.ok || !j.success || !j.product) {
             throw new Error(j.error || 'Product not found');
         }
@@ -262,12 +298,24 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                 if (result) {
                     let text = '';
                     try {
-                        text = typeof result.getText === 'function' ? result.getText() : String(result);
+                        if (typeof result.getText === 'function') {
+                            text = result.getText();
+                        } else if (result.text != null) {
+                            text = String(result.text);
+                        } else {
+                            text = String(result);
+                        }
                     } catch (e) {
-                        return;
+                        text = '';
                     }
                     text = (text || '').trim();
-                    if (text) onBarcode(text);
+                    if (!text) return;
+                    try {
+                        if (navigator.vibrate) navigator.vibrate(40);
+                    } catch (e) {}
+                    beepScan();
+                    scanHintEl.textContent = 'Read code: ' + text + ' — looking up…';
+                    onBarcode(text, { fromCamera: true });
                     return;
                 }
                 if (err) {
@@ -283,7 +331,7 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                 } catch (e) { /* noop */ }
                 scanHintEl.textContent = 'Starting camera…';
 
-                const constraints = {
+                const strictConstraints = {
                     video: {
                         deviceId: { exact: deviceId },
                         width: { ideal: 1920, min: 640 },
@@ -292,10 +340,18 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                     },
                     audio: false,
                 };
+                const looseConstraints = {
+                    video: { deviceId: { exact: deviceId } },
+                    audio: false,
+                };
 
                 try {
                     if (typeof reader.decodeFromConstraints === 'function') {
-                        await reader.decodeFromConstraints(constraints, videoEl, decodeCallback);
+                        try {
+                            await reader.decodeFromConstraints(strictConstraints, videoEl, decodeCallback);
+                        } catch (e0) {
+                            await reader.decodeFromConstraints(looseConstraints, videoEl, decodeCallback);
+                        }
                     } else {
                         await reader.decodeFromVideoDevice(deviceId, videoEl, decodeCallback);
                     }
@@ -326,13 +382,14 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
 
     let selectedProduct = null;
 
-    async function onBarcode(text) {
+    async function onBarcode(text, opts = {}) {
+        const fromCamera = !!opts.fromCamera;
         const code = (text || '').trim();
         if (!code || !dedupe(code)) return;
         scanHintEl.textContent = 'Looking up: ' + code;
         try {
             const p = await lookupProduct(code);
-            beep();
+            if (!fromCamera) beep();
             if (isStockMode) {
                 selectedProduct = p;
                 document.getElementById('stockProductText').innerHTML =
@@ -375,6 +432,17 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
     }
 
     await initScanner();
+
+    document.getElementById('manualLookupBtn').addEventListener('click', () => {
+        const raw = document.getElementById('manualBarcode').value || '';
+        onBarcode(raw, { fromCamera: false });
+    });
+    document.getElementById('manualBarcode').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            onBarcode(e.target.value || '', { fromCamera: false });
+        }
+    });
 
     // Panels
     if (isStockMode) {
