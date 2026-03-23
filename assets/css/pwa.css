@@ -3,8 +3,14 @@
  */
 *, *::before, *::after { box-sizing: border-box; }
 
+html.pwa-root {
+  height: 100%;
+  min-height: 100dvh;
+}
+
 .pwa-root {
   height: 100%;
+  min-height: 100%;
   background: #fff;
   color: #111827;
 }
@@ -176,7 +182,7 @@
   background: #fff;
 }
 
-/* Camera block — tall preview on phones so barcodes read sharper (less tiny upscale blur) */
+/* Camera block — tall preview; video absolutely fills box so it always paints on mobile WebViews */
 .pwa-camera {
   position: relative;
   background: #000;
@@ -184,27 +190,33 @@
   flex-shrink: 0;
   overflow: hidden;
   border-bottom: 1px solid #e5e7eb;
-  /* Mobile: most of the upper screen for the live feed */
-  height: min(62vh, 30rem);
-  min-height: 16rem;
-  max-height: 75vh;
+  /* Mobile: large preview helps decode at a distance (more pixels on target) */
+  height: min(58vh, 28rem);
+  min-height: 14rem;
+  max-height: 72vh;
 }
 
 @media (min-width: 640px) {
   .pwa-camera {
-    height: min(48vh, 22rem);
+    height: min(46vh, 22rem);
     min-height: 13rem;
-    max-height: 60vh;
+    max-height: 58vh;
   }
 }
 
 .pwa-video {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   width: 100%;
   height: 100%;
-  /* contain = full frame visible, better for 1D barcodes; slight letterboxing */
-  object-fit: contain;
+  display: block;
+  /* cover = fills frame; center crop behaves like a zoom for distant barcodes */
+  object-fit: cover;
   object-position: center center;
   background: #000;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 .pwa-camera__toolbar {
@@ -215,7 +227,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  z-index: 10;
+  z-index: 2;
 }
 
 .pwa-sr-only {
@@ -249,14 +261,80 @@
   right: 0;
   bottom: 0;
   padding: 0.5rem;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.97);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-top: 1px solid #f3f4f6;
+  z-index: 3;
+  max-height: 55%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.pwa-camera__footer > p {
+.pwa-fold {
   margin: 0 0 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  padding: 0.25rem 0.5rem;
+}
+
+.pwa-fold:last-child {
+  margin-bottom: 0;
+}
+
+.pwa-fold__summary {
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+  list-style: none;
+  padding: 0.35rem 0;
+}
+
+.pwa-fold__summary::-webkit-details-marker {
+  display: none;
+}
+
+.pwa-fold[open] .pwa-fold__summary {
+  margin-bottom: 0.35rem;
+}
+
+.pwa-fold__hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: #6b7280;
+}
+
+.pwa-segment {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.pwa-segment__btn {
+  flex: 1;
+  min-width: 4.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #374151;
+  cursor: pointer;
+}
+
+.pwa-segment__btn.is-active {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
+}
+
+.pwa-scan-hint {
+  margin: 0;
   font-size: 0.75rem;
   color: #374151;
   text-align: center;
@@ -310,6 +388,8 @@
 
 .pwa-panel.is-visible {
   display: flex;
+  flex: 1 1 auto;
+  min-height: 8rem;
 }
 
 .pwa-card {

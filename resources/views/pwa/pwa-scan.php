@@ -15,7 +15,7 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>SellApp Scanner</title>
-    <link rel="manifest" href="<?php echo htmlspecialchars($assetBase . '/pwa/manifest.webmanifest', ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="manifest" href="<?php echo htmlspecialchars($assetBase . '/api/pwa/manifest.webmanifest', ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="apple-touch-icon" href="<?php echo htmlspecialchars($assetBase . '/assets/images/favicon.svg', ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="stylesheet" href="<?php echo htmlspecialchars($assetBase . '/assets/css/pwa.css', ENT_QUOTES, 'UTF-8'); ?>">
 </head>
@@ -36,11 +36,23 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                 <select id="cameraSelect" class="pwa-select-cam"></select>
             </div>
             <div class="pwa-camera__footer">
-                <p id="scanHint">Point the camera at a barcode — use the menu above if the image is blurry</p>
-                <div class="pwa-manual-row">
-                    <input type="text" id="manualBarcode" inputmode="numeric" autocomplete="off" placeholder="Or type SKU / barcode">
-                    <button type="button" id="manualLookupBtn" class="pwa-btn-small">Look up</button>
-                </div>
+                <details class="pwa-fold" open>
+                    <summary class="pwa-fold__summary">Scan type (barcode vs QR)</summary>
+                    <div class="pwa-segment" role="group" aria-label="Scan type">
+                        <button type="button" class="pwa-segment__btn is-active" data-scan-mode="all" id="modeAll">All</button>
+                        <button type="button" class="pwa-segment__btn" data-scan-mode="1d" id="mode1d">Barcode</button>
+                        <button type="button" class="pwa-segment__btn" data-scan-mode="qr" id="modeQr">QR</button>
+                    </div>
+                    <p class="pwa-fold__hint">Phones scan both 1D barcodes and QR codes. Use <strong>Barcode</strong> for shelf labels; <strong>QR</strong> for square codes. Hold steady — move closer if it does not read.</p>
+                    <p id="scanHint" class="pwa-scan-hint">Point the camera at the code. Switch camera above if blurry.</p>
+                </details>
+                <details class="pwa-fold" open>
+                    <summary class="pwa-fold__summary">Or type SKU / barcode</summary>
+                    <div class="pwa-manual-row">
+                        <input type="text" id="manualBarcode" inputmode="text" autocomplete="off" placeholder="SKU, barcode, or QR text">
+                        <button type="button" id="manualLookupBtn" class="pwa-btn-small">Look up</button>
+                    </div>
+                </details>
             </div>
         </div>
 
@@ -226,8 +238,9 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
         return true;
     }
 
-    // --- ZXing: HD stream, rear camera default, multi-camera switch ---
+    // --- ZXing: HD stream, TRY_HARDER, barcode vs QR modes, rear camera default ---
     let reader = null;
+    let scanMode = 'all';
     const videoEl = document.getElementById('video');
     const cameraSelect = document.getElementById('cameraSelect');
     const scanHintEl = document.getElementById('scanHint');
@@ -239,6 +252,23 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
             /back|rear|environment|wide|ultra|tele|photo|main|world/.test(label));
         if (hit) return hit.i;
         return Math.max(0, devices.length - 1);
+    }
+
+    function applyVideoEnhancements() {
+        try {
+            const stream = videoEl.srcObject;
+            if (!stream) return;
+            const track = stream.getVideoTracks()[0];
+            if (!track || !track.applyConstraints) return;
+            const caps = track.getCapabilities ? track.getCapabilities() : {};
+            const advanced = [];
+            if (caps.focusMode && Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
+                advanced.push({ focusMode: 'continuous' });
+            }
+            if (advanced.length) {
+                track.applyConstraints({ advanced }).catch(() => {});
+            }
+        } catch (e) { /* noop */ }
     }
 
     async function ensureCameraPermission() {
@@ -258,8 +288,29 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
 
     async function initScanner() {
         try {
-            const { BrowserMultiFormatReader, BrowserCodeReader } = await import('https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/+esm');
-            reader = new BrowserMultiFormatReader();
+            const [{ BrowserMultiFormatReader, BrowserCodeReader }, lib] = await Promise.all([
+                import('https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/+esm'),
+                import('https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/+esm'),
+            ]);
+            const { BarcodeFormat, DecodeHintType } = lib;
+
+            const FORMATS_1D = [
+                BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
+                BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.ITF, BarcodeFormat.CODABAR,
+            ];
+
+            function buildReader() {
+                const hints = new Map();
+                hints.set(DecodeHintType.TRY_HARDER, true);
+                if (scanMode === '1d') {
+                    hints.set(DecodeHintType.POSSIBLE_FORMATS, FORMATS_1D);
+                } else if (scanMode === 'qr') {
+                    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE]);
+                }
+                return new BrowserMultiFormatReader(hints);
+            }
+
+            reader = buildReader();
 
             await ensureCameraPermission();
 
@@ -273,16 +324,21 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                 return;
             }
 
-            cameraSelect.innerHTML = '';
-            devices.forEach((d, idx) => {
-                const opt = document.createElement('option');
-                opt.value = d.deviceId;
-                opt.textContent = (d.label && d.label.trim()) ? d.label : ('Camera ' + (idx + 1));
-                cameraSelect.appendChild(opt);
-            });
-
-            const defIdx = pickDefaultDeviceIndex(devices);
-            cameraSelect.selectedIndex = defIdx;
+            if (!cameraSelect.options.length) {
+                cameraSelect.innerHTML = '';
+                devices.forEach((d, idx) => {
+                    const opt = document.createElement('option');
+                    opt.value = d.deviceId;
+                    opt.textContent = (d.label && d.label.trim()) ? d.label : ('Camera ' + (idx + 1));
+                    cameraSelect.appendChild(opt);
+                });
+                const defIdx = pickDefaultDeviceIndex(devices);
+                cameraSelect.selectedIndex = defIdx;
+                cameraSelect.addEventListener('change', () => {
+                    const id = cameraSelect.value;
+                    if (id) startWithDevice(id);
+                });
+            }
 
             const decodeCallback = (result, err) => {
                 if (result) {
@@ -315,7 +371,8 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
             };
 
             const startWithDevice = async (deviceId) => {
-                if (!reader || !deviceId) return;
+                if (!deviceId) return;
+                reader = buildReader();
                 try {
                     BrowserCodeReader.releaseAllStreams();
                 } catch (e) { /* noop */ }
@@ -324,14 +381,18 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                 const strictConstraints = {
                     video: {
                         deviceId: { exact: deviceId },
-                        width: { ideal: 1920, min: 640 },
-                        height: { ideal: 1080, min: 480 },
+                        width: { ideal: 1920, min: 1280 },
+                        height: { ideal: 1080, min: 720 },
                         frameRate: { ideal: 30, max: 60 },
                     },
                     audio: false,
                 };
                 const looseConstraints = {
-                    video: { deviceId: { exact: deviceId } },
+                    video: {
+                        deviceId: { exact: deviceId },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                    },
                     audio: false,
                 };
 
@@ -353,15 +414,28 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
                         throw e2;
                     }
                 }
-                scanHintEl.textContent = 'Point the camera at a barcode — switch camera above if blurry';
+                setTimeout(applyVideoEnhancements, 300);
+                scanHintEl.textContent = 'Point at the code — center it in the frame for distance scanning';
             };
 
-            cameraSelect.addEventListener('change', () => {
-                const id = cameraSelect.value;
-                if (id) startWithDevice(id);
-            });
+            await startWithDevice(cameraSelect.value || devices[pickDefaultDeviceIndex(devices)].deviceId);
 
-            await startWithDevice(devices[defIdx].deviceId);
+            document.querySelectorAll('[data-scan-mode]').forEach((btn) => {
+                btn.onclick = async () => {
+                    const mode = btn.getAttribute('data-scan-mode');
+                    if (!mode || mode === scanMode) return;
+                    scanMode = mode;
+                    document.querySelectorAll('[data-scan-mode]').forEach((b) => {
+                        b.classList.toggle('is-active', b.getAttribute('data-scan-mode') === mode);
+                    });
+                    scanHintEl.textContent = 'Updating scan mode…';
+                    try {
+                        await startWithDevice(cameraSelect.value);
+                    } catch (e) {
+                        console.error(e);
+                    }
+                };
+            });
         } catch (e) {
             console.error(e);
             scanHintEl.textContent = e.message
@@ -411,7 +485,7 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
         } catch (e) {
             toast(e.message || 'Scan failed', false);
         } finally {
-            scanHintEl.textContent = 'Point the camera at a barcode — switch camera above if blurry';
+            scanHintEl.textContent = 'Point at the code — center it in the frame; switch camera if blurry';
         }
     }
 
@@ -419,6 +493,14 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
         const d = document.createElement('div');
         d.textContent = s;
         return d.innerHTML;
+    }
+
+    // Show cart / stock immediately so the page never looks blank while the camera initializes
+    if (isStockMode) {
+        document.getElementById('stockPanel').classList.add('is-visible');
+    } else {
+        document.getElementById('salesPanel').classList.add('is-visible');
+        renderCart();
     }
 
     await initScanner();
@@ -433,14 +515,6 @@ $assetBase = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
             onBarcode(e.target.value || '', { fromCamera: false });
         }
     });
-
-    // Panels
-    if (isStockMode) {
-        document.getElementById('stockPanel').classList.add('is-visible');
-    } else {
-        document.getElementById('salesPanel').classList.add('is-visible');
-        renderCart();
-    }
 
     document.getElementById('logoutBtn').addEventListener('click', () => {
         localStorage.removeItem('sellapp_token');
