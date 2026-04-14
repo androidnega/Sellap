@@ -2,9 +2,33 @@
 // Top Navigation Bar Component
 // Usage: include with $userInfo, $companyInfo, $userRole
 ?>
+<style>
+    .topbar-shell {
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        border-radius: 9999px;
+        padding: 0.25rem;
+    }
+    .topbar-icon-btn {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 9999px;
+        border: 1px solid #e5e7eb;
+        background: #ffffff;
+        color: #4b5563;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+    .topbar-icon-btn:hover {
+        color: #1f2937;
+        background: #f9fafb;
+    }
+</style>
 <!-- Top Navigation Bar -->
 <nav class="bg-transparent px-0 py-0 w-full">
-    <div class="flex items-center justify-between w-full bg-white rounded-xl border border-gray-200 px-3 sm:px-4 py-2.5 shadow-sm">
+    <div class="flex items-center justify-between w-full bg-white rounded-xl border border-gray-200 px-3 sm:px-4 py-2 shadow-sm">
         <!-- Left side - Mobile menu button, breadcrumb (when collapsed), and title -->
         <div class="flex items-center">
             <!-- Mobile menu button -->
@@ -19,7 +43,7 @@
         </div>
         
         <!-- Right side - Balance indicators and Profile dropdown -->
-        <div class="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
+        <div class="flex items-center space-x-2 sm:space-x-3">
             <!-- Balance Indicators (Manager/Admin only) -->
             <?php if (in_array($userRole, ['manager', 'admin'])): ?>
             <div class="hidden lg:flex items-center space-x-2">
@@ -49,33 +73,52 @@
             </div>
             <?php endif; ?>
             
-            <!-- Notifications -->
-            <div class="relative">
-                <button id="notificationBell" class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 relative">
-                    <i class="fas fa-bell"></i>
-                    <span id="notificationBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+            <div class="topbar-shell flex items-center gap-1 sm:gap-1.5">
+                <button class="topbar-icon-btn hidden sm:inline-flex" title="Actions">
+                    <i class="fas fa-box"></i>
                 </button>
+                <button class="topbar-icon-btn hidden sm:inline-flex" title="Downloads">
+                    <i class="fas fa-file-download"></i>
+                </button>
+                <button class="topbar-icon-btn hidden sm:inline-flex" title="Fullscreen">
+                    <i class="fas fa-expand"></i>
+                </button>
+                <button class="topbar-icon-btn hidden sm:inline-flex" title="Theme">
+                    <i class="fas fa-sun"></i>
+                </button>
+                <div class="hidden sm:flex items-center gap-1 px-2 py-1 rounded-full bg-white border border-gray-200 text-xs text-gray-600">
+                    <span>EN</span>
+                    <i class="fas fa-chevron-down text-[10px]"></i>
+                </div>
+
+                <!-- Notifications -->
+                <div class="relative">
+                    <button id="notificationBell" class="topbar-icon-btn relative focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <i class="fas fa-bell"></i>
+                        <span id="notificationBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                    </button>
                 
-                <!-- Notification Dropdown -->
-                <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
-                    <div class="p-3 sm:p-4 border-b border-gray-200">
-                        <div class="flex items-center justify-between gap-2">
-                            <h3 class="text-base sm:text-lg font-semibold text-gray-900">Notifications</h3>
-                            <button id="markAllRead" class="text-xs sm:text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap">Mark all read</button>
+                    <!-- Notification Dropdown -->
+                    <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
+                        <div class="p-3 sm:p-4 border-b border-gray-200">
+                            <div class="flex items-center justify-between gap-2">
+                                <h3 class="text-base sm:text-lg font-semibold text-gray-900">Notifications</h3>
+                                <button id="markAllRead" class="text-xs sm:text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap">Mark all read</button>
+                            </div>
+                        </div>
+                        <div id="notificationList" class="max-h-[60vh] sm:max-h-96 overflow-y-auto">
+                            <!-- Notifications will be loaded here -->
+                        </div>
+                        <div id="noNotifications" class="p-4 text-center text-gray-500 hidden">
+                            <i class="fas fa-bell-slash text-xl sm:text-2xl mb-2"></i>
+                            <p class="text-sm">No notifications</p>
                         </div>
                     </div>
-                    <div id="notificationList" class="max-h-[60vh] sm:max-h-96 overflow-y-auto">
-                        <!-- Notifications will be loaded here -->
-                    </div>
-                    <div id="noNotifications" class="p-4 text-center text-gray-500 hidden">
-                        <i class="fas fa-bell-slash text-xl sm:text-2xl mb-2"></i>
-                        <p class="text-sm">No notifications</p>
-                    </div>
                 </div>
+
+                <!-- Profile Dropdown -->
+                <?php include __DIR__ . '/profile-dropdown.php'; ?>
             </div>
-            
-            <!-- Profile Dropdown -->
-            <?php include __DIR__ . '/profile-dropdown.php'; ?>
         </div>
     </div>
 </nav>

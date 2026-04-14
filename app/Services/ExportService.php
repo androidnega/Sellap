@@ -24,6 +24,23 @@ class ExportService {
                 return (int)$value;
         }
     }
+
+    private function sanitizeSpreadsheetValue($value) {
+        $text = (string)($value ?? '');
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+        $text = preg_replace('/<\s*br\s*\/?>/i', "\n", $text);
+        $text = strip_tags($text);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/[ \t]+/', ' ', $text);
+        $text = preg_replace("/\n{3,}/", "\n\n", $text);
+        $text = trim($text);
+
+        // Prevent formula injection/execution in Excel.
+        if ($text !== '' && preg_match('/^[=\+\-@]/', $text)) {
+            $text = "'" . $text;
+        }
+        return $text;
+    }
     
     /**
      * Export dataset to CSV
@@ -60,7 +77,7 @@ class ExportService {
             // Ensure row has same keys as headers
             $csvRow = [];
             foreach ($headers as $header) {
-                $csvRow[] = $row[$header] ?? '';
+                $csvRow[] = $this->sanitizeSpreadsheetValue($row[$header] ?? '');
             }
             fputcsv($output, $csvRow);
         }
@@ -109,7 +126,7 @@ class ExportService {
                 foreach ($dataset as $row) {
                     $col = 'A';
                     foreach ($headers as $header) {
-                        $value = $row[$header] ?? '';
+                        $value = $this->sanitizeSpreadsheetValue($row[$header] ?? '');
                         $sheet->setCellValue($col . $rowNum, $value);
                         $col++;
                     }
@@ -136,10 +153,13 @@ class ExportService {
             }
         }
 
-        // Fallback to CSV format (Excel can open CSV files)
-        // Use CSV format but with .xlsx extension so user knows it's Excel-compatible
-        error_log("PhpSpreadsheet not available, exporting as CSV (Excel-compatible)");
-        $this->exportCSV($dataset, $filename, $headers);
+        // Fallback to real CSV with valid extension to avoid Excel corruption errors.
+        error_log("PhpSpreadsheet not available, exporting as CSV fallback");
+        $csvFilename = preg_replace('/\.xlsx$/i', '.csv', $filename);
+        if (!$csvFilename || $csvFilename === $filename) {
+            $csvFilename = $filename . '.csv';
+        }
+        $this->exportCSV($dataset, $csvFilename, $headers);
     }
 
     /**
