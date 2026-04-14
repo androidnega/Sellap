@@ -3,6 +3,9 @@
 # Enable URL Rewriting
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # Dedicated automigrate entrypoint (keeps /automigrate stable after deploys)
+    RewriteRule ^automigrate/?$ automigrate.php [QSA,L]
     
     # Redirect any requests containing kabz_events to remove it (301 permanent redirect)
     RewriteCond %{REQUEST_URI} kabz_events
