@@ -10,9 +10,9 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
         </a>
-        <div>
+        <div class="min-w-0">
             <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Add New Product</h1>
-            <p class="text-gray-600 mt-1">Create a new product with comprehensive details and specifications</p>
+            <p class="text-sm sm:text-base text-gray-600 mt-1 break-words">Create a new product with comprehensive details and specifications</p>
         </div>
     </div>
 
@@ -50,7 +50,7 @@
     <form id="addProductForm" method="POST" action="<?= BASE_URL_PATH ?>/dashboard/inventory/store" enctype="multipart/form-data" class="space-y-8">
         <!-- Basic Information Section -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 lg:p-8">
-            <div class="flex items-center mb-6">
+            <div class="flex items-start sm:items-center mb-6">
                 <div class="flex-shrink-0">
                     <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                         <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,8 +58,8 @@
                         </svg>
                     </div>
                 </div>
-                <div class="ml-4">
-                    <h2 class="text-xl font-semibold text-gray-900">Basic Information</h2>
+                <div class="ml-4 min-w-0">
+                    <h2 class="text-lg sm:text-xl font-semibold text-gray-900">Basic Information</h2>
                     <p class="text-sm text-gray-600">Essential product details and identification</p>
                 </div>
             </div>
@@ -175,7 +175,7 @@
 
         <!-- Pricing & Inventory Section -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 lg:p-8">
-            <div class="flex items-center mb-6">
+            <div class="flex items-start sm:items-center mb-6">
                 <div class="flex-shrink-0">
                     <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                         <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -183,8 +183,8 @@
                         </svg>
                     </div>
                 </div>
-                <div class="ml-4">
-                    <h2 class="text-xl font-semibold text-gray-900">Pricing & Inventory</h2>
+                <div class="ml-4 min-w-0">
+                    <h2 class="text-lg sm:text-xl font-semibold text-gray-900">Pricing & Inventory</h2>
                     <p class="text-sm text-gray-600">Cost, selling price, and stock management</p>
                 </div>
             </div>
@@ -247,7 +247,7 @@
 
         <!-- Product Details Section -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 lg:p-8">
-            <div class="flex items-center mb-6">
+            <div class="flex items-start sm:items-center mb-6">
                 <div class="flex-shrink-0">
                     <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
                         <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -255,8 +255,8 @@
                         </svg>
                     </div>
                 </div>
-                <div class="ml-4">
-                    <h2 class="text-xl font-semibold text-gray-900">Product Details</h2>
+                <div class="ml-4 min-w-0">
+                    <h2 class="text-lg sm:text-xl font-semibold text-gray-900">Product Details</h2>
                     <p class="text-sm text-gray-600">Additional information and specifications</p>
                 </div>
             </div>
@@ -268,17 +268,17 @@
                         Image Upload
                         <span class="ml-2 text-gray-400 text-xs">(Optional)</span>
                     </label>
-                    <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 transition-colors">
+                    <div class="mt-1 flex justify-center px-4 sm:px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 transition-colors">
                         <div class="space-y-1 text-center">
                             <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                                 <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
-                            <div class="flex text-sm text-gray-600">
+                            <div class="flex flex-col sm:flex-row items-center justify-center text-sm text-gray-600">
                                 <label for="image" class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
                                     <span>Upload a file</span>
                                     <input id="image" name="image" type="file" accept="image/*" class="sr-only">
                                 </label>
-                                <p class="pl-1">or drag and drop</p>
+                                <p class="pl-0 sm:pl-1">or drag and drop</p>
                             </div>
                             <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
                         </div>
@@ -314,7 +314,7 @@
 
         <!-- Dynamic Specifications Container -->
         <div id="specsContainer" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 lg:p-8" style="display:none;">
-            <div class="flex items-center mb-6">
+            <div class="flex items-start sm:items-center mb-6">
                 <div class="flex-shrink-0">
                     <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
                         <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -322,8 +322,8 @@
                         </svg>
                     </div>
                 </div>
-                <div class="ml-4">
-                    <h2 class="text-xl font-semibold text-gray-900">Product Specifications</h2>
+                <div class="ml-4 min-w-0">
+                    <h2 class="text-lg sm:text-xl font-semibold text-gray-900">Product Specifications</h2>
                     <p class="text-sm text-gray-600">Technical details and specifications</p>
                 </div>
             </div>
@@ -332,7 +332,7 @@
 
         <!-- Swap Options Section (Only for Phones) -->
         <div id="swapContainer" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 lg:p-8" style="display:none;">
-            <div class="flex items-center mb-6">
+            <div class="flex items-start sm:items-center mb-6">
                 <div class="flex-shrink-0">
                     <div class="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
                         <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -340,8 +340,8 @@
                         </svg>
                     </div>
                 </div>
-                <div class="ml-4">
-                    <h2 class="text-xl font-semibold text-gray-900">Swap Options</h2>
+                <div class="ml-4 min-w-0">
+                    <h2 class="text-lg sm:text-xl font-semibold text-gray-900">Swap Options</h2>
                     <p class="text-sm text-gray-600">Configure swap availability for phone products</p>
                 </div>
             </div>
@@ -721,7 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Notification system
     function showNotification(message, type = 'info') {
         const notification = document.createElement('div');
-        notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm ${
+        notification.className = `fixed top-4 right-4 left-4 sm:left-auto z-50 p-4 rounded-lg shadow-lg max-w-sm ${
             type === 'error' ? 'bg-red-100 border border-red-400 text-red-700' : 
             type === 'success' ? 'bg-green-100 border border-green-400 text-green-700' :
             'bg-blue-100 border border-blue-400 text-blue-700'
