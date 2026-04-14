@@ -1,5 +1,15 @@
 <?php
 
+// Keep deprecated/vendor warnings out of HTTP output on production hosting.
+$appEnv = getenv('APP_ENV') ?: getenv('APP_ENVIRONMENT') ?: 'production';
+if ($appEnv === 'local' || $appEnv === 'development') {
+    error_reporting(E_ALL);
+    @ini_set('display_errors', '1');
+} else {
+    error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+    @ini_set('display_errors', '0');
+}
+
 /**
  * SellApp - Main Entry Point
  * cPanel Shared Hosting Compatible
