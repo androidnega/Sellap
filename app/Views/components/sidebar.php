@@ -120,9 +120,9 @@ $config = $roleConfig[$userRole] ?? $roleConfig['salesperson'];
 // Helper function to generate sidebar link
 function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
     $isActive = $currentPage === $pageName;
-    $activeClasses = $isActive ? 'bg-blue-100 text-blue-600' : '';
-    $iconClasses = $isActive ? '' : 'sidebar-text';
-    $textClasses = $isActive ? '' : 'sidebar-text';
+    $activeClasses = $isActive ? 'sidebar-item-active' : '';
+    $iconClasses = $isActive ? 'sidebar-icon-active' : 'sidebar-text';
+    $textClasses = $isActive ? 'sidebar-label-active' : 'sidebar-text';
     
     return sprintf(
         '<a href="%s" class="sidebar-item flex items-center px-3 py-2 rounded-md text-sm %s" onclick="expandSidebarIfCollapsed(event)">
@@ -137,6 +137,13 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
         $text
     );
 }
+
+function sidebarSection($label) {
+    return sprintf(
+        '<div class="sidebar-section-label">%s</div>',
+        htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+    );
+}
 ?>
 <!-- Sidebar Toggle Button for Mobile Only -->
 <button id="sidebarToggle" class="md:hidden fixed top-4 left-4 z-[1001] bg-gray-800 text-white p-2.5 rounded-lg shadow-lg hover:bg-gray-700 transition-colors" onclick="toggleSidebar()" aria-label="Toggle sidebar">
@@ -147,7 +154,8 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
 <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <!-- Sidebar -->
-<div id="sidebar" class="sidebar loading h-screen min-h-0 p-4 relative flex flex-col overflow-hidden" style="background: <?= $config['color'] ?>;">
+<?php $isNeutralSidebar = in_array($userRole, ['manager', 'admin'], true); ?>
+<div id="sidebar" class="sidebar loading h-screen min-h-0 p-4 relative flex flex-col overflow-hidden <?= $isNeutralSidebar ? 'sidebar-neutral' : '' ?>" style="background: <?= $isNeutralSidebar ? '#f3f4f6' : $config['color'] ?>;">
     <div class="flex items-center mb-6 flex-shrink-0">
         <i class="<?= $config['icon'] ?> text-lg mr-3 sidebar-text flex-shrink-0" style="width: 1.25rem; min-width: 1.25rem;"></i>
         <div class="min-w-0 flex-1">
@@ -174,9 +182,11 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/reset', 'fas fa-skull', 'System Reset', $currentPage, 'system-reset') ?>
         <?php elseif ($userRole === 'manager' || $userRole === 'admin'): ?>
             <!-- Manager/Admin Navigation -->
+            <?= sidebarSection('Main') ?>
             <?= sidebarLink(BASE_URL_PATH . '/dashboard', 'fas fa-tachometer-alt', 'Dashboard', $currentPage, 'dashboard') ?>
             
             <?php if (isModuleEnabled('products_inventory', $companyId, $userRole)): ?>
+                <?= sidebarSection('Products & Inventory') ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/inventory', 'fas fa-boxes', 'Inventory', $currentPage, 'inventory') ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/restock', 'fas fa-truck-loading', 'Restock', $currentPage, 'restock') ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/categories', 'fas fa-tags', 'Categories', $currentPage, 'categories') ?>
@@ -185,6 +195,7 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
             <?php endif; ?>
             
             <?php if (isModuleEnabled('suppliers', $companyId, $userRole)): ?>
+                <?= sidebarSection('Procurement') ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/suppliers', 'fas fa-truck', 'Suppliers', $currentPage, 'suppliers') ?>
             <?php endif; ?>
             
@@ -193,10 +204,12 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
             <?php endif; ?>
             
             <?php if (isModuleEnabled('staff_management', $companyId, $userRole)): ?>
+                <?= sidebarSection('Users') ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/staff', 'fas fa-users', 'Staff', $currentPage, 'staff') ?>
             <?php endif; ?>
             
             <?php if (isModuleEnabled('pos_sales', $companyId, $userRole)): ?>
+                <?= sidebarSection('POS & Orders') ?>
                 <?php
                 // Check if manager can sell - if not, show Audit Trail instead of POS
                 $canSell = CompanyModule::isEnabled($companyId, 'manager_can_sell');
@@ -217,6 +230,7 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
             <?php endif; ?>
             <?php endif; ?>
             
+            <?= sidebarSection('Operations') ?>
             <?php if (isModuleEnabled('repairs', $companyId, $userRole)): ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/repairs', 'fas fa-tools', 'Repairs', $currentPage, 'repairs') ?>
             <?php endif; ?>
@@ -230,9 +244,11 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
             <?php endif; ?>
             
             <?php if (isModuleEnabled('reports_analytics', $companyId, $userRole)): ?>
+                <?= sidebarSection('Reports') ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/audit-trail', 'fas fa-chart-bar', 'Audit Trail', $currentPage, 'audit-trail') ?>
             <?php endif; ?>
             
+            <?= sidebarSection('Settings') ?>
             <!-- SMS Settings - Available for managers to view balance and purchase credits -->
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/sms-settings', 'fas fa-sms', 'SMS Settings', $currentPage, 'sms-settings') ?>
             
@@ -347,6 +363,47 @@ function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
     .sidebar-item.active {
         background: rgba(255, 255, 255, 0.2);
         color: white;
+    }
+
+    .sidebar-section-label {
+        font-size: 0.72rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.58);
+        margin-top: 0.9rem;
+        margin-bottom: 0.4rem;
+        padding-left: 0.25rem;
+    }
+    .sidebar-item-active {
+        background: #fef2f2;
+        color: #dc2626;
+        font-weight: 600;
+    }
+    .sidebar-label-active,
+    .sidebar-icon-active {
+        color: #dc2626;
+    }
+
+    .sidebar.sidebar-neutral .sidebar-text {
+        color: #6b7280;
+    }
+    .sidebar.sidebar-neutral .sidebar-section-label {
+        color: #9ca3af;
+    }
+    .sidebar.sidebar-neutral .sidebar-item {
+        color: #4b5563;
+    }
+    .sidebar.sidebar-neutral .sidebar-item:hover {
+        background: #e5e7eb;
+        color: #374151;
+    }
+    .sidebar.sidebar-neutral .sidebar-item:hover .sidebar-text {
+        color: #374151;
+    }
+    .sidebar.sidebar-neutral .sidebar-item-active {
+        background: #fee2e2;
+        color: #dc2626;
     }
     
     /* Prevent transitions on initial page load */

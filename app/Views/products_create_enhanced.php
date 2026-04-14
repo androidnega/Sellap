@@ -28,7 +28,7 @@ if (empty($categories)) {
 }
 ?>
 
-<div class="p-6">
+<div class="p-3 sm:p-6 max-w-full overflow-x-hidden">
     <div class="mb-6">
         <a href="<?= BASE_URL_PATH ?>/dashboard/inventory" class="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center mb-4">
             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,17 +36,17 @@ if (empty($categories)) {
             </svg>
             Back to Product Management
         </a>
-        <h2 class="text-3xl font-bold text-gray-800"><?= $formTitle ?></h2>
-        <p class="text-gray-600">Create a new product with dynamic specifications</p>
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 break-words"><?= $formTitle ?></h2>
+        <p class="text-sm sm:text-base text-gray-600">Create a new product with dynamic specifications</p>
     </div>
 
 
     <form id="productForm" method="POST" action="<?= $formAction ?>" enctype="multipart/form-data" class="space-y-6">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
             <!-- Left Column -->
             <div class="space-y-6">
                 <!-- Basic Information -->
-                <div class="bg-white rounded-lg shadow-sm border p-6">
+                <div class="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
                     
                     <div class="space-y-4">
@@ -165,7 +165,7 @@ if (empty($categories)) {
                 </div>
 
                 <!-- Pricing & Inventory -->
-                <div class="bg-white rounded-lg shadow-sm border p-6">
+                <div class="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Pricing & Inventory</h3>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -260,7 +260,7 @@ if (empty($categories)) {
             <!-- Right Column -->
             <div class="space-y-6">
                 <!-- Product Details -->
-                <div class="bg-white rounded-lg shadow-sm border p-6">
+                <div class="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Product Details</h3>
                     
                     <div class="space-y-4">
@@ -347,7 +347,7 @@ if (empty($categories)) {
                 </div>
 
                 <!-- Dynamic Specifications -->
-                <div id="specsWrapper" class="bg-white rounded-lg shadow-sm border p-6" style="display:none;">
+                <div id="specsWrapper" class="bg-white rounded-lg shadow-sm border p-4 sm:p-6" style="display:none;">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Specifications</h3>
                     <div id="specsContainer">
                         <!-- Dynamic specs will be loaded here based on brand selection -->
@@ -357,13 +357,13 @@ if (empty($categories)) {
         </div>
 
         <!-- Form Actions -->
-        <div class="flex items-center justify-end space-x-4 pt-6 border-t">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 sm:gap-4 pt-6 border-t">
             <a href="<?= BASE_URL_PATH ?>/dashboard/inventory" 
-               class="px-6 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition">
+               class="w-full sm:w-auto text-center px-6 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition">
                 Cancel
             </a>
             <button type="submit" 
-                    class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                    class="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
                 <?= $isEdit ? 'Update Product' : 'Create Product' ?>
             </button>
         </div>

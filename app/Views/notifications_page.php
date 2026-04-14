@@ -4,18 +4,18 @@
 ob_start();
 ?>
 
-<div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
+<div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-full overflow-x-hidden">
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Notifications</h1>
-            <p class="text-gray-600 mt-1">View and manage all system notifications</p>
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Notifications</h1>
+            <p class="text-sm sm:text-base text-gray-600 mt-1">View and manage all system notifications</p>
         </div>
-        <div class="flex gap-2">
-            <button onclick="markAllAsRead()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+        <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button onclick="markAllAsRead()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium inline-flex items-center justify-center gap-2 whitespace-nowrap">
                 <i class="fas fa-check-double"></i>
                 Mark All as Read
             </button>
-            <button onclick="clearAllNotifications()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+            <button onclick="clearAllNotifications()" class="w-full sm:w-auto bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg text-sm font-medium inline-flex items-center justify-center gap-2 whitespace-nowrap">
                 <i class="fas fa-trash"></i>
                 Clear All
             </button>
@@ -23,16 +23,16 @@ ob_start();
     </div>
 
     <!-- Filters -->
-    <div class="bg-white rounded-lg shadow p-4 mb-6">
-        <div class="flex gap-4 items-center">
-            <select id="notificationFilter" onchange="filterNotifications()" class="border border-gray-300 rounded px-3 py-2 text-sm">
+    <div class="bg-white rounded-lg shadow p-3 sm:p-4 mb-6">
+        <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
+            <select id="notificationFilter" onchange="filterNotifications()" class="w-full sm:w-auto border border-gray-300 rounded px-3 py-2 text-sm">
                 <option value="all">All Notifications</option>
                 <option value="unread">Unread Only</option>
                 <option value="low_stock">Low Stock</option>
                 <option value="out_of_stock">Out of Stock</option>
                 <option value="critical">Critical</option>
             </select>
-            <button onclick="refreshNotifications()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm">
+            <button onclick="refreshNotifications()" class="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm">
                 <i class="fas fa-sync-alt mr-2"></i>Refresh
             </button>
         </div>
@@ -163,7 +163,7 @@ function renderNotifications() {
         const readClass = notification.read ? '' : 'font-bold';
         
         return `
-            <div class="p-4 hover:bg-gray-50 cursor-pointer notification-item" 
+            <div class="p-3 sm:p-4 hover:bg-gray-50 cursor-pointer notification-item" 
                  onclick="viewNotification('${notification.id}')"
                  data-id="${notification.id}" 
                  data-read="${notification.read}">
@@ -193,8 +193,8 @@ function renderNotifications() {
                     </div>
                     <div class="flex-shrink-0">
                         <button onclick="event.stopPropagation(); clearNotification('${notification.id}')" 
-                                class="text-red-600 hover:text-red-800 p-2" title="Clear">
-                            <i class="fas fa-times"></i>
+                                class="text-red-600 hover:text-red-800 p-1.5 rounded-md hover:bg-red-50 leading-none" title="Clear">
+                            <i class="fas fa-times text-sm"></i>
                         </button>
                     </div>
                 </div>
@@ -588,7 +588,7 @@ function getIconClass(type) {
 function showSuccess(message) {
     // Simple success notification
     const toast = document.createElement('div');
-    toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    toast.className = 'fixed top-4 right-4 left-4 sm:left-auto bg-green-500 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg shadow-lg z-50 text-sm';
     toast.textContent = message;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
@@ -597,7 +597,7 @@ function showSuccess(message) {
 function showError(message) {
     // Simple error notification
     const toast = document.createElement('div');
-    toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    toast.className = 'fixed top-4 right-4 left-4 sm:left-auto bg-red-500 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg shadow-lg z-50 text-sm';
     toast.textContent = message;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
