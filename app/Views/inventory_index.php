@@ -31,27 +31,6 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
                 <input id="inventorySearch" type="text" placeholder="Search by name, brand, model, SKU, category..." class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
             </div>
-            <div class="relative w-full sm:w-auto">
-                <button id="columnSelectorToggle" type="button" class="w-full sm:w-auto inline-flex items-center justify-between gap-2 px-3 py-2 border border-gray-300 bg-white rounded text-sm text-gray-700 hover:bg-gray-50">
-                    <span>Columns</span>
-                    <i class="fas fa-chevron-down text-xs"></i>
-                </button>
-                <div id="columnSelectorMenu" class="hidden absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-3">
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Show columns</p>
-                    <div class="space-y-2 text-sm">
-                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="product-id" checked> Product ID</label>
-                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="product" checked> Product</label>
-                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="brand" checked> Brand</label>
-                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="model" checked> Model</label>
-                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="category" checked> Category</label>
-                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="sku" checked> SKU / Barcode</label>
-                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="price" checked> Price</label>
-                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="quantity" checked> Quantity</label>
-                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="location" checked> Location</label>
-                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="status" checked> Status</label>
-                    </div>
-                </div>
-            </div>
             <div class="w-full md:w-auto">
                 <?php $currentStockFilter = $_GET['stock_filter'] ?? ''; ?>
                 <select id="stockFilter" class="w-full md:w-48 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -148,6 +127,30 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
             </div>
         </div>
     </div>
+
+<div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-3 p-3 sm:p-4">
+    <div class="relative inline-block w-full sm:w-auto">
+        <button id="columnSelectorToggle" type="button" class="w-full sm:w-auto inline-flex items-center justify-between gap-2 px-3 py-2 border border-gray-300 bg-white rounded text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <span>Table Columns</span>
+            <i class="fas fa-chevron-down text-xs"></i>
+        </button>
+        <div id="columnSelectorMenu" class="hidden absolute left-0 sm:right-0 sm:left-auto mt-2 w-full sm:w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-3">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Show columns</p>
+            <div class="space-y-2 text-sm">
+                <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="product-id" checked> Product ID</label>
+                <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="product" checked> Product</label>
+                <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="brand" checked> Brand</label>
+                <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="model" checked> Model</label>
+                <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="category" checked> Category</label>
+                <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="sku" checked> SKU / Barcode</label>
+                <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="price" checked> Price</label>
+                <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="quantity" checked> Quantity</label>
+                <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="location" checked> Location</label>
+                <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="status" checked> Status</label>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="overflow-x-auto bg-white rounded-xl border border-gray-200 shadow-sm">
     <table class="min-w-[1100px] w-full text-sm">
