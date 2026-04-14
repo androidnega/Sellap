@@ -51,6 +51,11 @@ if (empty($categories)) {
     #productForm .grid {
         gap: 0.85rem;
     }
+    #productForm label,
+    #productForm p,
+    #productForm h3 {
+        overflow-wrap: anywhere;
+    }
 }
 </style>
 
@@ -957,4 +962,3 @@ function previewImage(input) {
   }
 }
 </script>
-</div>
