@@ -139,7 +139,28 @@ class ExportService {
             $headers = array_keys($dataset[0]);
         }
 
-        // Build HTML with soft, communicating colors
+        $rowCount = is_array($dataset) ? count($dataset) : 0;
+        $colCount = is_array($headers) ? count($headers) : 0;
+        $cellCount = $rowCount * max(1, $colCount);
+
+        // Dompdf can exhaust memory on shared hosting for large/complex tables.
+        // Fallback to CSV early so downloads always complete.
+        $maxPdfRows = 350;
+        $maxPdfCells = 5000;
+        if ($rowCount > $maxPdfRows || $cellCount > $maxPdfCells) {
+            error_log("ExportService::exportPDF fallback to CSV due to dataset size. rows={$rowCount}, cols={$colCount}, cells={$cellCount}");
+            $csvFilename = preg_replace('/\.pdf$/i', '.csv', $filename);
+            if (!$csvFilename || $csvFilename === $filename) {
+                $csvFilename = $filename . '.csv';
+            }
+            $this->exportCSV($dataset, $csvFilename, $headers);
+            return;
+        }
+
+        // Attempt to raise memory where hosting permits.
+        @ini_set('memory_limit', '512M');
+
+        // Build compact HTML/CSS to reduce Dompdf memory usage.
         $html = '<!DOCTYPE html>
 <html>
 <head>
@@ -147,89 +168,58 @@ class ExportService {
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; 
+            font-family: Arial, sans-serif;
             font-size: 10px; 
-            color: #4B5563;
-            background: #FAFBFC;
-            padding: 15px;
+            color: #1F2937;
+            background: #FFFFFF;
+            padding: 10px;
             line-height: 1.4;
         }
         .header {
-            background: linear-gradient(135deg, #E0E7FF 0%, #C7D2FE 100%);
-            color: #3730A3;
-            padding: 25px;
-            border-radius: 10px 10px 0 0;
-            margin-bottom: 0;
-            border-bottom: 3px solid #818CF8;
+            background: #F3F4F6;
+            color: #111827;
+            padding: 12px;
+            border: 1px solid #D1D5DB;
+            margin-bottom: 8px;
         }
         h1 { 
-            font-size: 24px; 
-            margin-bottom: 8px;
+            font-size: 18px;
+            margin-bottom: 4px;
             font-weight: 700;
-            color: #312E81;
         }
         .meta {
-            font-size: 11px;
-            color: #5B21B6;
-            opacity: 0.85;
-            margin-top: 5px;
-        }
-        .container {
-            background: white;
-            border-radius: 0 0 10px 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            overflow: hidden;
-            border: 1px solid #E5E7EB;
+            font-size: 10px;
+            color: #4B5563;
         }
         table { 
             width: 100%; 
             border-collapse: collapse;
-        }
-        thead {
-            background: linear-gradient(135deg, #FCE7F3 0%, #FBCFE8 100%);
+            table-layout: fixed;
         }
         th { 
-            color: #9F1239;
-            padding: 12px 10px; 
+            background: #F9FAFB;
+            color: #111827;
+            padding: 6px;
             text-align: left; 
-            border: none;
+            border: 1px solid #E5E7EB;
             font-weight: 600;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            border-bottom: 2px solid #F9A8D4;
+            font-size: 9px;
+            word-break: break-word;
         }
         td { 
-            padding: 10px; 
-            border-bottom: 1px solid #F3F4F6;
-            font-size: 10px;
-            color: #4B5563;
-        }
-        tbody tr {
-            transition: background-color 0.2s;
-        }
-        tbody tr:nth-child(even) { 
-            background-color: #FEF3F7; 
-        }
-        tbody tr:hover {
-            background-color: #FCE7F3;
-        }
-        tbody tr:last-child td {
-            border-bottom: none;
+            padding: 6px;
+            border: 1px solid #E5E7EB;
+            font-size: 9px;
+            color: #1F2937;
+            word-break: break-word;
         }
         .footer {
-            background: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%);
-            padding: 18px 25px;
+            padding: 10px;
             text-align: center;
             color: #6B7280;
             font-size: 9px;
-            border-top: 2px solid #E5E7EB;
-            border-radius: 0 0 10px 10px;
-        }
-        .footer a {
-            color: #818CF8;
-            text-decoration: none;
-            font-weight: 600;
+            border-top: 1px solid #E5E7EB;
+            margin-top: 8px;
         }
     </style>
 </head>
@@ -238,8 +228,7 @@ class ExportService {
         <h1>' . htmlspecialchars($title) . '</h1>
         <div class="meta">Generated: ' . date('Y-m-d H:i:s') . ' | Total Records: ' . count($dataset) . ' | ' . (getenv('APP_URL') ?: 'sellapp.store') . ($hasPartialPayments ? ' | ⚠️ Contains Partial Payments' : '') . '</div>
     </div>
-    <div class="container">
-        <table>
+    <table>
             <thead>
                 <tr>';
 
@@ -254,12 +243,12 @@ class ExportService {
             <tbody>';
 
             // Limit rows for PDF (performance)
-            $maxRows = 1000;
+            $maxRows = 350;
             $rowCount = 0;
             
             foreach ($dataset as $row) {
                 if ($rowCount >= $maxRows) {
-                    $html .= '<tr><td colspan="' . count($headers) . '" style="text-align: center; font-style: italic; color: #9CA3AF; padding: 15px; background: #FEF3F7;">... and ' . (count($dataset) - $maxRows) . ' more rows (export to Excel for full data)</td></tr>';
+                    $html .= '<tr><td colspan="' . count($headers) . '" style="text-align:center;font-style:italic;color:#6B7280;padding:10px;">... and ' . (count($dataset) - $maxRows) . ' more rows (download CSV/Excel for full data)</td></tr>';
                     break;
                 }
                 
@@ -267,8 +256,9 @@ class ExportService {
                 foreach ($headers as $header) {
                     $value = $row[$header] ?? '';
                     // Truncate long values
-                    if (strlen($value) > 50) {
-                        $value = substr($value, 0, 47) . '...';
+                    $value = (string)$value;
+                    if (strlen($value) > 45) {
+                        $value = substr($value, 0, 42) . '...';
                     }
                     $html .= '<td>' . htmlspecialchars($value) . '</td>';
                 }
@@ -278,9 +268,8 @@ class ExportService {
 
             $html .= '</tbody>
         </table>
-    </div>
     <div class="footer">
-        <p>This report was generated automatically by <a href="' . (defined('APP_URL') ? APP_URL : (getenv('APP_URL') ?: 'http://localhost')) . '">SellApp Analytics System</a></p>
+        <p>This report was generated automatically by SellApp Analytics System</p>
     </div>
 </body>
 </html>';
@@ -288,10 +277,13 @@ class ExportService {
         // Try Dompdf first
         if (class_exists('Dompdf\Dompdf')) {
             try {
-                $dompdf = new \Dompdf\Dompdf();
+                $options = new \Dompdf\Options();
+                $options->set('isRemoteEnabled', false);
+                $options->set('isHtml5ParserEnabled', false);
+                $options->set('isPhpEnabled', false);
+                $dompdf = new \Dompdf\Dompdf($options);
                 $dompdf->loadHtml($html);
                 $dompdf->setPaper('A4', 'landscape');
-                $dompdf->set_option('isRemoteEnabled', true);
                 $dompdf->render();
 
                 // Send to browser as downloadable file
