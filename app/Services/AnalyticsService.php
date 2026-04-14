@@ -1789,7 +1789,7 @@ class AnalyticsService {
      * Get sales by date range
      * @param int|null $staff_id Optional staff member filter
      */
-    public function getSalesByDateRange($company_id, $from, $to, $staff_id = null) {
+    public function getSalesByDateRange($company_id, $from = null, $to = null, $staff_id = null) {
         // Check if is_swap_mode and swap_id columns exist
         $hasIsSwapMode = false;
         $hasSwapId = false;
@@ -1812,14 +1812,17 @@ class AnalyticsService {
             $excludeSwapSales .= " AND ps.swap_id IS NULL";
         }
         
-        $where = "ps.company_id = :company_id
-            AND DATE(ps.created_at) >= :date_from
-            AND DATE(ps.created_at) <= :date_to{$excludeSwapSales}";
-        $params = [
-            'company_id' => $company_id,
-            'date_from' => $from,
-            'date_to' => $to
-        ];
+        $where = "ps.company_id = :company_id{$excludeSwapSales}";
+        $params = ['company_id' => $company_id];
+
+        if (!empty($from)) {
+            $where .= " AND DATE(ps.created_at) >= :date_from";
+            $params['date_from'] = $from;
+        }
+        if (!empty($to)) {
+            $where .= " AND DATE(ps.created_at) <= :date_to";
+            $params['date_to'] = $to;
+        }
         
         if ($staff_id) {
             $where .= " AND ps.created_by_user_id = :staff_id";
@@ -1863,15 +1866,18 @@ class AnalyticsService {
      * Get swaps by date range
      * @param int|null $staff_id Optional staff member filter (salesperson)
      */
-    public function getSwapsByDateRange($company_id, $from, $to, $staff_id = null) {
-        $where = "s.company_id = :company_id
-            AND DATE(s.created_at) >= :date_from
-            AND DATE(s.created_at) <= :date_to";
-        $params = [
-            'company_id' => $company_id,
-            'date_from' => $from,
-            'date_to' => $to
-        ];
+    public function getSwapsByDateRange($company_id, $from = null, $to = null, $staff_id = null) {
+        $where = "s.company_id = :company_id";
+        $params = ['company_id' => $company_id];
+
+        if (!empty($from)) {
+            $where .= " AND DATE(s.created_at) >= :date_from";
+            $params['date_from'] = $from;
+        }
+        if (!empty($to)) {
+            $where .= " AND DATE(s.created_at) <= :date_to";
+            $params['date_to'] = $to;
+        }
         
         if ($staff_id) {
             $where .= " AND s.salesperson_id = :staff_id";
@@ -1988,15 +1994,18 @@ class AnalyticsService {
      * Get repairs by date range
      * @param int|null $staff_id Optional staff member filter (technician)
      */
-    public function getRepairsByDateRange($company_id, $from, $to, $staff_id = null) {
-        $where = "r.company_id = :company_id
-            AND DATE(r.created_at) >= :date_from
-            AND DATE(r.created_at) <= :date_to";
-        $params = [
-            'company_id' => $company_id,
-            'date_from' => $from,
-            'date_to' => $to
-        ];
+    public function getRepairsByDateRange($company_id, $from = null, $to = null, $staff_id = null) {
+        $where = "r.company_id = :company_id";
+        $params = ['company_id' => $company_id];
+
+        if (!empty($from)) {
+            $where .= " AND DATE(r.created_at) >= :date_from";
+            $params['date_from'] = $from;
+        }
+        if (!empty($to)) {
+            $where .= " AND DATE(r.created_at) <= :date_to";
+            $params['date_to'] = $to;
+        }
         
         // Check which repairs table exists and use appropriate column
         $checkRepairsNew = $this->db->query("SHOW TABLES LIKE 'repairs_new'");

@@ -11,7 +11,41 @@ $companyId = $user['company_id'] ?? null;
 $userRole = $user['role'] ?? 'manager';
 ?>
 
-<div class="p-3 sm:p-4 pb-4 max-w-full" data-server-rendered="true">
+<style>
+    .audit-trail-root {
+        overflow-x: hidden;
+    }
+    .audit-trail-root * {
+        min-width: 0;
+    }
+    .audit-pill-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    .audit-export-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        align-items: center;
+        max-width: 100%;
+    }
+    @media (max-width: 640px) {
+        .audit-trail-root .date-filter-btn,
+        .audit-trail-root #btnApplyFilters,
+        .audit-trail-root #btnRefreshAuditLogs,
+        .audit-trail-root #btnTraceSearch {
+            width: 100%;
+        }
+        .audit-export-group > span {
+            width: 100%;
+            padding-left: 0;
+        }
+    }
+</style>
+
+<div class="audit-trail-root p-3 sm:p-4 pb-4 max-w-full overflow-x-hidden" data-server-rendered="true">
     <!-- Header -->
     <div class="mb-4 sm:mb-6">
         <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">Audit Trail - Manager Analytics</h2>
@@ -55,7 +89,7 @@ $userRole = $user['role'] ?? 'manager';
             </div>
             <!-- Quick Filters and Actions Row -->
             <div class="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-                <div class="flex flex-wrap gap-2">
+                <div class="audit-pill-group">
                     <button id="btnToday" class="date-filter-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm transition-colors" data-range="today">Today</button>
                     <button id="btnThisWeek" class="date-filter-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm transition-colors" data-range="this_week">This Week</button>
                     <button id="btnThisMonth" class="date-filter-btn bg-blue-100 hover:bg-blue-200 border border-blue-400 rounded px-3 py-2 text-sm active transition-colors bg-blue-600 text-white" data-range="this_month">This Month</button>
@@ -74,8 +108,8 @@ $userRole = $user['role'] ?? 'manager';
         
         <!-- Export Buttons -->
         <div class="mt-4 pt-4 border-t border-gray-200">
-            <div class="flex flex-wrap gap-2">
-                <div class="flex gap-1 items-center">
+            <div class="audit-pill-group">
+                <div class="audit-export-group">
                     <button onclick="exportData('sales', 'csv')" class="bg-teal-100 hover:bg-teal-200 text-teal-700 rounded-lg px-3 py-2 text-sm transition-colors border border-teal-200" title="Export Sales as CSV">
                         <i class="fas fa-file-csv"></i>
                     </button>
@@ -87,7 +121,7 @@ $userRole = $user['role'] ?? 'manager';
                     </button>
                     <span class="px-2 py-2 text-sm text-gray-600 font-medium">Sales</span>
                 </div>
-                <div class="flex gap-1 items-center">
+                <div class="audit-export-group">
                     <button onclick="exportData('repairs', 'csv')" class="bg-teal-100 hover:bg-teal-200 text-teal-700 rounded-lg px-3 py-2 text-sm transition-colors border border-teal-200" title="Export Repairs as CSV">
                         <i class="fas fa-file-csv"></i>
                     </button>
@@ -99,7 +133,7 @@ $userRole = $user['role'] ?? 'manager';
                     </button>
                     <span class="px-2 py-2 text-sm text-gray-600 font-medium">Repairs</span>
                 </div>
-                <div class="flex gap-1 items-center">
+                <div class="audit-export-group">
                     <button onclick="exportData('swaps', 'csv')" class="bg-teal-100 hover:bg-teal-200 text-teal-700 rounded-lg px-3 py-2 text-sm transition-colors border border-teal-200" title="Export Swaps as CSV">
                         <i class="fas fa-file-csv"></i>
                     </button>
@@ -111,7 +145,7 @@ $userRole = $user['role'] ?? 'manager';
                     </button>
                     <span class="px-2 py-2 text-sm text-gray-600 font-medium">Swaps</span>
                 </div>
-                <div class="flex gap-1 items-center">
+                <div class="audit-export-group">
                     <button onclick="exportData('inventory', 'csv')" class="bg-teal-100 hover:bg-teal-200 text-teal-700 rounded-lg px-3 py-2 text-sm transition-colors border border-teal-200" title="Export Inventory as CSV">
                         <i class="fas fa-file-csv"></i>
                     </button>
@@ -3387,9 +3421,11 @@ $userRole = $user['role'] ?? 'manager';
         const dateTo = document.getElementById('filterDateTo').value;
         const staffSelect = document.getElementById('filterStaff');
         const staffId = staffSelect ? staffSelect.value : '';
+        const dateRange = getCurrentDateRange();
         
         const params = new URLSearchParams();
         params.append('format', format);
+        params.append('date_range', dateRange || 'this_month');
         if (dateFrom) params.append('date_from', dateFrom);
         if (dateTo) params.append('date_to', dateTo);
         if (staffId) params.append('staff_id', staffId);

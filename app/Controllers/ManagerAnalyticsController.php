@@ -1062,18 +1062,20 @@ class ManagerAnalyticsController {
             $format = $_GET['format'] ?? 'csv';
             $dateFrom = $_GET['date_from'] ?? null;
             $dateTo = $_GET['date_to'] ?? null;
+            $dateRange = $_GET['date_range'] ?? null;
             $staffId = $_GET['staff_id'] ?? null; // Staff filter for export
+            [$resolvedDateFrom, $resolvedDateTo] = $this->resolveExportDateBounds($dateFrom, $dateTo, $dateRange);
 
             // Route to appropriate export handler
             switch ($type) {
                 case 'sales':
-                    $this->exportSales($companyId, $format, $dateFrom, $dateTo, $staffId);
+                    $this->exportSales($companyId, $format, $resolvedDateFrom, $resolvedDateTo, $staffId);
                     break;
                 case 'repairs':
-                    $this->exportRepairs($companyId, $format, $dateFrom, $dateTo, $staffId);
+                    $this->exportRepairs($companyId, $format, $resolvedDateFrom, $resolvedDateTo, $staffId);
                     break;
                 case 'swaps':
-                    $this->exportSwaps($companyId, $format, $dateFrom, $dateTo, $staffId);
+                    $this->exportSwaps($companyId, $format, $resolvedDateFrom, $resolvedDateTo, $staffId);
                     break;
                 case 'inventory':
                     $this->exportInventory($companyId, $format);
@@ -1100,14 +1102,6 @@ class ManagerAnalyticsController {
      * @param int|null $staffId Optional staff member filter
      */
     private function exportSales($companyId, $format, $dateFrom, $dateTo, $staffId = null) {
-        // Default date range if not provided
-        if (!$dateFrom) {
-            $dateFrom = date('Y-m-01'); // Start of month
-        }
-        if (!$dateTo) {
-            $dateTo = date('Y-m-d');
-        }
-
         $data = $this->analyticsService->getSalesByDateRange($companyId, $dateFrom, $dateTo, $staffId);
         
         // Get authenticated user for role check
@@ -1206,14 +1200,6 @@ class ManagerAnalyticsController {
      * @param int|null $staffId Optional staff member filter (technician)
      */
     private function exportRepairs($companyId, $format, $dateFrom, $dateTo, $staffId = null) {
-        // Default date range if not provided
-        if (!$dateFrom) {
-            $dateFrom = date('Y-m-01'); // Start of month
-        }
-        if (!$dateTo) {
-            $dateTo = date('Y-m-d');
-        }
-
         $data = $this->analyticsService->getRepairsByDateRange($companyId, $dateFrom, $dateTo, $staffId);
         
         // Get staff name for filename if staff is selected
@@ -1267,14 +1253,6 @@ class ManagerAnalyticsController {
      * @param int|null $staffId Optional staff member filter (salesperson)
      */
     private function exportSwaps($companyId, $format, $dateFrom, $dateTo, $staffId = null) {
-        // Default date range if not provided
-        if (!$dateFrom) {
-            $dateFrom = date('Y-m-01'); // Start of month
-        }
-        if (!$dateTo) {
-            $dateTo = date('Y-m-d');
-        }
-
         $data = $this->analyticsService->getSwapsByDateRange($companyId, $dateFrom, $dateTo, $staffId);
         
         // Get staff name for filename if staff is selected
@@ -1328,18 +1306,20 @@ class ManagerAnalyticsController {
      */
     private function exportInventory($companyId, $format) {
         $db = \Database::getInstance()->getConnection();
+        $checkProductsNew = $db->query("SHOW TABLES LIKE 'products_new'");
+        $productsTable = ($checkProductsNew && $checkProductsNew->rowCount() > 0) ? 'products_new' : 'products';
         $query = $db->prepare("
             SELECT 
                 id,
-                product_id as sku,
+                COALESCE(product_id, sku, '') as sku,
                 name,
-                category,
-                brand,
+                COALESCE(category_name, category, '') as category,
+                COALESCE(brand_name, brand, '') as brand,
                 price,
                 cost,
                 COALESCE(quantity, qty, 0) as quantity,
                 status
-            FROM products
+            FROM {$productsTable}
             WHERE company_id = :company_id
             ORDER BY name ASC
         ");
@@ -1371,6 +1351,46 @@ class ManagerAnalyticsController {
         } else {
             $this->exportService->exportCSV($formattedData, $filename);
         }
+    }
+
+    /**
+     * Resolve export date bounds from explicit dates or range labels.
+     * Returns [dateFrom|null, dateTo|null]. Null/null means all-time export.
+     */
+    private function resolveExportDateBounds($dateFrom, $dateTo, $dateRange) {
+        $dateFrom = is_string($dateFrom) ? trim($dateFrom) : '';
+        $dateTo = is_string($dateTo) ? trim($dateTo) : '';
+        $dateRange = is_string($dateRange) ? trim($dateRange) : '';
+
+        $isValidDate = static function ($date) {
+            return is_string($date) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date);
+        };
+
+        $hasFrom = $isValidDate($dateFrom);
+        $hasTo = $isValidDate($dateTo);
+
+        // Explicit valid dates always win.
+        if ($hasFrom || $hasTo) {
+            if ($hasFrom && !$hasTo) {
+                $dateTo = date('Y-m-d');
+            } elseif (!$hasFrom && $hasTo) {
+                $dateFrom = $dateTo;
+            }
+            return [$dateFrom, $dateTo];
+        }
+
+        // All-time exports intentionally have no date filtering.
+        if ($dateRange === 'all_time') {
+            return [null, null];
+        }
+
+        // Use selected range when provided.
+        if (!empty($dateRange) && $dateRange !== 'custom') {
+            return $this->calculateDateRange($dateRange);
+        }
+
+        // Safe default when nothing is selected.
+        return $this->calculateDateRange('this_month');
     }
 
     /**
