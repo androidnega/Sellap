@@ -28,16 +28,29 @@ if (empty($categories)) {
 }
 ?>
 
-<div class="p-3 sm:p-6 max-w-full overflow-x-hidden">
-    <div class="mb-6">
-        <a href="<?= BASE_URL_PATH ?>/dashboard/inventory" class="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center mb-4">
+<style>
+@media (max-width: 640px) {
+    #productForm .bg-white {
+        padding: 0.9rem;
+    }
+    #productForm input,
+    #productForm select,
+    #productForm textarea {
+        max-width: 100%;
+    }
+}
+</style>
+
+<div class="p-2 sm:p-6 max-w-full overflow-x-hidden">
+    <div class="mb-5 sm:mb-6">
+        <a href="<?= BASE_URL_PATH ?>/dashboard/inventory" class="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center mb-3 sm:mb-4 break-words">
             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
             Back to Product Management
         </a>
         <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 break-words"><?= $formTitle ?></h2>
-        <p class="text-sm sm:text-base text-gray-600">Create a new product with dynamic specifications</p>
+        <p class="text-sm sm:text-base text-gray-600"><?= $isEdit ? 'Update this product details and stock information' : 'Create a new product with dynamic specifications' ?></p>
     </div>
 
 
@@ -293,7 +306,7 @@ if (empty($categories)) {
                             
                             <!-- Image Preview -->
                             <div id="imagePreview" class="mt-3" style="display: none;">
-                                <img id="previewImg" src="" alt="Product Preview" class="max-w-xs h-32 object-cover rounded-lg border border-gray-300">
+                                <img id="previewImg" src="" alt="Product Preview" class="w-full max-w-full sm:max-w-xs h-32 object-cover rounded-lg border border-gray-300">
                                 <p class="text-sm text-gray-600 mt-1">Image Preview</p>
                             </div>
                             
@@ -307,7 +320,7 @@ if (empty($categories)) {
                                     $imageUrl = BASE_URL_PATH . '/' . $imageUrl;
                                 }
                                 ?>
-                                <img src="<?= htmlspecialchars($imageUrl) ?>" alt="Current Product Image" class="max-w-xs h-32 object-cover rounded-lg border border-gray-300">
+                                <img src="<?= htmlspecialchars($imageUrl) ?>" alt="Current Product Image" class="w-full max-w-full sm:max-w-xs h-32 object-cover rounded-lg border border-gray-300">
                                 <p class="text-sm text-gray-500 mt-1">Upload a new image to replace this one</p>
                             </div>
                             <?php endif; ?>

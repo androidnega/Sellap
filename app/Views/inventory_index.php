@@ -31,6 +31,27 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
                 <input id="inventorySearch" type="text" placeholder="Search by name, brand, model, SKU, category..." class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
             </div>
+            <div class="relative w-full sm:w-auto">
+                <button id="columnSelectorToggle" type="button" class="w-full sm:w-auto inline-flex items-center justify-between gap-2 px-3 py-2 border border-gray-300 bg-white rounded text-sm text-gray-700 hover:bg-gray-50">
+                    <span>Columns</span>
+                    <i class="fas fa-chevron-down text-xs"></i>
+                </button>
+                <div id="columnSelectorMenu" class="hidden absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-3">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Show columns</p>
+                    <div class="space-y-2 text-sm">
+                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="product-id" checked> Product ID</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="product" checked> Product</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="brand" checked> Brand</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="model" checked> Model</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="category" checked> Category</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="sku" checked> SKU / Barcode</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="price" checked> Price</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="quantity" checked> Quantity</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="location" checked> Location</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" class="inv-col-toggle" data-col="status" checked> Status</label>
+                    </div>
+                </div>
+            </div>
             <div class="w-full md:w-auto">
                 <?php $currentStockFilter = $_GET['stock_filter'] ?? ''; ?>
                 <select id="stockFilter" class="w-full md:w-48 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -135,16 +156,16 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
                 <th class="p-3 text-left w-12">
                     <input type="checkbox" id="selectAllCheckbox" class="cursor-pointer">
                 </th>
-                <th class="p-3 text-left">Product ID</th>
-                <th class="p-3 text-left">Product</th>
-                <th class="p-3 text-left">Brand</th>
-                <th class="p-3 text-left">Model</th>
-                <th class="p-3 text-left">Category</th>
-                <th class="p-3 text-left">SKU / Barcode</th>
-                <th class="p-3 text-left">Price</th>
-                <th class="p-3 text-left">Quantity</th>
-                <th class="p-3 text-left">Location</th>
-                <th class="p-3 text-left">Status</th>
+                <th class="p-3 text-left" data-col="product-id">Product ID</th>
+                <th class="p-3 text-left" data-col="product">Product</th>
+                <th class="p-3 text-left" data-col="brand">Brand</th>
+                <th class="p-3 text-left" data-col="model">Model</th>
+                <th class="p-3 text-left" data-col="category">Category</th>
+                <th class="p-3 text-left" data-col="sku">SKU / Barcode</th>
+                <th class="p-3 text-left" data-col="price">Price</th>
+                <th class="p-3 text-left" data-col="quantity">Quantity</th>
+                <th class="p-3 text-left" data-col="location">Location</th>
+                <th class="p-3 text-left" data-col="status">Status</th>
                 <th class="p-3 text-right">Actions</th>
             </tr>
         </thead>
@@ -204,8 +225,8 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
                     <td class="p-3">
                         <input type="checkbox" class="product-checkbox cursor-pointer" data-product-id="<?= $product['id'] ?>" data-product-name="<?= htmlspecialchars($product['name'] ?? '') ?>">
                     </td>
-                    <td class="p-3 font-mono text-xs" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>><?= $product['product_id'] ?? 'PID-' . str_pad($product['id'] ?? 0, 3, '0', STR_PAD_LEFT) ?></td>
-                    <td class="p-3" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>>
+                    <td class="p-3 font-mono text-xs" data-col="product-id" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>><?= $product['product_id'] ?? 'PID-' . str_pad($product['id'] ?? 0, 3, '0', STR_PAD_LEFT) ?></td>
+                    <td class="p-3" data-col="product" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>>
                         <?= htmlspecialchars($product['name'] ?? '') ?>
                         <?php if ($isSwappedItem): ?>
                             <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium ml-2" style="background-color: #fca5a5; color: #991b1b;" title="Swapped Item - Received from customer">
@@ -213,20 +234,20 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
                             </span>
                         <?php endif; ?>
                     </td>
-                    <td class="p-3" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>><?= htmlspecialchars($product['brand_name'] ?? 'N/A') ?></td>
-                    <td class="p-3" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>><?= htmlspecialchars($product['model_name'] ?? 'N/A') ?></td>
-                    <td class="p-3" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>><?= htmlspecialchars($product['category_name'] ?? 'N/A') ?></td>
-                    <td class="p-3 font-mono text-xs max-w-[140px]" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>>
+                    <td class="p-3" data-col="brand" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>><?= htmlspecialchars($product['brand_name'] ?? 'N/A') ?></td>
+                    <td class="p-3" data-col="model" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>><?= htmlspecialchars($product['model_name'] ?? 'N/A') ?></td>
+                    <td class="p-3" data-col="category" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>><?= htmlspecialchars($product['category_name'] ?? 'N/A') ?></td>
+                    <td class="p-3 font-mono text-xs max-w-[140px]" data-col="sku" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>>
                         <span class="inv-sku-cell"><?= htmlspecialchars(trim((string)($product['sku'] ?? '')) !== '' ? (string)$product['sku'] : '—') ?></span>
                     </td>
-                    <td class="p-3" <?= $isSwappedItem ? 'style="color: #991b1b; font-weight: 600;"' : '' ?>>₵<?= number_format($product['price'] ?? 0, 2) ?></td>
-                    <td class="p-3">
+                    <td class="p-3" data-col="price" <?= $isSwappedItem ? 'style="color: #991b1b; font-weight: 600;"' : '' ?>>₵<?= number_format($product['price'] ?? 0, 2) ?></td>
+                    <td class="p-3" data-col="quantity">
                         <span class="px-2 py-1 rounded text-xs <?= $isSwappedItem ? '' : (($product['quantity'] ?? 0) > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') ?>" <?= $isSwappedItem ? 'style="background-color: #fca5a5; color: #991b1b;"' : '' ?>>
                             <?= $product['quantity'] ?? 0 ?>
                         </span>
                     </td>
-                    <td class="p-3 text-xs" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>><?= htmlspecialchars($product['item_location'] ?? 'N/A') ?></td>
-                    <td class="p-3">
+                    <td class="p-3 text-xs" data-col="location" <?= $isSwappedItem ? 'style="color: #991b1b;"' : '' ?>><?= htmlspecialchars($product['item_location'] ?? 'N/A') ?></td>
+                    <td class="p-3" data-col="status">
                         <span class="px-2 py-1 rounded text-xs <?= $isSwappedItem ? '' : (($product['status'] ?? 'out_of_stock')=='available' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') ?>" <?= $isSwappedItem ? 'style="background-color: #fca5a5; color: #991b1b;"' : '' ?>>
                             <?= ucfirst($product['status'] ?? 'out_of_stock') ?>
                         </span>
@@ -299,6 +320,10 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
     const info = document.getElementById('inventoryFilterInfo');
     const filteredCountEl = document.getElementById('inventoryFilteredCount');
     const totalCountEl = document.getElementById('inventoryTotalCount');
+    const columnToggleBtn = document.getElementById('columnSelectorToggle');
+    const columnMenu = document.getElementById('columnSelectorMenu');
+    const columnCheckboxes = document.querySelectorAll('.inv-col-toggle');
+    const colStorageKey = 'manager_inventory_visible_columns_v1';
     if (!searchInput || !tbody) return;
 
     // Keep original rows HTML for local filter fallback
@@ -381,16 +406,16 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
                 <td class="p-3">
                     <input type="checkbox" class="product-checkbox cursor-pointer" data-product-id="${id}" data-product-name="${name}">
                 </td>
-                <td class="p-3 font-mono text-xs">${p.product_id || ('PID-' + String(id||0).padStart(3,'0'))}</td>
-                <td class="p-3">${escapeHtml(p.name || '')}</td>
-                <td class="p-3">${escapeHtml(p.brand_name || 'N/A')}</td>
-                <td class="p-3">${escapeHtml(p.model_name || 'N/A')}</td>
-                <td class="p-3">${escapeHtml(p.category_name || 'N/A')}</td>
-                <td class="p-3 font-mono text-xs max-w-[140px]"><span class="inv-sku-cell">${skuDisp}</span></td>
-                <td class="p-3">₵${Number(p.price||0).toFixed(2)}</td>
-                <td class="p-3"><span class="px-2 py-1 rounded text-xs ${qty>0?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${qty}</span></td>
-                <td class="p-3 text-xs">${escapeHtml(p.item_location || 'N/A')}</td>
-                <td class="p-3"><span class="px-2 py-1 rounded text-xs ${status==='available'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${status.charAt(0).toUpperCase()+status.slice(1)}</span></td>
+                <td class="p-3 font-mono text-xs" data-col="product-id">${p.product_id || ('PID-' + String(id||0).padStart(3,'0'))}</td>
+                <td class="p-3" data-col="product">${escapeHtml(p.name || '')}</td>
+                <td class="p-3" data-col="brand">${escapeHtml(p.brand_name || 'N/A')}</td>
+                <td class="p-3" data-col="model">${escapeHtml(p.model_name || 'N/A')}</td>
+                <td class="p-3" data-col="category">${escapeHtml(p.category_name || 'N/A')}</td>
+                <td class="p-3 font-mono text-xs max-w-[140px]" data-col="sku"><span class="inv-sku-cell">${skuDisp}</span></td>
+                <td class="p-3" data-col="price">₵${Number(p.price||0).toFixed(2)}</td>
+                <td class="p-3" data-col="quantity"><span class="px-2 py-1 rounded text-xs ${qty>0?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${qty}</span></td>
+                <td class="p-3 text-xs" data-col="location">${escapeHtml(p.item_location || 'N/A')}</td>
+                <td class="p-3" data-col="status"><span class="px-2 py-1 rounded text-xs ${status==='available'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${status.charAt(0).toUpperCase()+status.slice(1)}</span></td>
                 <td class="p-3 text-right space-x-2 whitespace-nowrap">
                     ${barcodeBtn}
                     <a href="${(typeof BASE_URL_PATH!=='undefined'?BASE_URL_PATH:'')}/dashboard/inventory/view/${id}" class="text-green-600 hover:underline">View</a>
@@ -403,6 +428,33 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
 
     function escapeHtml(str){
         return String(str).replace(/[&<>"]+/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));
+    }
+
+    function currentVisibleColumns() {
+        return Array.from(columnCheckboxes).filter(cb => cb.checked).map(cb => cb.dataset.col);
+    }
+
+    function applyVisibleColumns(visibleCols) {
+        document.querySelectorAll('[data-col]').forEach(cell => {
+            const key = cell.getAttribute('data-col');
+            cell.classList.toggle('hidden', !visibleCols.includes(key));
+        });
+    }
+
+    function persistVisibleColumns(cols) {
+        localStorage.setItem(colStorageKey, JSON.stringify(cols));
+    }
+
+    function restoreVisibleColumns() {
+        const raw = localStorage.getItem(colStorageKey);
+        if (!raw) return;
+        try {
+            const cols = JSON.parse(raw);
+            if (!Array.isArray(cols) || !cols.length) return;
+            columnCheckboxes.forEach(cb => {
+                cb.checked = cols.includes(cb.dataset.col);
+            });
+        } catch (e) {}
     }
 
     let lastQuery = '';
@@ -425,6 +477,7 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
         } else if (!q && !selectedStock) {
             // Restore original
             tbody.innerHTML = originalHTML;
+            applyVisibleColumns(currentVisibleColumns());
             if (info) info.classList.add('hidden');
             if (typeof window.updateSelectedCount === 'function') {
                 setTimeout(() => {
@@ -442,6 +495,7 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
             if (!q) {
                 // Restore original page rows
                 tbody.innerHTML = originalHTML;
+                applyVisibleColumns(currentVisibleColumns());
                 if (info) info.classList.add('hidden');
                 // Update selection count after restoring
                 setTimeout(() => {
@@ -463,6 +517,7 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
                     return;
                 }
                 tbody.innerHTML = results.map(rowHTML).join('');
+                applyVisibleColumns(currentVisibleColumns());
                 filteredCountEl.textContent = results.length;
                 totalCountEl.textContent = results.length;
                 info.classList.remove('hidden');
@@ -475,6 +530,7 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
             } catch (e) {
                 // Fallback to local filter if remote fails
                 tbody.innerHTML = originalHTML;
+                applyVisibleColumns(currentVisibleColumns());
                 info.classList.add('hidden');
                 // Update selection count after restoring original HTML
                 setTimeout(() => {
@@ -507,6 +563,32 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
             window.location.href = url.toString();
         });
     }
+
+    if (columnToggleBtn && columnMenu) {
+        columnToggleBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            columnMenu.classList.toggle('hidden');
+        });
+        document.addEventListener('click', function(e) {
+            if (!columnMenu.contains(e.target) && !columnToggleBtn.contains(e.target)) {
+                columnMenu.classList.add('hidden');
+            }
+        });
+    }
+
+    restoreVisibleColumns();
+    applyVisibleColumns(currentVisibleColumns());
+    columnCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            const visible = currentVisibleColumns();
+            if (!visible.length) {
+                this.checked = true;
+                return;
+            }
+            applyVisibleColumns(visible);
+            persistVisibleColumns(visible);
+        });
+    });
 })();
 
 // Bulk selection and delete functionality

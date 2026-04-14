@@ -118,19 +118,20 @@ $roleConfig = [
 $config = $roleConfig[$userRole] ?? $roleConfig['salesperson'];
 
 // Helper function to generate sidebar link
-function sidebarLink($href, $icon, $text, $currentPage, $pageName) {
+function sidebarLink($href, $icon, $text, $currentPage, $pageName, $extraClasses = '') {
     $isActive = $currentPage === $pageName;
     $activeClasses = $isActive ? 'sidebar-item-active' : '';
     $iconClasses = $isActive ? 'sidebar-icon-active' : 'sidebar-text';
     $textClasses = $isActive ? 'sidebar-label-active' : 'sidebar-text';
     
     return sprintf(
-        '<a href="%s" class="sidebar-item flex items-center px-3 py-2 rounded-md text-sm %s" onclick="expandSidebarIfCollapsed(event)">
+        '<a href="%s" class="sidebar-item flex items-center px-3 py-2 rounded-md text-sm %s %s" onclick="expandSidebarIfCollapsed(event)">
             <i class="%s mr-3 text-xs %s flex-shrink-0" style="width: 1rem; min-width: 1rem;"></i>
             <span class="%s">%s</span>
         </a>',
         $href,
         $activeClasses,
+        $extraClasses,
         $icon,
         $iconClasses,
         $textClasses,
@@ -142,6 +143,23 @@ function sidebarSection($label) {
     return sprintf(
         '<div class="sidebar-section-label">%s</div>',
         htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+    );
+}
+
+function sidebarCollapsibleGroup($label, $icon, $linksHtml, $isOpen = false) {
+    $openAttr = $isOpen ? ' open' : '';
+    return sprintf(
+        '<details class="sidebar-collapsible"%s>
+            <summary class="sidebar-collapsible-summary">
+                <span class="sidebar-collapsible-label"><i class="%s mr-2 text-xs"></i>%s</span>
+                <span class="sidebar-collapsible-plus" aria-hidden="true"><i class="fas fa-chevron-right text-xs"></i></span>
+            </summary>
+            <div class="sidebar-collapsible-content">%s</div>
+        </details>',
+        $openAttr,
+        htmlspecialchars($icon, ENT_QUOTES, 'UTF-8'),
+        htmlspecialchars($label, ENT_QUOTES, 'UTF-8'),
+        $linksHtml
     );
 }
 ?>
@@ -187,20 +205,34 @@ function sidebarSection($label) {
             
             <?php if (isModuleEnabled('products_inventory', $companyId, $userRole)): ?>
                 <?= sidebarSection('Products & Inventory') ?>
-                <?= sidebarLink(BASE_URL_PATH . '/dashboard/inventory', 'fas fa-boxes', 'Inventory', $currentPage, 'inventory') ?>
-                <?= sidebarLink(BASE_URL_PATH . '/dashboard/restock', 'fas fa-truck-loading', 'Restock', $currentPage, 'restock') ?>
-                <?= sidebarLink(BASE_URL_PATH . '/dashboard/categories', 'fas fa-tags', 'Categories', $currentPage, 'categories') ?>
-                <?= sidebarLink(BASE_URL_PATH . '/dashboard/subcategories', 'fas fa-layer-group', 'Subcategories', $currentPage, 'subcategories') ?>
-                <?= sidebarLink(BASE_URL_PATH . '/dashboard/brands', 'fas fa-star', 'Brands', $currentPage, 'brands') ?>
+                <?php
+                    $inventoryGroupOpen = in_array($currentPage, ['inventory', 'restock', 'categories', 'subcategories', 'brands'], true);
+                    echo sidebarCollapsibleGroup(
+                        'Inventory',
+                        'fas fa-boxes',
+                        sidebarLink(BASE_URL_PATH . '/dashboard/inventory', 'fas fa-boxes', 'Inventory', $currentPage, 'inventory', 'sidebar-subitem') .
+                        sidebarLink(BASE_URL_PATH . '/dashboard/restock', 'fas fa-truck-loading', 'Restock', $currentPage, 'restock', 'sidebar-subitem') .
+                        sidebarLink(BASE_URL_PATH . '/dashboard/categories', 'fas fa-tags', 'Categories', $currentPage, 'categories', 'sidebar-subitem') .
+                        sidebarLink(BASE_URL_PATH . '/dashboard/subcategories', 'fas fa-layer-group', 'Subcategories', $currentPage, 'subcategories', 'sidebar-subitem') .
+                        sidebarLink(BASE_URL_PATH . '/dashboard/brands', 'fas fa-star', 'Brands', $currentPage, 'brands', 'sidebar-subitem'),
+                        $inventoryGroupOpen
+                    );
+                ?>
             <?php endif; ?>
             
-            <?php if (isModuleEnabled('suppliers', $companyId, $userRole)): ?>
+            <?php if (isModuleEnabled('suppliers', $companyId, $userRole) || isModuleEnabled('purchase_orders', $companyId, $userRole)): ?>
                 <?= sidebarSection('Procurement') ?>
-                <?= sidebarLink(BASE_URL_PATH . '/dashboard/suppliers', 'fas fa-truck', 'Suppliers', $currentPage, 'suppliers') ?>
-            <?php endif; ?>
-            
-            <?php if (isModuleEnabled('purchase_orders', $companyId, $userRole)): ?>
-                <?= sidebarLink(BASE_URL_PATH . '/dashboard/purchase-orders', 'fas fa-shopping-cart', 'Purchase Orders', $currentPage, 'purchase_orders') ?>
+                <?php
+                    $procurementLinks = '';
+                    if (isModuleEnabled('suppliers', $companyId, $userRole)) {
+                        $procurementLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/suppliers', 'fas fa-truck', 'Suppliers', $currentPage, 'suppliers', 'sidebar-subitem');
+                    }
+                    if (isModuleEnabled('purchase_orders', $companyId, $userRole)) {
+                        $procurementLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/purchase-orders', 'fas fa-shopping-cart', 'Purchase Orders', $currentPage, 'purchase_orders', 'sidebar-subitem');
+                    }
+                    $procurementOpen = in_array($currentPage, ['suppliers', 'purchase_orders'], true);
+                    echo sidebarCollapsibleGroup('Procurement', 'fas fa-dolly', $procurementLinks, $procurementOpen);
+                ?>
             <?php endif; ?>
             
             <?php if (isModuleEnabled('staff_management', $companyId, $userRole)): ?>
@@ -213,21 +245,22 @@ function sidebarSection($label) {
                 <?php
                 // Check if manager can sell - if not, show Audit Trail instead of POS
                 $canSell = CompanyModule::isEnabled($companyId, 'manager_can_sell');
-                if ($canSell || $userRole === 'system_admin'):
+                $posLinks = '';
+                if ($canSell || $userRole === 'system_admin') {
+                    $posLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/pos', 'fas fa-cash-register', 'POS', $currentPage, 'pos', 'sidebar-subitem');
+                }
+                $posLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/pos/sales-history', 'fas fa-history', 'Sales History', $currentPage, 'sales-history', 'sidebar-subitem');
+                if (CompanyModule::isEnabled($companyId, 'partial_payments')) {
+                    $posLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/pos/partial-payments', 'fas fa-money-bill-wave', 'Partial Payments', $currentPage, 'partial-payments', 'sidebar-subitem');
+                }
+                // Allow all roles to access notifications
+                $allowedRoles = ['system_admin', 'admin', 'manager', 'salesperson', 'repairer'];
+                if (in_array($userRole, $allowedRoles, true)) {
+                    $posLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/notifications', 'fas fa-bell', 'Notifications', $currentPage, 'notifications', 'sidebar-subitem');
+                }
+                $posOpen = in_array($currentPage, ['pos', 'sales-history', 'partial-payments', 'notifications'], true);
+                echo sidebarCollapsibleGroup('POS & Orders', 'fas fa-cash-register', $posLinks, $posOpen);
                 ?>
-                    <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos', 'fas fa-cash-register', 'POS', $currentPage, 'pos') ?>
-                <?php endif; ?>
-                <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos/sales-history', 'fas fa-history', 'Sales History', $currentPage, 'sales-history') ?>
-                <?php if (CompanyModule::isEnabled($companyId, 'partial_payments')): ?>
-                    <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos/partial-payments', 'fas fa-money-bill-wave', 'Partial Payments', $currentPage, 'partial-payments') ?>
-                <?php endif; ?>
-            
-            <?php 
-            // Allow all roles to access notifications
-            $allowedRoles = ['system_admin', 'admin', 'manager', 'salesperson', 'repairer'];
-            if (in_array($userRole, $allowedRoles)): ?>
-                <?= sidebarLink(BASE_URL_PATH . '/dashboard/notifications', 'fas fa-bell', 'Notifications', $currentPage, 'notifications') ?>
-            <?php endif; ?>
             <?php endif; ?>
             
             <?= sidebarSection('Operations') ?>
@@ -415,6 +448,61 @@ function sidebarSection($label) {
     }
     .sidebar.sidebar-neutral {
         border-right: 1px solid #e5e7eb;
+    }
+    .sidebar-collapsible {
+        margin-top: 0.35rem;
+        margin-bottom: 0.35rem;
+    }
+    .sidebar-collapsible-summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.72rem 0.78rem;
+        border-radius: 0.75rem;
+        color: #4b5563;
+        font-size: 1.02rem;
+        font-weight: 500;
+        background: #eceef1;
+    }
+    .sidebar-collapsible-summary::-webkit-details-marker {
+        display: none;
+    }
+    .sidebar-collapsible[open] .sidebar-collapsible-plus {
+        transform: rotate(90deg);
+    }
+    .sidebar-collapsible-plus {
+        transition: transform 0.2s ease;
+        color: #6b7280;
+    }
+    .sidebar-collapsible-content {
+        margin-top: 0.4rem;
+        padding-left: 0.4rem;
+    }
+    .sidebar-subitem {
+        position: relative;
+        margin-left: 0.25rem;
+        padding-left: 1.35rem !important;
+        background: transparent !important;
+        color: #4b5563;
+    }
+    .sidebar-subitem i {
+        display: none;
+    }
+    .sidebar-subitem::before {
+        content: "";
+        position: absolute;
+        left: 0.58rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 0.35rem;
+        height: 0.35rem;
+        border-radius: 9999px;
+        background: #9ca3af;
+    }
+    .sidebar-subitem.sidebar-item-active::before {
+        background: #dc2626;
     }
     
     /* Prevent transitions on initial page load */
