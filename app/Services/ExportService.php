@@ -153,13 +153,57 @@ class ExportService {
             }
         }
 
-        // Fallback to real CSV with valid extension to avoid Excel corruption errors.
-        error_log("PhpSpreadsheet not available, exporting as CSV fallback");
-        $csvFilename = preg_replace('/\.xlsx$/i', '.csv', $filename);
-        if (!$csvFilename || $csvFilename === $filename) {
-            $csvFilename = $filename . '.csv';
+        // Fallback to Excel 2003 XML format (opens directly in Excel).
+        // This keeps export as Excel instead of degrading to CSV.
+        error_log("PhpSpreadsheet not available, exporting as Excel XML fallback");
+        $this->exportExcelXml($dataset, $filename, $title, $headers);
+    }
+
+    private function exportExcelXml($dataset, $filename, $title = 'Sheet1', $headers = null) {
+        $xlsFilename = preg_replace('/\.xlsx$/i', '.xls', $filename);
+        if (!$xlsFilename) {
+            $xlsFilename = $filename . '.xls';
         }
-        $this->exportCSV($dataset, $csvFilename, $headers);
+
+        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $xlsFilename . '"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        // UTF-8 BOM helps Excel detect encoding reliably.
+        echo "\xEF\xBB\xBF";
+
+        $sheetName = preg_replace('/[\\\\\\/?*\\[\\]:]/', '-', (string)$title);
+        if ($sheetName === '') {
+            $sheetName = 'Sheet1';
+        }
+
+        echo '<?xml version="1.0" encoding="UTF-8"?>';
+        echo '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"';
+        echo ' xmlns:o="urn:schemas-microsoft-com:office:office"';
+        echo ' xmlns:x="urn:schemas-microsoft-com:office:excel"';
+        echo ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">';
+        echo '<Worksheet ss:Name="' . htmlspecialchars($sheetName, ENT_QUOTES, 'UTF-8') . '"><Table>';
+
+        if ($headers) {
+            echo '<Row>';
+            foreach ($headers as $header) {
+                echo '<Cell><Data ss:Type="String">' . htmlspecialchars((string)$header, ENT_QUOTES, 'UTF-8') . '</Data></Cell>';
+            }
+            echo '</Row>';
+        }
+
+        foreach ($dataset as $row) {
+            echo '<Row>';
+            foreach ($headers as $header) {
+                $value = $this->sanitizeSpreadsheetValue($row[$header] ?? '');
+                echo '<Cell><Data ss:Type="String">' . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '</Data></Cell>';
+            }
+            echo '</Row>';
+        }
+
+        echo '</Table></Worksheet></Workbook>';
+        exit;
     }
 
     /**
