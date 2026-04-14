@@ -3,6 +3,11 @@
 namespace App\Services;
 
 class ExportService {
+    private function writeCsvRow($handle, array $fields): void {
+        // Explicit escape parameter avoids PHP 8.4+ deprecation warnings.
+        fputcsv($handle, $fields, ',', '"', '\\');
+    }
+
     private function toBytes($value) {
         if (!is_string($value) || $value === '') {
             return 0;
@@ -51,6 +56,11 @@ class ExportService {
      * @return void Sends file to browser
      */
     public function exportCSV($dataset, $filename, $headers = null) {
+        $previousErrorReporting = error_reporting();
+        $previousDisplayErrors = ini_get('display_errors');
+        error_reporting($previousErrorReporting & ~E_DEPRECATED & ~E_USER_DEPRECATED & ~E_WARNING & ~E_NOTICE);
+        @ini_set('display_errors', '0');
+
         // Set headers
         header('Content-Type: text/csv; charset=UTF-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -69,7 +79,7 @@ class ExportService {
 
         if ($headers) {
             // Write headers
-            fputcsv($output, $headers);
+            $this->writeCsvRow($output, $headers);
         }
 
         // Write data rows
@@ -79,10 +89,12 @@ class ExportService {
             foreach ($headers as $header) {
                 $csvRow[] = $this->sanitizeSpreadsheetValue($row[$header] ?? '');
             }
-            fputcsv($output, $csvRow);
+            $this->writeCsvRow($output, $csvRow);
         }
 
         fclose($output);
+        @ini_set('display_errors', (string)$previousDisplayErrors);
+        error_reporting($previousErrorReporting);
         exit;
     }
 
