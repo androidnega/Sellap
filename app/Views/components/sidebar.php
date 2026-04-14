@@ -155,12 +155,12 @@ function sidebarSection($label) {
 
 <!-- Sidebar -->
 <?php $isNeutralSidebar = in_array($userRole, ['manager', 'admin'], true); ?>
-<div id="sidebar" class="sidebar loading h-screen min-h-0 p-4 relative flex flex-col overflow-hidden <?= $isNeutralSidebar ? 'sidebar-neutral' : '' ?>" style="background: <?= $isNeutralSidebar ? '#f3f4f6' : $config['color'] ?>;">
-    <div class="flex items-center mb-6 flex-shrink-0">
+<div id="sidebar" class="sidebar loading h-screen min-h-0 p-4 relative flex flex-col overflow-hidden <?= $isNeutralSidebar ? 'sidebar-neutral' : '' ?>" style="background: <?= $isNeutralSidebar ? '#f8f8f8' : $config['color'] ?>;">
+    <div class="flex items-center mb-6 flex-shrink-0 sidebar-brand-wrap">
         <i class="<?= $config['icon'] ?> text-lg mr-3 sidebar-text flex-shrink-0" style="width: 1.25rem; min-width: 1.25rem;"></i>
         <div class="min-w-0 flex-1">
-            <h1 class="text-sm font-semibold sidebar-text truncate"><?= $config['title'] ?></h1>
-            <p class="text-xs sidebar-text opacity-75 truncate"><?= $config['subtitle'] ?></p>
+            <h1 class="text-base font-semibold sidebar-text truncate"><?= $config['title'] ?></h1>
+            <p class="text-xs sidebar-text opacity-75 truncate"><?= $companyInfo ? htmlspecialchars($companyInfo) : $config['subtitle'] ?></p>
         </div>
     </div>
     
@@ -385,17 +385,25 @@ function sidebarSection($label) {
         color: #dc2626;
     }
 
+    .sidebar-brand-wrap {
+        border-bottom: 1px solid rgba(156, 163, 175, 0.25);
+        padding-bottom: 0.75rem;
+    }
+
     .sidebar.sidebar-neutral .sidebar-text {
-        color: #6b7280;
+        color: #4b5563;
     }
     .sidebar.sidebar-neutral .sidebar-section-label {
         color: #9ca3af;
     }
     .sidebar.sidebar-neutral .sidebar-item {
-        color: #4b5563;
+        color: #374151;
+        border-radius: 0.65rem;
+        padding-top: 0.56rem;
+        padding-bottom: 0.56rem;
     }
     .sidebar.sidebar-neutral .sidebar-item:hover {
-        background: #e5e7eb;
+        background: #eceef1;
         color: #374151;
     }
     .sidebar.sidebar-neutral .sidebar-item:hover .sidebar-text {
@@ -404,6 +412,9 @@ function sidebarSection($label) {
     .sidebar.sidebar-neutral .sidebar-item-active {
         background: #fee2e2;
         color: #dc2626;
+    }
+    .sidebar.sidebar-neutral {
+        border-right: 1px solid #e5e7eb;
     }
     
     /* Prevent transitions on initial page load */

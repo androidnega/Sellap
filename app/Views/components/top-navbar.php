@@ -3,8 +3,8 @@
 // Usage: include with $userInfo, $companyInfo, $userRole
 ?>
 <!-- Top Navigation Bar -->
-<nav class="bg-white px-4 py-3 w-full">
-    <div class="flex items-center justify-between w-full">
+<nav class="bg-transparent px-0 py-0 w-full">
+    <div class="flex items-center justify-between w-full bg-white rounded-xl border border-gray-200 px-3 sm:px-4 py-2.5 shadow-sm">
         <!-- Left side - Mobile menu button, breadcrumb (when collapsed), and title -->
         <div class="flex items-center">
             <!-- Mobile menu button -->
@@ -14,12 +14,12 @@
             
             <!-- Page title -->
             <div class="ml-4 md:ml-0">
-                <h1 class="text-xl font-semibold text-gray-900" id="page-title">Dashboard</h1>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900" id="page-title">Dashboard</h1>
             </div>
         </div>
         
         <!-- Right side - Balance indicators and Profile dropdown -->
-        <div class="flex items-center space-x-3 md:space-x-4">
+        <div class="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
             <!-- Balance Indicators (Manager/Admin only) -->
             <?php if (in_array($userRole, ['manager', 'admin'])): ?>
             <div class="hidden lg:flex items-center space-x-2">
@@ -51,7 +51,7 @@
             
             <!-- Notifications -->
             <div class="relative">
-                <button id="notificationBell" class="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 relative">
+                <button id="notificationBell" class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 relative">
                     <i class="fas fa-bell"></i>
                     <span id="notificationBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
                 </button>

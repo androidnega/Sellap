@@ -429,9 +429,13 @@
         .scrollbar-hide::-webkit-scrollbar {
             display: none;
         }
+
+        .app-shell-bg {
+            background: #f4f6f8;
+        }
     </style>
 </head>
-<body class="bg-gray-100">
+<body class="app-shell-bg">
     <div class="main-layout">
         <!-- Sidebar -->
         <?php
@@ -501,7 +505,7 @@
         <!-- Main Content Area -->
         <div class="main-content-container flex flex-col">
             <!-- Top Navigation Bar -->
-            <div class="bg-white shadow-sm border-b border-gray-200">
+            <div class="px-3 sm:px-4 md:px-6 pt-3 sm:pt-4">
                 <?php include APP_PATH . '/Views/components/top-navbar.php'; ?>
             </div>
             
