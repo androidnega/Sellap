@@ -74,22 +74,45 @@
             <?php endif; ?>
             
             <div class="topbar-shell flex items-center gap-1 sm:gap-1.5">
-                <button class="topbar-icon-btn hidden sm:inline-flex" title="Actions">
-                    <i class="fas fa-box"></i>
-                </button>
-                <button class="topbar-icon-btn hidden sm:inline-flex" title="Downloads">
-                    <i class="fas fa-file-download"></i>
-                </button>
-                <button class="topbar-icon-btn hidden sm:inline-flex" title="Fullscreen">
+                <?php
+                $quickActionUrl = BASE_URL_PATH . '/dashboard';
+                $quickDownloadUrl = BASE_URL_PATH . '/dashboard/reports';
+                $settingsUrl = BASE_URL_PATH . '/dashboard/profile';
+
+                if (in_array($userRole, ['manager', 'admin'], true)) {
+                    $quickActionUrl = BASE_URL_PATH . '/dashboard/inventory/create';
+                    $quickDownloadUrl = BASE_URL_PATH . '/dashboard/audit-trail';
+                    $settingsUrl = BASE_URL_PATH . '/dashboard/company-settings';
+                } elseif ($userRole === 'salesperson') {
+                    $quickActionUrl = BASE_URL_PATH . '/dashboard/pos';
+                    $quickDownloadUrl = BASE_URL_PATH . '/dashboard/pos/sales-history';
+                    $settingsUrl = BASE_URL_PATH . '/dashboard/profile';
+                } elseif ($userRole === 'technician') {
+                    $quickActionUrl = BASE_URL_PATH . '/dashboard/booking';
+                    $quickDownloadUrl = BASE_URL_PATH . '/dashboard/repairs';
+                    $settingsUrl = BASE_URL_PATH . '/dashboard/profile';
+                } elseif ($userRole === 'system_admin') {
+                    $quickActionUrl = BASE_URL_PATH . '/dashboard/companies';
+                    $quickDownloadUrl = BASE_URL_PATH . '/dashboard/analytics';
+                    $settingsUrl = BASE_URL_PATH . '/dashboard/system-settings';
+                }
+                ?>
+                <a href="<?= $quickActionUrl ?>" class="topbar-icon-btn hidden sm:inline-flex" title="Quick Action">
+                    <i class="fas fa-bag-shopping"></i>
+                </a>
+                <a href="<?= $quickDownloadUrl ?>" class="topbar-icon-btn hidden sm:inline-flex" title="Reports / Downloads">
+                    <i class="fas fa-file-arrow-down"></i>
+                </a>
+                <button id="topbarFullscreenToggle" type="button" class="topbar-icon-btn hidden sm:inline-flex" title="Toggle Fullscreen">
                     <i class="fas fa-expand"></i>
                 </button>
-                <button class="topbar-icon-btn hidden sm:inline-flex" title="Theme">
-                    <i class="fas fa-sun"></i>
-                </button>
-                <div class="hidden sm:flex items-center gap-1 px-2 py-1 rounded-full bg-white border border-gray-200 text-xs text-gray-600">
+                <a href="<?= $settingsUrl ?>" class="topbar-icon-btn hidden sm:inline-flex" title="Settings">
+                    <i class="fas fa-cog"></i>
+                </a>
+                <button type="button" class="hidden sm:flex items-center gap-1 px-2 py-1 rounded-full bg-white border border-gray-200 text-xs text-gray-600" title="Language">
                     <span>EN</span>
                     <i class="fas fa-chevron-down text-[10px]"></i>
-                </div>
+                </button>
 
                 <!-- Notifications -->
                 <div class="relative">
@@ -185,6 +208,21 @@ document.addEventListener('DOMContentLoaded', function() {
     <?php if (in_array($userRole, ['manager', 'admin'])): ?>
     loadBalanceIndicators();
     <?php endif; ?>
+
+    const fullscreenBtn = document.getElementById('topbarFullscreenToggle');
+    if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', function() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(function(err) {
+                    console.error('Fullscreen request failed:', err);
+                });
+            } else {
+                document.exitFullscreen().catch(function(err) {
+                    console.error('Exit fullscreen failed:', err);
+                });
+            }
+        });
+    }
     
 });
 
