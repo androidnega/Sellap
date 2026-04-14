@@ -30,6 +30,13 @@ if (empty($categories)) {
 
 <style>
 @media (max-width: 640px) {
+    #productForm {
+        width: 100%;
+        overflow-x: hidden;
+    }
+    #productForm * {
+        min-width: 0;
+    }
     #productForm .bg-white {
         padding: 0.9rem;
     }
@@ -37,6 +44,12 @@ if (empty($categories)) {
     #productForm select,
     #productForm textarea {
         max-width: 100%;
+    }
+    #productForm input[type="file"] {
+        font-size: 0.875rem;
+    }
+    #productForm .grid {
+        gap: 0.85rem;
     }
 }
 </style>
@@ -387,6 +400,14 @@ if (empty($categories)) {
 document.addEventListener('DOMContentLoaded', function(){
   // Check if category dropdown is empty and load via API if needed
   const categorySelect = document.getElementById('categorySelect');
+  const subcategoryWrapper = document.getElementById('subcategoryWrapper');
+  const subcategorySelect = document.getElementById('subcategorySelect');
+  const brandWrapper = document.getElementById('brandWrapper');
+  const brandSelect = document.getElementById('brandSelect');
+  const brandRequiredIndicator = document.getElementById('brandRequiredIndicator');
+  const swapWrapper = document.getElementById('swapWrapper');
+  const specsContainer = document.getElementById('specsContainer');
+
   if (categorySelect && categorySelect.options.length <= 1) {
     // Only "Select a category" option exists, try to load via API
     console.log('Category dropdown is empty, attempting to load categories via API...');
@@ -427,6 +448,10 @@ document.addEventListener('DOMContentLoaded', function(){
   // Verify elements exist before proceeding
   if (!categorySelect) {
     console.error('CRITICAL: categorySelect element not found! Cannot proceed with dynamic form.');
+    return;
+  }
+  if (!subcategorySelect || !specsContainer) {
+    console.error('CRITICAL: form dynamic elements missing (subcategory/specs).');
     return;
   }
   if (!brandWrapper) {
