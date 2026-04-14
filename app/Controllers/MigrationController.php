@@ -9,6 +9,89 @@ use App\Models\Category;
 class MigrationController
 {
     /**
+     * Run lightweight auto-migrations for production compatibility.
+     * Intended endpoint: /automigrate
+     */
+    public function runAutoMigrate()
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $userData = $_SESSION['user'] ?? null;
+        if (!$userData) {
+            $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+            $redirectParam = 'redirect=' . urlencode($_SERVER['REQUEST_URI'] ?? '/automigrate');
+            header('Location: ' . $basePath . '/?' . $redirectParam);
+            exit;
+        }
+
+        $userRole = $userData['role'] ?? '';
+        if ($userRole !== 'system_admin') {
+            http_response_code(403);
+            echo "Access denied: only system_admin can run automigrate.";
+            exit;
+        }
+
+        $db = \Database::getInstance()->getConnection();
+        $messages = [];
+
+        $ensureColumns = function($tableName, array $requiredColumns) use ($db, &$messages) {
+            $existsStmt = $db->query("SHOW TABLES LIKE " . $db->quote($tableName));
+            if ($existsStmt->rowCount() === 0) {
+                $messages[] = "Skipped {$tableName}: table not found";
+                return;
+            }
+
+            $columnsStmt = $db->query("SHOW COLUMNS FROM {$tableName}");
+            $existing = [];
+            foreach ($columnsStmt->fetchAll(\PDO::FETCH_ASSOC) as $col) {
+                if (!empty($col['Field'])) {
+                    $existing[$col['Field']] = true;
+                }
+            }
+
+            foreach ($requiredColumns as $columnName => $definition) {
+                if (isset($existing[$columnName])) {
+                    $messages[] = "{$tableName}.{$columnName}: exists";
+                    continue;
+                }
+
+                $sql = "ALTER TABLE {$tableName} ADD COLUMN {$columnName} {$definition}";
+                $db->exec($sql);
+                $messages[] = "{$tableName}.{$columnName}: added";
+            }
+        };
+
+        try {
+            $ensureColumns('products', [
+                'sku' => "VARCHAR(255) NULL AFTER product_id",
+                'category_name' => "VARCHAR(255) NULL AFTER category",
+                'brand_name' => "VARCHAR(255) NULL AFTER brand",
+            ]);
+
+            $ensureColumns('products_new', [
+                'sku' => "VARCHAR(255) NULL AFTER product_id",
+                'category_name' => "VARCHAR(255) NULL AFTER category",
+                'brand_name' => "VARCHAR(255) NULL AFTER brand",
+            ]);
+
+            header('Content-Type: text/plain; charset=UTF-8');
+            echo "Automigrate completed.\n\n";
+            echo implode("\n", $messages);
+            exit;
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            header('Content-Type: text/plain; charset=UTF-8');
+            echo "Automigrate failed: " . $e->getMessage() . "\n";
+            if (!empty($messages)) {
+                echo implode("\n", $messages);
+            }
+            exit;
+        }
+    }
+
+    /**
      * Run laptop category & brand seeding via web
      */
     public function runLaptopCategoryMigration()

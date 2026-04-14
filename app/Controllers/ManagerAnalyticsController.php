@@ -1308,17 +1308,45 @@ class ManagerAnalyticsController {
         $db = \Database::getInstance()->getConnection();
         $checkProductsNew = $db->query("SHOW TABLES LIKE 'products_new'");
         $productsTable = ($checkProductsNew && $checkProductsNew->rowCount() > 0) ? 'products_new' : 'products';
+
+        $columnStmt = $db->query("SHOW COLUMNS FROM {$productsTable}");
+        $tableColumns = [];
+        foreach ($columnStmt->fetchAll(\PDO::FETCH_ASSOC) as $column) {
+            $name = $column['Field'] ?? null;
+            if ($name) {
+                $tableColumns[$name] = true;
+            }
+        }
+
+        $pickColumn = static function(array $candidates, array $available, $fallback = "''") {
+            foreach ($candidates as $candidate) {
+                if (isset($available[$candidate])) {
+                    return $candidate;
+                }
+            }
+            return $fallback;
+        };
+
+        $skuExpr = $pickColumn(['product_id', 'sku'], $tableColumns, "''");
+        $nameExpr = $pickColumn(['name'], $tableColumns, "''");
+        $categoryExpr = $pickColumn(['category_name', 'category'], $tableColumns, "''");
+        $brandExpr = $pickColumn(['brand_name', 'brand'], $tableColumns, "''");
+        $priceExpr = $pickColumn(['price', 'selling_price'], $tableColumns, "0");
+        $costExpr = $pickColumn(['cost', 'cost_price'], $tableColumns, "0");
+        $quantityExpr = $pickColumn(['quantity', 'qty'], $tableColumns, "0");
+        $statusExpr = $pickColumn(['status'], $tableColumns, "''");
+
         $query = $db->prepare("
             SELECT 
                 id,
-                COALESCE(product_id, sku, '') as sku,
-                name,
-                COALESCE(category_name, category, '') as category,
-                COALESCE(brand_name, brand, '') as brand,
-                price,
-                cost,
-                COALESCE(quantity, qty, 0) as quantity,
-                status
+                {$skuExpr} as sku,
+                {$nameExpr} as name,
+                {$categoryExpr} as category,
+                {$brandExpr} as brand,
+                {$priceExpr} as price,
+                {$costExpr} as cost,
+                {$quantityExpr} as quantity,
+                {$statusExpr} as status
             FROM {$productsTable}
             WHERE company_id = :company_id
             ORDER BY name ASC

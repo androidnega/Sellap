@@ -3937,6 +3937,12 @@ $router->get('dashboard/tools', function() {
     require __DIR__ . '/../app/Views/simple_layout.php';
 });
 
+// Production auto-migration endpoint
+$router->get('automigrate', function() {
+    $controller = new \App\Controllers\MigrationController();
+    $controller->runAutoMigrate();
+});
+
 // Run laptop category and brands migration
 $router->get('dashboard/tools/run-laptop-migration', function() {
     $controller = new \App\Controllers\MigrationController();
