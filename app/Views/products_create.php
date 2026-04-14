@@ -2,16 +2,16 @@
 // Enhanced Product Creation Form with User-Friendly Features
 ?>
 
-<div class="max-w-6xl mx-auto">
+<div class="max-w-6xl mx-auto w-full px-1 sm:px-0 overflow-x-hidden">
     <!-- Header Section -->
-    <div class="flex items-center mb-8">
+    <div class="flex items-start sm:items-center mb-6 sm:mb-8 gap-2 sm:gap-0">
         <a href="<?= BASE_URL_PATH ?>/dashboard/inventory" class="text-gray-500 hover:text-gray-700 mr-4 transition-colors">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
         </a>
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Add New Product</h1>
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Add New Product</h1>
             <p class="text-gray-600 mt-1">Create a new product with comprehensive details and specifications</p>
         </div>
     </div>
@@ -49,7 +49,7 @@
 
     <form id="addProductForm" method="POST" action="<?= BASE_URL_PATH ?>/dashboard/inventory/store" enctype="multipart/form-data" class="space-y-8">
         <!-- Basic Information Section -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 lg:p-8">
             <div class="flex items-center mb-6">
                 <div class="flex-shrink-0">
                     <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -174,7 +174,7 @@
         </div>
 
         <!-- Pricing & Inventory Section -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 lg:p-8">
             <div class="flex items-center mb-6">
                 <div class="flex-shrink-0">
                     <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
@@ -246,7 +246,7 @@
         </div>
 
         <!-- Product Details Section -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 lg:p-8">
             <div class="flex items-center mb-6">
                 <div class="flex-shrink-0">
                     <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -313,7 +313,7 @@
         </div>
 
         <!-- Dynamic Specifications Container -->
-        <div id="specsContainer" class="bg-white rounded-xl shadow-sm border border-gray-200 p-8" style="display:none;">
+        <div id="specsContainer" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 lg:p-8" style="display:none;">
             <div class="flex items-center mb-6">
                 <div class="flex-shrink-0">
                     <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
@@ -331,7 +331,7 @@
         </div>
 
         <!-- Swap Options Section (Only for Phones) -->
-        <div id="swapContainer" class="bg-white rounded-xl shadow-sm border border-gray-200 p-8" style="display:none;">
+        <div id="swapContainer" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 lg:p-8" style="display:none;">
             <div class="flex items-center mb-6">
                 <div class="flex-shrink-0">
                     <div class="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -371,18 +371,18 @@
         </div>
 
         <!-- Form Actions -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-            <div class="flex items-center justify-between">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 lg:p-8">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div class="text-sm text-gray-500">
                     <span class="text-red-500">*</span> Required fields
                 </div>
-                <div class="flex space-x-4">
+                <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
                     <a href="<?= BASE_URL_PATH ?>/dashboard/inventory" 
-                       class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">
+                       class="w-full sm:w-auto text-center px-6 py-3 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">
                         Cancel
                     </a>
                     <button type="submit" 
-                            class="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all font-medium">
+                            class="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all font-medium">
                         <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                         </svg>

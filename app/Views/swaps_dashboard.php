@@ -2,10 +2,10 @@
 // Swap Dashboard View
 ?>
 
-<div class="max-w-7xl mx-auto">
-    <div class="flex items-center justify-between mb-6">
+<div class="max-w-7xl mx-auto px-1 sm:px-0">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Swap Dashboard</h1>
-        <div class="flex space-x-4">
+        <div class="flex flex-col sm:flex-row gap-2 sm:gap-4">
             <a href="<?= BASE_URL_PATH ?>/dashboard/swaps" class="btn btn-outline">View All Swaps</a>
             <a href="<?= BASE_URL_PATH ?>/dashboard/swaps/create" class="btn btn-primary">New Swap</a>
         </div>

@@ -210,6 +210,25 @@
         .grid {
             max-width: 100%;
         }
+
+        /* Global mobile-safe content guards */
+        img,
+        svg,
+        canvas,
+        video,
+        iframe {
+            max-width: 100%;
+            height: auto;
+        }
+        table {
+            max-width: 100%;
+        }
+        input,
+        select,
+        textarea,
+        button {
+            max-width: 100%;
+        }
         
         /* Prevent text overflow in cards */
         .overflow-hidden {

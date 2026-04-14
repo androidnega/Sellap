@@ -429,8 +429,8 @@
 </div>
 
 <!-- Price Setting Modal for Adding Swapped Items to Products -->
-<div id="swapPriceModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-    <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+<div id="swapPriceModal" class="hidden fixed inset-0 z-50 bg-gray-600/50 p-3 sm:p-4 overflow-y-auto">
+    <div class="relative mx-auto my-6 sm:my-10 p-4 sm:p-5 border w-full max-w-md shadow-lg rounded-md bg-white max-h-[calc(100dvh-3rem)] overflow-y-auto">
         <div class="mt-3">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-medium text-gray-900">Set Resell Price</h3>
@@ -460,8 +460,8 @@
 </div>
 
 <!-- Swap Details Modal -->
-<div id="swapDetailsModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-    <div class="relative top-10 md:top-16 mx-auto p-4 md:p-6 border w-11/12 max-w-xl md:max-w-2xl shadow-lg rounded-md bg-white">
+<div id="swapDetailsModal" class="hidden fixed inset-0 z-50 bg-gray-600/50 p-3 sm:p-4 overflow-y-auto">
+    <div class="relative mx-auto my-4 sm:my-8 p-4 md:p-6 border w-full max-w-xl md:max-w-2xl shadow-lg rounded-md bg-white max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <div class="flex justify-between items-center mb-4 pb-3 border-b">
             <h3 class="text-lg md:text-xl font-bold text-gray-900">Swap Details</h3>
             <button onclick="closeSwapDetailsModal()" class="text-gray-400 hover:text-gray-600 transition-colors">

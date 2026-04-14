@@ -88,11 +88,11 @@
         width: 100%;
     }
     
-    /* Make table cells auto-adjust width */
+    /* Make table cells auto-adjust width without forcing overflow */
     table th,
     table td {
         width: auto;
-        min-width: fit-content;
+        min-width: 0;
     }
     
     /* Ensure table container doesn't have vertical scroll */
@@ -100,9 +100,9 @@
         overflow-y: visible !important;
     }
     
-    /* Make sure Actions column header is visible */
+    /* Keep actions visible while allowing smaller screens to scroll naturally */
     table thead th:last-child {
-        min-width: 120px;
+        min-width: 96px;
     }
 </style>
 
@@ -248,7 +248,7 @@
         <!-- Responsive table container - fluid and auto-adjusting -->
         <div class="w-full overflow-x-auto">
             <div class="inline-block min-w-full align-middle">
-                <table class="w-full divide-y divide-gray-200" style="table-layout: auto; width: 100%;">
+                <table class="min-w-[900px] w-full divide-y divide-gray-200" style="table-layout: auto; width: 100%;">
                     <thead class="bg-gray-50">
                         <tr>
                             <th id="checkboxHeader" class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden whitespace-nowrap">

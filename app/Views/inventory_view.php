@@ -1,4 +1,4 @@
-<div class="p-6">
+<div class="p-3 sm:p-6 max-w-full overflow-x-hidden">
     <div class="mb-6">
         <a href="<?= BASE_URL_PATH ?>/dashboard/inventory" class="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center mb-4">
             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -6,10 +6,10 @@
             </svg>
             Back to Product Management
         </a>
-        <h2 class="text-3xl font-bold text-gray-800">View Product: <?= htmlspecialchars($product['name'] ?? 'N/A') ?></h2>
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 break-words">View Product: <?= htmlspecialchars($product['name'] ?? 'N/A') ?></h2>
     </div>
     
-    <div class="bg-white p-5 rounded shadow space-y-4">
+    <div class="bg-white p-4 sm:p-5 rounded shadow space-y-4">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Left Column: Product Info -->
         <div>
@@ -117,14 +117,14 @@
     </div>
     
     <!-- Action Buttons -->
-    <div class="flex justify-end gap-3 mt-6">
-        <a href="<?= BASE_URL_PATH ?>/dashboard/inventory" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Back to Inventory</a>
-        <a href="<?= BASE_URL_PATH ?>/dashboard/inventory/edit/<?= $product['id'] ?>" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Edit Product</a>
-        <a href="<?= BASE_URL_PATH ?>/dashboard/restock/<?= $product['id'] ?>" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center">
+    <div class="flex flex-col sm:flex-row sm:justify-end gap-3 mt-6">
+        <a href="<?= BASE_URL_PATH ?>/dashboard/inventory" class="w-full sm:w-auto text-center bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">Back to Inventory</a>
+        <a href="<?= BASE_URL_PATH ?>/dashboard/inventory/edit/<?= $product['id'] ?>" class="w-full sm:w-auto text-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Edit Product</a>
+        <a href="<?= BASE_URL_PATH ?>/dashboard/restock/<?= $product['id'] ?>" class="w-full sm:w-auto justify-center bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center">
             <i class="fas fa-truck-loading mr-2"></i>
             Restock
         </a>
-        <a href="<?= BASE_URL_PATH ?>/dashboard/inventory/delete/<?= $product['id'] ?>" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700" onclick="return confirm('Are you sure you want to delete this product?')">Delete Product</a>
+        <a href="<?= BASE_URL_PATH ?>/dashboard/inventory/delete/<?= $product['id'] ?>" class="w-full sm:w-auto text-center bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700" onclick="return confirm('Are you sure you want to delete this product?')">Delete Product</a>
     </div>
 </div>
 </div>

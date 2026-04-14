@@ -19,7 +19,7 @@ if (!isset($categories)) {
 }
 ?>
 
-<div class="p-6">
+<div class="p-3 sm:p-6 max-w-full overflow-x-hidden">
     <!-- Stats Cards -->
     <?php if (isset($stats)): ?>
     <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
@@ -100,7 +100,7 @@ if (!isset($categories)) {
     <!-- Products Table -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="w-full text-sm">
+            <table class="min-w-[900px] w-full text-sm">
                 <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
                     <tr>
                         <th class="p-3 text-left">ID</th>

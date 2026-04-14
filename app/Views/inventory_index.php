@@ -3,6 +3,7 @@
 $invUserRole = $_SESSION['user']['role'] ?? '';
 $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin'], true);
 ?>
+<div class="w-full max-w-full overflow-x-hidden">
 <div class="mb-6">
         <h2 class="text-3xl font-bold text-gray-800">Product Management</h2>
         <p class="text-gray-600">Manage your product inventory and stock levels</p>
@@ -40,15 +41,15 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
                     <option value="low_and_out" <?= $currentStockFilter === 'low_and_out' ? 'selected' : '' ?>>Low & Out of Stock</option>
                 </select>
             </div>
-            <div class="flex items-center gap-2">
-                <button id="selectAllBtn" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 text-sm font-medium">
+            <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                <button id="selectAllBtn" class="flex-1 sm:flex-none bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 text-sm font-medium">
                     <i class="fas fa-check-square mr-1"></i>Select All
                 </button>
-                <button id="deleteSelectedBtn" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm font-medium" disabled>
+                <button id="deleteSelectedBtn" class="flex-1 sm:flex-none bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm font-medium" disabled>
                     <i class="fas fa-trash mr-1"></i>Delete Selected (<span id="selectedCount">0</span>)
                 </button>
             </div>
-            <a href="<?= BASE_URL_PATH ?>/dashboard/inventory/create" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm font-medium">+ Add Product</a>
+            <a href="<?= BASE_URL_PATH ?>/dashboard/inventory/create" class="w-full sm:w-auto text-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm font-medium">+ Add Product</a>
         </div>
     </div>
 
@@ -128,7 +129,7 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
     </div>
 
 <div class="overflow-x-auto bg-white rounded shadow">
-    <table class="w-full text-sm">
+    <table class="min-w-[1100px] w-full text-sm">
         <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
             <tr>
                 <th class="p-3 text-left w-12">
@@ -252,6 +253,7 @@ $canManageBarcodes = in_array($invUserRole, ['manager', 'admin', 'system_admin']
 <!-- Pagination -->
 <div class="mt-6 mb-4">
     <?= \App\Helpers\PaginationHelper::render($pagination) ?>
+</div>
 </div>
 
 <style>
