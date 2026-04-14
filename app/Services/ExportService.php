@@ -3,6 +3,27 @@
 namespace App\Services;
 
 class ExportService {
+    private function toBytes($value) {
+        if (!is_string($value) || $value === '') {
+            return 0;
+        }
+        $value = trim($value);
+        if ($value === '-1') {
+            return PHP_INT_MAX;
+        }
+        $unit = strtolower(substr($value, -1));
+        $number = (int)$value;
+        switch ($unit) {
+            case 'g':
+                return $number * 1024 * 1024 * 1024;
+            case 'm':
+                return $number * 1024 * 1024;
+            case 'k':
+                return $number * 1024;
+            default:
+                return (int)$value;
+        }
+    }
     
     /**
      * Export dataset to CSV
@@ -137,6 +158,20 @@ class ExportService {
         // Generate headers if not provided
         if ($headers === null && !empty($dataset)) {
             $headers = array_keys($dataset[0]);
+        }
+
+        // Deterministic safety on low-memory hosting:
+        // If memory limit is <= 256MB, skip Dompdf entirely and download CSV.
+        $memoryLimitBytes = $this->toBytes((string)ini_get('memory_limit'));
+        $forceDompdf = getenv('EXPORT_FORCE_DOMPDF') === '1';
+        if (!$forceDompdf && $memoryLimitBytes > 0 && $memoryLimitBytes <= (256 * 1024 * 1024)) {
+            error_log("ExportService::exportPDF forced CSV fallback on low memory limit ({$memoryLimitBytes} bytes)");
+            $csvFilename = preg_replace('/\.pdf$/i', '.csv', $filename);
+            if (!$csvFilename || $csvFilename === $filename) {
+                $csvFilename = $filename . '.csv';
+            }
+            $this->exportCSV($dataset, $csvFilename, $headers);
+            return;
         }
 
         $rowCount = is_array($dataset) ? count($dataset) : 0;
