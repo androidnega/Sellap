@@ -1399,6 +1399,13 @@ $router->get('dashboard/user-logs', function() {
     $controller->index();
 });
 
+$router->get('dashboard/user-logs/export', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['system_admin']);
+    $GLOBALS['currentPage'] = 'user-logs';
+    $controller = new \App\Controllers\UserActivityLogController();
+    $controller->export();
+});
+
 $router->get('dashboard/system-settings', function() {
     try {
         \App\Middleware\WebAuthMiddleware::handle(['system_admin']);

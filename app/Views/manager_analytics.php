@@ -515,58 +515,6 @@ $userRole = $user['role'] ?? 'manager';
         </div>
     </div>
 
-    <!-- Audit Logs Live Feed -->
-    <div class="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 sm:gap-0">
-            <h3 class="text-base sm:text-lg font-semibold text-gray-800">Audit Trail - Live Feed</h3>
-            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <select id="auditEventTypeFilter" class="border border-gray-300 rounded px-3 py-2 text-sm w-full sm:w-auto">
-                    <option value="">All Events</option>
-                    <option value="sale.created">Sales</option>
-                    <option value="swap.completed">Swaps</option>
-                    <option value="repair.created">Repairs</option>
-                    <option value="user.login">User Logins</option>
-                </select>
-                <select id="auditUserFilter" class="border border-gray-300 rounded px-3 py-2 text-sm w-full sm:w-auto">
-                    <option value="">All Users</option>
-                </select>
-                <button id="btnRefreshAuditLogs" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-3 py-2 text-sm whitespace-nowrap">
-                    <i class="fas fa-sync-alt mr-1"></i> Refresh
-                </button>
-            </div>
-        </div>
-        <div class="w-full -mx-3 sm:mx-0">
-            <div class="inline-block min-w-full align-middle">
-                <table class="min-w-full divide-y divide-gray-200 text-xs sm:text-sm">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
-                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Event</th>
-                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">User</th>
-                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Entity</th>
-                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">IP Address</th>
-                            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="auditLogsBody" class="bg-white divide-y divide-gray-200">
-                        <tr>
-                            <td colspan="6" class="px-4 py-3 text-center text-gray-500">Loading audit logs...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div class="text-sm text-gray-600" id="auditLogsInfo">
-                Showing 0 of 0 logs
-            </div>
-            <div class="flex items-center gap-2" id="auditLogsPagination">
-                <!-- Pagination buttons will be inserted here -->
-            </div>
-        </div>
-    </div>
-
-
     <!-- Trace Search Button -->
     <div class="mb-4 sm:mb-6">
         <button id="btnOpenTraceModal" class="bg-purple-600 hover:bg-purple-700 text-white rounded px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-medium w-full sm:w-auto">
@@ -773,16 +721,9 @@ $userRole = $user['role'] ?? 'manager';
         loadAnalytics();
         loadCharts();
         loadTransactions();
-        loadAuditUsers();
-        loadAuditLogs(1);
         setupEventListeners();
         initializeCharts();
         
-        // Auto-refresh every 60 seconds
-        setInterval(function() {
-            loadAuditLogs(auditLogsCurrentPage);
-        }, 60000);
-
         // Real-time data sync - check if enabled
         const autoRefreshEnabled = true; // Get from system settings in production
         if (autoRefreshEnabled) {

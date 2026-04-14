@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\UserActivityLog;
 use App\Middleware\WebAuthMiddleware;
+use App\Services\ExportService;
 
 /**
  * User Activity Log Controller
@@ -11,9 +12,11 @@ use App\Middleware\WebAuthMiddleware;
  */
 class UserActivityLogController {
     private $activityLog;
+    private $exportService;
 
     public function __construct() {
         $this->activityLog = new UserActivityLog();
+        $this->exportService = new ExportService();
     }
 
     /**
@@ -75,7 +78,7 @@ class UserActivityLogController {
         $companies = $db->query("SELECT id, name FROM companies ORDER BY name")->fetchAll(\PDO::FETCH_ASSOC);
         
         // Get all roles for filter dropdown
-        $roles = ['system_admin', 'admin', 'manager', 'salesperson', 'technician'];
+        $roles = ['system_admin', 'admin', 'manager', 'salesperson', 'technician', 'repairer'];
         
         $title = 'User Activity Logs';
         $page = 'user-logs';
@@ -98,6 +101,56 @@ class UserActivityLogController {
         }
         
         require __DIR__ . '/../Views/simple_layout.php';
+    }
+
+    public function export() {
+        WebAuthMiddleware::handle(['system_admin']);
+
+        $format = strtolower(trim($_GET['format'] ?? 'csv'));
+        if (!in_array($format, ['csv', 'xlsx', 'pdf'], true)) {
+            $format = 'csv';
+        }
+
+        $filters = [
+            'user_id' => $_GET['user_id'] ?? null,
+            'company_id' => $_GET['company_id'] ?? null,
+            'user_role' => $_GET['user_role'] ?? null,
+            'status' => $_GET['status'] ?? null,
+            'date_from' => $_GET['date_from'] ?? date('Y-m-d', strtotime('-30 days')),
+            'date_to' => $_GET['date_to'] ?? date('Y-m-d'),
+            'limit' => 100000,
+            'offset' => 0,
+        ];
+        $filters = array_filter($filters, function($value) {
+            return $value !== null;
+        });
+
+        $logs = $this->activityLog->getAll($filters);
+        $rows = [];
+        foreach ($logs as $log) {
+            $rows[] = [
+                'User' => $log['full_name'] ?? $log['username'] ?? '',
+                'Username' => $log['username'] ?? '',
+                'Role' => $log['user_role'] ?? '',
+                'Company' => $log['company_name'] ?? '',
+                'Session Status' => (!empty($log['logout_time']) ? 'Completed' : 'Active'),
+                'Login Time' => $log['login_time'] ?? '',
+                'Logout Time' => $log['logout_time'] ?? '',
+                'Session Duration Seconds' => (string)($log['session_duration_seconds'] ?? 0),
+                'IP Address' => $log['ip_address'] ?? '',
+                'Recorded At' => $log['created_at'] ?? '',
+            ];
+        }
+
+        $filename = 'activity_logs_export_' . date('Ymd_His') . '.' . ($format === 'xlsx' ? 'xlsx' : ($format === 'pdf' ? 'pdf' : 'csv'));
+        $title = 'Admin Activity Logs Export';
+        if ($format === 'xlsx') {
+            $this->exportService->exportExcel($rows, $filename, $title);
+        } elseif ($format === 'pdf') {
+            $this->exportService->exportPDF($rows, $filename, $title);
+        } else {
+            $this->exportService->exportCSV($rows, $filename);
+        }
     }
 }
 

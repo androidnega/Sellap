@@ -80,12 +80,25 @@
                 <input type="date" name="date_to" value="<?php echo htmlspecialchars($_GET['date_to'] ?? date('Y-m-d')); ?>" 
                        class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
             </div>
-            <div class="md:col-span-5 flex gap-2">
+            <div class="md:col-span-5 flex flex-wrap gap-2">
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium">
                     Filter
                 </button>
                 <a href="<?php echo BASE_URL_PATH; ?>/dashboard/user-logs" class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 font-medium">
                     Clear
+                </a>
+                <?php
+                $exportParams = $_GET;
+                $exportBase = BASE_URL_PATH . '/dashboard/user-logs/export?';
+                ?>
+                <a href="<?php echo htmlspecialchars($exportBase . http_build_query(array_merge($exportParams, ['format' => 'csv']))); ?>" class="bg-teal-100 text-teal-700 px-4 py-2 rounded hover:bg-teal-200 font-medium">
+                    Export CSV
+                </a>
+                <a href="<?php echo htmlspecialchars($exportBase . http_build_query(array_merge($exportParams, ['format' => 'xlsx']))); ?>" class="bg-sky-100 text-sky-700 px-4 py-2 rounded hover:bg-sky-200 font-medium">
+                    Export Excel
+                </a>
+                <a href="<?php echo htmlspecialchars($exportBase . http_build_query(array_merge($exportParams, ['format' => 'pdf']))); ?>" class="bg-pink-100 text-pink-700 px-4 py-2 rounded hover:bg-pink-200 font-medium">
+                    Export PDF
                 </a>
             </div>
         </form>
