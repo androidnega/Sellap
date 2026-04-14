@@ -224,30 +224,23 @@ class ExportService {
             $headers = array_keys($dataset[0]);
         }
 
-        // Deterministic safety on low-memory hosting:
-        // If memory limit is <= 256MB, skip Dompdf entirely and download CSV.
+        // Memory-aware safety on shared hosting:
+        // allow PDF for small/medium datasets (e.g. "This Month"),
+        // fallback only for oversized payloads.
         $memoryLimitBytes = $this->toBytes((string)ini_get('memory_limit'));
         $forceDompdf = getenv('EXPORT_FORCE_DOMPDF') === '1';
-        if (!$forceDompdf && $memoryLimitBytes > 0 && $memoryLimitBytes <= (256 * 1024 * 1024)) {
-            error_log("ExportService::exportPDF forced CSV fallback on low memory limit ({$memoryLimitBytes} bytes)");
-            $csvFilename = preg_replace('/\.pdf$/i', '.csv', $filename);
-            if (!$csvFilename || $csvFilename === $filename) {
-                $csvFilename = $filename . '.csv';
-            }
-            $this->exportCSV($dataset, $csvFilename, $headers);
-            return;
-        }
-
         $rowCount = is_array($dataset) ? count($dataset) : 0;
         $colCount = is_array($headers) ? count($headers) : 0;
         $cellCount = $rowCount * max(1, $colCount);
 
         // Dompdf can exhaust memory on shared hosting for large/complex tables.
-        // Fallback to CSV early so downloads always complete.
-        $maxPdfRows = 350;
-        $maxPdfCells = 5000;
+        // Use tighter limits on low-memory hosts but keep PDF working for this-month ranges.
+        $isLowMemoryHost = ($memoryLimitBytes > 0 && $memoryLimitBytes <= (256 * 1024 * 1024));
+        $maxPdfRows = $isLowMemoryHost ? 180 : 350;
+        $maxPdfCells = $isLowMemoryHost ? 2400 : 5000;
+
         if ($rowCount > $maxPdfRows || $cellCount > $maxPdfCells) {
-            error_log("ExportService::exportPDF fallback to CSV due to dataset size. rows={$rowCount}, cols={$colCount}, cells={$cellCount}");
+            error_log("ExportService::exportPDF fallback to CSV due to dataset size. rows={$rowCount}, cols={$colCount}, cells={$cellCount}, low_memory=" . ($isLowMemoryHost ? 'yes' : 'no'));
             $csvFilename = preg_replace('/\.pdf$/i', '.csv', $filename);
             if (!$csvFilename || $csvFilename === $filename) {
                 $csvFilename = $filename . '.csv';
