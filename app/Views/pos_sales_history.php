@@ -106,38 +106,29 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
     table thead th:last-child {
         min-width: 96px;
     }
+
+    /* Summary cards: keep amounts on one line */
+    #summaryCardsContainer .summary-card-stat {
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.02em;
+    }
+    #summaryCardsContainer .summary-card-value-wrap {
+        overflow-x: auto;
+        max-width: 100%;
+        -webkit-overflow-scrolling: touch;
+    }
+    details.item-report-details[open] .item-report-chevron {
+        transform: rotate(180deg);
+    }
 </style>
 
 <div class="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 sales-history-container">
     <!-- Header -->
     <div class="mb-4">
         <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">Sales History</h2>
-        <p class="text-sm sm:text-base text-gray-600 mt-1">Look up past sales, filter them, and—if you manage the store—see totals by product category and by item.</p>
+        <p class="text-sm sm:text-base text-gray-600 mt-1">Past sales, filters, and summaries.</p>
     </div>
-
-    <details class="mb-6 rounded-lg border border-indigo-100 bg-indigo-50/80 text-gray-800 shadow-sm">
-        <summary class="cursor-pointer list-none px-4 py-3 sm:px-5 sm:py-3.5 font-medium text-indigo-900 flex items-center gap-2 select-none rounded-lg marker:hidden [&::-webkit-details-marker]:hidden">
-            <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700" aria-hidden="true"><i class="fas fa-lightbulb text-sm"></i></span>
-            <span class="flex-1">How this page works <span class="font-normal text-indigo-700/90">(plain English—tap to open)</span></span>
-            <i class="fas fa-angle-down text-indigo-600 text-sm shrink-0" aria-hidden="true"></i>
-        </summary>
-        <div class="px-4 pb-4 sm:px-5 sm:pb-5 pt-0 text-sm leading-relaxed text-gray-700 border-t border-indigo-100/80">
-            <p class="pt-3 mb-3"><strong class="text-gray-900">Where you are:</strong> This is <strong>Sales History</strong> under POS. It is the place to review receipts that were already rung up—not to create a new sale.</p>
-            <ul class="list-disc pl-5 space-y-2.5 mb-3">
-                <li><strong class="text-gray-900">“Filter Sales”</strong> (the first white box below) is where you narrow the list: search by customer or sale number, pick dates, then press <strong>Filter</strong>. Summary numbers and the table update to match.</li>
-                <li><strong class="text-gray-900">“Rows per page”</strong> controls how many sales appear in the big list at once. If you have many sales, use the page controls at the bottom of the table to flip through.</li>
-                <?php if ($salesHistShowCategory): ?>
-                <li><strong class="text-gray-900">“Product category”</strong> (managers and admins only) is an extra filter: choose a category to only show sales that include at least one product from that category. Leave it on “All categories” if you do not need it.</li>
-                <li><strong class="text-gray-900">“What sold? Totals by item”</strong> (second white box, managers and admins) is a separate mini-report: pick a date range and <strong>Run report</strong> to see each product (or line name), how many were sold, and money brought in—rolled up for the whole period, not sale-by-sale.</li>
-                <?php else: ?>
-                <li>Your role sees the same sales list and filters except category and the “totals by item” report; ask a manager if you need those breakdowns.</li>
-                <?php endif; ?>
-                <li><strong class="text-gray-900">The four summary cards</strong> (Total sales, revenue, etc.) reflect whatever filters you applied—so they always match the list below.</li>
-                <li><strong class="text-gray-900">“Recent Sales”</strong> is the detailed table: one row per receipt with customer, items, amounts, and actions (view, print, or delete if your account is allowed).</li>
-            </ul>
-            <p class="text-xs text-gray-500 border-t border-indigo-100/60 pt-3">Tip: set dates first, then category if you use it, then Filter—so you are not surprised by an empty list.</p>
-        </div>
-    </details>
     
     <!-- Success/Error Messages -->
     <?php if (isset($_SESSION['success_message'])): ?>
@@ -158,7 +149,6 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
     <div class="bg-white rounded-lg shadow-sm border mb-6">
         <div class="p-4 sm:p-6 border-b border-gray-200">
             <h3 class="text-base sm:text-lg font-semibold text-gray-800">Filter sales</h3>
-            <p class="text-sm text-gray-600 mt-1">Narrow the list and the summary cards. Nothing changes until you press <span class="font-medium text-gray-800">Filter</span>.</p>
         </div>
         <div class="p-4 sm:p-6">
             <div class="flex flex-col md:flex-row gap-4">
@@ -184,7 +174,6 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
                     <select id="categoryFilter" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent" title="Only show sales that include an item from this category">
                         <option value="">All categories</option>
                     </select>
-                    <p class="text-xs text-gray-500 mt-1">Managers: narrows the receipt list, not the “by item” report below.</p>
                 </div>
                 <?php endif; ?>
                 <div class="md:w-32">
@@ -207,39 +196,35 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
     </div>
 
     <?php if ($salesHistShowCategory): ?>
-    <div class="bg-white rounded-lg shadow-sm border mb-6 p-4 sm:p-6">
-        <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-1">What sold? Totals by item</h3>
-        <p class="text-sm text-gray-600 mb-4">For managers: add up everything on the register for a period—each product (or free-text line) shows <strong>how many</strong> sold and <strong>how much money</strong> that brought in. Swap-type lines are left out. This does not use the category dropdown above; set the dates here and click <strong>Run report</strong>.</p>
-        <div class="flex flex-col md:flex-row gap-4 md:items-end mb-4">
-            <div class="md:w-48">
-                <label class="block text-sm font-medium text-gray-700 mb-2">From</label>
-                <input type="date" id="itemReportFrom" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+    <details class="item-report-details mb-6 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <summary class="cursor-pointer list-none px-4 py-3.5 sm:px-5 flex items-center justify-between gap-3 bg-gray-50 hover:bg-gray-100/80 transition-colors border-b border-gray-100 marker:hidden [&::-webkit-details-marker]:hidden select-none">
+            <div class="flex items-center gap-3 min-w-0">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-900 text-white text-sm" aria-hidden="true"><i class="fas fa-layer-group"></i></span>
+                <div class="min-w-0">
+                    <span class="font-semibold text-gray-900 block">Totals by item</span>
+                    <span class="text-xs text-gray-500 truncate block">Roll-up by product for a date range · tap to expand</span>
+                </div>
             </div>
-            <div class="md:w-48">
-                <label class="block text-sm font-medium text-gray-700 mb-2">To</label>
-                <input type="date" id="itemReportTo" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-            </div>
-            <div>
-                <button type="button" id="itemReportBtn" class="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded text-sm font-medium">
-                    <i class="fas fa-table mr-2"></i>Run report
+            <i class="item-report-chevron fas fa-chevron-down text-gray-400 text-sm shrink-0 transition-transform duration-200" aria-hidden="true"></i>
+        </summary>
+        <div class="p-4 sm:p-5 border-t border-gray-100">
+            <p class="text-xs text-gray-500 mb-4">Excludes swap lines. Uses the dates below (not the category filter).</p>
+            <div class="flex flex-col sm:flex-row flex-wrap gap-3 sm:items-end">
+                <div class="sm:w-44">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">From</label>
+                    <input type="date" id="itemReportFrom" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent">
+                </div>
+                <div class="sm:w-44">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">To</label>
+                    <input type="date" id="itemReportTo" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent">
+                </div>
+                <button type="button" id="itemReportBtn" class="inline-flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm">
+                    <i class="fas fa-table text-xs" aria-hidden="true"></i>
+                    Run report
                 </button>
             </div>
         </div>
-        <div class="overflow-x-auto border rounded">
-            <table class="min-w-full text-sm">
-                <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
-                    <tr>
-                        <th class="px-3 py-2">Item</th>
-                        <th class="px-3 py-2 text-right">Qty sold</th>
-                        <th class="px-3 py-2 text-right">Revenue</th>
-                    </tr>
-                </thead>
-                <tbody id="itemReportBody" class="divide-y text-gray-700">
-                    <tr><td colspan="3" class="px-3 py-6 text-center text-gray-500">Set dates and run report.</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+    </details>
     <?php endif; ?>
 
     <!-- Sales Summary Cards -->
@@ -249,9 +234,11 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
                 <div class="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <i class="fas fa-shopping-cart text-blue-600 text-lg sm:text-xl"></i>
                 </div>
-                <div class="ml-3 sm:ml-4 min-w-0 flex-1">
+                <div class="ml-3 sm:ml-4 min-w-0 flex-1 overflow-hidden">
                     <p class="text-xs sm:text-sm text-gray-600">Total Sales</p>
-                    <p id="totalSales" class="text-xl sm:text-2xl font-bold text-gray-800 break-words overflow-hidden">0</p>
+                    <div class="summary-card-value-wrap">
+                        <p id="totalSales" class="summary-card-stat text-xl sm:text-2xl font-bold text-gray-800">0</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -261,9 +248,11 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
                 <div class="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <i class="fas fa-dollar-sign text-green-600 text-lg sm:text-xl"></i>
                 </div>
-                <div class="ml-3 sm:ml-4 min-w-0 flex-1">
+                <div class="ml-3 sm:ml-4 min-w-0 flex-1 overflow-hidden">
                     <p class="text-xs sm:text-sm text-gray-600">Total Revenue</p>
-                    <p id="totalRevenue" class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 break-words overflow-hidden cursor-default">₵0.00</p>
+                    <div class="summary-card-value-wrap">
+                        <p id="totalRevenue" class="summary-card-stat text-lg sm:text-xl md:text-2xl font-bold text-gray-800 cursor-default">₵0.00</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -273,9 +262,11 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
                 <div class="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <i class="fas fa-percentage text-yellow-600 text-lg sm:text-xl"></i>
                 </div>
-                <div class="ml-3 sm:ml-4 min-w-0 flex-1">
+                <div class="ml-3 sm:ml-4 min-w-0 flex-1 overflow-hidden">
                     <p class="text-xs sm:text-sm text-gray-600">Avg. Sale</p>
-                    <p id="avgSale" class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 break-words overflow-hidden cursor-default">₵0.00</p>
+                    <div class="summary-card-value-wrap">
+                        <p id="avgSale" class="summary-card-stat text-lg sm:text-xl md:text-2xl font-bold text-gray-800 cursor-default">₵0.00</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -285,9 +276,11 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
                 <div class="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <i class="fas fa-calendar-day text-purple-600 text-lg sm:text-xl"></i>
                 </div>
-                <div class="ml-3 sm:ml-4 min-w-0 flex-1">
+                <div class="ml-3 sm:ml-4 min-w-0 flex-1 overflow-hidden">
                     <p class="text-xs sm:text-sm text-gray-600">Today's Sales</p>
-                    <p id="todaySales" class="text-xl sm:text-2xl font-bold text-gray-800 break-words overflow-hidden">0</p>
+                    <div class="summary-card-value-wrap">
+                        <p id="todaySales" class="summary-card-stat text-xl sm:text-2xl font-bold text-gray-800">0</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -298,9 +291,11 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
                 <div class="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <i class="fas fa-chart-line text-emerald-600 text-lg sm:text-xl"></i>
                 </div>
-                <div class="ml-3 sm:ml-4 min-w-0 flex-1">
+                <div class="ml-3 sm:ml-4 min-w-0 flex-1 overflow-hidden">
                     <p class="text-xs sm:text-sm text-gray-600">Total Profit</p>
-                    <p id="totalProfit" class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 break-words overflow-hidden cursor-default">₵0.00</p>
+                    <div class="summary-card-value-wrap">
+                        <p id="totalProfit" class="summary-card-stat text-lg sm:text-xl md:text-2xl font-bold text-gray-800 cursor-default">₵0.00</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -309,10 +304,7 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
     <!-- Sales Table -->
     <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
         <div class="p-4 sm:p-6 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h3 class="text-lg font-semibold text-gray-800">Recent sales</h3>
-                <p class="text-sm text-gray-600 mt-1">Each row is one completed sale (receipt). Use the filters above so this list matches what you want to review.</p>
-            </div>
+            <h3 class="text-lg font-semibold text-gray-800">Recent sales</h3>
             <div id="bulkActionsContainer" class="hidden">
                 <button id="bulkDeleteBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors text-sm">
                     <i class="fas fa-trash mr-2"></i>Delete Selected
@@ -393,6 +385,30 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
   Viewport modal (Tailwind): fixed inset-0 + flex center + high z-index.
   ensureModalInBody() moves this to <body> so parents (table/main overflow) never break position:fixed.
 -->
+<div id="itemSalesReportModal" class="modal-viewport-layer fixed inset-0 z-[10050] flex items-center justify-center overflow-y-auto bg-black/50 p-4 hidden">
+    <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden my-auto">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
+            <h3 class="text-lg font-semibold text-gray-800">Totals by item</h3>
+            <button type="button" id="itemSalesReportModalClose" class="text-gray-400 hover:text-gray-600 p-1 rounded focus:outline-none focus:ring-2 focus:ring-gray-400" aria-label="Close">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div id="itemSalesReportModalMeta" class="px-5 py-2.5 text-sm text-gray-600 border-b border-gray-100 bg-gray-50 shrink-0"></div>
+        <div class="overflow-y-auto flex-1 min-h-0 p-5">
+            <table class="min-w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+                <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                    <tr>
+                        <th class="px-3 py-2.5">Item</th>
+                        <th class="px-3 py-2.5 text-right">Qty sold</th>
+                        <th class="px-3 py-2.5 text-right">Revenue</th>
+                    </tr>
+                </thead>
+                <tbody id="itemReportModalBody" class="divide-y divide-gray-200 text-gray-800 bg-white"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <div id="saleDetailsModal" class="modal-viewport-layer fixed inset-0 z-[10050] flex items-center justify-center overflow-y-auto bg-black/50 p-4 hidden">
     <div class="bg-white rounded shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
@@ -465,7 +481,7 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    ['saleDetailsModal', 'paymentModal'].forEach(function(id) {
+    ['saleDetailsModal', 'paymentModal', 'itemSalesReportModal'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el && typeof window.ensureModalInBody === 'function') {
             window.ensureModalInBody(el);
@@ -481,6 +497,18 @@ document.addEventListener('DOMContentLoaded', function() {
     var irb = document.getElementById('itemReportBtn');
     if (irb) {
         irb.addEventListener('click', loadItemSalesReport);
+    }
+    var itemRepClose = document.getElementById('itemSalesReportModalClose');
+    if (itemRepClose) {
+        itemRepClose.addEventListener('click', closeItemSalesReportModal);
+    }
+    var itemRepModal = document.getElementById('itemSalesReportModal');
+    if (itemRepModal) {
+        itemRepModal.addEventListener('click', function(e) {
+            if (e.target === itemRepModal) {
+                closeItemSalesReportModal();
+            }
+        });
     }
 });
 
@@ -666,6 +694,32 @@ function initItemReportDefaults() {
     fromEl.value = first.getFullYear() + '-' + fm + '-' + fd;
 }
 
+function escapeHtmlText(str) {
+    if (str == null || str === '') return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;');
+}
+
+function openItemSalesReportModal() {
+    var m = document.getElementById('itemSalesReportModal');
+    if (!m) return;
+    m.classList.remove('hidden');
+    if (typeof window.setDashboardModalScrollLock === 'function') {
+        window.setDashboardModalScrollLock(true);
+    }
+}
+
+function closeItemSalesReportModal() {
+    var m = document.getElementById('itemSalesReportModal');
+    if (!m) return;
+    m.classList.add('hidden');
+    if (typeof window.setDashboardModalScrollLock === 'function') {
+        window.setDashboardModalScrollLock(false);
+    }
+}
+
 async function loadCategoryOptions() {
     var sel = document.getElementById('categoryFilter');
     if (!sel) return;
@@ -691,7 +745,8 @@ async function loadCategoryOptions() {
 async function loadItemSalesReport() {
     var fromEl = document.getElementById('itemReportFrom');
     var toEl = document.getElementById('itemReportTo');
-    var tbody = document.getElementById('itemReportBody');
+    var tbody = document.getElementById('itemReportModalBody');
+    var meta = document.getElementById('itemSalesReportModalMeta');
     if (!fromEl || !toEl || !tbody) return;
     var df = fromEl.value;
     var dt = toEl.value;
@@ -699,7 +754,11 @@ async function loadItemSalesReport() {
         alert('Please choose from and to dates.');
         return;
     }
-    tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-4 text-center text-gray-500">Loading…</td></tr>';
+    if (meta) {
+        meta.textContent = 'Period: ' + df + ' → ' + dt;
+    }
+    tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-10 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading…</td></tr>';
+    openItemSalesReportModal();
     try {
         const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '');
         const params = new URLSearchParams({ date_from: df, date_to: dt });
@@ -709,21 +768,21 @@ async function loadItemSalesReport() {
         });
         const data = await res.json();
         if (!data.success) {
-            tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-4 text-center text-red-600">' + (data.error || 'Failed') + '</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-6 text-center text-red-600">' + escapeHtmlText(data.error || 'Failed') + '</td></tr>';
             return;
         }
         var rows = data.data || [];
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-4 text-center text-gray-500">No line items in this range.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-6 text-center text-gray-500">No line items in this range.</td></tr>';
             return;
         }
         tbody.innerHTML = rows.map(function(r) {
             var name = r.display_name || r.item_description || ('Item ' + (r.item_id || ''));
             var rev = parseFloat(r.revenue || 0);
-            return '<tr><td class="px-3 py-2">' + name + '</td><td class="px-3 py-2 text-right">' + (r.qty_sold || 0) + '</td><td class="px-3 py-2 text-right">₵' + formatCurrencyForDisplay(rev) + '</td></tr>';
+            return '<tr class="border-t border-gray-100"><td class="px-3 py-2.5">' + escapeHtmlText(name) + '</td><td class="px-3 py-2.5 text-right tabular-nums">' + (r.qty_sold || 0) + '</td><td class="px-3 py-2.5 text-right tabular-nums font-medium">₵' + formatCurrencyForDisplay(rev) + '</td></tr>';
         }).join('');
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-4 text-center text-red-600">Error loading report</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-6 text-center text-red-600">Could not load report.</td></tr>';
         console.error(e);
     }
 }
