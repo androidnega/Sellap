@@ -2,6 +2,8 @@
 /**
  * POS Sales History View
  */
+$salesHistRole = strtolower(trim($_SESSION['user']['role'] ?? ''));
+$salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_admin'], true);
 ?>
 
 <style>
@@ -108,10 +110,34 @@
 
 <div class="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 sales-history-container">
     <!-- Header -->
-    <div class="mb-6">
+    <div class="mb-4">
         <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">Sales History</h2>
-        <p class="text-sm sm:text-base text-gray-600">Transaction records and sales reports</p>
+        <p class="text-sm sm:text-base text-gray-600 mt-1">Look up past sales, filter them, and—if you manage the store—see totals by product category and by item.</p>
     </div>
+
+    <details class="mb-6 rounded-lg border border-indigo-100 bg-indigo-50/80 text-gray-800 shadow-sm">
+        <summary class="cursor-pointer list-none px-4 py-3 sm:px-5 sm:py-3.5 font-medium text-indigo-900 flex items-center gap-2 select-none rounded-lg marker:hidden [&::-webkit-details-marker]:hidden">
+            <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700" aria-hidden="true"><i class="fas fa-lightbulb text-sm"></i></span>
+            <span class="flex-1">How this page works <span class="font-normal text-indigo-700/90">(plain English—tap to open)</span></span>
+            <i class="fas fa-angle-down text-indigo-600 text-sm shrink-0" aria-hidden="true"></i>
+        </summary>
+        <div class="px-4 pb-4 sm:px-5 sm:pb-5 pt-0 text-sm leading-relaxed text-gray-700 border-t border-indigo-100/80">
+            <p class="pt-3 mb-3"><strong class="text-gray-900">Where you are:</strong> This is <strong>Sales History</strong> under POS. It is the place to review receipts that were already rung up—not to create a new sale.</p>
+            <ul class="list-disc pl-5 space-y-2.5 mb-3">
+                <li><strong class="text-gray-900">“Filter Sales”</strong> (the first white box below) is where you narrow the list: search by customer or sale number, pick dates, then press <strong>Filter</strong>. Summary numbers and the table update to match.</li>
+                <li><strong class="text-gray-900">“Rows per page”</strong> controls how many sales appear in the big list at once. If you have many sales, use the page controls at the bottom of the table to flip through.</li>
+                <?php if ($salesHistShowCategory): ?>
+                <li><strong class="text-gray-900">“Product category”</strong> (managers and admins only) is an extra filter: choose a category to only show sales that include at least one product from that category. Leave it on “All categories” if you do not need it.</li>
+                <li><strong class="text-gray-900">“What sold? Totals by item”</strong> (second white box, managers and admins) is a separate mini-report: pick a date range and <strong>Run report</strong> to see each product (or line name), how many were sold, and money brought in—rolled up for the whole period, not sale-by-sale.</li>
+                <?php else: ?>
+                <li>Your role sees the same sales list and filters except category and the “totals by item” report; ask a manager if you need those breakdowns.</li>
+                <?php endif; ?>
+                <li><strong class="text-gray-900">The four summary cards</strong> (Total sales, revenue, etc.) reflect whatever filters you applied—so they always match the list below.</li>
+                <li><strong class="text-gray-900">“Recent Sales”</strong> is the detailed table: one row per receipt with customer, items, amounts, and actions (view, print, or delete if your account is allowed).</li>
+            </ul>
+            <p class="text-xs text-gray-500 border-t border-indigo-100/60 pt-3">Tip: set dates first, then category if you use it, then Filter—so you are not surprised by an empty list.</p>
+        </div>
+    </details>
     
     <!-- Success/Error Messages -->
     <?php if (isset($_SESSION['success_message'])): ?>
@@ -131,7 +157,8 @@
     <!-- Filters -->
     <div class="bg-white rounded-lg shadow-sm border mb-6">
         <div class="p-4 sm:p-6 border-b border-gray-200">
-            <h3 class="text-base sm:text-lg font-semibold text-gray-800">Filter Sales</h3>
+            <h3 class="text-base sm:text-lg font-semibold text-gray-800">Filter sales</h3>
+            <p class="text-sm text-gray-600 mt-1">Narrow the list and the summary cards. Nothing changes until you press <span class="font-medium text-gray-800">Filter</span>.</p>
         </div>
         <div class="p-4 sm:p-6">
             <div class="flex flex-col md:flex-row gap-4">
@@ -151,16 +178,13 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Date To</label>
                     <input type="date" id="dateTo" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 </div>
-                <?php
-                $salesHistRole = strtolower(trim($_SESSION['user']['role'] ?? ''));
-                $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_admin'], true);
-                ?>
                 <?php if ($salesHistShowCategory): ?>
-                <div class="md:w-48">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                    <select id="categoryFilter" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <div class="md:w-52">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Product category <span class="font-normal text-gray-500">(optional)</span></label>
+                    <select id="categoryFilter" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent" title="Only show sales that include an item from this category">
                         <option value="">All categories</option>
                     </select>
+                    <p class="text-xs text-gray-500 mt-1">Managers: narrows the receipt list, not the “by item” report below.</p>
                 </div>
                 <?php endif; ?>
                 <div class="md:w-32">
@@ -169,9 +193,9 @@
                         <i class="fas fa-filter mr-2"></i>Filter
                     </button>
                 </div>
-                <div class="md:w-32">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Per Page</label>
-                    <select id="itemsPerPage" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <div class="md:w-36">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Rows per page</label>
+                    <select id="itemsPerPage" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent" title="How many sales show in the table at once">
                         <option value="10">10</option>
                         <option value="20" selected>20</option>
                         <option value="50">50</option>
@@ -184,8 +208,8 @@
 
     <?php if ($salesHistShowCategory): ?>
     <div class="bg-white rounded-lg shadow-sm border mb-6 p-4 sm:p-6">
-        <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">Sales by item (date range)</h3>
-        <p class="text-sm text-gray-600 mb-4">Totals from POS line items (non-swap sales), grouped by product or description.</p>
+        <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-1">What sold? Totals by item</h3>
+        <p class="text-sm text-gray-600 mb-4">For managers: add up everything on the register for a period—each product (or free-text line) shows <strong>how many</strong> sold and <strong>how much money</strong> that brought in. Swap-type lines are left out. This does not use the category dropdown above; set the dates here and click <strong>Run report</strong>.</p>
         <div class="flex flex-col md:flex-row gap-4 md:items-end mb-4">
             <div class="md:w-48">
                 <label class="block text-sm font-medium text-gray-700 mb-2">From</label>
@@ -285,7 +309,10 @@
     <!-- Sales Table -->
     <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
         <div class="p-4 sm:p-6 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h3 class="text-lg font-semibold text-gray-800">Recent Sales</h3>
+            <div>
+                <h3 class="text-lg font-semibold text-gray-800">Recent sales</h3>
+                <p class="text-sm text-gray-600 mt-1">Each row is one completed sale (receipt). Use the filters above so this list matches what you want to review.</p>
+            </div>
             <div id="bulkActionsContainer" class="hidden">
                 <button id="bulkDeleteBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors text-sm">
                     <i class="fas fa-trash mr-2"></i>Delete Selected
