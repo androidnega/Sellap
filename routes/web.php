@@ -717,6 +717,33 @@ $router->post('api/inventory/product/{id}/generate-barcode', function($id) {
     $controller->apiGenerateBarcode((int)$id);
 });
 
+// Inventory travel / audit sessions (manager)
+$router->get('dashboard/inventory/travel-sessions', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'admin', 'system_admin']);
+    $c = new \App\Controllers\InventoryTravelSessionController();
+    $c->index();
+});
+$router->get('api/inventory/travel-sessions', function() {
+    $c = new \App\Controllers\InventoryTravelSessionController();
+    $c->apiList();
+});
+$router->get('api/inventory/travel-sessions/active', function() {
+    $c = new \App\Controllers\InventoryTravelSessionController();
+    $c->apiActive();
+});
+$router->post('api/inventory/travel-sessions/start', function() {
+    $c = new \App\Controllers\InventoryTravelSessionController();
+    $c->apiStart();
+});
+$router->post('api/inventory/travel-sessions/{id}/end', function($id) {
+    $c = new \App\Controllers\InventoryTravelSessionController();
+    $c->apiEnd((int)$id);
+});
+$router->get('api/inventory/travel-sessions/{id}/report', function($id) {
+    $c = new \App\Controllers\InventoryTravelSessionController();
+    $c->apiReport((int)$id);
+});
+
 // ========================================
 // RESTOCK ROUTES
 // ========================================
@@ -2221,6 +2248,16 @@ $router->post('api/pos', function() {
 $router->get('api/pos/sales', function() {
     $controller = new \App\Controllers\POSController();
     $controller->apiSales();
+});
+
+$router->get('api/pos/sales/item-report', function() {
+    $controller = new \App\Controllers\POSController();
+    $controller->apiSalesItemReport();
+});
+
+$router->get('api/pos/sales/category-options', function() {
+    $controller = new \App\Controllers\POSController();
+    $controller->apiSalesCategoryOptions();
 });
 
 // Get single sale details API
@@ -3978,6 +4015,12 @@ $router->get('dashboard/tools/run-email-logs-migration', function() {
 $router->get('dashboard/tools/run-user-activity-logs-migration', function() {
     $controller = new \App\Controllers\MigrationController();
     $controller->runUserActivityLogsMigration();
+});
+
+// Inventory travel / audit session tables
+$router->get('dashboard/tools/run-inventory-travel-sessions-migration', function() {
+    $controller = new \App\Controllers\MigrationController();
+    $controller->runInventoryTravelSessionsMigration();
 });
 
 // ========================================

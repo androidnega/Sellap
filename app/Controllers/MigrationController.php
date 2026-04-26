@@ -938,5 +938,124 @@ class MigrationController
 
         require __DIR__ . '/../Views/simple_layout.php';
     }
+
+    /**
+     * Create inventory_travel_sessions and inventory_travel_snapshot_lines (manager travel audit).
+     */
+    public function runInventoryTravelSessionsMigration()
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $userData = $_SESSION['user'] ?? null;
+
+        if (!$userData) {
+            $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+            $currentPath = $_SERVER['REQUEST_URI'] ?? '/dashboard/tools';
+            $redirectParam = 'redirect=' . urlencode($currentPath);
+            header('Location: ' . $basePath . '/?' . $redirectParam);
+            exit;
+        }
+
+        $userRole = $userData['role'] ?? '';
+        if ($userRole !== 'system_admin') {
+            $title = 'Access Denied';
+            $errorMessage = "You need to be a System Administrator to access migration tools. Your current role is: " . htmlspecialchars($userRole);
+
+            ob_start();
+            ?>
+            <div class="max-w-2xl mx-auto">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                    <div class="flex items-center mb-4">
+                        <svg class="w-8 h-8 text-red-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                        </svg>
+                        <h1 class="text-2xl font-bold text-red-900">Access Denied</h1>
+                    </div>
+                    <p class="text-red-800 mb-4"><?= htmlspecialchars($errorMessage) ?></p>
+                    <a href="<?= BASE_URL_PATH ?>/dashboard" class="inline-block px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                        Return to Dashboard
+                    </a>
+                </div>
+            </div>
+            <?php
+            $content = ob_get_clean();
+
+            $GLOBALS['content'] = $content;
+            $GLOBALS['title'] = $title;
+            $GLOBALS['user_data'] = $userData;
+
+            require __DIR__ . '/../Views/simple_layout.php';
+            exit;
+        }
+
+        $db = \Database::getInstance()->getConnection();
+        $logs = [];
+        $status = 'success';
+        $errorMessage = null;
+
+        try {
+            $logs[] = ['type' => 'info', 'message' => 'Inventory travel sessions migration...'];
+            $dbName = $db->query('SELECT DATABASE()')->fetchColumn();
+            $logs[] = ['type' => 'info', 'message' => "Database: {$dbName}"];
+
+            $hasSessions = $db->query("SHOW TABLES LIKE 'inventory_travel_sessions'")->rowCount() > 0;
+            $hasLines = $db->query("SHOW TABLES LIKE 'inventory_travel_snapshot_lines'")->rowCount() > 0;
+
+            if ($hasSessions && $hasLines) {
+                $logs[] = ['type' => 'success', 'message' => 'Tables inventory_travel_sessions and inventory_travel_snapshot_lines already exist.'];
+            } else {
+                $path = __DIR__ . '/../../database/migrations/create_inventory_travel_sessions.sql';
+                if (!is_readable($path)) {
+                    throw new \RuntimeException('Migration file not found: ' . $path);
+                }
+                $sql = file_get_contents($path);
+                foreach (array_filter(array_map('trim', explode(';', $sql))) as $stmt) {
+                    if ($stmt === '' || strpos(ltrim($stmt), '--') === 0) {
+                        continue;
+                    }
+                    $db->exec($stmt);
+                }
+                $logs[] = ['type' => 'success', 'message' => 'Executed create_inventory_travel_sessions.sql'];
+            }
+
+            $verifyS = $db->query("SHOW TABLES LIKE 'inventory_travel_sessions'")->rowCount() > 0;
+            $verifyL = $db->query("SHOW TABLES LIKE 'inventory_travel_snapshot_lines'")->rowCount() > 0;
+            if ($verifyS && $verifyL) {
+                $logs[] = ['type' => 'success', 'message' => 'Verified: both tables are present.'];
+            } else {
+                throw new \RuntimeException('Migration ran but one or both tables are still missing.');
+            }
+
+            $logs[] = ['type' => 'success', 'message' => 'Inventory travel sessions migration completed.'];
+        } catch (\Throwable $e) {
+            $status = 'error';
+            $errorMessage = $e->getMessage();
+            $logs[] = ['type' => 'error', 'message' => 'Migration failed: ' . $e->getMessage()];
+        }
+
+        $title = 'Inventory Travel Sessions Migration';
+
+        $GLOBALS['migration_logs'] = $logs;
+        $GLOBALS['migration_status'] = $status;
+        $GLOBALS['migration_error'] = $errorMessage;
+        $GLOBALS['title'] = $title;
+
+        ob_start();
+        include __DIR__ . '/../Views/migration_result.php';
+        $content = ob_get_clean();
+
+        $GLOBALS['content'] = $content;
+
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        if (isset($_SESSION['user'])) {
+            $GLOBALS['user_data'] = $_SESSION['user'];
+        }
+
+        require __DIR__ . '/../Views/simple_layout.php';
+    }
 }
 

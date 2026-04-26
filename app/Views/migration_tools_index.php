@@ -12,6 +12,29 @@
         <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4">Available Migrations</h2>
         
         <div class="space-y-4">
+            <!-- Inventory travel sessions (POS / inventory audit) -->
+            <div class="border border-teal-200 rounded-lg p-4 hover:bg-teal-50 transition">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <h3 class="text-base sm:text-lg font-medium text-gray-900">Inventory travel sessions</h3>
+                            <span class="px-2 py-1 text-xs font-semibold bg-teal-100 text-teal-800 rounded whitespace-nowrap">INVENTORY</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1 break-words">
+                            Creates <code class="text-xs bg-gray-100 px-1 rounded">inventory_travel_sessions</code> and
+                            <code class="text-xs bg-gray-100 px-1 rounded">inventory_travel_snapshot_lines</code> for manager travel START/END stock snapshots and reports.
+                        </p>
+                        <p class="text-xs text-gray-500 mt-2 break-all">
+                            SQL file: <code>database/migrations/create_inventory_travel_sessions.sql</code>
+                        </p>
+                    </div>
+                    <a href="<?= BASE_URL_PATH ?>/dashboard/tools/run-inventory-travel-sessions-migration"
+                       class="w-full sm:w-auto sm:flex-shrink-0 px-6 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition text-center text-sm sm:text-base">
+                        Run migration
+                    </a>
+                </div>
+            </div>
+
             <!-- Backup Columns Migration -->
             <div class="border border-purple-200 rounded-lg p-4 hover:bg-purple-50 transition bg-purple-25">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
