@@ -162,7 +162,7 @@ $salesHistSupportsSoftDelete = $salesHistSupportsSoftDelete ?? false;
     <?php if ($salesHistOrderInventorySchema): ?>
     <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
         <p class="font-medium text-blue-950">Cancel and return orders</p>
-        <p class="mt-1 text-blue-900/90">Use <strong>All returns</strong> / <strong>My returns</strong> in the sidebar for a return log. Open a sale with the <strong>eye</strong> or full-page icon to <strong>Cancel order</strong> (managers anytime; sales within 30 minutes) or <strong>Return items</strong> (managers only when returns are enabled under <strong>Company features</strong>).</p>
+        <p class="mt-1 text-blue-900/90">Open <strong>Returns</strong> in the sidebar for the return log. Use the <strong>eye</strong> or full-page icon on a row to <strong>Cancel order</strong> (managers anytime; sales within 30 minutes) or <strong>Return items</strong> (managers only; needs returns enabled under <strong>Company features</strong>).</p>
     </div>
     <?php endif; ?>
     

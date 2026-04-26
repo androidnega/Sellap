@@ -135,7 +135,7 @@ class AdminInventoryLogsController {
             }
         }
 
-        $this->renderLayout('Returns log', 'admin-inventory-logs', 'admin_inventory_returns.php', [
+        $this->renderLayout('Returns', 'admin-inventory-logs', 'admin_inventory_returns.php', [
             'rows' => $rows,
             'companies' => $companies,
             'viewerRole' => $role,

@@ -259,10 +259,8 @@ function sidebarCollapsibleGroup($label, $icon, $linksHtml, $isOpen = false) {
                 }
                 $posLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/pos/sales-history', 'fas fa-history', 'Sales History', $currentPage, 'sales-history', 'sidebar-subitem');
                 if ($companyId && CompanyFeature::tableExists() && (new CompanyFeature())->isEnabled((int)$companyId, 'returns_enabled')) {
-                    if ($userRole === 'manager') {
-                        $posLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/returns', 'fas fa-undo-alt', 'All returns', $currentPage, 'returns', 'sidebar-subitem');
-                    } elseif (in_array($userRole, ['salesperson', 'sales'], true)) {
-                        $posLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/returns', 'fas fa-undo-alt', 'My returns', $currentPage, 'returns', 'sidebar-subitem');
+                    if ($userRole === 'manager' || in_array($userRole, ['salesperson', 'sales'], true)) {
+                        $posLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/returns', 'fas fa-undo-alt', 'Returns', $currentPage, 'returns', 'sidebar-subitem');
                     }
                 }
                 if (CompanyModule::isEnabled($companyId, 'partial_payments')) {
@@ -331,7 +329,7 @@ function sidebarCollapsibleGroup($label, $icon, $linksHtml, $isOpen = false) {
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos', 'fas fa-cash-register', 'Point of Sale', $currentPage, 'pos') ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos/sales-history', 'fas fa-history', 'Sales History', $currentPage, 'sales-history') ?>
                 <?php if ($companyId && CompanyFeature::tableExists() && (new CompanyFeature())->isEnabled((int)$companyId, 'returns_enabled')): ?>
-                    <?= sidebarLink(BASE_URL_PATH . '/dashboard/returns', 'fas fa-undo-alt', 'My returns', $currentPage, 'returns') ?>
+                    <?= sidebarLink(BASE_URL_PATH . '/dashboard/returns', 'fas fa-undo-alt', 'Returns', $currentPage, 'returns') ?>
                 <?php endif; ?>
                 <?php if (CompanyModule::isEnabled($companyId, 'partial_payments')): ?>
                     <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos/partial-payments', 'fas fa-money-bill-wave', 'Partial Payments', $currentPage, 'partial-payments') ?>

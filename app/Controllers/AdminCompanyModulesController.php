@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\CompanyModule;
+use App\Models\CompanyFeature;
 use App\Middleware\AuthMiddleware;
 
 /**
@@ -93,38 +94,52 @@ class AdminCompanyModulesController {
                 return;
             }
             
-            // Get all available modules (from SYSTEM_MODULE_AUDIT.json recommended keys)
-            $availableModules = [
-                'products_inventory' => 'Products & Inventory',
-                'pos_sales' => 'POS / Sales',
-                'partial_payments' => 'Partial Payments',
-                'swap' => 'Swap',
-                'repairs' => 'Repairs',
-                'customers' => 'Customers',
-                'staff_management' => 'Staff Management',
-                'reports_analytics' => 'Reports & Analytics',
-                'notifications_sms' => 'Notifications & SMS',
-                'suppliers' => 'Suppliers',
-                'purchase_orders' => 'Purchase Orders',
-                'manager_delete_sales' => 'Sales delete (legacy, unused)',
-                'manager_bulk_delete_sales' => 'Bulk sales delete (legacy, unused)',
-                'manager_can_sell' => 'Manager Can Sell',
-                'manager_create_contact' => 'Manager Create Contact',
-                'manager_delete_contact' => 'Manager Delete Contact',
-                'inventory_travel_sessions' => 'Inventory travel sessions',
-                'charts' => 'Dashboard Charts'
-            ];
+            // Get all available modules (from SYSTEM_MODULE_AUDIT.json recommended keys).
+            // returns_enabled is stored in company_features (POS restocking); only listed when that table exists.
+            $availableModules = array_merge(
+                [
+                    'products_inventory' => 'Products & Inventory',
+                    'pos_sales' => 'POS / Sales',
+                ],
+                CompanyFeature::tableExists()
+                    ? ['returns_enabled' => 'Returns']
+                    : [],
+                [
+                    'partial_payments' => 'Partial Payments',
+                    'swap' => 'Swap',
+                    'repairs' => 'Repairs',
+                    'customers' => 'Customers',
+                    'staff_management' => 'Staff Management',
+                    'reports_analytics' => 'Reports & Analytics',
+                    'notifications_sms' => 'Notifications & SMS',
+                    'suppliers' => 'Suppliers',
+                    'purchase_orders' => 'Purchase Orders',
+                    'manager_delete_sales' => 'Sales delete (legacy, unused)',
+                    'manager_bulk_delete_sales' => 'Bulk sales delete (legacy, unused)',
+                    'manager_can_sell' => 'Manager Can Sell',
+                    'manager_create_contact' => 'Manager Create Contact',
+                    'manager_delete_contact' => 'Manager Delete Contact',
+                    'inventory_travel_sessions' => 'Inventory travel sessions',
+                    'charts' => 'Dashboard Charts',
+                ]
+            );
             
             // Get enabled modules for this company
             $enabledModules = $this->companyModuleModel->getEnabledModules($companyId);
+            $featureModel = CompanyFeature::tableExists() ? new CompanyFeature() : null;
             
             // Build response with module status
             $modules = [];
             foreach ($availableModules as $moduleKey => $moduleName) {
+                if ($moduleKey === 'returns_enabled' && $featureModel) {
+                    $enabled = $featureModel->isEnabled($companyId, 'returns_enabled');
+                } else {
+                    $enabled = in_array($moduleKey, $enabledModules, true);
+                }
                 $modules[] = [
                     'key' => $moduleKey,
                     'name' => $moduleName,
-                    'enabled' => in_array($moduleKey, $enabledModules)
+                    'enabled' => $enabled,
                 ];
             }
             
@@ -268,7 +283,8 @@ class AdminCompanyModulesController {
                 'manager_can_sell',
                 'manager_create_contact',
                 'manager_delete_contact',
-                'inventory_travel_sessions'
+                'inventory_travel_sessions',
+                'returns_enabled',
             ];
             
             if (!in_array($moduleKey, $validModules)) {
@@ -276,6 +292,32 @@ class AdminCompanyModulesController {
                 echo json_encode([
                     'success' => false,
                     'error' => 'Invalid module key'
+                ]);
+                return;
+            }
+
+            if ($moduleKey === 'returns_enabled') {
+                if (!CompanyFeature::tableExists()) {
+                    ob_end_clean();
+                    http_response_code(503);
+                    echo json_encode([
+                        'success' => false,
+                        'error' => 'The company_features table is missing. Run the POS order inventory migration first.',
+                    ]);
+                    return;
+                }
+                $sessUser = $_SESSION['user'] ?? [];
+                $updatedBy = !empty($sessUser['id']) ? (int)$sessUser['id'] : null;
+                (new CompanyFeature())->setEnabled($companyId, 'returns_enabled', $enabled, $updatedBy);
+                ob_end_clean();
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Returns setting updated successfully',
+                    'data' => [
+                        'company_id' => $companyId,
+                        'module_key' => $moduleKey,
+                        'enabled' => $enabled,
+                    ],
                 ]);
                 return;
             }

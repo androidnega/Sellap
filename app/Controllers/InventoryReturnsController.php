@@ -44,7 +44,7 @@ class InventoryReturnsController {
         }
 
         $rn = ReturnVisibilityPolicy::normalizeRole($role);
-        $pageHeading = ReturnVisibilityPolicy::isSalesRole($rn) ? 'My returns' : 'All returns';
+        $pageHeading = 'Returns';
         $readOnlyUi = ReturnVisibilityPolicy::returnsUiReadOnly($rn);
         $canProcessReturns = ReturnVisibilityPolicy::canProcessReturns($rn);
 

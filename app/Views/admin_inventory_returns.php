@@ -11,9 +11,9 @@ $returnsReadOnly = $returnsReadOnly ?? true;
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
             <a href="<?= BASE_URL_PATH ?>/dashboard/admin/inventory-logs" class="text-sm text-blue-600 hover:text-blue-800">← Back to hub</a>
-            <h1 class="text-2xl font-bold text-gray-900 mt-2">Returns report</h1>
+            <h1 class="text-2xl font-bold text-gray-900 mt-2">Returns</h1>
             <?php if ($returnsReadOnly): ?>
-                <p class="mt-2 text-sm text-gray-600">Read-only for audit. Managers record stock returns from <strong>POS → Returns</strong> or each sale’s detail page.</p>
+                <p class="mt-2 text-sm text-gray-600">Read-only for audit. Managers record stock from <strong>POS → Returns</strong> or each sale’s detail page.</p>
             <?php endif; ?>
         </div>
         <?php if ($viewerRole === 'system_admin' && !empty($companies)): ?>

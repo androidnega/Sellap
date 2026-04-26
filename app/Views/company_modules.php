@@ -170,6 +170,7 @@
     const icons = {
       'products_inventory': 'boxes',
       'pos_sales': 'cash-register',
+      'returns_enabled': 'undo-alt',
       'swap': 'exchange-alt',
       'repairs': 'tools',
       'customers': 'users',
@@ -194,6 +195,7 @@
     const names = {
       'products_inventory': 'Products & Inventory',
       'pos_sales': 'POS / Sales',
+      'returns_enabled': 'Returns',
       'swap': 'Swap',
       'repairs': 'Repairs',
       'customers': 'Customers',
@@ -218,6 +220,7 @@
     const descriptions = {
       'products_inventory': 'Manage products, inventory, categories, and stock levels',
       'pos_sales': 'Point of Sale system for processing sales transactions',
+      'returns_enabled': 'Lets managers record returns on completed POS sales. Toggle syncs with company features.',
       'swap': 'Device swapping system allowing customers to exchange devices',
       'repairs': 'Repair service management system for tracking device repairs',
       'customers': 'Customer management system for tracking customer information',

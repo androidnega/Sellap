@@ -11,11 +11,12 @@ $canProcessReturns = $canProcessReturns ?? false;
         <a href="<?= BASE_URL_PATH ?>/dashboard/pos/sales-history" class="text-sm text-blue-600 hover:text-blue-800">← Sales history</a>
         <h1 class="text-2xl font-bold text-gray-900 mt-2"><?= htmlspecialchars($pageHeading) ?></h1>
         <?php if ($readOnlyUi): ?>
+            <p class="mt-2 text-sm text-gray-600">Showing returns linked to <strong>your</strong> sales only.</p>
             <p class="mt-2 text-sm rounded-md border border-amber-200 bg-amber-50 text-amber-900 px-3 py-2">
-                View only. Return processing is done by a <strong>manager</strong> on each sale’s detail page.
+                View only. A <strong>manager</strong> records returns on each sale’s detail page.
             </p>
         <?php elseif ($canProcessReturns): ?>
-            <p class="mt-2 text-sm text-gray-600">To restock inventory, open a sale and use <strong>Return items</strong> on the sale detail page.</p>
+            <p class="mt-2 text-sm text-gray-600">Every return for your company. To restock, open a sale and use <strong>Return items</strong> on the sale detail page.</p>
         <?php endif; ?>
     </div>
 
