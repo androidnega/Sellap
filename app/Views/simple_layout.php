@@ -60,6 +60,44 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
         window.SERVER_SESSION_ACTIVE = <?php echo $initialUserData ? 'true' : 'false'; ?>;
         window.SERVER_USER = <?php echo json_encode($initialUserData ?? null); ?>;
     </script>
+    <script>
+        /**
+         * Modals (simple_layout): append overlays to document.body so position:fixed
+         * uses the viewport; pair with .modal-viewport-layer CSS.
+         */
+        if (typeof window.ensureModalInBody !== 'function') {
+            window.ensureModalInBody = function(modalEl) {
+                if (!modalEl) return;
+                if (modalEl.parentNode !== document.body) {
+                    document.body.appendChild(modalEl);
+                }
+                modalEl.classList.add('modal-viewport-layer');
+                if (typeof window.resetModalOverlayScroll === 'function') {
+                    window.resetModalOverlayScroll(modalEl);
+                }
+            };
+        }
+        if (typeof window.resetModalOverlayScroll !== 'function') {
+            window.resetModalOverlayScroll = function(modalEl) {
+                if (!modalEl) return;
+                modalEl.scrollTop = 0;
+                modalEl.scrollLeft = 0;
+            };
+        }
+        if (typeof window.setDashboardModalScrollLock !== 'function') {
+            window.setDashboardModalScrollLock = function(locked) {
+                var root = document.documentElement;
+                var body = document.body;
+                if (locked) {
+                    root.classList.add('modal-open');
+                    body.classList.add('modal-open');
+                } else {
+                    root.classList.remove('modal-open');
+                    body.classList.remove('modal-open');
+                }
+            };
+        }
+    </script>
     
     <!-- Preconnect to CDN for faster loading -->
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
@@ -254,12 +292,37 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
             }
         }
         
-        /* Prevent blur/backdrop effects during transitions */
-        .sidebar,
-        .main-content-container {
+        /* GPU hint on sidebar only — transform on .main-content-container breaks
+           position:fixed for descendants before they are moved to <body>. */
+        .sidebar {
             will-change: auto;
             backface-visibility: hidden;
             transform: translateZ(0);
+        }
+        .main-content-container {
+            will-change: auto;
+            backface-visibility: hidden;
+        }
+
+        /* Viewport modal shell (fixed overlay, full viewport, scrollable for tall dialogs) */
+        .modal-viewport-layer {
+            position: fixed !important;
+            inset: 0 !important;
+            width: 100% !important;
+            min-height: 100vh !important;
+            min-height: 100dvh !important;
+            max-width: 100vw !important;
+            margin: 0 !important;
+            box-sizing: border-box !important;
+            z-index: 10050 !important;
+        }
+        html.modal-open,
+        body.modal-open {
+            overflow: hidden !important;
+        }
+        html.modal-open main,
+        body.modal-open main {
+            overflow: hidden !important;
         }
         
         /* Mobile responsive */

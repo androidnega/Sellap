@@ -408,60 +408,57 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
     </div>
 </div>
 
-<!--
-  Viewport modal (Tailwind): fixed inset-0 + flex center + high z-index.
-  ensureModalInBody() moves this to <body> so parents (table/main overflow) never break position:fixed.
--->
-<div id="itemSalesReportModal" class="modal-viewport-layer fixed inset-0 z-[10050] flex items-center justify-center overflow-y-auto bg-black/50 p-4 hidden">
-    <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden my-auto">
-        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
-            <h3 class="text-lg font-semibold text-gray-800">Totals by item</h3>
-            <button type="button" id="itemSalesReportModalClose" class="text-gray-400 hover:text-gray-600 p-1 rounded focus:outline-none focus:ring-2 focus:ring-gray-400" aria-label="Close">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        <div id="itemSalesReportModalMeta" class="px-5 py-2.5 text-sm text-gray-600 border-b border-gray-100 bg-gray-50 shrink-0"></div>
-        <div class="overflow-y-auto flex-1 min-h-0 p-5">
-            <table class="min-w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-                <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                    <tr>
-                        <th class="px-3 py-2.5">Item</th>
-                        <th class="px-3 py-2.5 text-right">Qty sold</th>
-                        <th class="px-3 py-2.5 text-right">Revenue</th>
-                    </tr>
-                </thead>
-                <tbody id="itemReportModalBody" class="divide-y divide-gray-200 text-gray-800 bg-white"></tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<div id="saleDetailsModal" class="modal-viewport-layer fixed inset-0 z-[10050] flex items-center justify-center overflow-y-auto bg-black/50 p-4 hidden">
-    <div class="bg-white rounded shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-6">
-            <h3 class="text-xl font-semibold text-gray-800">Sale Details</h3>
-            <button id="closeSaleDetailsModal" class="text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        
-        <div id="saleDetailsContent">
-            <!-- Sale details will be loaded here -->
+<!-- Modals: fixed viewport overlay; ensureModalInBody() in simple_layout moves roots to <body>. -->
+<div id="itemSalesReportModal" class="fixed inset-0 z-[10050] hidden overflow-y-auto bg-black/50" role="dialog" aria-modal="true" aria-labelledby="itemSalesReportTitle">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="relative w-full max-w-3xl rounded-lg bg-white shadow-xl max-h-[90vh] flex flex-col overflow-hidden" data-modal-panel>
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
+                <h3 id="itemSalesReportTitle" class="text-lg font-semibold text-gray-800">Totals by item</h3>
+                <button type="button" id="itemSalesReportModalClose" class="text-gray-400 hover:text-gray-600 p-1 rounded focus:outline-none focus:ring-2 focus:ring-gray-400" aria-label="Close">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="itemSalesReportModalMeta" class="px-5 py-2.5 text-sm text-gray-600 border-b border-gray-100 bg-gray-50 shrink-0"></div>
+            <div class="overflow-y-auto flex-1 min-h-0 p-5">
+                <table class="min-w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+                    <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                        <tr>
+                            <th class="px-3 py-2.5">Item</th>
+                            <th class="px-3 py-2.5 text-right">Qty sold</th>
+                            <th class="px-3 py-2.5 text-right">Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemReportModalBody" class="divide-y divide-gray-200 text-gray-800 bg-white"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Payment Modal -->
-<div id="paymentModal" class="modal-viewport-layer fixed inset-0 z-[10050] flex items-center justify-center overflow-y-auto bg-black/50 p-4 hidden">
-    <div class="bg-white rounded shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-6">
-            <h3 class="text-xl font-semibold text-gray-800">Record Payment</h3>
-            <button id="closePaymentModal" class="text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times text-xl"></i>
-            </button>
+<div id="saleDetailsModal" class="fixed inset-0 z-[10050] hidden overflow-y-auto bg-black/50" role="dialog" aria-modal="true">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="relative w-full max-w-2xl rounded-lg bg-white shadow-xl max-h-[90vh] overflow-y-auto p-6" data-modal-panel>
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-semibold text-gray-800">Sale Details</h3>
+                <button type="button" id="closeSaleDetailsModal" class="text-gray-400 hover:text-gray-600 rounded p-1 focus:outline-none focus:ring-2 focus:ring-gray-400" aria-label="Close">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="saleDetailsContent"></div>
         </div>
-        
-        <div id="paymentModalContent">
+    </div>
+</div>
+
+<div id="paymentModal" class="fixed inset-0 z-[10050] hidden overflow-y-auto bg-black/50" role="dialog" aria-modal="true">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="relative w-full max-w-md rounded-lg bg-white shadow-xl max-h-[90vh] overflow-y-auto p-6" data-modal-panel>
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-semibold text-gray-800">Record Payment</h3>
+                <button type="button" id="closePaymentModal" class="text-gray-400 hover:text-gray-600 rounded p-1 focus:outline-none focus:ring-2 focus:ring-gray-400" aria-label="Close">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="paymentModalContent">
                 <div class="mb-4">
                     <p class="text-sm text-gray-600 mb-2">Sale ID: <span id="paymentSaleId" class="font-semibold"></span></p>
                     <p class="text-sm text-gray-600 mb-2">Total Amount: <span id="paymentTotalAmount" class="font-semibold"></span></p>
@@ -502,11 +499,57 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
                         </button>
                     </div>
                 </form>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
+function salesHistoryShowModal(modalEl) {
+    if (!modalEl) return;
+    if (typeof window.ensureModalInBody === 'function') {
+        window.ensureModalInBody(modalEl);
+    }
+    if (typeof window.resetModalOverlayScroll === 'function') {
+        window.resetModalOverlayScroll(modalEl);
+    }
+    modalEl.classList.remove('hidden');
+    if (typeof window.setDashboardModalScrollLock === 'function') {
+        window.setDashboardModalScrollLock(true);
+    }
+    requestAnimationFrame(function() {
+        if (typeof window.resetModalOverlayScroll === 'function') {
+            window.resetModalOverlayScroll(modalEl);
+        }
+    });
+}
+
+function salesHistoryHideModal(modalEl) {
+    if (!modalEl) return;
+    modalEl.classList.add('hidden');
+    if (typeof window.setDashboardModalScrollLock === 'function') {
+        window.setDashboardModalScrollLock(false);
+    }
+}
+
+function salesHistoryWireModalBackdrop(modalEl, closeFn) {
+    if (!modalEl || modalEl.dataset.shBackdropWired === '1') return;
+    modalEl.dataset.shBackdropWired = '1';
+    modalEl.addEventListener('click', function(e) {
+        if (!e.target.closest('[data-modal-panel]')) {
+            closeFn();
+        }
+    });
+}
+
+function closeSaleDetailsModal() {
+    salesHistoryHideModal(document.getElementById('saleDetailsModal'));
+}
+
+function closePaymentModal() {
+    salesHistoryHideModal(document.getElementById('paymentModal'));
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     ['saleDetailsModal', 'paymentModal', 'itemSalesReportModal'].forEach(function(id) {
         var el = document.getElementById(id);
@@ -514,6 +557,9 @@ document.addEventListener('DOMContentLoaded', function() {
             window.ensureModalInBody(el);
         }
     });
+    salesHistoryWireModalBackdrop(document.getElementById('saleDetailsModal'), closeSaleDetailsModal);
+    salesHistoryWireModalBackdrop(document.getElementById('paymentModal'), closePaymentModal);
+    salesHistoryWireModalBackdrop(document.getElementById('itemSalesReportModal'), closeItemSalesReportModal);
     loadPermissions();
     loadSalesHistory();
     setupEventListeners();
@@ -528,14 +574,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var itemRepClose = document.getElementById('itemSalesReportModalClose');
     if (itemRepClose) {
         itemRepClose.addEventListener('click', closeItemSalesReportModal);
-    }
-    var itemRepModal = document.getElementById('itemSalesReportModal');
-    if (itemRepModal) {
-        itemRepModal.addEventListener('click', function(e) {
-            if (e.target === itemRepModal) {
-                closeItemSalesReportModal();
-            }
-        });
     }
 });
 
@@ -661,21 +699,9 @@ function setupEventListeners() {
         }
     });
     
-    // Close modals
-    document.getElementById('closeSaleDetailsModal').addEventListener('click', () => {
-        document.getElementById('saleDetailsModal').classList.add('hidden');
-        if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
-    });
-    
-    document.getElementById('closePaymentModal').addEventListener('click', () => {
-        document.getElementById('paymentModal').classList.add('hidden');
-        if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
-    });
-    
-    document.getElementById('cancelPaymentBtn').addEventListener('click', () => {
-        document.getElementById('paymentModal').classList.add('hidden');
-        if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
-    });
+    document.getElementById('closeSaleDetailsModal').addEventListener('click', closeSaleDetailsModal);
+    document.getElementById('closePaymentModal').addEventListener('click', closePaymentModal);
+    document.getElementById('cancelPaymentBtn').addEventListener('click', closePaymentModal);
     
     // Payment form submission
     document.getElementById('paymentForm').addEventListener('submit', async (e) => {
@@ -730,21 +756,11 @@ function escapeHtmlText(str) {
 }
 
 function openItemSalesReportModal() {
-    var m = document.getElementById('itemSalesReportModal');
-    if (!m) return;
-    m.classList.remove('hidden');
-    if (typeof window.setDashboardModalScrollLock === 'function') {
-        window.setDashboardModalScrollLock(true);
-    }
+    salesHistoryShowModal(document.getElementById('itemSalesReportModal'));
 }
 
 function closeItemSalesReportModal() {
-    var m = document.getElementById('itemSalesReportModal');
-    if (!m) return;
-    m.classList.add('hidden');
-    if (typeof window.setDashboardModalScrollLock === 'function') {
-        window.setDashboardModalScrollLock(false);
-    }
+    salesHistoryHideModal(document.getElementById('itemSalesReportModal'));
 }
 
 async function loadCategoryOptions() {
@@ -1387,13 +1403,7 @@ async function viewSaleDetails(saleId) {
             `;
             
             var sd = document.getElementById('saleDetailsModal');
-            if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(sd);
-            sd.classList.remove('hidden');
-            if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
-            if (typeof window.resetModalOverlayScroll === 'function') window.resetModalOverlayScroll(sd);
-            requestAnimationFrame(function() {
-                if (typeof window.resetModalOverlayScroll === 'function') window.resetModalOverlayScroll(sd);
-            });
+            salesHistoryShowModal(sd);
         } else {
             alert('Error: ' + (data.error || data.message || 'Failed to load sale details'));
             console.error('Failed to load sale details:', data);
@@ -1453,13 +1463,7 @@ async function openPaymentModal(saleId) {
             document.getElementById('paymentNotes').value = '';
             
             var pm = document.getElementById('paymentModal');
-            if (typeof window.ensureModalInBody === 'function') window.ensureModalInBody(pm);
-            pm.classList.remove('hidden');
-            if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(true);
-            if (typeof window.resetModalOverlayScroll === 'function') window.resetModalOverlayScroll(pm);
-            requestAnimationFrame(function() {
-                if (typeof window.resetModalOverlayScroll === 'function') window.resetModalOverlayScroll(pm);
-            });
+            salesHistoryShowModal(pm);
         } else {
             alert('Error: ' + (data.message || 'Failed to load payment information'));
         }
@@ -1505,8 +1509,7 @@ async function submitPayment() {
         
         if (data.success) {
             alert('Payment recorded successfully!');
-            document.getElementById('paymentModal').classList.add('hidden');
-            if (typeof window.setDashboardModalScrollLock === 'function') window.setDashboardModalScrollLock(false);
+            closePaymentModal();
             loadSalesHistory(); // Reload sales to update payment status
         } else {
             alert('Error: ' + (data.message || 'Failed to record payment'));
