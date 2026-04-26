@@ -206,11 +206,12 @@ function sidebarCollapsibleGroup($label, $icon, $linksHtml, $isOpen = false) {
             <?php if (isModuleEnabled('products_inventory', $companyId, $userRole)): ?>
                 <?= sidebarSection('Products & Inventory') ?>
                 <?php
-                    $inventoryGroupOpen = in_array($currentPage, ['inventory', 'restock', 'categories', 'subcategories', 'brands'], true);
+                    $inventoryGroupOpen = in_array($currentPage, ['inventory', 'restock', 'categories', 'subcategories', 'brands', 'travel-sessions'], true);
                     echo sidebarCollapsibleGroup(
                         'Inventory',
                         'fas fa-boxes',
                         sidebarLink(BASE_URL_PATH . '/dashboard/inventory', 'fas fa-boxes', 'Inventory', $currentPage, 'inventory', 'sidebar-subitem') .
+                        sidebarLink(BASE_URL_PATH . '/dashboard/inventory/travel-sessions', 'fas fa-route', 'Travel sessions', $currentPage, 'travel-sessions', 'sidebar-subitem') .
                         sidebarLink(BASE_URL_PATH . '/dashboard/restock', 'fas fa-truck-loading', 'Restock', $currentPage, 'restock', 'sidebar-subitem') .
                         sidebarLink(BASE_URL_PATH . '/dashboard/categories', 'fas fa-tags', 'Categories', $currentPage, 'categories', 'sidebar-subitem') .
                         sidebarLink(BASE_URL_PATH . '/dashboard/subcategories', 'fas fa-layer-group', 'Subcategories', $currentPage, 'subcategories', 'sidebar-subitem') .

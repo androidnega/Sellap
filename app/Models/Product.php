@@ -1298,4 +1298,45 @@ class Product {
             throw new \Exception('Failed to add swapped item to inventory: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Inventory quantities for travel-session snapshots.
+     *
+     * @return list<array{product_id:int,quantity:int}>
+     */
+    public function getQuantitiesSnapshotForCompany(int $companyId): array {
+        $qtyCol = 'quantity';
+        if ($this->productsHasColumn('qty')) {
+            $qtyCol = 'qty';
+        } elseif (!$this->productsHasColumn('quantity')) {
+            return [];
+        }
+        $stmt = $this->db->prepare("SELECT id AS product_id, COALESCE({$qtyCol}, 0) AS quantity FROM {$this->table} WHERE company_id = ?");
+        $stmt->execute([$companyId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $out = [];
+        foreach ($rows as $row) {
+            $out[] = ['product_id' => (int)$row['product_id'], 'quantity' => (int)$row['quantity']];
+        }
+        return $out;
+    }
+
+    /**
+     * @param int[] $ids
+     * @return array<int,string>
+     */
+    public function getNamesByCompanyAndIds(int $companyId, array $ids): array {
+        if (empty($ids)) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $params = array_merge([$companyId], $ids);
+        $stmt = $this->db->prepare("SELECT id, name FROM {$this->table} WHERE company_id = ? AND id IN ($placeholders)");
+        $stmt->execute($params);
+        $out = [];
+        while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $out[(int)$r['id']] = $r['name'];
+        }
+        return $out;
+    }
 }
