@@ -721,9 +721,71 @@ class POSSale {
     }
 
     /**
+     * Products table used when joining POS lines to categories (matches list display logic).
+     */
+    private function resolveInventoryProductsTableName(): ?string {
+        try {
+            $checkTable = $this->conn->query("SHOW TABLES LIKE 'products_new'");
+            if ($checkTable && $checkTable->rowCount() > 0) {
+                return 'products_new';
+            }
+            $checkTable2 = $this->conn->query("SHOW TABLES LIKE 'products'");
+            if ($checkTable2 && $checkTable2->rowCount() > 0) {
+                return 'products';
+            }
+        } catch (\Exception $e) {
+        }
+        return null;
+    }
+
+    /**
+     * Restrict sales to those containing at least one line whose resolved category matches $categoryName.
+     */
+    private function appendSaleCategoryFilter(string &$sql, array &$params, string $saleAlias, ?string $categoryName): void {
+        $cat = trim((string)$categoryName);
+        if ($cat === '') {
+            return;
+        }
+        $productsTable = $this->resolveInventoryProductsTableName();
+        if (!$productsTable) {
+            return;
+        }
+        try {
+            $hasLineCategory = $this->conn->query("SHOW COLUMNS FROM pos_sale_items LIKE 'category_name'")->rowCount() > 0;
+            $hasCategoryId = $this->conn->query("SHOW COLUMNS FROM {$productsTable} LIKE 'category_id'")->rowCount() > 0;
+            $hasCategoryCol = $this->conn->query("SHOW COLUMNS FROM {$productsTable} LIKE 'category'")->rowCount() > 0;
+            $hasCategories = $this->conn->query("SHOW TABLES LIKE 'categories'")->rowCount() > 0;
+
+            $joinCat = ($hasCategories && $hasCategoryId) ? "LEFT JOIN categories cat_cf ON p_cf.category_id = cat_cf.id" : '';
+            $fromLine = $hasLineCategory ? "NULLIF(TRIM(psi_cf.category_name), '')" : 'NULL';
+            $fromProd = "'Uncategorized'";
+            if ($hasCategories && $hasCategoryId) {
+                $fromProd = 'COALESCE(NULLIF(TRIM(cat_cf.name), \'\'), '
+                    . ($hasCategoryCol ? 'NULLIF(TRIM(p_cf.category), \'\'), ' : '')
+                    . "'Uncategorized')";
+            } elseif ($hasCategoryCol) {
+                $fromProd = "COALESCE(NULLIF(TRIM(p_cf.category), ''), 'Uncategorized')";
+            }
+
+            $expr = "COALESCE({$fromLine}, {$fromProd})";
+
+            $sql .= " AND EXISTS (
+                SELECT 1 FROM pos_sale_items psi_cf
+                LEFT JOIN {$productsTable} p_cf ON psi_cf.item_id = p_cf.id AND p_cf.company_id = {$saleAlias}.company_id
+                {$joinCat}
+                WHERE psi_cf.pos_sale_id = {$saleAlias}.id
+                AND LOWER(TRIM({$expr})) = LOWER(TRIM(?))
+            )";
+            $params[] = $cat;
+        } catch (\Exception $e) {
+            error_log('POSSale::appendSaleCategoryFilter: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Find sales by company with role information
      */
-    public function findByCompanyWithRoles($company_id, $limit = 100, $sale_type = null, $date_from = null, $date_to = null) {
+    public function findByCompanyWithRoles($company_id, $limit = 100, $sale_type = null, $date_from = null, $date_to = null, $offset = 0, $category = null) {
         // Check which table exists
         $checkTable = $this->conn->query("SHOW TABLES LIKE 'pos_sales'");
         $hasPosSales = $checkTable && $checkTable->rowCount() > 0;
@@ -885,8 +947,14 @@ class POSSale {
             $sql .= " AND DATE(s.created_at) <= ?";
             $params[] = $date_to;
         }
+
+        $this->appendSaleCategoryFilter($sql, $params, 's', $category);
         
         $sql .= " ORDER BY s.created_at DESC LIMIT " . intval($limit);
+        $off = max(0, (int)$offset);
+        if ($off > 0) {
+            $sql .= " OFFSET " . $off;
+        }
         
         try {
             $stmt = $this->conn->prepare($sql);
@@ -954,8 +1022,11 @@ class POSSale {
     /**
      * Get total count of sales by company (excluding swap sales)
      */
-    public function getTotalCountByCompany($company_id, $date_from = null, $date_to = null) {
-        // Check if is_swap_mode column exists
+    public function getTotalCountByCompany($company_id, $date_from = null, $date_to = null, $category = null) {
+        $checkTable = $this->conn->query("SHOW TABLES LIKE 'pos_sales'");
+        $hasPosSales = $checkTable && $checkTable->rowCount() > 0;
+        $this->table = $hasPosSales ? 'pos_sales' : 'pos_sale';
+
         $hasIsSwapMode = false;
         try {
             $checkIsSwapMode = $this->conn->query("SHOW COLUMNS FROM {$this->table} LIKE 'is_swap_mode'");
@@ -964,23 +1035,24 @@ class POSSale {
             error_log("POSSale::getTotalCountByCompany: Error checking is_swap_mode column: " . $e->getMessage());
         }
         
-        $sql = "SELECT COUNT(*) FROM {$this->table} WHERE company_id = ?";
+        $sql = "SELECT COUNT(*) FROM {$this->table} s WHERE s.company_id = ?";
         $params = [$company_id];
         
-        // Exclude swap sales from sales history count
         if ($hasIsSwapMode) {
-            $sql .= " AND (is_swap_mode = 0 OR is_swap_mode IS NULL)";
+            $sql .= " AND (s.is_swap_mode = 0 OR s.is_swap_mode IS NULL)";
         }
         
         if ($date_from) {
-            $sql .= " AND DATE(created_at) >= ?";
+            $sql .= " AND DATE(s.created_at) >= ?";
             $params[] = $date_from;
         }
         
         if ($date_to) {
-            $sql .= " AND DATE(created_at) <= ?";
+            $sql .= " AND DATE(s.created_at) <= ?";
             $params[] = $date_to;
         }
+
+        $this->appendSaleCategoryFilter($sql, $params, 's', $category);
         
         $stmt = $this->conn->prepare($sql);
         $stmt->execute($params);

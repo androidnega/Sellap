@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\Customer;
 use App\Models\Company;
 use App\Models\CompanyModule;
+use App\Models\Category;
 use App\Models\SalePayment;
 use App\Services\NotificationService;
 use App\Services\AuditService;
@@ -2636,6 +2637,11 @@ class POSController {
             $date_to = $_GET['date_to'] ?? null;
             $page = intval($_GET['page'] ?? 1);
             $limit = intval($_GET['limit'] ?? 20);
+            $category = isset($_GET['category']) ? trim((string)$_GET['category']) : null;
+            if ($category === '') {
+                $category = null;
+            }
+            $offset = max(0, ($page - 1) * $limit);
             
             // Get user role from database for accurate filtering
             require_once __DIR__ . '/../../config/database.php';
@@ -2661,8 +2667,8 @@ class POSController {
                 $sales = array_slice($sales, $offset, $limit);
             } else {
                 // Manager/Admin: Show all sales with role tags
-                $sales = $this->sale->findByCompanyWithRoles($companyId, $limit, $sale_type, $date_from, $date_to);
-                $totalSales = $this->sale->getTotalCountByCompany($companyId, $date_from, $date_to);
+                $sales = $this->sale->findByCompanyWithRoles($companyId, $limit, $sale_type, $date_from, $date_to, $offset, $category);
+                $totalSales = $this->sale->getTotalCountByCompany($companyId, $date_from, $date_to, $category);
                 $totalPages = ceil($totalSales / $limit);
             }
             
@@ -2804,6 +2810,98 @@ class POSController {
                 'error' => 'Internal server error',
                 'message' => 'An error occurred while loading sales'
             ]);
+            exit;
+        }
+    }
+
+    /**
+     * GET /api/pos/sales/item-report — quantity sold and revenue per item (managers).
+     */
+    public function apiSalesItemReport() {
+        ob_start();
+        if (ob_get_level()) {
+            ob_clean();
+        }
+        header('Content-Type: application/json');
+        try {
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            $user = $this->getAuthenticatedUser();
+            if (!$user) {
+                http_response_code(401);
+                echo json_encode(['success' => false, 'error' => 'Authentication required']);
+                exit;
+            }
+            $role = strtolower(trim($user['role'] ?? ''));
+            if (!in_array($role, ['manager', 'admin', 'system_admin'], true)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                exit;
+            }
+            $companyId = (int)($user['company_id'] ?? 0);
+            $dateFrom = trim((string)($_GET['date_from'] ?? ''));
+            $dateTo = trim((string)($_GET['date_to'] ?? ''));
+            if ($dateFrom === '' || $dateTo === '') {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'date_from and date_to are required (Y-m-d)']);
+                exit;
+            }
+            $rows = $this->saleItem->aggregateSoldByItemForCompany($companyId, $dateFrom, $dateTo);
+            ob_clean();
+            echo json_encode(['success' => true, 'data' => $rows]);
+            exit;
+        } catch (\Exception $e) {
+            error_log('POSController apiSalesItemReport: ' . $e->getMessage());
+            http_response_code(500);
+            ob_clean();
+            echo json_encode(['success' => false, 'error' => 'Internal server error']);
+            exit;
+        }
+    }
+
+    /**
+     * GET /api/pos/sales/category-options — category names for sales history filter.
+     */
+    public function apiSalesCategoryOptions() {
+        ob_start();
+        if (ob_get_level()) {
+            ob_clean();
+        }
+        header('Content-Type: application/json');
+        try {
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            $user = $this->getAuthenticatedUser();
+            if (!$user) {
+                http_response_code(401);
+                echo json_encode(['success' => false, 'error' => 'Authentication required']);
+                exit;
+            }
+            $role = strtolower(trim($user['role'] ?? ''));
+            if (!in_array($role, ['manager', 'admin', 'system_admin'], true)) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Access denied']);
+                exit;
+            }
+            $catModel = new Category();
+            $rows = $catModel->getAll();
+            $names = [];
+            foreach ($rows as $r) {
+                if (!empty($r['name'])) {
+                    $names[] = $r['name'];
+                }
+            }
+            $names[] = 'Uncategorized';
+            ob_clean();
+            echo json_encode(['success' => true, 'categories' => array_values(array_unique($names))]);
+            exit;
+        } catch (\Exception $e) {
+            error_log('POSController apiSalesCategoryOptions: ' . $e->getMessage());
+            http_response_code(500);
+            ob_clean();
+            echo json_encode(['success' => false, 'error' => 'Internal server error']);
             exit;
         }
     }

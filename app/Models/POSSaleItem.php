@@ -161,5 +161,48 @@ class POSSaleItem {
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    /**
+     * Per inventory line item: quantity sold and revenue in a date range (non-swap POS sales).
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function aggregateSoldByItemForCompany(int $companyId, string $dateFrom, string $dateTo): array {
+        $check = $this->conn->query("SHOW TABLES LIKE 'pos_sales'");
+        $salesTable = ($check && $check->rowCount() > 0) ? 'pos_sales' : 'pos_sale';
+        $pt = 'products';
+        $chk = $this->conn->query("SHOW TABLES LIKE 'products_new'");
+        if ($chk && $chk->rowCount() > 0) {
+            $pt = 'products_new';
+        }
+        $hasSwap = false;
+        try {
+            $hasSwap = $this->conn->query("SHOW COLUMNS FROM {$salesTable} LIKE 'is_swap_mode'")->rowCount() > 0;
+        } catch (\Exception $e) {
+        }
+        $swapEx = $hasSwap ? ' AND (ps.is_swap_mode = 0 OR ps.is_swap_mode IS NULL)' : '';
+
+        $sql = "
+            SELECT
+                si.item_id,
+                si.item_description,
+                COALESCE(MAX(p.name), MAX(si.item_description)) AS display_name,
+                SUM(si.quantity) AS qty_sold,
+                SUM(si.total_price) AS revenue
+            FROM {$this->table} si
+            INNER JOIN {$salesTable} ps ON si.pos_sale_id = ps.id
+            LEFT JOIN {$pt} p ON si.item_id = p.id AND p.company_id = ps.company_id
+            WHERE ps.company_id = ?
+            AND DATE(ps.created_at) >= ?
+            AND DATE(ps.created_at) <= ?
+            {$swapEx}
+            GROUP BY si.item_id, si.item_description
+            ORDER BY revenue DESC
+        ";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([$companyId, $dateFrom, $dateTo]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
 }
 

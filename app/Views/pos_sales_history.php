@@ -151,6 +151,18 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Date To</label>
                     <input type="date" id="dateTo" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 </div>
+                <?php
+                $salesHistRole = strtolower(trim($_SESSION['user']['role'] ?? ''));
+                $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_admin'], true);
+                ?>
+                <?php if ($salesHistShowCategory): ?>
+                <div class="md:w-48">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                    <select id="categoryFilter" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">All categories</option>
+                    </select>
+                </div>
+                <?php endif; ?>
                 <div class="md:w-32">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Filter</label>
                     <button id="filterBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors">
@@ -169,6 +181,42 @@
             </div>
         </div>
     </div>
+
+    <?php if ($salesHistShowCategory): ?>
+    <div class="bg-white rounded-lg shadow-sm border mb-6 p-4 sm:p-6">
+        <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">Sales by item (date range)</h3>
+        <p class="text-sm text-gray-600 mb-4">Totals from POS line items (non-swap sales), grouped by product or description.</p>
+        <div class="flex flex-col md:flex-row gap-4 md:items-end mb-4">
+            <div class="md:w-48">
+                <label class="block text-sm font-medium text-gray-700 mb-2">From</label>
+                <input type="date" id="itemReportFrom" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            <div class="md:w-48">
+                <label class="block text-sm font-medium text-gray-700 mb-2">To</label>
+                <input type="date" id="itemReportTo" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            <div>
+                <button type="button" id="itemReportBtn" class="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded text-sm font-medium">
+                    <i class="fas fa-table mr-2"></i>Run report
+                </button>
+            </div>
+        </div>
+        <div class="overflow-x-auto border rounded">
+            <table class="min-w-full text-sm">
+                <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
+                    <tr>
+                        <th class="px-3 py-2">Item</th>
+                        <th class="px-3 py-2 text-right">Qty sold</th>
+                        <th class="px-3 py-2 text-right">Revenue</th>
+                    </tr>
+                </thead>
+                <tbody id="itemReportBody" class="divide-y text-gray-700">
+                    <tr><td colspan="3" class="px-3 py-6 text-center text-gray-500">Set dates and run report.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Sales Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 mb-6" id="summaryCardsContainer">
@@ -399,6 +447,14 @@ document.addEventListener('DOMContentLoaded', function() {
     loadPermissions();
     loadSalesHistory();
     setupEventListeners();
+    initItemReportDefaults();
+    if (document.getElementById('categoryFilter')) {
+        loadCategoryOptions();
+    }
+    var irb = document.getElementById('itemReportBtn');
+    if (irb) {
+        irb.addEventListener('click', loadItemSalesReport);
+    }
 });
 
 let salesData = [];
@@ -568,6 +624,83 @@ function setupEventListeners() {
     }
 }
 
+function initItemReportDefaults() {
+    var fromEl = document.getElementById('itemReportFrom');
+    var toEl = document.getElementById('itemReportTo');
+    if (!fromEl || !toEl) return;
+    var now = new Date();
+    var y = now.getFullYear();
+    var m = String(now.getMonth() + 1).padStart(2, '0');
+    var d = String(now.getDate()).padStart(2, '0');
+    toEl.value = y + '-' + m + '-' + d;
+    var first = new Date(now.getFullYear(), now.getMonth(), 1);
+    var fm = String(first.getMonth() + 1).padStart(2, '0');
+    var fd = String(first.getDate()).padStart(2, '0');
+    fromEl.value = first.getFullYear() + '-' + fm + '-' + fd;
+}
+
+async function loadCategoryOptions() {
+    var sel = document.getElementById('categoryFilter');
+    if (!sel) return;
+    try {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '');
+        const res = await fetch(basePath + '/api/pos/sales/category-options', {
+            headers: getAuthHeaders(),
+            credentials: 'same-origin'
+        });
+        const data = await res.json();
+        if (!data.success || !data.categories) return;
+        data.categories.forEach(function(name) {
+            var o = document.createElement('option');
+            o.value = name;
+            o.textContent = name;
+            sel.appendChild(o);
+        });
+    } catch (e) {
+        console.error('loadCategoryOptions', e);
+    }
+}
+
+async function loadItemSalesReport() {
+    var fromEl = document.getElementById('itemReportFrom');
+    var toEl = document.getElementById('itemReportTo');
+    var tbody = document.getElementById('itemReportBody');
+    if (!fromEl || !toEl || !tbody) return;
+    var df = fromEl.value;
+    var dt = toEl.value;
+    if (!df || !dt) {
+        alert('Please choose from and to dates.');
+        return;
+    }
+    tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-4 text-center text-gray-500">Loading…</td></tr>';
+    try {
+        const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '');
+        const params = new URLSearchParams({ date_from: df, date_to: dt });
+        const res = await fetch(basePath + '/api/pos/sales/item-report?' + params.toString(), {
+            headers: getAuthHeaders(),
+            credentials: 'same-origin'
+        });
+        const data = await res.json();
+        if (!data.success) {
+            tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-4 text-center text-red-600">' + (data.error || 'Failed') + '</td></tr>';
+            return;
+        }
+        var rows = data.data || [];
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-4 text-center text-gray-500">No line items in this range.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = rows.map(function(r) {
+            var name = r.display_name || r.item_description || ('Item ' + (r.item_id || ''));
+            var rev = parseFloat(r.revenue || 0);
+            return '<tr><td class="px-3 py-2">' + name + '</td><td class="px-3 py-2 text-right">' + (r.qty_sold || 0) + '</td><td class="px-3 py-2 text-right">₵' + formatCurrencyForDisplay(rev) + '</td></tr>';
+        }).join('');
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-4 text-center text-red-600">Error loading report</td></tr>';
+        console.error(e);
+    }
+}
+
 async function loadSalesHistory() {
     try {
         const dateFrom = document.getElementById('dateFrom').value;
@@ -579,6 +712,10 @@ async function loadSalesHistory() {
         const params = new URLSearchParams();
         if (dateFrom) params.append('date_from', dateFrom);
         if (dateTo) params.append('date_to', dateTo);
+        var catEl = document.getElementById('categoryFilter');
+        if (catEl && catEl.value) {
+            params.append('category', catEl.value);
+        }
         params.append('page', currentPage);
         params.append('limit', itemsPerPage);
         url += '?' + params.toString();
@@ -1024,9 +1161,10 @@ function updatePagination() {
 
 function filterSales() {
     const searchTerm = document.getElementById('salesSearch').value.toLowerCase();
-    const filteredSales = salesData.filter(sale => 
+    const filteredSales = salesData.filter(sale =>
         sale.id.toString().includes(searchTerm) ||
-        (sale.customer_name && sale.customer_name.toLowerCase().includes(searchTerm))
+        (sale.customer_name && sale.customer_name.toLowerCase().includes(searchTerm)) ||
+        (sale.first_item_category && String(sale.first_item_category).toLowerCase().includes(searchTerm))
     );
     
     const originalData = salesData;
