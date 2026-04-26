@@ -111,19 +111,46 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
     #summaryCardsContainer .summary-card-stat {
         white-space: nowrap;
         font-variant-numeric: tabular-nums;
-        letter-spacing: -0.02em;
+        letter-spacing: -0.03em;
+        font-size: clamp(0.875rem, 1.35vw + 0.35rem, 1.125rem);
+        line-height: 1.25;
     }
     #summaryCardsContainer .summary-card-value-wrap {
-        overflow-x: auto;
+        overflow: visible;
         max-width: 100%;
-        -webkit-overflow-scrolling: touch;
+    }
+    @media (min-width: 1280px) {
+        #summaryCardsContainer .summary-card-stat {
+            font-size: clamp(0.9375rem, 1vw + 0.5rem, 1.25rem);
+        }
     }
     details.item-report-details[open] .item-report-chevron {
         transform: rotate(180deg);
     }
+    .sales-summary-grid {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    @media (min-width: 640px) {
+        .sales-summary-grid {
+            gap: 1rem;
+        }
+        .sales-summary-grid.summary-cards--five {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+    @media (min-width: 1024px) {
+        .sales-summary-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        .sales-summary-grid.summary-cards--five {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+    }
 </style>
 
-<div class="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 sales-history-container">
+<div class="sales-history-shell sales-history-container w-full max-w-none -mx-4 md:-mx-6 px-3 sm:px-4 md:px-5 py-4 sm:py-6">
     <!-- Header -->
     <div class="mb-4">
         <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">Sales History</h2>
@@ -228,73 +255,73 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
     <?php endif; ?>
 
     <!-- Sales Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 mb-6" id="summaryCardsContainer">
-        <div class="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
-            <div class="flex items-center">
-                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <i class="fas fa-shopping-cart text-blue-600 text-lg sm:text-xl"></i>
+    <div class="sales-summary-grid mb-6 min-w-0" id="summaryCardsContainer">
+        <div class="bg-white rounded-lg shadow-sm border p-3 sm:p-4 min-w-0">
+            <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-shopping-cart text-blue-600 text-base sm:text-lg"></i>
                 </div>
-                <div class="ml-3 sm:ml-4 min-w-0 flex-1 overflow-hidden">
-                    <p class="text-xs sm:text-sm text-gray-600">Total Sales</p>
+                <div class="min-w-0 flex-1">
+                    <p class="text-[11px] sm:text-xs text-gray-600 leading-tight truncate">Total sales</p>
                     <div class="summary-card-value-wrap">
-                        <p id="totalSales" class="summary-card-stat text-xl sm:text-2xl font-bold text-gray-800">0</p>
+                        <p id="totalSales" class="summary-card-stat font-bold text-gray-800">0</p>
                     </div>
                 </div>
             </div>
         </div>
         
-        <div class="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
-            <div class="flex items-center">
-                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <i class="fas fa-dollar-sign text-green-600 text-lg sm:text-xl"></i>
+        <div class="bg-white rounded-lg shadow-sm border p-3 sm:p-4 min-w-0">
+            <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-dollar-sign text-green-600 text-base sm:text-lg"></i>
                 </div>
-                <div class="ml-3 sm:ml-4 min-w-0 flex-1 overflow-hidden">
-                    <p class="text-xs sm:text-sm text-gray-600">Total Revenue</p>
+                <div class="min-w-0 flex-1">
+                    <p class="text-[11px] sm:text-xs text-gray-600 leading-tight truncate">Total revenue</p>
                     <div class="summary-card-value-wrap">
-                        <p id="totalRevenue" class="summary-card-stat text-lg sm:text-xl md:text-2xl font-bold text-gray-800 cursor-default">₵0.00</p>
+                        <p id="totalRevenue" class="summary-card-stat font-bold text-gray-800 cursor-default">₵0.00</p>
                     </div>
                 </div>
             </div>
         </div>
         
-        <div class="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
-            <div class="flex items-center">
-                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <i class="fas fa-percentage text-yellow-600 text-lg sm:text-xl"></i>
+        <div class="bg-white rounded-lg shadow-sm border p-3 sm:p-4 min-w-0">
+            <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-percentage text-yellow-600 text-base sm:text-lg"></i>
                 </div>
-                <div class="ml-3 sm:ml-4 min-w-0 flex-1 overflow-hidden">
-                    <p class="text-xs sm:text-sm text-gray-600">Avg. Sale</p>
+                <div class="min-w-0 flex-1">
+                    <p class="text-[11px] sm:text-xs text-gray-600 leading-tight truncate">Avg. sale</p>
                     <div class="summary-card-value-wrap">
-                        <p id="avgSale" class="summary-card-stat text-lg sm:text-xl md:text-2xl font-bold text-gray-800 cursor-default">₵0.00</p>
+                        <p id="avgSale" class="summary-card-stat font-bold text-gray-800 cursor-default">₵0.00</p>
                     </div>
                 </div>
             </div>
         </div>
         
-        <div class="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
-            <div class="flex items-center">
-                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <i class="fas fa-calendar-day text-purple-600 text-lg sm:text-xl"></i>
+        <div class="bg-white rounded-lg shadow-sm border p-3 sm:p-4 min-w-0">
+            <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-calendar-day text-purple-600 text-base sm:text-lg"></i>
                 </div>
-                <div class="ml-3 sm:ml-4 min-w-0 flex-1 overflow-hidden">
-                    <p class="text-xs sm:text-sm text-gray-600">Today's Sales</p>
+                <div class="min-w-0 flex-1">
+                    <p class="text-[11px] sm:text-xs text-gray-600 leading-tight truncate">Today's sales</p>
                     <div class="summary-card-value-wrap">
-                        <p id="todaySales" class="summary-card-stat text-xl sm:text-2xl font-bold text-gray-800">0</p>
+                        <p id="todaySales" class="summary-card-stat font-bold text-gray-800">0</p>
                     </div>
                 </div>
             </div>
         </div>
         
         <!-- Profit Card (Managers Only) -->
-        <div id="profitCard" class="bg-white rounded-lg shadow-sm border p-4 sm:p-6 hidden">
-            <div class="flex items-center">
-                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <i class="fas fa-chart-line text-emerald-600 text-lg sm:text-xl"></i>
+        <div id="profitCard" class="bg-white rounded-lg shadow-sm border p-3 sm:p-4 min-w-0 hidden">
+            <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-chart-line text-emerald-600 text-base sm:text-lg"></i>
                 </div>
-                <div class="ml-3 sm:ml-4 min-w-0 flex-1 overflow-hidden">
-                    <p class="text-xs sm:text-sm text-gray-600">Total Profit</p>
+                <div class="min-w-0 flex-1">
+                    <p class="text-[11px] sm:text-xs text-gray-600 leading-tight truncate">Total profit</p>
                     <div class="summary-card-value-wrap">
-                        <p id="totalProfit" class="summary-card-stat text-lg sm:text-xl md:text-2xl font-bold text-gray-800 cursor-default">₵0.00</p>
+                        <p id="totalProfit" class="summary-card-stat font-bold text-gray-800 cursor-default">₵0.00</p>
                     </div>
                 </div>
             </div>
@@ -558,7 +585,7 @@ async function loadPermissions() {
                 // Update grid to accommodate 5 cards for managers
                 const summaryCardsContainer = document.getElementById('summaryCardsContainer');
                 if (summaryCardsContainer) {
-                    summaryCardsContainer.className = 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 sm:gap-6 mb-6';
+                    summaryCardsContainer.classList.add('summary-cards--five');
                 }
             } else {
                 profitCard.classList.add('hidden');
