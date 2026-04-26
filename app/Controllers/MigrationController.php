@@ -1064,5 +1064,109 @@ class MigrationController
 
         require __DIR__ . '/../Views/simple_layout.php';
     }
+
+    /**
+     * POS orders: status/cancel columns, returns, return_items, stock_movements, company_features (idempotent).
+     */
+    public function runPosOrderInventoryMigration()
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $userData = $_SESSION['user'] ?? null;
+
+        if (!$userData) {
+            $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+            $currentPath = $_SERVER['REQUEST_URI'] ?? '/dashboard/tools';
+            $redirectParam = 'redirect=' . urlencode($currentPath);
+            header('Location: ' . $basePath . '/?' . $redirectParam);
+            exit;
+        }
+
+        $userRole = $userData['role'] ?? '';
+        if ($userRole !== 'system_admin') {
+            $title = 'Access Denied';
+            $errorMessage = "You need to be a System Administrator to access migration tools. Your current role is: " . htmlspecialchars($userRole);
+
+            ob_start();
+            ?>
+            <div class="max-w-2xl mx-auto">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                    <div class="flex items-center mb-4">
+                        <svg class="w-8 h-8 text-red-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                        </svg>
+                        <h1 class="text-2xl font-bold text-red-900">Access Denied</h1>
+                    </div>
+                    <p class="text-red-800 mb-4"><?= htmlspecialchars($errorMessage) ?></p>
+                    <a href="<?= BASE_URL_PATH ?>/dashboard" class="inline-block px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                        Return to Dashboard
+                    </a>
+                </div>
+            </div>
+            <?php
+            $content = ob_get_clean();
+
+            $GLOBALS['content'] = $content;
+            $GLOBALS['title'] = $title;
+            $GLOBALS['user_data'] = $userData;
+
+            require __DIR__ . '/../Views/simple_layout.php';
+            exit;
+        }
+
+        $db = \Database::getInstance()->getConnection();
+        $logs = [];
+        $status = 'success';
+        $errorMessage = null;
+
+        try {
+            $logs[] = ['type' => 'info', 'message' => 'POS order inventory migration (cancellations, returns, stock_movements)...'];
+            $dbName = $db->query('SELECT DATABASE()')->fetchColumn();
+            $logs[] = ['type' => 'info', 'message' => "Database: {$dbName}"];
+
+            if (!defined('SELLAP_POS_ORDER_MIGRATION_SKIP_CLI_RUN')) {
+                define('SELLAP_POS_ORDER_MIGRATION_SKIP_CLI_RUN', true);
+            }
+            require_once __DIR__ . '/../../database/migrations/run_pos_order_inventory_migration.php';
+
+            $result = run_pos_order_inventory_migration_steps($db);
+            foreach ($result['lines'] as $line) {
+                $logs[] = ['type' => $result['success'] ? 'success' : 'info', 'message' => $line];
+            }
+            if (!$result['success']) {
+                $status = 'error';
+                $errorMessage = $result['error'] ?? 'Migration failed';
+                $logs[] = ['type' => 'error', 'message' => $errorMessage];
+            }
+        } catch (\Throwable $e) {
+            $status = 'error';
+            $errorMessage = $e->getMessage();
+            $logs[] = ['type' => 'error', 'message' => 'Migration failed: ' . $e->getMessage()];
+        }
+
+        $title = 'POS Order Inventory Migration';
+
+        $GLOBALS['migration_logs'] = $logs;
+        $GLOBALS['migration_status'] = $status;
+        $GLOBALS['migration_error'] = $errorMessage;
+        $GLOBALS['title'] = $title;
+
+        ob_start();
+        include __DIR__ . '/../Views/migration_result.php';
+        $content = ob_get_clean();
+
+        $GLOBALS['content'] = $content;
+
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        if (isset($_SESSION['user'])) {
+            $GLOBALS['user_data'] = $_SESSION['user'];
+        }
+
+        require __DIR__ . '/../Views/simple_layout.php';
+    }
 }
 

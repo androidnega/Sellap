@@ -2,15 +2,13 @@
 /**
  * Idempotent migration: pos_sales status/cancel fields, pos_sale_items.returned_quantity,
  * company_features, returns, return_items, stock_movements.
+ *
+ * CLI: php database/migrations/run_pos_order_inventory_migration.php
+ * Web: define SELLAP_POS_ORDER_MIGRATION_SKIP_CLI_RUN before require, then call run_pos_order_inventory_migration_steps($pdo).
  */
 require_once __DIR__ . '/../../config/database.php';
 
-echo "Running pos_order_inventory_roles migration\n";
-echo str_repeat('=', 60) . "\n";
-
-$db = \Database::getInstance()->getConnection();
-
-function columnExists(\PDO $db, string $table, string $column): bool {
+function pos_order_inv_columnExists(\PDO $db, string $table, string $column): bool {
     $stmt = $db->prepare(
         'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
     );
@@ -18,7 +16,7 @@ function columnExists(\PDO $db, string $table, string $column): bool {
     return (int)$stmt->fetchColumn() > 0;
 }
 
-function tableExists(\PDO $db, string $table): bool {
+function pos_order_inv_tableExists(\PDO $db, string $table): bool {
     $stmt = $db->prepare(
         'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
     );
@@ -26,7 +24,7 @@ function tableExists(\PDO $db, string $table): bool {
     return (int)$stmt->fetchColumn() > 0;
 }
 
-function indexExists(\PDO $db, string $table, string $index): bool {
+function pos_order_inv_indexExists(\PDO $db, string $table, string $index): bool {
     $stmt = $db->prepare(
         'SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?'
     );
@@ -34,7 +32,7 @@ function indexExists(\PDO $db, string $table, string $index): bool {
     return (int)$stmt->fetchColumn() > 0;
 }
 
-function fkExists(\PDO $db, string $fk): bool {
+function pos_order_inv_fkExists(\PDO $db, string $fk): bool {
     $stmt = $db->prepare(
         'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = DATABASE() AND CONSTRAINT_NAME = ?'
     );
@@ -42,50 +40,55 @@ function fkExists(\PDO $db, string $fk): bool {
     return (int)$stmt->fetchColumn() > 0;
 }
 
-try {
-    if (tableExists($db, 'pos_sales')) {
-        if (!columnExists($db, 'pos_sales', 'status')) {
-            $db->exec("ALTER TABLE pos_sales ADD COLUMN status ENUM('completed','cancelled','returned') NOT NULL DEFAULT 'completed'");
-            echo "Added pos_sales.status\n";
-        }
-        if (!columnExists($db, 'pos_sales', 'cancelled_by')) {
-            $db->exec('ALTER TABLE pos_sales ADD COLUMN cancelled_by BIGINT UNSIGNED NULL');
-            echo "Added pos_sales.cancelled_by\n";
-        }
-        if (!columnExists($db, 'pos_sales', 'cancelled_role')) {
-            $db->exec("ALTER TABLE pos_sales ADD COLUMN cancelled_role ENUM('sales','manager') NULL");
-            echo "Added pos_sales.cancelled_role\n";
-        }
-        if (!columnExists($db, 'pos_sales', 'cancelled_at')) {
-            $db->exec('ALTER TABLE pos_sales ADD COLUMN cancelled_at TIMESTAMP NULL DEFAULT NULL');
-            echo "Added pos_sales.cancelled_at\n";
-        }
-        if (!indexExists($db, 'pos_sales', 'idx_pos_sales_status')) {
-            $db->exec('ALTER TABLE pos_sales ADD INDEX idx_pos_sales_status (company_id, status)');
-            echo "Added index idx_pos_sales_status\n";
-        }
-        if (!fkExists($db, 'fk_pos_sales_cancelled_by')) {
-            try {
-                $db->exec('ALTER TABLE pos_sales ADD CONSTRAINT fk_pos_sales_cancelled_by FOREIGN KEY (cancelled_by) REFERENCES users(id) ON DELETE SET NULL');
-                echo "Added FK fk_pos_sales_cancelled_by\n";
-            } catch (\PDOException $e) {
-                echo "Skip FK fk_pos_sales_cancelled_by: " . $e->getMessage() . "\n";
+/**
+ * @return array{success:bool,lines:list<string>,error:?string}
+ */
+function run_pos_order_inventory_migration_steps(\PDO $db): array {
+    $lines = [];
+    try {
+        if (pos_order_inv_tableExists($db, 'pos_sales')) {
+            if (!pos_order_inv_columnExists($db, 'pos_sales', 'status')) {
+                $db->exec("ALTER TABLE pos_sales ADD COLUMN status ENUM('completed','cancelled','returned') NOT NULL DEFAULT 'completed'");
+                $lines[] = 'Added pos_sales.status';
+            }
+            if (!pos_order_inv_columnExists($db, 'pos_sales', 'cancelled_by')) {
+                $db->exec('ALTER TABLE pos_sales ADD COLUMN cancelled_by BIGINT UNSIGNED NULL');
+                $lines[] = 'Added pos_sales.cancelled_by';
+            }
+            if (!pos_order_inv_columnExists($db, 'pos_sales', 'cancelled_role')) {
+                $db->exec("ALTER TABLE pos_sales ADD COLUMN cancelled_role ENUM('sales','manager') NULL");
+                $lines[] = 'Added pos_sales.cancelled_role';
+            }
+            if (!pos_order_inv_columnExists($db, 'pos_sales', 'cancelled_at')) {
+                $db->exec('ALTER TABLE pos_sales ADD COLUMN cancelled_at TIMESTAMP NULL DEFAULT NULL');
+                $lines[] = 'Added pos_sales.cancelled_at';
+            }
+            if (!pos_order_inv_indexExists($db, 'pos_sales', 'idx_pos_sales_status')) {
+                $db->exec('ALTER TABLE pos_sales ADD INDEX idx_pos_sales_status (company_id, status)');
+                $lines[] = 'Added index idx_pos_sales_status';
+            }
+            if (!pos_order_inv_fkExists($db, 'fk_pos_sales_cancelled_by')) {
+                try {
+                    $db->exec('ALTER TABLE pos_sales ADD CONSTRAINT fk_pos_sales_cancelled_by FOREIGN KEY (cancelled_by) REFERENCES users(id) ON DELETE SET NULL');
+                    $lines[] = 'Added FK fk_pos_sales_cancelled_by';
+                } catch (\PDOException $e) {
+                    $lines[] = 'Skip FK fk_pos_sales_cancelled_by: ' . $e->getMessage();
+                }
             }
         }
-    }
 
-    if (tableExists($db, 'pos_sale_items')) {
-        if (!columnExists($db, 'pos_sale_items', 'returned_quantity')) {
-            $db->exec('ALTER TABLE pos_sale_items ADD COLUMN returned_quantity INT UNSIGNED NOT NULL DEFAULT 0');
-            echo "Added pos_sale_items.returned_quantity\n";
+        if (pos_order_inv_tableExists($db, 'pos_sale_items')) {
+            if (!pos_order_inv_columnExists($db, 'pos_sale_items', 'returned_quantity')) {
+                $db->exec('ALTER TABLE pos_sale_items ADD COLUMN returned_quantity INT UNSIGNED NOT NULL DEFAULT 0');
+                $lines[] = 'Added pos_sale_items.returned_quantity';
+            }
+            if (!pos_order_inv_indexExists($db, 'pos_sale_items', 'idx_pos_sale_items_returned')) {
+                $db->exec('ALTER TABLE pos_sale_items ADD INDEX idx_pos_sale_items_returned (pos_sale_id, returned_quantity)');
+                $lines[] = 'Added index idx_pos_sale_items_returned';
+            }
         }
-        if (!indexExists($db, 'pos_sale_items', 'idx_pos_sale_items_returned')) {
-            $db->exec('ALTER TABLE pos_sale_items ADD INDEX idx_pos_sale_items_returned (pos_sale_id, returned_quantity)');
-            echo "Added index idx_pos_sale_items_returned\n";
-        }
-    }
 
-    $db->exec(<<<'SQL'
+        $db->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS company_features (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     company_id BIGINT UNSIGNED NOT NULL,
@@ -100,10 +103,10 @@ CREATE TABLE IF NOT EXISTS company_features (
     CONSTRAINT fk_company_features_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 SQL
-    );
-    echo "Ensured company_features table\n";
+        );
+        $lines[] = 'Ensured company_features table';
 
-    $db->exec(<<<'SQL'
+        $db->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS `returns` (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     company_id BIGINT UNSIGNED NOT NULL,
@@ -119,10 +122,10 @@ CREATE TABLE IF NOT EXISTS `returns` (
     CONSTRAINT fk_returns_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 SQL
-    );
-    echo "Ensured returns table\n";
+        );
+        $lines[] = 'Ensured returns table';
 
-    $db->exec(<<<'SQL'
+        $db->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS return_items (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     return_id BIGINT UNSIGNED NOT NULL,
@@ -136,10 +139,10 @@ CREATE TABLE IF NOT EXISTS return_items (
     CONSTRAINT fk_return_items_pos_line FOREIGN KEY (pos_sale_item_id) REFERENCES pos_sale_items(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 SQL
-    );
-    echo "Ensured return_items table\n";
+        );
+        $lines[] = 'Ensured return_items table';
 
-    $db->exec(<<<'SQL'
+        $db->exec(<<<'SQL'
 CREATE TABLE IF NOT EXISTS stock_movements (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     company_id BIGINT UNSIGNED NOT NULL,
@@ -159,21 +162,38 @@ CREATE TABLE IF NOT EXISTS stock_movements (
     CONSTRAINT fk_stock_movements_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 SQL
-    );
-    echo "Ensured stock_movements table\n";
+        );
+        $lines[] = 'Ensured stock_movements table';
 
-    // Seed returns_enabled = 0 for each company (if missing)
-    $companies = $db->query('SELECT id FROM companies')->fetchAll(PDO::FETCH_COLUMN);
-    $ins = $db->prepare(
-        'INSERT IGNORE INTO company_features (company_id, feature_key, enabled) VALUES (?, ?, 0)'
-    );
-    foreach ($companies as $cid) {
-        $ins->execute([(int)$cid, 'returns_enabled']);
+        $companies = $db->query('SELECT id FROM companies')->fetchAll(PDO::FETCH_COLUMN);
+        $ins = $db->prepare(
+            'INSERT IGNORE INTO company_features (company_id, feature_key, enabled) VALUES (?, ?, 0)'
+        );
+        foreach ($companies as $cid) {
+            $ins->execute([(int)$cid, 'returns_enabled']);
+        }
+        $lines[] = 'Seeded company_features.returns_enabled (disabled by default)';
+        $lines[] = 'Done.';
+
+        return ['success' => true, 'lines' => $lines, 'error' => null];
+    } catch (\Throwable $e) {
+        return ['success' => false, 'lines' => $lines, 'error' => $e->getMessage()];
     }
-    echo "Seeded company_features.returns_enabled (disabled by default)\n";
+}
 
-    echo "\nDone.\n";
-} catch (\Throwable $e) {
-    fwrite(STDERR, 'Migration failed: ' . $e->getMessage() . "\n");
+if (defined('SELLAP_POS_ORDER_MIGRATION_SKIP_CLI_RUN') && SELLAP_POS_ORDER_MIGRATION_SKIP_CLI_RUN) {
+    return;
+}
+
+echo "Running pos_order_inventory_roles migration\n";
+echo str_repeat('=', 60) . "\n";
+
+$db = \Database::getInstance()->getConnection();
+$result = run_pos_order_inventory_migration_steps($db);
+foreach ($result['lines'] as $line) {
+    echo $line . "\n";
+}
+if (!$result['success']) {
+    fwrite(STDERR, 'Migration failed: ' . ($result['error'] ?? 'unknown') . "\n");
     exit(1);
 }

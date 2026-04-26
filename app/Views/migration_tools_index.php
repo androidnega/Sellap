@@ -12,6 +12,32 @@
         <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4">Available Migrations</h2>
         
         <div class="space-y-4">
+            <!-- POS order inventory (cancel / return / stock audit) -->
+            <div class="border border-rose-200 rounded-lg p-4 hover:bg-rose-50 transition">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <h3 class="text-base sm:text-lg font-medium text-gray-900">POS order inventory</h3>
+                            <span class="px-2 py-1 text-xs font-semibold bg-rose-100 text-rose-900 rounded whitespace-nowrap">POS / ORDERS</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1 break-words">
+                            Adds <code class="text-xs bg-gray-100 px-1 rounded">pos_sales</code> order status and cancellation fields,
+                            <code class="text-xs bg-gray-100 px-1 rounded">pos_sale_items.returned_quantity</code>,
+                            <code class="text-xs bg-gray-100 px-1 rounded">returns</code> / <code class="text-xs bg-gray-100 px-1 rounded">return_items</code>,
+                            <code class="text-xs bg-gray-100 px-1 rounded">stock_movements</code>, and <code class="text-xs bg-gray-100 px-1 rounded">company_features</code> (e.g. <code class="text-xs bg-gray-100 px-1 rounded">returns_enabled</code>).
+                            Safe to run multiple times (idempotent).
+                        </p>
+                        <p class="text-xs text-gray-500 mt-2 break-all">
+                            Script: <code>database/migrations/run_pos_order_inventory_migration.php</code>
+                        </p>
+                    </div>
+                    <a href="<?= BASE_URL_PATH ?>/dashboard/tools/run-pos-order-inventory-migration"
+                       class="w-full sm:w-auto sm:flex-shrink-0 px-6 py-2 bg-rose-600 text-white rounded-md hover:bg-rose-700 transition text-center text-sm sm:text-base">
+                        Run migration
+                    </a>
+                </div>
+            </div>
+
             <!-- Inventory travel sessions (POS / inventory audit) -->
             <div class="border border-teal-200 rounded-lg p-4 hover:bg-teal-50 transition">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

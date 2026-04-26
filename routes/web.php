@@ -4078,6 +4078,12 @@ $router->get('dashboard/tools/run-inventory-travel-sessions-migration', function
     $controller->runInventoryTravelSessionsMigration();
 });
 
+// POS order lifecycle: pos_sales status/cancel, returns, stock_movements, company_features
+$router->get('dashboard/tools/run-pos-order-inventory-migration', function() {
+    $controller = new \App\Controllers\MigrationController();
+    $controller->runPosOrderInventoryMigration();
+});
+
 // ========================================
 // NOTE: Other application routes should be added here
 // This file was restored with reset, backup, auth, and notification routes
