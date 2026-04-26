@@ -18,7 +18,9 @@ class InventoryTravelSessionService {
 
     private function ensureTables(): void {
         try {
-            if ($this->db->query("SHOW TABLES LIKE 'inventory_travel_sessions'")->rowCount() > 0) {
+            $hasSessions = $this->db->query("SHOW TABLES LIKE 'inventory_travel_sessions'")->rowCount() > 0;
+            $hasLines = $this->db->query("SHOW TABLES LIKE 'inventory_travel_snapshot_lines'")->rowCount() > 0;
+            if ($hasSessions && $hasLines) {
                 return;
             }
             $path = __DIR__ . '/../../database/migrations/create_inventory_travel_sessions.sql';
@@ -27,7 +29,13 @@ class InventoryTravelSessionService {
             }
             $sql = file_get_contents($path);
             foreach (array_filter(array_map('trim', explode(';', $sql))) as $stmt) {
-                if ($stmt === '' || strpos($stmt, '--') === 0) {
+                $stmt = trim($stmt);
+                if ($stmt === '') {
+                    continue;
+                }
+                $stmt = preg_replace('/^(?:--[^\r\n]*(?:\r\n|\n|\r))+/', '', $stmt);
+                $stmt = trim($stmt);
+                if ($stmt === '') {
                     continue;
                 }
                 try {

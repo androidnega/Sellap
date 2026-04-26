@@ -1012,7 +1012,14 @@ class MigrationController
                 }
                 $sql = file_get_contents($path);
                 foreach (array_filter(array_map('trim', explode(';', $sql))) as $stmt) {
-                    if ($stmt === '' || strpos(ltrim($stmt), '--') === 0) {
+                    $stmt = trim($stmt);
+                    if ($stmt === '') {
+                        continue;
+                    }
+                    // Strip leading full-line SQL comments (first chunk often starts with "-- ...\nCREATE")
+                    $stmt = preg_replace('/^(?:--[^\r\n]*(?:\r\n|\n|\r))+/', '', $stmt);
+                    $stmt = trim($stmt);
+                    if ($stmt === '') {
                         continue;
                     }
                     $db->exec($stmt);

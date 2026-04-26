@@ -37,10 +37,22 @@ try {
 
     $sql = file_get_contents($path);
     foreach (array_filter(array_map('trim', explode(';', $sql))) as $stmt) {
-        if ($stmt === '' || strpos(ltrim($stmt), '--') === 0) {
+        $stmt = trim($stmt);
+        if ($stmt === '') {
+            continue;
+        }
+        $stmt = preg_replace('/^(?:--[^\r\n]*(?:\r\n|\n|\r))+/', '', $stmt);
+        $stmt = trim($stmt);
+        if ($stmt === '') {
             continue;
         }
         $db->exec($stmt);
+    }
+
+    $okS = $db->query("SHOW TABLES LIKE 'inventory_travel_sessions'")->rowCount() > 0;
+    $okL = $db->query("SHOW TABLES LIKE 'inventory_travel_snapshot_lines'")->rowCount() > 0;
+    if (!$okS || !$okL) {
+        throw new RuntimeException('Migration ran but one or both tables are still missing.');
     }
 
     echo "OK: inventory_travel_sessions migration applied.\n";
