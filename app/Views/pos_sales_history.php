@@ -4,6 +4,8 @@
  */
 $salesHistRole = strtolower(trim($_SESSION['user']['role'] ?? ''));
 $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_admin'], true);
+$salesHistOrderInventorySchema = $salesHistOrderInventorySchema ?? false;
+$salesHistSupportsSoftDelete = $salesHistSupportsSoftDelete ?? false;
 ?>
 
 <style>
@@ -156,6 +158,13 @@ $salesHistShowCategory = in_array($salesHistRole, ['manager', 'admin', 'system_a
         <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">Sales History</h2>
         <p class="text-sm sm:text-base text-gray-600 mt-1">Past sales, filters, and summaries.</p>
     </div>
+
+    <?php if ($salesHistOrderInventorySchema): ?>
+    <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+        <p class="font-medium text-blue-950">Cancel and return orders</p>
+        <p class="mt-1 text-blue-900/90">Open a sale with the <strong>eye</strong> icon, then use <strong>Cancel order</strong> (managers anytime; sales within 30 minutes) or <strong>Return items</strong> when your company has returns enabled under <strong>Administration → Company features</strong> (admin only).</p>
+    </div>
+    <?php endif; ?>
     
     <!-- Success/Error Messages -->
     <?php if (isset($_SESSION['success_message'])): ?>
@@ -584,6 +593,9 @@ let totalPages = 1;
 let totalItems = 0;
 let canDeleteSales = false;
 let canBulkDeleteSales = false;
+let salesRemoveIsArchive = false;
+const SALES_HIST_INV_SCHEMA = <?= json_encode(!empty($salesHistOrderInventorySchema)) ?>;
+const SALES_HIST_SOFT_DELETE = <?= json_encode(!empty($salesHistSupportsSoftDelete)) ?>;
 let selectedSales = new Set();
 
 let partialPaymentsEnabled = false;
@@ -609,8 +621,22 @@ async function loadPermissions() {
     try {
         // Get user role and company ID from session/context
         // We'll check permissions based on user role
-        const userRole = '<?= isset($_SESSION["user"]["role"]) ? $_SESSION["user"]["role"] : "" ?>';
+        const userRole = <?= json_encode($_SESSION['user']['role'] ?? '') ?>;
         const companyId = <?= isset($_SESSION["user"]["company_id"]) ? (int)$_SESSION["user"]["company_id"] : "null" ?>;
+        
+        canDeleteSales = false;
+        canBulkDeleteSales = false;
+        salesRemoveIsArchive = false;
+        const privilegedSalesRemove = ['admin', 'system_admin'].includes(userRole);
+        if (privilegedSalesRemove) {
+            if (SALES_HIST_INV_SCHEMA && SALES_HIST_SOFT_DELETE) {
+                canDeleteSales = true;
+                salesRemoveIsArchive = true;
+            } else if (!SALES_HIST_INV_SCHEMA) {
+                canDeleteSales = true;
+                canBulkDeleteSales = true;
+            }
+        }
         
         // Check if user is a manager (manager, admin, or system_admin)
         isManager = ['manager', 'admin', 'system_admin'].includes(userRole);
@@ -642,23 +668,12 @@ async function loadPermissions() {
                 const data = await response.json();
                 if (data.success && data.modules) {
                     const modules = data.modules;
-                    canDeleteSales = modules.find(m => m.key === 'manager_delete_sales')?.enabled || false;
-                    canBulkDeleteSales = modules.find(m => m.key === 'manager_bulk_delete_sales')?.enabled || false;
                     partialPaymentsEnabled = modules.find(m => m.key === 'partial_payments')?.enabled || false;
-                    
-                    // Show/hide bulk actions
-                    if (canBulkDeleteSales) {
-                        document.getElementById('checkboxHeader').classList.remove('hidden');
-                        document.getElementById('bulkActionsContainer').classList.remove('hidden');
-                    }
                 }
             }
         }
         
-        if (userRole === 'system_admin' || userRole === 'admin') {
-            // Admins can always delete
-            canDeleteSales = true;
-            canBulkDeleteSales = true;
+        if (canBulkDeleteSales) {
             document.getElementById('checkboxHeader').classList.remove('hidden');
             document.getElementById('bulkActionsContainer').classList.remove('hidden');
         }
@@ -982,8 +997,8 @@ function renderSalesTable() {
                         <i class="fas fa-print text-xs sm:text-sm"></i>
                     </button>
                     ${canDeleteSales ? `
-                    <button onclick="deleteSale(${sale.id})" class="inline-flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-50 rounded p-1.5 sm:p-2 transition-colors min-w-[28px] min-h-[28px] sm:min-w-[32px] sm:min-h-[32px]" title="Delete Sale">
-                        <i class="fas fa-trash text-xs sm:text-sm"></i>
+                    <button onclick="deleteSale(${sale.id})" class="inline-flex items-center justify-center text-red-600 hover:text-red-800 hover:bg-red-50 rounded p-1.5 sm:p-2 transition-colors min-w-[28px] min-h-[28px] sm:min-w-[32px] sm:min-h-[32px]" title="${salesRemoveIsArchive ? 'Archive sale (admin)' : 'Delete sale (admin, legacy)'}">
+                        <i class="fas ${salesRemoveIsArchive ? 'fa-archive' : 'fa-trash'} text-xs sm:text-sm"></i>
                     </button>
                     ` : ''}
                 </div>
@@ -1028,7 +1043,10 @@ function updateSelectAllCheckbox() {
 }
 
 async function deleteSale(saleId) {
-    if (!confirm('Are you sure you want to delete this sale? This action cannot be undone.')) {
+    const confirmMsg = salesRemoveIsArchive
+        ? 'Archive this sale? It will disappear from standard lists but remain in the audit trail. It does not cancel the order or restock—use the sale detail page to cancel if needed.'
+        : 'Are you sure you want to delete this sale? This action cannot be undone.';
+    if (!confirm(confirmMsg)) {
         return;
     }
     
@@ -1060,7 +1078,7 @@ async function deleteSale(saleId) {
         const data = await response.json();
         
         if (data.success) {
-            alert('Sale deleted successfully');
+            alert(salesRemoveIsArchive ? 'Sale archived successfully.' : 'Sale deleted successfully.');
             loadSalesHistory();
         } else {
             alert('Error: ' + (data.message || 'Failed to delete sale'));
@@ -1325,6 +1343,7 @@ async function viewSaleDetails(saleId) {
             
             content.innerHTML = `
                 <div class="space-y-4">
+                    ${SALES_HIST_INV_SCHEMA ? `<div class="rounded-md bg-blue-50 border border-blue-200 px-3 py-2 text-sm text-blue-900"><a href="${basePath}/dashboard/sales/${saleId}" class="font-medium text-blue-800 hover:underline">Open full sale page</a> to cancel or return items (when returns are enabled for your company).</div>` : ''}
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Sale ID</label>

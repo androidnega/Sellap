@@ -67,6 +67,30 @@ function run_pos_order_inventory_migration_steps(\PDO $db): array {
                 $db->exec('ALTER TABLE pos_sales ADD INDEX idx_pos_sales_status (company_id, status)');
                 $lines[] = 'Added index idx_pos_sales_status';
             }
+            if (!pos_order_inv_columnExists($db, 'pos_sales', 'deleted_at')) {
+                $db->exec('ALTER TABLE pos_sales ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL');
+                $lines[] = 'Added pos_sales.deleted_at';
+            }
+            if (!pos_order_inv_columnExists($db, 'pos_sales', 'deleted_by')) {
+                $db->exec('ALTER TABLE pos_sales ADD COLUMN deleted_by BIGINT UNSIGNED NULL');
+                $lines[] = 'Added pos_sales.deleted_by';
+            }
+            if (!pos_order_inv_indexExists($db, 'pos_sales', 'idx_pos_sales_deleted')) {
+                try {
+                    $db->exec('ALTER TABLE pos_sales ADD INDEX idx_pos_sales_deleted (company_id, deleted_at)');
+                    $lines[] = 'Added index idx_pos_sales_deleted';
+                } catch (\PDOException $e) {
+                    $lines[] = 'Skip index idx_pos_sales_deleted: ' . $e->getMessage();
+                }
+            }
+            if (!pos_order_inv_fkExists($db, 'fk_pos_sales_deleted_by')) {
+                try {
+                    $db->exec('ALTER TABLE pos_sales ADD CONSTRAINT fk_pos_sales_deleted_by FOREIGN KEY (deleted_by) REFERENCES users(id) ON DELETE SET NULL');
+                    $lines[] = 'Added FK fk_pos_sales_deleted_by';
+                } catch (\PDOException $e) {
+                    $lines[] = 'Skip FK fk_pos_sales_deleted_by: ' . $e->getMessage();
+                }
+            }
             if (!pos_order_inv_fkExists($db, 'fk_pos_sales_cancelled_by')) {
                 try {
                     $db->exec('ALTER TABLE pos_sales ADD CONSTRAINT fk_pos_sales_cancelled_by FOREIGN KEY (cancelled_by) REFERENCES users(id) ON DELETE SET NULL');

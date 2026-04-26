@@ -2223,6 +2223,9 @@ class POSController {
         
         $title = 'Sales History';
         $page = 'sales-history';
+        $invSchemaProbe = new PosOrderInventoryService();
+        $salesHistOrderInventorySchema = $invSchemaProbe->schemaReady();
+        $salesHistSupportsSoftDelete = $this->sale->supportsSoftDelete();
         
         // Capture the view content
         ob_start();
@@ -2262,8 +2265,11 @@ class POSController {
         }
         
         $companyId = $userData['company_id'] ?? null;
-        
-        $sale = $this->sale->find($id, $companyId);
+        $roleLower = strtolower(trim($userData['role'] ?? ''));
+        $privilegedSaleView = in_array($roleLower, ['admin', 'system_admin'], true);
+        $sale = $privilegedSaleView
+            ? $this->sale->findIncludingSoftDeleted($id, $companyId)
+            : $this->sale->find($id, $companyId);
         if (!$sale) {
             $_SESSION['flash_error'] = 'Sale not found';
             header('Location: ' . BASE_URL_PATH . '/dashboard/pos/sales-history');
@@ -2273,7 +2279,6 @@ class POSController {
         $items = $this->saleItem->bySale($id);
 
         $invSvc = new PosOrderInventoryService();
-        $roleLower = strtolower(trim($userData['role'] ?? ''));
         $schema = $invSvc->schemaReady();
         $returnsEnabled = $schema && CompanyFeature::tableExists()
             ? (new CompanyFeature())->isEnabled((int)$companyId, 'returns_enabled')
@@ -2283,7 +2288,9 @@ class POSController {
         $createdTs = strtotime($sale['created_at'] ?? 'now');
         $within30 = (time() - $createdTs) <= 30 * 60;
         $isSalesRole = in_array($roleLower, ['salesperson', 'sales'], true);
+        $saleArchived = !empty($sale['deleted_at']);
         $canCancelOrder = $schema
+            && !$saleArchived
             && $orderStatus === 'completed'
             && !$swapBlocked
             && (
@@ -2301,6 +2308,7 @@ class POSController {
             }
         }
         $canReturnItems = $schema
+            && !$saleArchived
             && $returnsEnabled
             && $roleLower === 'manager'
             && $orderStatus !== 'cancelled'
@@ -3029,7 +3037,10 @@ class POSController {
                 $sale = $stmt->fetch(\PDO::FETCH_ASSOC);
                 $saleCompanyId = $sale['company_id'] ?? null;
             } else {
-                $sale = $this->sale->find($id, $companyId);
+                $rl = strtolower(trim($userRole));
+                $sale = in_array($rl, ['admin', 'system_admin'], true)
+                    ? $this->sale->findIncludingSoftDeleted($id, $companyId)
+                    : $this->sale->find($id, $companyId);
                 $saleCompanyId = $companyId;
             }
             
@@ -4276,24 +4287,52 @@ class POSController {
     }
 
     /**
-     * Delete a single sale (for managers with permission)
-     * DELETE /api/pos/sale/{id}
+     * Log attempted or blocked POS sale removal (delete routes, bulk, or policy violations).
+     */
+    private function logPosSaleDeletionAttempt(
+        ?int $companyId,
+        ?int $userId,
+        string $role,
+        string $action,
+        ?int $saleId,
+        string $message,
+        array $payload = []
+    ): void {
+        try {
+            AuditService::log(
+                $companyId,
+                $userId,
+                'pos_sale.delete.attempt',
+                'pos_sale',
+                $saleId,
+                array_merge([
+                    'role' => $role,
+                    'action' => $action,
+                    'message' => $message,
+                    'blocked' => true,
+                ], $payload)
+            );
+        } catch (\Throwable $e) {
+            error_log('POSController::logPosSaleDeletionAttempt: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * DELETE/POST delete /api/pos/sale/{id} — With inventory schema: admin-only soft archive.
+     * Without schema: admin/system_admin hard delete only. Managers never delete via this route.
      */
     public function deleteSale($id) {
         header('Content-Type: application/json');
         
-        // Clean output buffer
         if (ob_get_level()) {
             ob_clean();
         }
         
-        // Start session if not started
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
         
         try {
-            // Check authentication
             $user = $this->getAuthenticatedUser();
             if (!$user) {
                 http_response_code(401);
@@ -4301,60 +4340,106 @@ class POSController {
                 exit;
             }
             
-            $userRole = $user['role'] ?? '';
-            $companyId = $user['company_id'] ?? null;
+            $userRole = strtolower(trim($user['role'] ?? ''));
+            $userId = (int)($user['id'] ?? 0);
+            $companyId = (int)($user['company_id'] ?? 0);
             
-            if (!$companyId) {
+            if ($companyId <= 0) {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'message' => 'Company ID not found']);
                 exit;
             }
 
             $inv = new PosOrderInventoryService();
-            if ($inv->schemaReady()) {
-                $res = $inv->cancelOrder((int)$id, (int)$companyId, (int)$user['id'], (string)$userRole);
-                if ($res['ok']) {
-                    echo json_encode(['success' => true, 'message' => $res['message']]);
+            $schemaReady = $inv->schemaReady();
+            $privileged = in_array($userRole, ['admin', 'system_admin'], true);
+
+            if ($schemaReady) {
+                if (!$privileged) {
+                    $this->logPosSaleDeletionAttempt(
+                        $companyId,
+                        $userId,
+                        $userRole,
+                        'DELETE api/pos/sale/' . $id,
+                        (int)$id,
+                        'Blocked: delete route not allowed; use cancel or return'
+                    );
+                    http_response_code(403);
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'Removing sales is not allowed for your role. Open the sale from the eye icon and use Cancel order or Return (if enabled).',
+                    ]);
+                    exit;
+                }
+                if (!$this->sale->supportsSoftDelete()) {
+                    http_response_code(503);
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'Archiving requires deleted_at/deleted_by on pos_sales. Re-run the POS order inventory migration (Dashboard → Tools).',
+                    ]);
+                    exit;
+                }
+                $sale = $this->sale->findIncludingSoftDeleted((int)$id, $companyId);
+                if (!$sale) {
+                    http_response_code(404);
+                    echo json_encode(['success' => false, 'message' => 'Sale not found']);
+                    exit;
+                }
+                if (!empty($sale['deleted_at'])) {
+                    echo json_encode(['success' => true, 'message' => 'Sale is already archived from active lists.']);
+                    exit;
+                }
+                if ($this->sale->softDelete((int)$id, $companyId, $userId)) {
+                    try {
+                        AuditService::log($companyId, $userId, 'pos_sale.archived', 'pos_sale', (int)$id, [
+                            'role' => $userRole,
+                            'action' => 'soft_delete',
+                        ]);
+                    } catch (\Throwable $e) {
+                    }
+                    echo json_encode(['success' => true, 'message' => 'Sale archived (hidden from standard lists; audit trail retained).']);
                 } else {
                     http_response_code(400);
-                    echo json_encode(['success' => false, 'message' => $res['message']]);
+                    echo json_encode(['success' => false, 'message' => 'Could not archive sale']);
                 }
                 exit;
             }
 
-            // Legacy hard-delete path (pre-migration)
-            if ($userRole === 'manager') {
-                if (!CompanyModule::isEnabled($companyId, 'manager_delete_sales')) {
-                    http_response_code(403);
-                    echo json_encode([
-                        'success' => false,
-                        'message' => 'Delete sales permission not enabled for managers'
-                    ]);
-                    exit;
-                }
-            } elseif (!in_array($userRole, ['system_admin', 'admin'])) {
+            if (!$privileged) {
+                $this->logPosSaleDeletionAttempt(
+                    $companyId,
+                    $userId,
+                    $userRole,
+                    'DELETE api/pos/sale/' . $id,
+                    (int)$id,
+                    'Blocked: hard delete allowed only for company administrators when legacy mode'
+                );
                 http_response_code(403);
-                echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Deleting sales is not allowed for your role.',
+                ]);
                 exit;
             }
             
-            // Verify sale belongs to company
-            $sale = $this->sale->find($id, $companyId);
+            $sale = $this->sale->findIncludingSoftDeleted((int)$id, $companyId);
             if (!$sale) {
                 http_response_code(404);
                 echo json_encode(['success' => false, 'message' => 'Sale not found']);
                 exit;
             }
             
-            // Delete sale items first (cascade should handle this, but being explicit)
             $db = \Database::getInstance()->getConnection();
-            $deleteItemsStmt = $db->prepare("DELETE FROM pos_sale_items WHERE pos_sale_id = ?");
+            $deleteItemsStmt = $db->prepare('DELETE FROM pos_sale_items WHERE pos_sale_id = ?');
             $deleteItemsStmt->execute([$id]);
             
-            // Delete sale
             $deleted = $this->sale->delete($id, $companyId);
             
             if ($deleted) {
+                try {
+                    AuditService::log($companyId, $userId, 'pos_sale.hard_deleted', 'pos_sale', (int)$id, ['role' => $userRole]);
+                } catch (\Throwable $e) {
+                }
                 echo json_encode(['success' => true, 'message' => 'Sale deleted successfully']);
             } else {
                 http_response_code(400);
@@ -4371,24 +4456,20 @@ class POSController {
     }
 
     /**
-     * Bulk delete sales (for managers with permission)
-     * DELETE /api/pos/sales/bulk
+     * Bulk delete sales — disabled when inventory schema active; legacy: admin/system_admin only.
      */
     public function bulkDeleteSales() {
         header('Content-Type: application/json');
         
-        // Clean output buffer
         if (ob_get_level()) {
             ob_clean();
         }
         
-        // Start session if not started
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
         
         try {
-            // Check authentication
             $user = $this->getAuthenticatedUser();
             if (!$user) {
                 http_response_code(401);
@@ -4396,44 +4477,55 @@ class POSController {
                 exit;
             }
             
-            $userRole = $user['role'] ?? '';
-            $companyId = $user['company_id'] ?? null;
+            $userRole = strtolower(trim($user['role'] ?? ''));
+            $userId = (int)($user['id'] ?? 0);
+            $companyId = (int)($user['company_id'] ?? 0);
             
-            if (!$companyId) {
+            if ($companyId <= 0) {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'message' => 'Company ID not found']);
                 exit;
             }
 
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($input)) {
+                $input = [];
+            }
+            $ids = $input['ids'] ?? [];
+
             $invBulk = new PosOrderInventoryService();
             if ($invBulk->schemaReady()) {
+                $this->logPosSaleDeletionAttempt(
+                    $companyId,
+                    $userId,
+                    $userRole,
+                    'BULK api/pos/sales/bulk-delete',
+                    null,
+                    'Blocked: bulk delete disabled when order inventory tracking is active',
+                    ['ids' => $ids]
+                );
                 http_response_code(403);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Bulk delete is disabled when order inventory tracking is active. Cancel orders from sale details instead.'
+                    'message' => 'Bulk delete is disabled when order inventory tracking is active. Open each sale and use Cancel order instead.',
                 ]);
                 exit;
             }
-            
-            // Check if user is manager and has permission
-            if ($userRole === 'manager') {
-                if (!CompanyModule::isEnabled($companyId, 'manager_bulk_delete_sales')) {
-                    http_response_code(403);
-                    echo json_encode([
-                        'success' => false,
-                        'message' => 'Bulk delete sales permission not enabled for managers'
-                    ]);
-                    exit;
-                }
-            } elseif (!in_array($userRole, ['system_admin', 'admin'])) {
+
+            if (!in_array($userRole, ['admin', 'system_admin'], true)) {
+                $this->logPosSaleDeletionAttempt(
+                    $companyId,
+                    $userId,
+                    $userRole,
+                    'BULK api/pos/sales/bulk-delete',
+                    null,
+                    'Blocked: bulk hard delete restricted to administrators',
+                    ['ids' => $ids]
+                );
                 http_response_code(403);
-                echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+                echo json_encode(['success' => false, 'message' => 'Bulk delete is not allowed for your role.']);
                 exit;
             }
-            
-            // Get JSON input
-            $input = json_decode(file_get_contents('php://input'), true);
-            $ids = $input['ids'] ?? [];
             
             if (empty($ids) || !is_array($ids)) {
                 http_response_code(400);

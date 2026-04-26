@@ -38,6 +38,50 @@ class POSSale {
         return " AND ({$alias}.status IS NULL OR {$alias}.status <> 'cancelled')";
     }
 
+    /** @var bool|null */
+    private static $hasDeletedAtColumnCache = null;
+
+    private function resolvePosSaleTable(): void {
+        try {
+            $checkTable = $this->conn->query("SHOW TABLES LIKE 'pos_sales'");
+            $this->table = ($checkTable && $checkTable->rowCount() > 0) ? 'pos_sales' : 'pos_sale';
+        } catch (\Exception $e) {
+            $this->table = 'pos_sale';
+        }
+    }
+
+    private function hasPosSaleDeletedAtColumn(): bool {
+        if (self::$hasDeletedAtColumnCache !== null) {
+            return self::$hasDeletedAtColumnCache;
+        }
+        try {
+            $stmt = $this->conn->prepare("SHOW COLUMNS FROM pos_sales LIKE 'deleted_at'");
+            $stmt->execute();
+            self::$hasDeletedAtColumnCache = $stmt->rowCount() > 0;
+        } catch (\Exception $e) {
+            self::$hasDeletedAtColumnCache = false;
+        }
+        return self::$hasDeletedAtColumnCache;
+    }
+
+    public function supportsSoftDelete(): bool {
+        return $this->hasPosSaleDeletedAtColumn();
+    }
+
+    private function notSoftDeletedSql(string $alias): string {
+        if ($this->table !== 'pos_sales' || !$this->hasPosSaleDeletedAtColumn()) {
+            return '';
+        }
+        return " AND ({$alias}.deleted_at IS NULL)";
+    }
+
+    private function notSoftDeletedBareSql(): string {
+        if ($this->table !== 'pos_sales' || !$this->hasPosSaleDeletedAtColumn()) {
+            return '';
+        }
+        return ' AND (deleted_at IS NULL)';
+    }
+
     /**
      * Generate custom sale code (e.g., SEL-SALE-001)
      * Uses timestamp + random to prevent collisions
@@ -243,6 +287,7 @@ class POSSale {
      * Get sales summary
      */
     public function summary($startDate = null, $endDate = null) {
+        $this->resolvePosSaleTable();
         $sql = "SELECT 
                     COUNT(*) as total_sales,
                     SUM(final_amount) as total_revenue,
@@ -250,6 +295,7 @@ class POSSale {
                 FROM {$this->table} t
                 WHERE 1=1";
         $sql .= $this->activeOrdersOnlySql('t');
+        $sql .= $this->notSoftDeletedSql('t');
         
         if ($startDate && $endDate) {
             $sql .= " AND DATE(t.created_at) BETWEEN :start AND :end";
@@ -267,6 +313,7 @@ class POSSale {
      * Get sales summary by company (Multi-tenant filtering)
      */
     public function summaryByCompany($company_id, $startDate = null, $endDate = null) {
+        $this->resolvePosSaleTable();
         $sql = "SELECT 
                     COUNT(*) as total_sales,
                     SUM(final_amount) as total_revenue,
@@ -274,6 +321,7 @@ class POSSale {
                 FROM {$this->table} t
                 WHERE t.company_id = :company_id";
         $sql .= $this->activeOrdersOnlySql('t');
+        $sql .= $this->notSoftDeletedSql('t');
         
         if ($startDate && $endDate) {
             $sql .= " AND DATE(t.created_at) BETWEEN :start AND :end";
@@ -292,6 +340,26 @@ class POSSale {
      * Find sale by ID and company
      */
     public function find($id, $company_id) {
+        $this->resolvePosSaleTable();
+        $soft = $this->notSoftDeletedSql('p');
+        $stmt = $this->conn->prepare("
+            SELECT p.*, c.full_name as customer_name, u.username as cashier, u.full_name as cashier_name
+            FROM {$this->table} p 
+            LEFT JOIN customers c ON p.customer_id = c.id 
+            LEFT JOIN users u ON p.created_by_user_id = u.id 
+            WHERE p.id = :id AND p.company_id = :company_id 
+            {$soft}
+            LIMIT 1
+        ");
+        $stmt->execute(['id' => $id, 'company_id' => $company_id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Same as find() but includes admin-archived (soft-deleted) rows.
+     */
+    public function findIncludingSoftDeleted($id, $company_id) {
+        $this->resolvePosSaleTable();
         $stmt = $this->conn->prepare("
             SELECT p.*, c.full_name as customer_name, u.username as cashier, u.full_name as cashier_name
             FROM {$this->table} p 
@@ -340,11 +408,27 @@ class POSSale {
         }
     }
 
+    /**
+     * Admin-only archive: hides sale from normal lists; does not cancel or restock.
+     */
+    public function softDelete(int $id, int $company_id, int $deleted_by_user_id): bool {
+        $this->resolvePosSaleTable();
+        if ($this->table !== 'pos_sales' || !$this->hasPosSaleDeletedAtColumn()) {
+            return false;
+        }
+        $stmt = $this->conn->prepare(
+            'UPDATE pos_sales SET deleted_at = NOW(), deleted_by = :uid WHERE id = :id AND company_id = :cid AND deleted_at IS NULL'
+        );
+        $stmt->execute(['uid' => $deleted_by_user_id, 'id' => $id, 'cid' => $company_id]);
+        return $stmt->rowCount() > 0;
+    }
+
 
     /**
      * Find sales by company
      */
     public function findByCompany($company_id, $limit = 100, $sale_type = null, $date_from = null, $date_to = null) {
+        $this->resolvePosSaleTable();
         // Determine which products table exists
         $productsTable = 'products';
         try {
@@ -454,6 +538,7 @@ class POSSale {
         ";
         
         $params = [$company_id];
+        $sql .= $this->notSoftDeletedSql('s');
         
         if ($sale_type) {
             $sql .= " AND s.sale_type = ?";
@@ -487,6 +572,7 @@ class POSSale {
      * Find sales by cashier
      */
     public function findByCashier($cashier_id, $company_id, $date_from = null, $date_to = null) {
+        $this->resolvePosSaleTable();
         // Determine which products table exists
         $productsTable = 'products';
         try {
@@ -610,6 +696,7 @@ class POSSale {
         if ($hasIsSwapMode) {
             $sql .= " AND (s.is_swap_mode = 0 OR s.is_swap_mode IS NULL)";
         }
+        $sql .= $this->notSoftDeletedSql('s');
         
         if ($date_from) {
             $sql .= " AND DATE(s.created_at) >= ?";
@@ -723,6 +810,7 @@ class POSSale {
         if ($hasIsSwapMode) {
             $sql .= " AND (s.is_swap_mode = 0 OR s.is_swap_mode IS NULL)";
         }
+        $sql .= $this->notSoftDeletedSql('s');
         
         if ($date_from) {
             $sql .= " AND DATE(s.created_at) >= ?";
@@ -961,6 +1049,7 @@ class POSSale {
         if ($hasIsSwapMode) {
             $sql .= " AND (s.is_swap_mode = 0 OR s.is_swap_mode IS NULL)";
         }
+        $sql .= $this->notSoftDeletedSql('s');
         
         // Note: sale_type filter removed - swaps are always excluded from sales history
         // If sale_type === 'swap' was requested, it will return empty results (as intended)
@@ -998,6 +1087,7 @@ class POSSale {
      * Get sales statistics
      */
     public function getStats($company_id, $date_from = null, $date_to = null) {
+        $this->resolvePosSaleTable();
         $sql = "
             SELECT 
                 COUNT(*) as total_sales,
@@ -1010,6 +1100,7 @@ class POSSale {
         ";
         
         $params = [$company_id];
+        $sql .= $this->notSoftDeletedBareSql();
         
         if ($date_from) {
             $sql .= " AND DATE(created_at) >= ?";
@@ -1030,6 +1121,7 @@ class POSSale {
      * Get daily report
      */
     public function getDailyReport($company_id, $date) {
+        $this->resolvePosSaleTable();
         $sql = "
             SELECT 
                 COUNT(*) as total_sales,
@@ -1040,6 +1132,7 @@ class POSSale {
             FROM {$this->table}
             WHERE company_id = ? AND DATE(created_at) = ?
         ";
+        $sql .= $this->notSoftDeletedBareSql();
         
         $stmt = $this->conn->prepare($sql);
         $stmt->execute([$company_id, $date]);
@@ -1068,6 +1161,7 @@ class POSSale {
         if ($hasIsSwapMode) {
             $sql .= " AND (s.is_swap_mode = 0 OR s.is_swap_mode IS NULL)";
         }
+        $sql .= $this->notSoftDeletedSql('s');
         
         if ($date_from) {
             $sql .= " AND DATE(s.created_at) >= ?";
@@ -1090,6 +1184,7 @@ class POSSale {
      * Find sales by company with pagination
      */
     public function findByCompanyPaginated($company_id, $page = 1, $limit = 20, $date_from = null, $date_to = null) {
+        $this->resolvePosSaleTable();
         $offset = ($page - 1) * $limit;
         
         $sql = "SELECT p.*, c.full_name as customer_name, u.username as cashier 
@@ -1099,6 +1194,7 @@ class POSSale {
                 WHERE p.company_id = ?";
         
         $params = [$company_id];
+        $sql .= $this->notSoftDeletedSql('p');
         
         if ($date_from) {
             $sql .= " AND DATE(p.created_at) >= ?";

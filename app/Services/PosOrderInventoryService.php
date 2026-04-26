@@ -111,6 +111,10 @@ class PosOrderInventoryService {
                 $this->db->rollBack();
                 return ['ok' => false, 'message' => 'Sale not found.'];
             }
+            if (!empty($sale['deleted_at'])) {
+                $this->db->rollBack();
+                return ['ok' => false, 'message' => 'This sale is archived and cannot be cancelled.'];
+            }
             if (($sale['status'] ?? 'completed') !== 'completed') {
                 $this->db->rollBack();
                 return ['ok' => false, 'message' => 'Only active sales can be cancelled.'];
@@ -210,6 +214,10 @@ class PosOrderInventoryService {
             if (!$sale) {
                 $this->db->rollBack();
                 return ['ok' => false, 'message' => 'Sale not found.'];
+            }
+            if (!empty($sale['deleted_at'])) {
+                $this->db->rollBack();
+                return ['ok' => false, 'message' => 'This sale is archived and cannot be returned.'];
             }
             if (($sale['status'] ?? '') === 'cancelled') {
                 $this->db->rollBack();

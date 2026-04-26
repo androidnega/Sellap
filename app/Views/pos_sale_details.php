@@ -37,6 +37,11 @@ $items = $items ?? [];
         $isSalesUser = in_array($roleLower, ['salesperson', 'sales'], true);
         $isManagerUser = ($roleLower === 'manager');
         ?>
+        <?php if (!empty($sale['deleted_at'])): ?>
+        <div class="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            This sale is <strong>archived</strong> (hidden from standard sales lists). Stock was not changed by archiving; cancel/return actions are disabled here.
+        </div>
+        <?php endif; ?>
         <?php if (in_array($roleLower, ['admin', 'system_admin'], true)): ?>
         <div class="mb-4 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
             <?php if ($roleLower === 'admin'): ?>
