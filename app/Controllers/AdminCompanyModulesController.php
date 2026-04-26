@@ -111,6 +111,7 @@ class AdminCompanyModulesController {
                 'manager_can_sell' => 'Manager Can Sell',
                 'manager_create_contact' => 'Manager Create Contact',
                 'manager_delete_contact' => 'Manager Delete Contact',
+                'inventory_travel_sessions' => 'Inventory travel sessions',
                 'charts' => 'Dashboard Charts'
             ];
             
@@ -266,7 +267,8 @@ class AdminCompanyModulesController {
                 'manager_bulk_delete_sales',
                 'manager_can_sell',
                 'manager_create_contact',
-                'manager_delete_contact'
+                'manager_delete_contact',
+                'inventory_travel_sessions'
             ];
             
             if (!in_array($moduleKey, $validModules)) {

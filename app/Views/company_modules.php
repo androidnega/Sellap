@@ -183,6 +183,7 @@
       'manager_can_sell': 'shopping-cart',
       'manager_create_contact': 'user-plus',
       'manager_delete_contact': 'user-times',
+      'inventory_travel_sessions': 'route',
       'charts': 'chart-bar'
     };
     return icons[moduleKey] || 'puzzle-piece';
@@ -206,6 +207,7 @@
       'manager_can_sell': 'Manager Can Sell',
       'manager_create_contact': 'Manager Create Contact',
       'manager_delete_contact': 'Manager Delete Contact',
+      'inventory_travel_sessions': 'Inventory travel sessions',
       'charts': 'Dashboard Charts'
     };
     return names[moduleKey] || moduleKey;
@@ -229,6 +231,7 @@
       'manager_can_sell': 'Allow managers to process sales transactions',
       'manager_create_contact': 'Allow managers to create customer contacts',
       'manager_delete_contact': 'Allow managers to delete customer contacts',
+      'inventory_travel_sessions': 'Travel inventory audit: START/END snapshots, reports, and session delete for managers',
       'charts': 'Interactive charts and graphs for dashboard analytics and performance trends'
     };
     return descriptions[moduleKey] || 'Module functionality';

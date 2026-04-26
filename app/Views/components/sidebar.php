@@ -62,7 +62,8 @@ $moduleKeyMap = [
     'Reports & Analytics' => 'reports_analytics',
     'Notifications & SMS' => 'notifications_sms',
     'Suppliers' => 'suppliers',
-    'Purchase Orders' => 'purchase_orders'
+    'Purchase Orders' => 'purchase_orders',
+    'Inventory travel sessions' => 'inventory_travel_sessions'
 ];
 
 // Helper function to check if module is enabled
@@ -207,11 +208,14 @@ function sidebarCollapsibleGroup($label, $icon, $linksHtml, $isOpen = false) {
                 <?= sidebarSection('Products & Inventory') ?>
                 <?php
                     $inventoryGroupOpen = in_array($currentPage, ['inventory', 'restock', 'categories', 'subcategories', 'brands', 'travel-sessions'], true);
+                    $travelLink = isModuleEnabled('inventory_travel_sessions', $companyId, $userRole)
+                        ? sidebarLink(BASE_URL_PATH . '/dashboard/inventory/travel-sessions', 'fas fa-route', 'Travel sessions', $currentPage, 'travel-sessions', 'sidebar-subitem')
+                        : '';
                     echo sidebarCollapsibleGroup(
                         'Inventory',
                         'fas fa-boxes',
                         sidebarLink(BASE_URL_PATH . '/dashboard/inventory', 'fas fa-boxes', 'Inventory', $currentPage, 'inventory', 'sidebar-subitem') .
-                        sidebarLink(BASE_URL_PATH . '/dashboard/inventory/travel-sessions', 'fas fa-route', 'Travel sessions', $currentPage, 'travel-sessions', 'sidebar-subitem') .
+                        $travelLink .
                         sidebarLink(BASE_URL_PATH . '/dashboard/restock', 'fas fa-truck-loading', 'Restock', $currentPage, 'restock', 'sidebar-subitem') .
                         sidebarLink(BASE_URL_PATH . '/dashboard/categories', 'fas fa-tags', 'Categories', $currentPage, 'categories', 'sidebar-subitem') .
                         sidebarLink(BASE_URL_PATH . '/dashboard/subcategories', 'fas fa-layer-group', 'Subcategories', $currentPage, 'subcategories', 'sidebar-subitem') .

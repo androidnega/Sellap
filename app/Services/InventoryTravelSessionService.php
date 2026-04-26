@@ -179,6 +179,22 @@ class InventoryTravelSessionService {
         return $this->findSession($sessionId, $companyId) ?? [];
     }
 
+    public function deleteSession(int $sessionId, int $companyId): void {
+        $session = $this->findSession($sessionId, $companyId);
+        if (!$session) {
+            throw new \RuntimeException('Session not found.');
+        }
+        $this->db->beginTransaction();
+        try {
+            $this->db->prepare('DELETE FROM inventory_travel_snapshot_lines WHERE session_id = ?')->execute([$sessionId]);
+            $this->db->prepare('DELETE FROM inventory_travel_sessions WHERE id = ? AND company_id = ?')->execute([$sessionId, $companyId]);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
     public function buildReport(int $sessionId, int $companyId): array {
         $session = $this->findSession($sessionId, $companyId);
         if (!$session) {

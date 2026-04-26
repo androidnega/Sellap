@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Middleware\WebAuthMiddleware;
+use App\Models\CompanyModule;
 use App\Services\InventoryTravelSessionService;
 
 class InventoryTravelSessionController {
@@ -37,6 +38,18 @@ class InventoryTravelSessionController {
         return $u;
     }
 
+    private function assertTravelSessionsModule(int $companyId, string $role): void {
+        if ($role === 'system_admin') {
+            return;
+        }
+        if (!CompanyModule::isEnabled($companyId, 'inventory_travel_sessions')) {
+            http_response_code(403);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Inventory travel sessions are not enabled for your company.']);
+            exit;
+        }
+    }
+
     public function index(): void {
         \App\Helpers\AdminBlockHelper::blockAdmin(
             ['manager', 'admin', 'system_admin'],
@@ -47,6 +60,17 @@ class InventoryTravelSessionController {
 
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
+        }
+
+        $uid = $_SESSION['user'] ?? [];
+        $role = strtolower(trim($uid['role'] ?? ''));
+        $cid = (int)($uid['company_id'] ?? 0);
+        if ($role !== 'system_admin') {
+            if (!CompanyModule::isEnabled($cid, 'inventory_travel_sessions')) {
+                $_SESSION['error_message'] = 'Inventory travel sessions are not enabled for your company. Ask a system administrator to enable the module.';
+                header('Location: ' . BASE_URL_PATH . '/dashboard/inventory');
+                exit;
+            }
         }
 
         $GLOBALS['currentPage'] = 'travel-sessions';
@@ -64,6 +88,7 @@ class InventoryTravelSessionController {
     public function apiList(): void {
         $u = $this->requireManagerJson();
         $companyId = (int)($u['company_id'] ?? 0);
+        $this->assertTravelSessionsModule($companyId, strtolower(trim($u['role'] ?? '')));
         try {
             $svc = new InventoryTravelSessionService();
             $sessions = $svc->listSessions($companyId, 80);
@@ -77,6 +102,7 @@ class InventoryTravelSessionController {
     public function apiActive(): void {
         $u = $this->requireManagerJson();
         $companyId = (int)($u['company_id'] ?? 0);
+        $this->assertTravelSessionsModule($companyId, strtolower(trim($u['role'] ?? '')));
         try {
             $svc = new InventoryTravelSessionService();
             $open = $svc->getOpenSession($companyId);
@@ -90,6 +116,7 @@ class InventoryTravelSessionController {
     public function apiStart(): void {
         $u = $this->requireManagerJson();
         $companyId = (int)($u['company_id'] ?? 0);
+        $this->assertTravelSessionsModule($companyId, strtolower(trim($u['role'] ?? '')));
         $managerId = (int)($u['id'] ?? 0);
         try {
             $svc = new InventoryTravelSessionService();
@@ -107,6 +134,7 @@ class InventoryTravelSessionController {
     public function apiEnd(int $sessionId): void {
         $u = $this->requireManagerJson();
         $companyId = (int)($u['company_id'] ?? 0);
+        $this->assertTravelSessionsModule($companyId, strtolower(trim($u['role'] ?? '')));
         $managerId = (int)($u['id'] ?? 0);
         $raw = file_get_contents('php://input') ?: '';
         $body = json_decode($raw, true);
@@ -124,12 +152,35 @@ class InventoryTravelSessionController {
         try {
             $svc = new InventoryTravelSessionService();
             $row = $svc->endSession($sessionId, $companyId, $managerId, $mode, $staffUserId ?: null);
+            header('Content-Type: application/json');
             echo json_encode(['success' => true, 'data' => $row]);
         } catch (\RuntimeException $e) {
             http_response_code(400);
+            header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         } catch (\Throwable $e) {
             http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    public function apiDelete(int $sessionId): void {
+        $u = $this->requireManagerJson();
+        $companyId = (int)($u['company_id'] ?? 0);
+        $this->assertTravelSessionsModule($companyId, strtolower(trim($u['role'] ?? '')));
+        try {
+            $svc = new InventoryTravelSessionService();
+            $svc->deleteSession($sessionId, $companyId);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true]);
+        } catch (\RuntimeException $e) {
+            http_response_code(400);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
     }
@@ -137,6 +188,7 @@ class InventoryTravelSessionController {
     public function apiReport(int $sessionId): void {
         $u = $this->requireManagerJson();
         $companyId = (int)($u['company_id'] ?? 0);
+        $this->assertTravelSessionsModule($companyId, strtolower(trim($u['role'] ?? '')));
         try {
             $svc = new InventoryTravelSessionService();
             $report = $svc->buildReport($sessionId, $companyId);

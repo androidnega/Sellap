@@ -743,6 +743,10 @@ $router->get('api/inventory/travel-sessions/{id}/report', function($id) {
     $c = new \App\Controllers\InventoryTravelSessionController();
     $c->apiReport((int)$id);
 });
+$router->post('api/inventory/travel-sessions/{id}/delete', function($id) {
+    $c = new \App\Controllers\InventoryTravelSessionController();
+    $c->apiDelete((int)$id);
+});
 
 // ========================================
 // RESTOCK ROUTES

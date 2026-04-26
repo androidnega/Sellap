@@ -57,7 +57,7 @@
                         <th class="px-4 py-2">Manager</th>
                         <th class="px-4 py-2">Staff</th>
                         <th class="px-4 py-2">Status</th>
-                        <th class="px-4 py-2"></th>
+                        <th class="px-4 py-2 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="sessionsBody" class="divide-y text-gray-700"></tbody>
@@ -102,6 +102,11 @@
     let openSession = null;
     let staffLoaded = false;
 
+    function escHtml(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    }
+
     async function fetchJson(url, opts) {
         const r = await fetch(url, Object.assign({ credentials: 'same-origin' }, opts || {}));
         const j = await r.json().catch(function() { return {}; });
@@ -128,21 +133,17 @@
     function renderSessions(rows) {
         const tb = document.getElementById('sessionsBody');
         if (!rows.length) {
-            tb.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">No sessions yet.</td></tr>';
+            tb.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">No sessions yet.</td></tr>';
             return;
         }
         tb.innerHTML = rows.map(function(r) {
             const staff = r.staff_mode === 'all' ? 'All staff' : (r.staff_name ? r.staff_name : '—');
-            const btn = r.status === 'closed'
-                ? '<button type="button" class="text-emerald-700 hover:underline view-report" data-id="' + r.id + '">Report</button>'
+            const reportBtn = r.status === 'closed'
+                ? '<button type="button" class="text-emerald-700 hover:underline view-report mr-3" data-id="' + r.id + '">Report</button>'
                 : '';
-            return '<tr><td class="px-4 py-2">#' + r.id + '</td><td class="px-4 py-2">' + (r.started_at || '') + '</td><td class="px-4 py-2">' + (r.ended_at || '—') + '</td><td class="px-4 py-2">' + (r.manager_name || '') + '</td><td class="px-4 py-2">' + staff + '</td><td class="px-4 py-2">' + r.status + '</td><td class="px-4 py-2">' + btn + '</td></tr>';
+            const delBtn = '<button type="button" class="text-red-600 hover:underline delete-session" data-id="' + r.id + '">Delete</button>';
+            return '<tr><td class="px-4 py-2">#' + r.id + '</td><td class="px-4 py-2">' + (r.started_at || '') + '</td><td class="px-4 py-2">' + (r.ended_at || '—') + '</td><td class="px-4 py-2">' + escHtml(r.manager_name || '') + '</td><td class="px-4 py-2">' + escHtml(staff) + '</td><td class="px-4 py-2">' + r.status + '</td><td class="px-4 py-2 text-right whitespace-nowrap">' + reportBtn + delBtn + '</td></tr>';
         }).join('');
-        tb.querySelectorAll('.view-report').forEach(function(b) {
-            b.addEventListener('click', function() {
-                openReport(parseInt(b.getAttribute('data-id'), 10));
-            });
-        });
     }
 
     async function refreshList() {
@@ -214,6 +215,13 @@
         } catch (e) { flashErr(e.message); }
     });
 
+    function reportRowCells(x) {
+        var diff = Number(x.difference);
+        var sold = diff < 0;
+        var g = sold ? ' bg-green-100' : '';
+        return '<td class="p-2' + g + '">' + escHtml(x.name || '') + '</td><td class="p-2 text-right">' + x.start_quantity + '</td><td class="p-2 text-right">' + x.end_quantity + '</td><td class="p-2 text-right font-medium' + g + '">' + x.difference + '</td>';
+    }
+
     async function openReport(id) {
         try {
             const j = await fetchJson(base + '/api/inventory/travel-sessions/' + id + '/report', {});
@@ -224,7 +232,7 @@
                 if (!rows.length) return '';
                 let h = '<div><h4 class="font-semibold mb-2 ' + tone + '">' + title + '</h4><table class="w-full text-xs border"><thead><tr class="bg-gray-100"><th class="text-left p-2">Item</th><th class="text-right p-2">Start</th><th class="text-right p-2">End</th><th class="text-right p-2">Diff</th></tr></thead><tbody>';
                 rows.forEach(function(x) {
-                    h += '<tr class="border-t"><td class="p-2">' + (x.name || '') + '</td><td class="p-2 text-right">' + x.start_quantity + '</td><td class="p-2 text-right">' + x.end_quantity + '</td><td class="p-2 text-right font-medium">' + x.difference + '</td></tr>';
+                    h += '<tr class="border-t">' + reportRowCells(x) + '</tr>';
                 });
                 h += '</tbody></table></div>';
                 return h;
@@ -233,7 +241,7 @@
             html += table('Increased (restocked)', d.increased || [], 'text-emerald-700');
             html += '<div><h4 class="font-semibold mb-2 text-gray-800">All items</h4><table class="w-full text-xs border"><thead><tr class="bg-gray-100"><th class="text-left p-2">Item</th><th class="text-right p-2">Start</th><th class="text-right p-2">End</th><th class="text-right p-2">Diff</th></tr></thead><tbody>';
             (d.items || []).forEach(function(x) {
-                html += '<tr class="border-t"><td class="p-2">' + (x.name || '') + '</td><td class="p-2 text-right">' + x.start_quantity + '</td><td class="p-2 text-right">' + x.end_quantity + '</td><td class="p-2 text-right">' + x.difference + '</td></tr>';
+                html += '<tr class="border-t">' + reportRowCells(x) + '</tr>';
             });
             html += '</tbody></table></div>';
             document.getElementById('reportContent').innerHTML = html;
@@ -246,6 +254,24 @@
         var m = document.getElementById('reportModal');
         m.classList.add('hidden');
         m.classList.remove('flex');
+    });
+
+    document.getElementById('sessionsBody').addEventListener('click', async function(ev) {
+        var reportBtn = ev.target.closest('.view-report');
+        if (reportBtn) {
+            openReport(parseInt(reportBtn.getAttribute('data-id'), 10));
+            return;
+        }
+        var delBtn = ev.target.closest('.delete-session');
+        if (!delBtn) return;
+        if (!confirm('Delete this travel session? Snapshot data will be removed. This cannot be undone.')) return;
+        var sid = parseInt(delBtn.getAttribute('data-id'), 10);
+        try {
+            await fetchJson(base + '/api/inventory/travel-sessions/' + sid + '/delete', { method: 'POST' });
+            flashOk('Session deleted.');
+            await refreshActive();
+            await refreshList();
+        } catch (e) { flashErr(e.message); }
     });
 
     refreshActive().then(refreshList).catch(function(e) { flashErr(e.message); });
