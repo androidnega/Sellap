@@ -1393,6 +1393,47 @@ $router->get('api/profile/download-guide', function() {
     }
 });
 
+// Admin: inventory / order logs & company features (admin + system_admin only)
+$router->get('dashboard/admin/inventory-logs', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['admin', 'system_admin']);
+    $GLOBALS['currentPage'] = 'admin-inventory-logs';
+    $controller = new \App\Controllers\AdminInventoryLogsController();
+    $controller->hub();
+});
+
+$router->get('dashboard/admin/inventory-logs/cancellations', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['admin', 'system_admin']);
+    $GLOBALS['currentPage'] = 'admin-inventory-logs';
+    $controller = new \App\Controllers\AdminInventoryLogsController();
+    $controller->cancellations();
+});
+
+$router->get('dashboard/admin/inventory-logs/returns', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['admin', 'system_admin']);
+    $GLOBALS['currentPage'] = 'admin-inventory-logs';
+    $controller = new \App\Controllers\AdminInventoryLogsController();
+    $controller->returnsList();
+});
+
+$router->get('dashboard/admin/inventory-logs/stock-history', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['admin', 'system_admin']);
+    $GLOBALS['currentPage'] = 'admin-inventory-logs';
+    $controller = new \App\Controllers\AdminInventoryLogsController();
+    $controller->stockHistory();
+});
+
+$router->get('dashboard/admin/company-features', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['admin', 'system_admin']);
+    $GLOBALS['currentPage'] = 'admin-inventory-logs';
+    $controller = new \App\Controllers\AdminInventoryLogsController();
+    $controller->companyFeatures();
+});
+
+$router->post('dashboard/admin/company-features/save', function() {
+    $controller = new \App\Controllers\AdminInventoryLogsController();
+    $controller->companyFeaturesSave();
+});
+
 // Email Logs Page (System Admin only)
 $router->get('dashboard/email-logs', function() {
     try {
@@ -2268,6 +2309,16 @@ $router->get('api/pos/sales/category-options', function() {
 $router->get('api/pos/sale/{id}', function($id) {
     $controller = new \App\Controllers\POSController();
     $controller->apiSaleDetails($id);
+});
+
+$router->post('api/pos/sale/{id}/cancel', function($id) {
+    $controller = new \App\Controllers\POSController();
+    $controller->apiCancelOrder($id);
+});
+
+$router->post('api/pos/sale/{id}/return', function($id) {
+    $controller = new \App\Controllers\POSController();
+    $controller->apiReturnOrder($id);
 });
 
 // Delete sale route - support both DELETE and POST (for servers that don't support DELETE)

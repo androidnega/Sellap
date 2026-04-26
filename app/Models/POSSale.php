@@ -10,8 +10,32 @@ class POSSale {
     private $conn;
     private $table = 'pos_sales';
 
+    /** @var bool|null */
+    private static $hasLifecycleStatusColumnCache = null;
+
     public function __construct() {
         $this->conn = \Database::getInstance()->getConnection();
+    }
+
+    private function hasPosSaleStatusColumn(): bool {
+        if (self::$hasLifecycleStatusColumnCache !== null) {
+            return self::$hasLifecycleStatusColumnCache;
+        }
+        try {
+            $stmt = $this->conn->prepare("SHOW COLUMNS FROM {$this->table} LIKE 'status'");
+            $stmt->execute();
+            self::$hasLifecycleStatusColumnCache = $stmt->rowCount() > 0;
+        } catch (\Exception $e) {
+            self::$hasLifecycleStatusColumnCache = false;
+        }
+        return self::$hasLifecycleStatusColumnCache;
+    }
+
+    private function activeOrdersOnlySql(string $alias): string {
+        if (!$this->hasPosSaleStatusColumn()) {
+            return '';
+        }
+        return " AND ({$alias}.status IS NULL OR {$alias}.status <> 'cancelled')";
     }
 
     /**
@@ -223,10 +247,12 @@ class POSSale {
                     COUNT(*) as total_sales,
                     SUM(final_amount) as total_revenue,
                     AVG(final_amount) as average_sale
-                FROM {$this->table}";
+                FROM {$this->table} t
+                WHERE 1=1";
+        $sql .= $this->activeOrdersOnlySql('t');
         
         if ($startDate && $endDate) {
-            $sql .= " WHERE DATE(created_at) BETWEEN :start AND :end";
+            $sql .= " AND DATE(t.created_at) BETWEEN :start AND :end";
             $stmt = $this->conn->prepare($sql);
             $stmt->execute(['start' => $startDate, 'end' => $endDate]);
         } else {
@@ -245,11 +271,12 @@ class POSSale {
                     COUNT(*) as total_sales,
                     SUM(final_amount) as total_revenue,
                     AVG(final_amount) as average_sale
-                FROM {$this->table}
-                WHERE company_id = :company_id";
+                FROM {$this->table} t
+                WHERE t.company_id = :company_id";
+        $sql .= $this->activeOrdersOnlySql('t');
         
         if ($startDate && $endDate) {
-            $sql .= " AND DATE(created_at) BETWEEN :start AND :end";
+            $sql .= " AND DATE(t.created_at) BETWEEN :start AND :end";
             $stmt = $this->conn->prepare($sql);
             $stmt->execute(['company_id' => $company_id, 'start' => $startDate, 'end' => $endDate]);
         } else {
@@ -266,7 +293,7 @@ class POSSale {
      */
     public function find($id, $company_id) {
         $stmt = $this->conn->prepare("
-            SELECT p.*, c.full_name as customer_name, u.username as cashier 
+            SELECT p.*, c.full_name as customer_name, u.username as cashier, u.full_name as cashier_name
             FROM {$this->table} p 
             LEFT JOIN customers c ON p.customer_id = c.id 
             LEFT JOIN users u ON p.created_by_user_id = u.id 

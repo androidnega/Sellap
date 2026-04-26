@@ -14,6 +14,8 @@ use App\Models\SalePayment;
 use App\Services\NotificationService;
 use App\Services\AuditService;
 use App\Services\VersioningService;
+use App\Services\PosOrderInventoryService;
+use App\Models\CompanyFeature;
 
 class POSController {
     private $sale;
@@ -1885,6 +1887,13 @@ class POSController {
                     }
                 }
             }
+
+            try {
+                $invSvc = new PosOrderInventoryService();
+                $invSvc->recordSaleMovements((int)$companyId, (int)$saleId, (int)$userId, (string)($user['role'] ?? ''));
+            } catch (\Throwable $e) {
+                error_log('POS recordSaleMovements: ' . $e->getMessage());
+            }
             
             // Check if this sale contains swapped items being resold
             // If so, skip SMS notification (business is done immediately after swapping)
@@ -2240,7 +2249,7 @@ class POSController {
      */
     public function showSale($id) {
         // Use WebAuthMiddleware for session-based authentication
-        WebAuthMiddleware::handle(['manager', 'salesperson', 'system_admin']);
+        WebAuthMiddleware::handle(['manager', 'salesperson', 'system_admin', 'admin']);
         
         // Get user data from session
         if (session_status() === PHP_SESSION_NONE) {
@@ -2262,6 +2271,40 @@ class POSController {
         }
         
         $items = $this->saleItem->bySale($id);
+
+        $invSvc = new PosOrderInventoryService();
+        $roleLower = strtolower(trim($userData['role'] ?? ''));
+        $schema = $invSvc->schemaReady();
+        $returnsEnabled = $schema && CompanyFeature::tableExists()
+            ? (new CompanyFeature())->isEnabled((int)$companyId, 'returns_enabled')
+            : false;
+        $orderStatus = $sale['status'] ?? 'completed';
+        $swapBlocked = !empty($sale['swap_id']) || (!empty($sale['is_swap_mode']) && (int)$sale['is_swap_mode'] === 1);
+        $createdTs = strtotime($sale['created_at'] ?? 'now');
+        $within30 = (time() - $createdTs) <= 30 * 60;
+        $isSalesRole = in_array($roleLower, ['salesperson', 'sales'], true);
+        $canCancelOrder = $schema
+            && $orderStatus === 'completed'
+            && !$swapBlocked
+            && (
+                ($roleLower === 'manager')
+                || ($isSalesRole && $within30)
+            );
+        $hasReturnable = false;
+        foreach ($items as $it) {
+            $sold = (int)($it['quantity'] ?? 0);
+            $ret = (int)($it['returned_quantity'] ?? 0);
+            $sw = isset($it['is_swapped_item']) && (int)$it['is_swapped_item'] === 1;
+            if (!empty($it['item_id']) && $sold > $ret && !$sw) {
+                $hasReturnable = true;
+                break;
+            }
+        }
+        $canReturnItems = $schema
+            && $returnsEnabled
+            && $roleLower === 'manager'
+            && $orderStatus !== 'cancelled'
+            && $hasReturnable;
         
         $title = 'Sale Details';
         $viewFile = __DIR__ . '/../Views/pos_sale_details.php';
@@ -4154,6 +4197,85 @@ class POSController {
     }
 
     /**
+     * POST /api/pos/sale/{id}/cancel — soft cancel with stock restore (sales 30m, manager anytime)
+     */
+    public function apiCancelOrder($id) {
+        header('Content-Type: application/json');
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $user = $this->getAuthenticatedUser();
+        if (!$user) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            exit;
+        }
+        $companyId = (int)($user['company_id'] ?? 0);
+        if ($companyId <= 0) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Company ID not found']);
+            exit;
+        }
+        $inv = new PosOrderInventoryService();
+        if (!$inv->schemaReady()) {
+            http_response_code(503);
+            echo json_encode(['success' => false, 'message' => 'Cancellation requires the inventory migration.']);
+            exit;
+        }
+        $res = $inv->cancelOrder((int)$id, $companyId, (int)$user['id'], (string)($user['role'] ?? ''));
+        if ($res['ok']) {
+            echo json_encode(['success' => true, 'message' => $res['message']]);
+        } else {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => $res['message']]);
+        }
+        exit;
+    }
+
+    /**
+     * POST /api/pos/sale/{id}/return — manager returns (requires company feature)
+     */
+    public function apiReturnOrder($id) {
+        header('Content-Type: application/json');
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $user = $this->getAuthenticatedUser();
+        if (!$user) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            exit;
+        }
+        $companyId = (int)($user['company_id'] ?? 0);
+        if ($companyId <= 0) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Company ID not found']);
+            exit;
+        }
+        $input = json_decode(file_get_contents('php://input'), true);
+        if (!is_array($input)) {
+            $input = $_POST;
+        }
+        $lines = $input['items'] ?? [];
+        $notes = isset($input['notes']) ? (string)$input['notes'] : null;
+        $inv = new PosOrderInventoryService();
+        $res = $inv->processReturn((int)$id, $companyId, (int)$user['id'], (string)($user['role'] ?? ''), $lines, $notes);
+        if ($res['ok']) {
+            echo json_encode(['success' => true, 'message' => $res['message'], 'return_id' => $res['return_id'] ?? null]);
+        } else {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => $res['message']]);
+        }
+        exit;
+    }
+
+    /**
      * Delete a single sale (for managers with permission)
      * DELETE /api/pos/sale/{id}
      */
@@ -4187,8 +4309,20 @@ class POSController {
                 echo json_encode(['success' => false, 'message' => 'Company ID not found']);
                 exit;
             }
-            
-            // Check if user is manager and has permission
+
+            $inv = new PosOrderInventoryService();
+            if ($inv->schemaReady()) {
+                $res = $inv->cancelOrder((int)$id, (int)$companyId, (int)$user['id'], (string)$userRole);
+                if ($res['ok']) {
+                    echo json_encode(['success' => true, 'message' => $res['message']]);
+                } else {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'message' => $res['message']]);
+                }
+                exit;
+            }
+
+            // Legacy hard-delete path (pre-migration)
             if ($userRole === 'manager') {
                 if (!CompanyModule::isEnabled($companyId, 'manager_delete_sales')) {
                     http_response_code(403);
@@ -4268,6 +4402,16 @@ class POSController {
             if (!$companyId) {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'message' => 'Company ID not found']);
+                exit;
+            }
+
+            $invBulk = new PosOrderInventoryService();
+            if ($invBulk->schemaReady()) {
+                http_response_code(403);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Bulk delete is disabled when order inventory tracking is active. Cancel orders from sale details instead.'
+                ]);
                 exit;
             }
             

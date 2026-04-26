@@ -195,6 +195,7 @@ function sidebarCollapsibleGroup($label, $icon, $linksHtml, $isOpen = false) {
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/analytics', 'fas fa-chart-line', 'Analytics', $currentPage, 'analytics') ?>
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/backup', 'fas fa-database', 'Backups', $currentPage, 'backup') ?>
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/email-logs', 'fas fa-envelope', 'Email Logs', $currentPage, 'email-logs') ?>
+            <?= sidebarLink(BASE_URL_PATH . '/dashboard/admin/inventory-logs', 'fas fa-clipboard-list', 'Inventory & order logs', $currentPage, 'admin-inventory-logs') ?>
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/tools', 'fas fa-tools', 'Tools', $currentPage, 'tools') ?>
             <div class="border-t border-white border-opacity-20 my-2"></div>
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/reset/history', 'fas fa-history', 'Reset History', $currentPage, 'reset-history') ?>
@@ -292,6 +293,12 @@ function sidebarCollapsibleGroup($label, $icon, $linksHtml, $isOpen = false) {
             
             <!-- Company Settings - Available for managers to configure SMS notification preferences -->
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/company-settings', 'fas fa-cog', 'Company Settings', $currentPage, 'company-settings') ?>
+
+            <?php if ($userRole === 'admin'): ?>
+                <?= sidebarSection('Administration') ?>
+                <?= sidebarLink(BASE_URL_PATH . '/dashboard/admin/inventory-logs', 'fas fa-clipboard-list', 'Inventory & order logs', $currentPage, 'admin-inventory-logs') ?>
+                <?= sidebarLink(BASE_URL_PATH . '/dashboard/admin/company-features', 'fas fa-toggle-on', 'Company features', $currentPage, 'admin-inventory-logs') ?>
+            <?php endif; ?>
         <?php elseif ($userRole === 'technician'): ?>
             <!-- Technician Navigation -->
             <?= sidebarLink(BASE_URL_PATH . '/dashboard', 'fas fa-tachometer-alt', 'Dashboard', $currentPage, 'dashboard') ?>

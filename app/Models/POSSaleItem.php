@@ -115,7 +115,13 @@ class POSSaleItem {
      * Get items by sale ID
      */
     public function bySale($saleId) {
-        $stmt = $this->conn->prepare("SELECT * FROM {$this->table} WHERE pos_sale_id = :sale_id");
+        $stmt = $this->conn->prepare("
+            SELECT si.*, p.name AS product_name
+            FROM {$this->table} si
+            LEFT JOIN products p ON si.item_id = p.id
+            WHERE si.pos_sale_id = :sale_id
+            ORDER BY si.id ASC
+        ");
         $stmt->execute(['sale_id' => $saleId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
