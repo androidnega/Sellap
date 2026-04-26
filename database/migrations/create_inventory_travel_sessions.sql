@@ -25,6 +25,5 @@ CREATE TABLE IF NOT EXISTS inventory_travel_snapshot_lines (
     quantity INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_session_phase_product (session_id, phase, product_id),
-    INDEX idx_session_phase (session_id, phase),
-    CONSTRAINT fk_itsl_session FOREIGN KEY (session_id) REFERENCES inventory_travel_sessions(id) ON DELETE CASCADE
+    INDEX idx_session_phase (session_id, phase)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
