@@ -7,6 +7,7 @@ use App\Models\CompanyFeature;
 use App\Models\InventoryReturn;
 use App\Models\InventoryReturnItem;
 use App\Models\StockMovement;
+use App\Services\ReturnVisibilityPolicy;
 
 class AdminInventoryLogsController {
     private function startSession(): void {
@@ -103,6 +104,7 @@ class AdminInventoryLogsController {
         $this->startSession();
         $role = $_SESSION['user']['role'] ?? '';
         $sessionCompany = (int)($_SESSION['user']['company_id'] ?? 0);
+        $userId = (int)($_SESSION['user']['id'] ?? 0);
         $filterCompany = null;
         if ($role === 'system_admin' && isset($_GET['company_id']) && $_GET['company_id'] !== '') {
             $filterCompany = (int)$_GET['company_id'];
@@ -111,13 +113,13 @@ class AdminInventoryLogsController {
         }
 
         $model = new InventoryReturn();
-        $rows = $model->listByCompany($filterCompany, 150);
+        $rows = $model->listForViewer($filterCompany, 150, $role, $userId);
         $detail = null;
         $detailItems = [];
         if (isset($_GET['id']) && (int)$_GET['id'] > 0) {
             $rid = (int)$_GET['id'];
-            $scopeCompany = $role === 'system_admin' ? null : $sessionCompany;
-            $detail = $model->findById($rid, $scopeCompany);
+            $scopeCompany = $role === 'system_admin' ? $filterCompany : $sessionCompany;
+            $detail = $model->findForViewer($rid, $scopeCompany > 0 ? $scopeCompany : null, $role, $userId);
             if ($detail) {
                 $detailItems = (new InventoryReturnItem())->listByReturn($rid);
             }
@@ -140,6 +142,7 @@ class AdminInventoryLogsController {
             'filterCompany' => $filterCompany,
             'detail' => $detail,
             'detailItems' => $detailItems,
+            'returnsReadOnly' => ReturnVisibilityPolicy::returnsUiReadOnly($role),
         ]);
     }
 

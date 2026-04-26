@@ -82,6 +82,44 @@ class POSSale {
         return ' AND (deleted_at IS NULL)';
     }
 
+    /** @var bool|null */
+    private static $hasSalesPersonIdColumnCache = null;
+
+    private function hasPosSalesSalesPersonIdColumn(): bool {
+        if (self::$hasSalesPersonIdColumnCache !== null) {
+            return self::$hasSalesPersonIdColumnCache;
+        }
+        try {
+            $this->resolvePosSaleTable();
+            if ($this->table !== 'pos_sales') {
+                self::$hasSalesPersonIdColumnCache = false;
+                return false;
+            }
+            $stmt = $this->conn->prepare("SHOW COLUMNS FROM pos_sales LIKE 'sales_person_id'");
+            $stmt->execute();
+            self::$hasSalesPersonIdColumnCache = $stmt->rowCount() > 0;
+        } catch (\Exception $e) {
+            self::$hasSalesPersonIdColumnCache = false;
+        }
+        return self::$hasSalesPersonIdColumnCache;
+    }
+
+    private function syncSalesPersonIdAfterCreate(int $saleId, array $params, array $data): void {
+        if (!$this->hasPosSalesSalesPersonIdColumn() || $saleId <= 0) {
+            return;
+        }
+        $sid = isset($data['sales_person_id']) ? (int)$data['sales_person_id'] : (int)($params['created_by_user_id'] ?? 0);
+        if ($sid <= 0) {
+            return;
+        }
+        try {
+            $u = $this->conn->prepare("UPDATE {$this->table} SET sales_person_id = ? WHERE id = ?");
+            $u->execute([$sid, $saleId]);
+        } catch (\Exception $e) {
+            error_log('POSSale::syncSalesPersonIdAfterCreate: ' . $e->getMessage());
+        }
+    }
+
     /**
      * Generate custom sale code (e.g., SEL-SALE-001)
      * Uses timestamp + random to prevent collisions
@@ -196,11 +234,14 @@ class POSSale {
                 $checkStmt->execute(['unique_id' => $params['unique_id']]);
                 $result = $checkStmt->fetch(PDO::FETCH_ASSOC);
                 if ($result && isset($result['id'])) {
-                    return $result['id'];
+                    $resolvedId = (int)$result['id'];
+                    $this->syncSalesPersonIdAfterCreate($resolvedId, $params, $data);
+                    return $resolvedId;
                 }
                 throw new \Exception('Failed to create sale - no valid ID returned from database');
             }
             
+            $this->syncSalesPersonIdAfterCreate((int)$insertId, $params, $data);
             return $insertId;
         } catch (\PDOException $e) {
             $errorCode = $e->getCode();

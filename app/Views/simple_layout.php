@@ -428,6 +428,8 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
                 $currentPage = 'sms-config';
             } elseif (strpos($currentPath, '/companies/modules') !== false || (strpos($currentPath, '/companies/') !== false && strpos($currentPath, '/modules') !== false)) {
                 $currentPage = 'company-modules';
+            } elseif (strpos($currentPath, '/dashboard/returns') !== false) {
+                $currentPage = 'returns';
             } elseif (strpos($currentPath, '/pos/sales-history') !== false || strpos($currentPath, '/sales-history') !== false) {
                 $currentPage = 'sales-history';
             } elseif (strpos($currentPath, '/pos') !== false) {

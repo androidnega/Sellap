@@ -162,7 +162,7 @@ $salesHistSupportsSoftDelete = $salesHistSupportsSoftDelete ?? false;
     <?php if ($salesHistOrderInventorySchema): ?>
     <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
         <p class="font-medium text-blue-950">Cancel and return orders</p>
-        <p class="mt-1 text-blue-900/90">Open a sale with the <strong>eye</strong> icon, then use <strong>Cancel order</strong> (managers anytime; sales within 30 minutes) or <strong>Return items</strong> when your company has returns enabled under <strong>Administration → Company features</strong> (admin only).</p>
+        <p class="mt-1 text-blue-900/90">Use <strong>All returns</strong> / <strong>My returns</strong> in the sidebar for a return log. Open a sale with the <strong>eye</strong> or full-page icon to <strong>Cancel order</strong> (managers anytime; sales within 30 minutes) or <strong>Return items</strong> (managers only when returns are enabled under <strong>Company features</strong>).</p>
     </div>
     <?php endif; ?>
     
@@ -889,6 +889,7 @@ async function loadSalesHistory() {
 
 function renderSalesTable() {
     const tbody = document.getElementById('salesTableBody');
+    const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '');
     
     if (salesData.length === 0) {
         tbody.innerHTML = `
@@ -988,6 +989,10 @@ function renderSalesTable() {
                     <button onclick="viewSaleDetails(${sale.id})" class="inline-flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded p-1.5 sm:p-2 transition-colors min-w-[28px] min-h-[28px] sm:min-w-[32px] sm:min-h-[32px]" title="View Details">
                         <i class="fas fa-eye text-xs sm:text-sm"></i>
                     </button>
+                    <a href="${basePath}/dashboard/sales/${sale.id}" class="inline-flex items-center justify-center text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded p-1.5 sm:p-2 transition-colors min-w-[28px] min-h-[28px] sm:min-w-[32px] sm:min-h-[32px]" title="Open full sale page">
+                        <i class="fas fa-external-link-alt text-xs sm:text-sm" aria-hidden="true"></i>
+                        <span class="sr-only">Open full sale page</span>
+                    </a>
                     ${partialPaymentsEnabled && (sale.payment_status === 'PARTIAL' || sale.payment_status === 'UNPAID') ? `
                     <button onclick="openPaymentModal(${sale.id})" class="inline-flex items-center justify-center text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded p-1.5 sm:p-2 transition-colors min-w-[28px] min-h-[28px] sm:min-w-[32px] sm:min-h-[32px]" title="Add Payment">
                         <i class="fas fa-money-bill-wave text-xs sm:text-sm"></i>

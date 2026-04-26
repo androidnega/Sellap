@@ -16,6 +16,9 @@ use App\Services\AuditService;
 use App\Services\VersioningService;
 use App\Services\PosOrderInventoryService;
 use App\Models\CompanyFeature;
+use App\Models\InventoryReturn;
+use App\Models\InventoryReturnItem;
+use App\Services\ReturnVisibilityPolicy;
 
 class POSController {
     private $sale;
@@ -4283,6 +4286,137 @@ class POSController {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => $res['message']]);
         }
+        exit;
+    }
+
+    /**
+     * GET /api/pos/returns — return headers filtered by role (manager: all in company; sales: own sales only; admin: audit).
+     */
+    public function apiReturnsList() {
+        header('Content-Type: application/json');
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $user = $this->getAuthenticatedUser();
+        if (!$user) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            exit;
+        }
+        $role = (string)($user['role'] ?? '');
+        $roleNorm = ReturnVisibilityPolicy::normalizeRole($role);
+        if (!in_array($roleNorm, ['manager', 'salesperson', 'admin', 'system_admin'], true)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Forbidden']);
+            exit;
+        }
+        $sessionCompany = (int)($user['company_id'] ?? 0);
+        $queryCompany = isset($_GET['company_id']) ? (int)$_GET['company_id'] : 0;
+        $listCompany = $roleNorm === 'system_admin'
+            ? ($queryCompany > 0 ? $queryCompany : null)
+            : $sessionCompany;
+        if ($roleNorm !== 'system_admin' && $listCompany <= 0) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Company ID required']);
+            exit;
+        }
+        if (!InventoryReturn::tableExists()) {
+            http_response_code(503);
+            echo json_encode(['success' => false, 'message' => 'Returns data is not available']);
+            exit;
+        }
+        if ($roleNorm !== 'system_admin') {
+            if (!CompanyFeature::tableExists() || !(new CompanyFeature())->isEnabled((int)$listCompany, 'returns_enabled')) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'message' => 'Returns feature is disabled for this company']);
+                exit;
+            }
+        } elseif ($queryCompany > 0) {
+            if (!CompanyFeature::tableExists() || !(new CompanyFeature())->isEnabled($queryCompany, 'returns_enabled')) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'message' => 'Returns feature is disabled for that company']);
+                exit;
+            }
+        }
+        $limit = isset($_GET['limit']) ? min(300, max(1, (int)$_GET['limit'])) : 100;
+        $rows = (new InventoryReturn())->listForViewer($listCompany, $limit, $role, (int)($user['id'] ?? 0));
+        echo json_encode([
+            'success' => true,
+            'data' => $rows,
+            'meta' => [
+                'read_only' => ReturnVisibilityPolicy::returnsUiReadOnly($role),
+                'can_process' => ReturnVisibilityPolicy::canProcessReturns($role),
+            ],
+        ]);
+        exit;
+    }
+
+    /**
+     * GET /api/pos/returns/{id} — one return + lines if the viewer may see it.
+     */
+    public function apiReturnDetail($id) {
+        header('Content-Type: application/json');
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $user = $this->getAuthenticatedUser();
+        if (!$user) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            exit;
+        }
+        $role = (string)($user['role'] ?? '');
+        $roleNorm = ReturnVisibilityPolicy::normalizeRole($role);
+        if (!in_array($roleNorm, ['manager', 'salesperson', 'admin', 'system_admin'], true)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Forbidden']);
+            exit;
+        }
+        $sessionCompany = (int)($user['company_id'] ?? 0);
+        $queryCompany = isset($_GET['company_id']) ? (int)$_GET['company_id'] : 0;
+        $scopeCompany = $roleNorm === 'system_admin'
+            ? ($queryCompany > 0 ? $queryCompany : null)
+            : $sessionCompany;
+        if ($roleNorm !== 'system_admin' && $scopeCompany <= 0) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Company ID required']);
+            exit;
+        }
+        if (!InventoryReturn::tableExists()) {
+            http_response_code(503);
+            echo json_encode(['success' => false, 'message' => 'Returns data is not available']);
+            exit;
+        }
+        $row = (new InventoryReturn())->findForViewer((int)$id, $scopeCompany, $role, (int)($user['id'] ?? 0));
+        if (!$row) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => 'Return not found']);
+            exit;
+        }
+        if ($roleNorm !== 'system_admin') {
+            $cid = (int)($row['company_id'] ?? 0);
+            if (!CompanyFeature::tableExists() || !$cid || !(new CompanyFeature())->isEnabled($cid, 'returns_enabled')) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'message' => 'Returns feature is disabled']);
+                exit;
+            }
+        }
+        $items = (new InventoryReturnItem())->listByReturn((int)$id);
+        echo json_encode([
+            'success' => true,
+            'data' => $row,
+            'items' => $items,
+            'meta' => [
+                'read_only' => ReturnVisibilityPolicy::returnsUiReadOnly($role),
+                'can_process' => ReturnVisibilityPolicy::canProcessReturns($role),
+            ],
+        ]);
         exit;
     }
 

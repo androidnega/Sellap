@@ -67,6 +67,24 @@ function run_pos_order_inventory_migration_steps(\PDO $db): array {
                 $db->exec('ALTER TABLE pos_sales ADD INDEX idx_pos_sales_status (company_id, status)');
                 $lines[] = 'Added index idx_pos_sales_status';
             }
+            if (!pos_order_inv_columnExists($db, 'pos_sales', 'sales_person_id')) {
+                $db->exec('ALTER TABLE pos_sales ADD COLUMN sales_person_id BIGINT UNSIGNED NULL');
+                $lines[] = 'Added pos_sales.sales_person_id';
+            }
+            if (!pos_order_inv_indexExists($db, 'pos_sales', 'idx_pos_sales_sales_person')) {
+                try {
+                    $db->exec('ALTER TABLE pos_sales ADD INDEX idx_pos_sales_sales_person (company_id, sales_person_id)');
+                    $lines[] = 'Added index idx_pos_sales_sales_person';
+                } catch (\PDOException $e) {
+                    $lines[] = 'Skip index idx_pos_sales_sales_person: ' . $e->getMessage();
+                }
+            }
+            try {
+                $db->exec('UPDATE pos_sales SET sales_person_id = created_by_user_id WHERE sales_person_id IS NULL AND created_by_user_id IS NOT NULL');
+                $lines[] = 'Backfilled pos_sales.sales_person_id from created_by_user_id where null';
+            } catch (\PDOException $e) {
+                $lines[] = 'Skip sales_person_id backfill: ' . $e->getMessage();
+            }
             if (!pos_order_inv_columnExists($db, 'pos_sales', 'deleted_at')) {
                 $db->exec('ALTER TABLE pos_sales ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL');
                 $lines[] = 'Added pos_sales.deleted_at';

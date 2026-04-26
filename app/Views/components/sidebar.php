@@ -4,7 +4,9 @@
 
 // Load CompanyModule model for module access checks
 require_once __DIR__ . '/../../Models/CompanyModule.php';
+require_once __DIR__ . '/../../Models/CompanyFeature.php';
 use App\Models\CompanyModule;
+use App\Models\CompanyFeature;
 
 // Get company_id from session
 $companyId = $_SESSION['user']['company_id'] ?? null;
@@ -256,6 +258,13 @@ function sidebarCollapsibleGroup($label, $icon, $linksHtml, $isOpen = false) {
                     $posLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/pos', 'fas fa-cash-register', 'POS', $currentPage, 'pos', 'sidebar-subitem');
                 }
                 $posLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/pos/sales-history', 'fas fa-history', 'Sales History', $currentPage, 'sales-history', 'sidebar-subitem');
+                if ($companyId && CompanyFeature::tableExists() && (new CompanyFeature())->isEnabled((int)$companyId, 'returns_enabled')) {
+                    if ($userRole === 'manager') {
+                        $posLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/returns', 'fas fa-undo-alt', 'All returns', $currentPage, 'returns', 'sidebar-subitem');
+                    } elseif (in_array($userRole, ['salesperson', 'sales'], true)) {
+                        $posLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/returns', 'fas fa-undo-alt', 'My returns', $currentPage, 'returns', 'sidebar-subitem');
+                    }
+                }
                 if (CompanyModule::isEnabled($companyId, 'partial_payments')) {
                     $posLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/pos/partial-payments', 'fas fa-money-bill-wave', 'Partial Payments', $currentPage, 'partial-payments', 'sidebar-subitem');
                 }
@@ -264,7 +273,7 @@ function sidebarCollapsibleGroup($label, $icon, $linksHtml, $isOpen = false) {
                 if (in_array($userRole, $allowedRoles, true)) {
                     $posLinks .= sidebarLink(BASE_URL_PATH . '/dashboard/notifications', 'fas fa-bell', 'Notifications', $currentPage, 'notifications', 'sidebar-subitem');
                 }
-                $posOpen = in_array($currentPage, ['pos', 'sales-history', 'partial-payments', 'notifications'], true);
+                $posOpen = in_array($currentPage, ['pos', 'sales-history', 'partial-payments', 'notifications', 'returns'], true);
                 echo sidebarCollapsibleGroup('POS & Orders', 'fas fa-cash-register', $posLinks, $posOpen);
                 ?>
             <?php endif; ?>
@@ -321,6 +330,9 @@ function sidebarCollapsibleGroup($label, $icon, $linksHtml, $isOpen = false) {
             <?php if (isModuleEnabled('pos_sales', $companyId, $userRole)): ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos', 'fas fa-cash-register', 'Point of Sale', $currentPage, 'pos') ?>
                 <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos/sales-history', 'fas fa-history', 'Sales History', $currentPage, 'sales-history') ?>
+                <?php if ($companyId && CompanyFeature::tableExists() && (new CompanyFeature())->isEnabled((int)$companyId, 'returns_enabled')): ?>
+                    <?= sidebarLink(BASE_URL_PATH . '/dashboard/returns', 'fas fa-undo-alt', 'My returns', $currentPage, 'returns') ?>
+                <?php endif; ?>
                 <?php if (CompanyModule::isEnabled($companyId, 'partial_payments')): ?>
                     <?= sidebarLink(BASE_URL_PATH . '/dashboard/pos/partial-payments', 'fas fa-money-bill-wave', 'Partial Payments', $currentPage, 'partial-payments') ?>
                 <?php endif; ?>

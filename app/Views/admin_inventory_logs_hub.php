@@ -13,8 +13,8 @@ $companyId = (int)($companyId ?? 0);
             <p class="text-sm text-gray-600 mt-1">Orders marked cancelled with who cancelled and when.</p>
         </a>
         <a href="<?= BASE_URL_PATH ?>/dashboard/admin/inventory-logs/returns" class="block rounded-lg border border-gray-200 bg-white p-5 shadow-sm hover:border-blue-400 transition">
-            <h2 class="font-semibold text-gray-900">Returns</h2>
-            <p class="text-sm text-gray-600 mt-1">Manager-submitted returns linked to POS orders.</p>
+            <h2 class="font-semibold text-gray-900">Returns report</h2>
+            <p class="text-sm text-gray-600 mt-1">Read-only list of returns for audit. Managers work returns under <strong>POS → Returns</strong> (or sale detail).</p>
         </a>
         <a href="<?= BASE_URL_PATH ?>/dashboard/admin/inventory-logs/stock-history" class="block rounded-lg border border-gray-200 bg-white p-5 shadow-sm hover:border-blue-400 transition sm:col-span-2">
             <h2 class="font-semibold text-gray-900">Stock history</h2>

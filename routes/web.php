@@ -1415,6 +1415,14 @@ $router->get('dashboard/admin/inventory-logs/returns', function() {
     $controller->returnsList();
 });
 
+// POS returns dashboard (manager: all; sales: own sales only — server-filtered)
+$router->get('dashboard/returns', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'salesperson', 'sales']);
+    $GLOBALS['currentPage'] = 'returns';
+    $controller = new \App\Controllers\InventoryReturnsController();
+    $controller->dashboard();
+});
+
 $router->get('dashboard/admin/inventory-logs/stock-history', function() {
     \App\Middleware\WebAuthMiddleware::handle(['admin', 'system_admin']);
     $GLOBALS['currentPage'] = 'admin-inventory-logs';
@@ -2319,6 +2327,16 @@ $router->post('api/pos/sale/{id}/cancel', function($id) {
 $router->post('api/pos/sale/{id}/return', function($id) {
     $controller = new \App\Controllers\POSController();
     $controller->apiReturnOrder($id);
+});
+
+$router->get('api/pos/returns/{id}', function($id) {
+    $controller = new \App\Controllers\POSController();
+    $controller->apiReturnDetail($id);
+});
+
+$router->get('api/pos/returns', function() {
+    $controller = new \App\Controllers\POSController();
+    $controller->apiReturnsList();
 });
 
 // Delete sale route - support both DELETE and POST (for servers that don't support DELETE)
