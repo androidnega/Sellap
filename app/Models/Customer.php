@@ -150,13 +150,21 @@ class Customer {
      * @param int|null $companyId Optional company ID for multi-tenant isolation
      */
     public function update($id, $data, $companyId = null) {
+        $allowed = ['full_name', 'phone_number', 'email', 'address'];
         $fields = [];
-        foreach ($data as $key => $value) {
-            $fields[] = "$key = :$key";
+        $params = [];
+        foreach ($allowed as $key) {
+            if (!array_key_exists($key, $data)) {
+                continue;
+            }
+            $fields[] = "{$key} = :{$key}";
+            $params[$key] = $data[$key];
+        }
+        if (empty($fields)) {
+            return false;
         }
         
         $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE id = :id";
-        $params = $data;
         $params['id'] = $id;
         
         // Add company filter for multi-tenant isolation if provided

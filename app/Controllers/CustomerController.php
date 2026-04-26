@@ -1053,18 +1053,31 @@ class CustomerController {
      * PUT /api/customers/{id} - Update customer
      */
     public function update($id) {
-        $payload = AuthMiddleware::handle(['manager', 'salesperson', 'technician']);
-        $companyId = $payload->company_id;
+        $payload = AuthMiddleware::handle(['manager', 'admin', 'salesperson', 'technician']);
+        $companyId = isset($payload->company_id) ? (int)$payload->company_id : 0;
         
         header('Content-Type: application/json');
         
-        $data = json_decode(file_get_contents('php://input'), true);
+        $raw = file_get_contents('php://input');
+        $data = json_decode($raw !== false && $raw !== '' ? $raw : '[]', true);
+        if (!is_array($data)) {
+            $data = [];
+        }
         
         if (empty($data['full_name']) || empty($data['phone_number'])) {
             http_response_code(400);
             echo json_encode([
                 'success' => false,
                 'error' => 'Full name and phone number are required'
+            ]);
+            return;
+        }
+
+        if ($companyId <= 0) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Company association required'
             ]);
             return;
         }
@@ -1145,19 +1158,22 @@ class CustomerController {
                 }
             }
             
-            // Remove company_id from update data to prevent changing it
-            unset($data['company_id']);
-            unset($data['unique_id']);
-            unset($data['created_by_user_id']);
+            // Only editable columns (avoid invalid SQL from extra form/API keys)
+            $updateData = [
+                'full_name' => trim((string)($data['full_name'] ?? '')),
+                'phone_number' => trim((string)($data['phone_number'] ?? '')),
+                'email' => isset($data['email']) && $data['email'] !== '' ? trim((string)$data['email']) : null,
+                'address' => isset($data['address']) && $data['address'] !== '' ? trim((string)$data['address']) : null,
+            ];
             
             // Update customer with company isolation (only update if belongs to company)
-            $result = $this->model->update($id, $data, $companyId);
+            $result = $this->model->update($id, $updateData, $companyId);
             
             if ($result) {
                 echo json_encode([
                     'success' => true,
                     'message' => 'Customer updated successfully',
-                    'data' => array_merge($customer, $data)
+                    'data' => array_merge($customer, $updateData)
                 ]);
             } else {
                 http_response_code(500);
@@ -1166,8 +1182,9 @@ class CustomerController {
                     'error' => 'Failed to update customer'
                 ]);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             http_response_code(500);
+            error_log('CustomerController::update: ' . $e->getMessage());
             echo json_encode([
                 'success' => false,
                 'error' => 'Database error: ' . $e->getMessage()

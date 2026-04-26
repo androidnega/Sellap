@@ -1322,12 +1322,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             const basePath = typeof BASE !== 'undefined' ? BASE : (window.APP_BASE_PATH || '<?= BASE_URL_PATH ?>');
+            const token = localStorage.getItem('sellapp_token') || localStorage.getItem('token');
+            const putHeaders = { 'Content-Type': 'application/json' };
+            if (token) {
+                putHeaders['Authorization'] = 'Bearer ' + token;
+            }
             const response = await fetch(`${basePath}/api/customers/${customerId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + (localStorage.getItem('sellapp_token') || localStorage.getItem('token'))
-                },
+                headers: putHeaders,
+                credentials: 'same-origin',
                 body: JSON.stringify(data)
             });
             

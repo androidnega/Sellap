@@ -34,9 +34,16 @@ class AuthMiddleware {
         // Check for session inactivity timeout (for session-based auth)
         self::checkSessionTimeout();
         
-        // Try JWT token from Authorization header first
-        $headers = getallheaders();
+        // Try JWT token from Authorization header first (getallheaders() may be false on some SAPI)
+        $rawHeaders = function_exists('getallheaders') ? getallheaders() : false;
+        $headers = is_array($rawHeaders) ? $rawHeaders : [];
         $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+        if ($authHeader === '' && !empty($_SERVER['HTTP_AUTHORIZATION'])) {
+            $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+        }
+        if ($authHeader === '' && !empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+        }
 
         // Also check for token in cookies (for form-based login)
         if (empty($authHeader)) {
@@ -51,8 +58,10 @@ class AuthMiddleware {
         try {
             $payload = $auth->validateToken($token);
             
-            // Check role-based access if roles are specified
-            if (!empty($roles) && !in_array($payload->role, $roles)) {
+            // Check role-based access if roles are specified (case-insensitive)
+            $tokenRole = strtolower((string)($payload->role ?? ''));
+            $rolesLower = array_map('strtolower', $roles);
+            if (!empty($roles) && !in_array($tokenRole, $rolesLower, true)) {
                 http_response_code(403);
                 header('Content-Type: application/json');
                 echo json_encode(['error' => 'Unauthorized role', 'required' => $roles, 'current' => $payload->role]);
@@ -87,8 +96,10 @@ class AuthMiddleware {
             // Update last activity time for session timeout tracking
             self::updateLastActivity();
             
-            // Check role-based access if roles are specified
-            if (!empty($roles) && !in_array($userData['role'], $roles)) {
+            // Check role-based access if roles are specified (case-insensitive vs session)
+            $sessionRole = strtolower((string)($userData['role'] ?? ''));
+            $rolesLower = array_map('strtolower', $roles);
+            if (!empty($roles) && !in_array($sessionRole, $rolesLower, true)) {
                 http_response_code(403);
             header('Content-Type: application/json');
                 echo json_encode(['error' => 'Unauthorized role', 'required' => $roles, 'current' => $userData['role']]);
