@@ -97,6 +97,12 @@ config/app.local.php
 *.rar
 *.7z
 
+# dompdf: generated font cache on server (keep repo status clean; safe to pull)
+vendor/dompdf/dompdf/lib/fonts/*.afm.json
+
+# Accidental one-off scripts next to PHP crons (remove if you commit a .py on purpose)
+cron/*.py
+
 # Error pages and debug files
 error_log
 debug.log

@@ -12,6 +12,7 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
 
 // Controllers that only assign $GLOBALS['content'] (not a local $content) need this for the main area to render.
 $content = $content ?? $GLOBALS['content'] ?? '';
+$title = $title ?? $GLOBALS['title'] ?? 'SellApp';
 ?>
 <!DOCTYPE html>
 <html lang="en">

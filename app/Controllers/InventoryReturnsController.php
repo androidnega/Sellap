@@ -54,6 +54,7 @@ class InventoryReturnsController {
         $canProcessReturns = ReturnVisibilityPolicy::canProcessReturns($rn);
 
         $GLOBALS['title'] = $pageHeading;
+        $title = $pageHeading;
         $GLOBALS['currentPage'] = 'returns';
         ob_start();
         include __DIR__ . '/../Views/inventory_returns_dashboard.php';
