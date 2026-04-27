@@ -220,7 +220,7 @@
     const descriptions = {
       'products_inventory': 'Manage products, inventory, categories, and stock levels',
       'pos_sales': 'Point of Sale system for processing sales transactions',
-      'returns_enabled': 'Lets managers record returns on completed POS sales. Toggle syncs with company features.',
+      'returns_enabled': 'Returns: let managers record returns on completed POS sales. Same toggle as Dashboard → Company features → Returns.',
       'swap': 'Device swapping system allowing customers to exchange devices',
       'repairs': 'Repair service management system for tracking device repairs',
       'customers': 'Customer management system for tracking customer information',
@@ -286,6 +286,7 @@
           const enabled = module.enabled;
           if (enabled) enabledCount++;
           else disabledCount++;
+          const displayName = (module.name && String(module.name).trim()) ? module.name.trim() : getModuleName(module.key);
           
           return `
             <div class="flex flex-col p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition overflow-hidden ${enabled ? 'bg-green-50 border-green-200' : 'bg-white'}">
@@ -298,7 +299,7 @@
                   </div>
                   <div class="flex-1 min-w-0">
                     <h4 class="text-xs sm:text-sm font-semibold text-gray-900 flex items-center flex-wrap gap-1">
-                      <span class="truncate" title="${getModuleName(module.key)}">${getModuleName(module.key)}</span>
+                      <span class="truncate" title="${displayName}">${displayName}</span>
                       ${enabled ? '<span class="px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded whitespace-nowrap flex-shrink-0">Enabled</span>' : '<span class="px-1.5 py-0.5 bg-gray-100 text-gray-700 text-xs rounded whitespace-nowrap flex-shrink-0">Disabled</span>'}
                     </h4>
                   </div>
@@ -308,14 +309,16 @@
                     type="checkbox" 
                     class="sr-only peer module-toggle" 
                     data-module-key="${module.key}"
-                    data-module-name="${getModuleName(module.key)}"
+                    data-module-name="${displayName}"
                     ${enabled ? 'checked' : ''}
                   >
                   <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
                 </label>
               </div>
               <p class="text-xs text-gray-600 mb-2 line-clamp-2 break-words" title="${getModuleDescription(module.key)}">${getModuleDescription(module.key)}</p>
-              <p class="text-xs text-gray-400 mt-auto break-all">Key: <code class="bg-gray-100 px-1 rounded text-xs break-all">${module.key}</code></p>
+              ${module.key === 'returns_enabled'
+                ? `<p class="text-xs text-gray-400 mt-auto">POS: <span class="font-medium text-gray-600">Returns</span></p>`
+                : `<p class="text-xs text-gray-400 mt-auto break-all">Key: <code class="bg-gray-100 px-1 rounded text-xs break-all">${module.key}</code></p>`}
             </div>
           `;
         }).join('');

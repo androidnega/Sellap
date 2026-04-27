@@ -23,8 +23,8 @@ $companyId = (int)($companyId ?? 0);
     </div>
 
     <div class="mt-10 rounded-lg border border-amber-200 bg-amber-50 p-5">
-        <h2 class="font-semibold text-amber-900">Returns feature</h2>
-        <p class="text-sm text-amber-900/90 mt-1 mb-3">Managers can only process returns when this is enabled for your company.</p>
+        <h2 class="font-semibold text-amber-900">Returns</h2>
+        <p class="text-sm text-amber-900/90 mt-1 mb-3">Managers can only process returns when <strong>Returns</strong> is on: company admins use <strong>Company features</strong>; system admins can also use <strong>Company modules</strong> on the company record.</p>
         <p class="text-sm text-gray-700">Status for your company: <span class="font-medium"><?= $returnsOn ? 'Enabled' : 'Disabled' ?></span></p>
         <a href="<?= BASE_URL_PATH ?>/dashboard/admin/company-features<?= $viewerRole === 'system_admin' && $companyId ? '?company_id=' . (int)$companyId : '' ?>" class="inline-block mt-3 text-sm font-medium text-blue-700 hover:text-blue-900">Open company features →</a>
     </div>

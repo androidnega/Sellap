@@ -36,7 +36,7 @@ $canEditFeatures = !empty($canEditFeatures);
         <p class="text-gray-600 text-sm">No company selected.</p>
     <?php elseif (!$canEditFeatures): ?>
         <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm space-y-2">
-            <p class="text-sm text-gray-700"><span class="font-medium text-gray-900">Returns enabled:</span> <?= $returnsEnabled ? 'Yes' : 'No' ?></p>
+            <p class="text-sm text-gray-700"><span class="font-medium text-gray-900">Returns:</span> <?= $returnsEnabled ? 'Yes' : 'No' ?></p>
             <p class="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-md px-3 py-2">Only the company <strong>admin</strong> can change features. This page is view-only for your role.</p>
         </div>
     <?php else: ?>
@@ -46,7 +46,7 @@ $canEditFeatures = !empty($canEditFeatures);
             <div class="flex items-start gap-3">
                 <input type="checkbox" id="returns_enabled" name="returns_enabled" value="1" class="mt-1 rounded border-gray-300" <?= $returnsEnabled ? 'checked' : '' ?>>
                 <div>
-                    <label for="returns_enabled" class="font-medium text-gray-900">Returns enabled</label>
+                    <label for="returns_enabled" class="font-medium text-gray-900">Returns</label>
                     <p class="text-sm text-gray-600 mt-0.5">When off, managers will not see return actions on sale details.</p>
                 </div>
             </div>
