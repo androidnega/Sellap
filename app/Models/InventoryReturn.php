@@ -171,4 +171,35 @@ class InventoryReturn {
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
+
+    /**
+     * @return array{total: int, last_30_days: int}
+     */
+    public function statsForCompany(int $companyId, string $role, int $userId): array {
+        $out = ['total' => 0, 'last_30_days' => 0];
+        if (!self::tableExists()) {
+            return $out;
+        }
+        $roleNorm = ReturnVisibilityPolicy::normalizeRole($role);
+        $ownerExpr = $this->saleOwnerSqlExpr('ps');
+        $base = " FROM {$this->table} r INNER JOIN pos_sales ps ON r.pos_sale_id = ps.id WHERE r.company_id = ?";
+        $params = [$companyId];
+        if (ReturnVisibilityPolicy::isSalesRole($roleNorm)) {
+            $base .= " AND {$ownerExpr} = ?";
+            $params[] = $userId;
+        }
+        try {
+            $q1 = "SELECT COUNT(*) " . $base;
+            $st = $this->db->prepare($q1);
+            $st->execute($params);
+            $out['total'] = (int)$st->fetchColumn();
+            $q2 = "SELECT COUNT(*) " . $base . " AND r.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+            $st2 = $this->db->prepare($q2);
+            $st2->execute($params);
+            $out['last_30_days'] = (int)$st2->fetchColumn();
+        } catch (\Exception $e) {
+            error_log('InventoryReturn::statsForCompany: ' . $e->getMessage());
+        }
+        return $out;
+    }
 }

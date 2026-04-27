@@ -2457,6 +2457,104 @@ $router->get('api/company/sms-balance', function() use ($ensureJsonOutput) {
     }
 });
 
+// Manager: holiday SMS + manual broadcast (company balance only)
+$router->get('dashboard/sms-broadcast', function() {
+    $c = new \App\Controllers\ManagerSmsBroadcastController();
+    $c->page();
+});
+$router->get('api/company/sms-holidays', function() use ($ensureJsonOutput) {
+    $ensureJsonOutput();
+    try {
+        $c = new \App\Controllers\ManagerSmsBroadcastController();
+        $c->listHolidays();
+    } catch (\Exception $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    } catch (\Error $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Internal server error']);
+    }
+});
+$router->post('api/company/sms-holidays/save', function() use ($ensureJsonOutput) {
+    $ensureJsonOutput();
+    try {
+        $c = new \App\Controllers\ManagerSmsBroadcastController();
+        $c->saveHoliday();
+    } catch (\Exception $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    } catch (\Error $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Internal server error']);
+    }
+});
+$router->post('api/company/sms-holidays/delete', function() use ($ensureJsonOutput) {
+    $ensureJsonOutput();
+    try {
+        $c = new \App\Controllers\ManagerSmsBroadcastController();
+        $in = json_decode((string)file_get_contents('php://input'), true) ?: [];
+        $id = (int)($in['id'] ?? 0);
+        $c->deleteHoliday($id);
+    } catch (\Exception $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    } catch (\Error $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Internal server error']);
+    }
+});
+$router->get('api/company/sms-broadcast/customers', function() use ($ensureJsonOutput) {
+    $ensureJsonOutput();
+    try {
+        $c = new \App\Controllers\ManagerSmsBroadcastController();
+        $c->listCustomers();
+    } catch (\Exception $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    } catch (\Error $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Internal server error']);
+    }
+});
+$router->post('api/company/sms-broadcast/send', function() use ($ensureJsonOutput) {
+    $ensureJsonOutput();
+    try {
+        $c = new \App\Controllers\ManagerSmsBroadcastController();
+        $c->broadcast();
+    } catch (\Exception $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    } catch (\Error $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Internal server error']);
+    }
+});
+$router->post('api/company/sms-holidays/{id}/send-now', function($id) use ($ensureJsonOutput) {
+    $ensureJsonOutput();
+    try {
+        $c = new \App\Controllers\ManagerSmsBroadcastController();
+        $c->sendHolidayNow((int)$id);
+    } catch (\Exception $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    } catch (\Error $e) {
+        ob_end_clean();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Internal server error']);
+    }
+});
+
 // Companies Delete (POST for password confirmation)
 $router->post('api/companies/{id}/delete', function($id) use ($ensureJsonOutput) {
     $ensureJsonOutput();

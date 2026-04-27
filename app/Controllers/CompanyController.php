@@ -641,7 +641,7 @@ class CompanyController {
      */
     public function getSMSBalance() {
         try {
-            $payload = AuthMiddleware::handle(['system_admin', 'manager']);
+            $payload = AuthMiddleware::handle(['system_admin', 'manager', 'admin']);
             
             // Get company ID from user or request
             $companyId = $payload->company_id ?? null;
@@ -649,8 +649,7 @@ class CompanyController {
                 $companyId = (int)$_GET['company_id'];
             }
             
-            // Managers can only view their own company
-            if ($payload->role === 'manager' && $payload->company_id != $companyId) {
+            if (in_array($payload->role, ['manager', 'admin'], true) && (int)($payload->company_id ?? 0) !== (int)$companyId) {
                 throw new \Exception('Unauthorized access to this company');
             }
             

@@ -9,6 +9,9 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
+
+// Controllers that only assign $GLOBALS['content'] (not a local $content) need this for the main area to render.
+$content = $content ?? $GLOBALS['content'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -462,6 +465,8 @@ $initialUserData = $GLOBALS['user_data'] ?? $_SESSION['user'] ?? null;
                 $currentPage = 'analytics';
             } elseif (strpos($currentPath, '/profile') !== false) {
                 $currentPage = 'profile';
+            } elseif (strpos($currentPath, '/sms-broadcast') !== false) {
+                $currentPage = 'sms-broadcast';
             } elseif (strpos($currentPath, '/sms-settings') !== false) {
                 $currentPage = 'sms-settings';
             } elseif (strpos($currentPath, '/settings') !== false) {

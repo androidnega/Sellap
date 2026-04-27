@@ -32,6 +32,11 @@ class InventoryReturnsController {
         $userId = (int)($_SESSION['user']['id'] ?? 0);
         $model = new InventoryReturn();
         $rows = $model->listForViewer($companyId, 150, $role, $userId);
+        $returnStats = $model->statsForCompany($companyId, $role, $userId);
+        $returnsTableOk = InventoryReturn::tableExists();
+        if (!$returnsTableOk) {
+            $returnStats = ['total' => 0, 'last_30_days' => 0];
+        }
 
         $detail = null;
         $detailItems = [];
@@ -52,7 +57,8 @@ class InventoryReturnsController {
         $GLOBALS['currentPage'] = 'returns';
         ob_start();
         include __DIR__ . '/../Views/inventory_returns_dashboard.php';
-        $GLOBALS['content'] = ob_get_clean();
+        $content = ob_get_clean();
+        $GLOBALS['content'] = $content;
         if (isset($_SESSION['user'])) {
             $GLOBALS['user_data'] = $_SESSION['user'];
         }
