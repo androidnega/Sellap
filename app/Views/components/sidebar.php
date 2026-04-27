@@ -297,8 +297,8 @@ function sidebarCollapsibleGroup($label, $icon, $linksHtml, $isOpen = false) {
             <?= sidebarSection('Settings') ?>
             <!-- SMS Settings - Available for managers to view balance and purchase credits -->
             <?= sidebarLink(BASE_URL_PATH . '/dashboard/sms-settings', 'fas fa-sms', 'SMS Settings', $currentPage, 'sms-settings') ?>
-            <?php if (isModuleEnabled('customers', $companyId, $userRole) && in_array($userRole, ['manager', 'admin'], true)): ?>
-                <?= sidebarLink(BASE_URL_PATH . '/dashboard/sms-broadcast', 'fas fa-gifts', 'Holiday & SMS broadcast', $currentPage, 'sms-broadcast') ?>
+            <?php if (isModuleEnabled('holiday_broadcast_sms', $companyId, $userRole) && isModuleEnabled('customers', $companyId, $userRole) && in_array($userRole, ['manager', 'admin'], true)): ?>
+                <?= sidebarLink(BASE_URL_PATH . '/dashboard/sms-broadcast', 'fas fa-gifts', 'Holiday & broadcast SMS', $currentPage, 'sms-broadcast') ?>
             <?php endif; ?>
             
             <!-- Company Settings - Available for managers to configure SMS notification preferences -->

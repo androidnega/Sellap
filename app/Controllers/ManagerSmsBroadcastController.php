@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\WebAuthMiddleware;
 use App\Models\CompanyHolidayMessage;
+use App\Models\CompanyModule;
 use App\Models\Customer;
 use App\Services\SMSService;
 use App\Models\CompanySMSAccount;
@@ -24,9 +25,16 @@ class ManagerSmsBroadcastController {
             header('Location: ' . BASE_URL_PATH . '/dashboard');
             exit;
         }
+        if (!CompanyModule::isEnabled($companyId, 'holiday_broadcast_sms')) {
+            $_SESSION['flash_error'] = 'Holiday & broadcast SMS is turned off for your company. A system admin can enable it under Company → Modules.';
+            header('Location: ' . BASE_URL_PATH . '/dashboard');
+            exit;
+        }
         $GLOBALS['title'] = 'Holiday & broadcast SMS';
         $GLOBALS['currentPage'] = 'sms-broadcast';
         $migrationNeeded = !CompanyHolidayMessage::tableExists();
+        $basePath = defined('BASE_URL_PATH') ? rtrim((string)BASE_URL_PATH, '/') : '';
+        $cronHttpExample = $basePath . '/api/cron/holiday-sms?token=YOUR_SECRET';
         ob_start();
         include __DIR__ . '/../Views/manager_sms_broadcast.php';
         $content = ob_get_clean();
@@ -50,6 +58,10 @@ class ManagerSmsBroadcastController {
         $cid = (int)($p->company_id ?? 0);
         if ($cid < 1) {
             $this->json(['success' => false, 'error' => 'Company not found in session'], 400);
+            return null;
+        }
+        if (!CompanyModule::isEnabled($cid, 'holiday_broadcast_sms')) {
+            $this->json(['success' => false, 'error' => 'Holiday & broadcast SMS is disabled for this company.'], 403);
             return null;
         }
         return ['company_id' => $cid, 'user_id' => (int)($p->sub ?? 0)];

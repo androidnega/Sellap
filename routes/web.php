@@ -2555,6 +2555,12 @@ $router->post('api/company/sms-holidays/{id}/send-now', function($id) use ($ensu
     }
 });
 
+// Daily holiday SMS: same as cron/run_holiday_sms.php — call once per day via system cron or external monitor (UptimeRobot, etc.)
+$router->get('api/cron/holiday-sms', function() {
+    $c = new \App\Controllers\HolidaySmsCronController();
+    $c->run();
+});
+
 // Companies Delete (POST for password confirmation)
 $router->post('api/companies/{id}/delete', function($id) use ($ensureJsonOutput) {
     $ensureJsonOutput();

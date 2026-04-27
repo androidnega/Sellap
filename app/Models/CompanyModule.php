@@ -211,7 +211,8 @@ class CompanyModule {
                 'customers',
                 'staff_management',
                 'reports_analytics',
-                'notifications_sms'
+                'notifications_sms',
+                'holiday_broadcast_sms',
             ];
         }
 

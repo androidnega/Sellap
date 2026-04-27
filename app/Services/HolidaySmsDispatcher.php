@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\CompanyHolidayMessage;
+use App\Models\CompanyModule;
 use App\Models\Customer;
 use App\Models\CompanySMSAccount;
 
@@ -61,6 +62,10 @@ class HolidaySmsDispatcher {
             $message = trim((string)($row['message_body'] ?? ''));
             if ($message === '') {
                 $out['errors'][] = "Holiday id {$holidayId}: empty message, skipped";
+                continue;
+            }
+
+            if (!CompanyModule::isEnabled($companyId, 'holiday_broadcast_sms')) {
                 continue;
             }
 
