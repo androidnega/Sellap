@@ -1002,6 +1002,83 @@ class ProfileController {
         // Include the dashboard layout
         include APP_PATH . '/Views/layouts/dashboard.php';
     }
+
+    /**
+     * User-friendly text for payment error query strings (avoid raw technical messages in the UI)
+     */
+    private function friendlyPaymentReturnMessage($raw) {
+        $s = is_string($raw) ? trim($raw) : '';
+        if ($s === '') {
+            return 'We could not complete the payment. Please go back to SMS settings and try again.';
+        }
+        $l = strtolower($s);
+        if (strpos($l, 'payment id') !== false && strpos($l, 'required') !== false) {
+            return 'The payment could not be confirmed. Please return to SMS settings and start a new purchase.';
+        }
+        if (strpos($l, 'cancel') !== false) {
+            return 'The payment was cancelled. No charge was made to your account.';
+        }
+        return 'Something went wrong while processing your payment. You can try again from SMS settings. If you were charged, contact your administrator for help.';
+    }
+
+    private function requireSmsManagerLayout(): void {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $userData = $_SESSION['user'] ?? null;
+        if (!$userData) {
+            header('Location: ' . BASE_URL_PATH . '/');
+            exit;
+        }
+        $userRole = $userData['role'] ?? 'salesperson';
+        if (!in_array($userRole, ['manager', 'system_admin'], true)) {
+            $_SESSION['flash_error'] = 'You do not have access to this page.';
+            header('Location: ' . BASE_URL_PATH . '/dashboard');
+            exit;
+        }
+        $userId = $userData['id'] ?? $userData['user_id'] ?? null;
+        $user = $this->getUserDetails($userId, $userRole);
+        if (!isset($_SESSION['user']['email']) && isset($user['email'])) {
+            $_SESSION['user']['email'] = $user['email'];
+        }
+    }
+
+    public function smsPaymentSuccessPage() {
+        $this->requireSmsManagerLayout();
+        $pageTitle = 'Purchase complete - SMS';
+        $GLOBALS['currentPage'] = 'sms-settings';
+        $paymentId = null;
+
+        ob_start();
+        include APP_PATH . '/Views/payment-success.php';
+        $content = ob_get_clean();
+        include APP_PATH . '/Views/layouts/dashboard.php';
+    }
+
+    public function smsPaymentFailurePage() {
+        $this->requireSmsManagerLayout();
+        $pageTitle = 'Payment not completed - SMS';
+        $GLOBALS['currentPage'] = 'sms-settings';
+        $rawError = $_GET['error'] ?? '';
+        $userMessage = $this->friendlyPaymentReturnMessage($rawError);
+        $paymentId = null;
+
+        ob_start();
+        include APP_PATH . '/Views/payment-failure.php';
+        $content = ob_get_clean();
+        include APP_PATH . '/Views/layouts/dashboard.php';
+    }
+
+    public function smsPaymentCancelledPage() {
+        $this->requireSmsManagerLayout();
+        $pageTitle = 'Payment cancelled - SMS';
+        $GLOBALS['currentPage'] = 'sms-settings';
+
+        ob_start();
+        include APP_PATH . '/Views/payment-cancelled.php';
+        $content = ob_get_clean();
+        include APP_PATH . '/Views/layouts/dashboard.php';
+    }
     
     /**
      * Get SMS logs for manager's company with pagination

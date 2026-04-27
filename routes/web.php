@@ -1310,11 +1310,25 @@ $router->get('dashboard/sms/purchase', function() {
     $controller->smsPurchase();
 });
 
-// SMS Payment Success Page (Manager and System Admin)
+// SMS payment return pages (Manager and System Admin) — use dashboard layout
 $router->get('dashboard/sms/payment-success', function() {
     \App\Middleware\WebAuthMiddleware::handle(['manager', 'system_admin']);
-    $paymentId = $_GET['payment_id'] ?? null;
-    require_once __DIR__ . '/../app/Views/payment-success.php';
+    $controller = new \App\Controllers\ProfileController();
+    $controller->smsPaymentSuccessPage();
+    exit;
+});
+
+$router->get('dashboard/sms/payment-failure', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'system_admin']);
+    $controller = new \App\Controllers\ProfileController();
+    $controller->smsPaymentFailurePage();
+    exit;
+});
+
+$router->get('dashboard/sms/payment-cancelled', function() {
+    \App\Middleware\WebAuthMiddleware::handle(['manager', 'system_admin']);
+    $controller = new \App\Controllers\ProfileController();
+    $controller->smsPaymentCancelledPage();
     exit;
 });
 
