@@ -164,6 +164,51 @@
                     </a>
                 </div>
             </div>
+
+            <!-- Company holiday & broadcast SMS tables -->
+            <div class="border border-amber-200 rounded-lg p-4 hover:bg-amber-50 transition">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <h3 class="text-base sm:text-lg font-medium text-gray-900">Holiday &amp; broadcast SMS (tables)</h3>
+                            <span class="px-2 py-1 text-xs font-semibold bg-amber-100 text-amber-900 rounded whitespace-nowrap">SMS / CUSTOMERS</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1 break-words">
+                            Creates <code class="text-xs bg-gray-100 px-1 rounded">company_holiday_messages</code> and
+                            <code class="text-xs bg-gray-100 px-1 rounded">holiday_sms_runs</code> for manager holiday/broadcast SMS (company balance).
+                            Safe to run more than once (idempotent <code>CREATE TABLE IF NOT EXISTS</code>).
+                        </p>
+                        <p class="text-xs text-gray-500 mt-2 break-all">
+                            SQL: <code>database/migrations/create_company_holiday_sms_tables.sql</code>
+                        </p>
+                    </div>
+                    <a href="<?= BASE_URL_PATH ?>/dashboard/tools/run-company-holiday-sms-migration"
+                       class="w-full sm:w-auto sm:flex-shrink-0 px-6 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition text-center text-sm sm:text-base">
+                        Run migration
+                    </a>
+                </div>
+            </div>
+
+            <!-- Ghana public holidays — seed (dummy / template) -->
+            <div class="border border-emerald-200 rounded-lg p-4 hover:bg-emerald-50 transition">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <h3 class="text-base sm:text-lg font-medium text-gray-900">Ghana public holiday SMS (seed)</h3>
+                            <span class="px-2 py-1 text-xs font-semibold bg-emerald-100 text-emerald-900 rounded whitespace-nowrap">SAMPLE</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1 break-words">
+                            For each <strong>company with no holiday messages yet</strong>, inserts common Ghana <strong>fixed-date</strong> public holidays
+                            (New Year, Constitution Day, Independence, May Day, Christmas, etc.) with example SMS text.
+                            Movable feasts (Eid, Good Friday) are <strong>not</strong> auto-seeded. Run the table migration first.
+                        </p>
+                    </div>
+                    <a href="<?= BASE_URL_PATH ?>/dashboard/tools/run-ghana-holidays-seed"
+                       class="w-full sm:w-auto sm:flex-shrink-0 px-6 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition text-center text-sm sm:text-base">
+                        Run seed
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 

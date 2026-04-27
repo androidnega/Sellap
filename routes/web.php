@@ -4200,6 +4200,16 @@ $router->get('dashboard/tools/run-pos-order-inventory-migration', function() {
     $controller->runPosOrderInventoryMigration();
 });
 
+$router->get('dashboard/tools/run-company-holiday-sms-migration', function() {
+    $controller = new \App\Controllers\MigrationController();
+    $controller->runCompanyHolidaySmsMigration();
+});
+
+$router->get('dashboard/tools/run-ghana-holidays-seed', function() {
+    $controller = new \App\Controllers\MigrationController();
+    $controller->runGhanaHolidaysSeed();
+});
+
 // ========================================
 // NOTE: Other application routes should be added here
 // This file was restored with reset, backup, auth, and notification routes

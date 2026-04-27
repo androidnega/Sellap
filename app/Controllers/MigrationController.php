@@ -1168,5 +1168,152 @@ class MigrationController
 
         require __DIR__ . '/../Views/simple_layout.php';
     }
+
+    /**
+     * company_holiday_messages + holiday_sms_runs (idempotent, web).
+     */
+    public function runCompanyHolidaySmsMigration()
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $userData = $_SESSION['user'] ?? null;
+        if (!$userData) {
+            $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+            header('Location: ' . $basePath . '/?redirect=' . urlencode('/dashboard/tools/run-company-holiday-sms-migration'));
+            exit;
+        }
+        if (($userData['role'] ?? '') !== 'system_admin') {
+            $this->migrationAccessDenied($userData);
+            return;
+        }
+
+        $db = \Database::getInstance()->getConnection();
+        $logs = [];
+        $status = 'success';
+        $errorMessage = null;
+
+        try {
+            $logs[] = ['type' => 'info', 'message' => 'Company holiday & broadcast SMS — creating tables...'];
+            $sqlFile = __DIR__ . '/../../database/migrations/create_company_holiday_sms_tables.sql';
+            if (!is_readable($sqlFile)) {
+                throw new \RuntimeException('SQL file not found: create_company_holiday_sms_tables.sql');
+            }
+            $db->exec(file_get_contents($sqlFile));
+            $t1 = (bool)$db->query("SHOW TABLES LIKE 'company_holiday_messages'")->fetchColumn();
+            $t2 = (bool)$db->query("SHOW TABLES LIKE 'holiday_sms_runs'")->fetchColumn();
+            if ($t1) {
+                $logs[] = ['type' => 'success', 'message' => '✓ Table company_holiday_messages is available.'];
+            } else {
+                $logs[] = ['type' => 'warning', 'message' => 'Check company_holiday_messages — not detected after run.'];
+            }
+            if ($t2) {
+                $logs[] = ['type' => 'success', 'message' => '✓ Table holiday_sms_runs is available.'];
+            } else {
+                $logs[] = ['type' => 'warning', 'message' => 'Check holiday_sms_runs — not detected after run.'];
+            }
+            $logs[] = ['type' => 'success', 'message' => 'OK: migration SQL executed (idempotent if tables already existed).'];
+        } catch (\Throwable $e) {
+            $status = 'error';
+            $errorMessage = $e->getMessage();
+            $logs[] = ['type' => 'error', 'message' => $e->getMessage()];
+        }
+
+        $this->renderMigrationResult('Holiday SMS (tables)', $logs, $status, $errorMessage);
+    }
+
+    /**
+     * Ghana fixed-date public holiday row templates (companies with zero rows only).
+     */
+    public function runGhanaHolidaysSeed()
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $userData = $_SESSION['user'] ?? null;
+        if (!$userData) {
+            $basePath = defined('BASE_URL_PATH') ? BASE_URL_PATH : '';
+            header('Location: ' . $basePath . '/?redirect=' . urlencode('/dashboard/tools/run-ghana-holidays-seed'));
+            exit;
+        }
+        if (($userData['role'] ?? '') !== 'system_admin') {
+            $this->migrationAccessDenied($userData);
+            return;
+        }
+
+        $logs = [];
+        $status = 'success';
+        $errorMessage = null;
+        try {
+            $r = \App\Services\GhanaPublicHolidaySeed::seedForAllCompaniesWithNoHolidays();
+            $logs[] = ['type' => 'info', 'message' => 'Seeding Ghana public-holiday templates (fixed annual dates; movable feasts not included).'];
+            $logs[] = ['type' => 'info', 'message' => "Companies fully seeded: {$r['companies_seeded']}"];
+            $logs[] = ['type' => 'info', 'message' => "Companies skipped (already have holidays): {$r['companies_skipped']}"];
+            $logs[] = ['type' => 'info', 'message' => "Rows inserted: {$r['rows_inserted']}"];
+            if (!empty($r['errors'])) {
+                $status = 'error';
+                $errorMessage = implode('; ', $r['errors']);
+                foreach ($r['errors'] as $err) {
+                    $logs[] = ['type' => 'error', 'message' => $err];
+                }
+            } else {
+                if ($r['companies_seeded'] === 0 && $r['companies_skipped'] > 0) {
+                    $logs[] = ['type' => 'warning', 'message' => 'All companies already have at least one holiday message — no duplicate seed. To re-seed, clear holiday messages for a company first, or add rows manually.'];
+                }
+            }
+        } catch (\Throwable $e) {
+            $status = 'error';
+            $errorMessage = $e->getMessage();
+            $logs[] = ['type' => 'error', 'message' => $e->getMessage()];
+        }
+
+        $this->renderMigrationResult('Ghana public holidays seed', $logs, $status, $errorMessage);
+    }
+
+    private function migrationAccessDenied($userData): void
+    {
+        $title = 'Access Denied';
+        $errorMessage = "You need to be a System Administrator. Your current role is: " . htmlspecialchars($userData['role'] ?? '');
+        ob_start();
+        ?>
+        <div class="max-w-2xl mx-auto">
+            <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                <h1 class="text-2xl font-bold text-red-900">Access Denied</h1>
+                <p class="text-red-800 my-4"><?= htmlspecialchars($errorMessage) ?></p>
+                <a href="<?= BASE_URL_PATH ?>/dashboard" class="inline-block px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Return to Dashboard</a>
+            </div>
+        </div>
+        <?php
+        $content = ob_get_clean();
+        $GLOBALS['content'] = $content;
+        $GLOBALS['title'] = $title;
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        if (isset($_SESSION['user'])) {
+            $GLOBALS['user_data'] = $_SESSION['user'];
+        }
+        require __DIR__ . '/../Views/simple_layout.php';
+        exit;
+    }
+
+    private function renderMigrationResult(string $title, array $logs, string $status, ?string $errorMessage): void
+    {
+        $GLOBALS['migration_logs'] = $logs;
+        $GLOBALS['migration_status'] = $status;
+        $GLOBALS['migration_error'] = $errorMessage;
+        $GLOBALS['title'] = $title;
+        ob_start();
+        include __DIR__ . '/../Views/migration_result.php';
+        $content = ob_get_clean();
+        $GLOBALS['content'] = $content;
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        if (isset($_SESSION['user'])) {
+            $GLOBALS['user_data'] = $_SESSION['user'];
+        }
+        require __DIR__ . '/../Views/simple_layout.php';
+    }
 }
 

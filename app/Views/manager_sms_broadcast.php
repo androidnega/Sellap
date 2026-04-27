@@ -2,15 +2,16 @@
 $migrationNeeded = $migrationNeeded ?? true;
 $base = defined('BASE_URL_PATH') ? rtrim((string)BASE_URL_PATH, '/') : '';
 ?>
-<div class="max-w-5xl mx-auto px-4 py-8">
+<div class="w-full min-w-0 max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-6 md:py-8">
     <h1 class="text-2xl font-bold text-gray-900">Holiday &amp; broadcast SMS</h1>
-    <p class="text-gray-600 mt-2">Schedule holiday messages (sent automatically when the date matches) or send a one-time message to selected customers or to everyone. All sends use <strong>your company’s SMS balance</strong>, not the platform account.</p>
+    <p class="text-gray-600 mt-2 max-w-3xl">Schedule holiday messages (sent automatically when the date matches) or send a one-time message to selected customers or to everyone. All sends use <strong>your company’s SMS balance</strong>, not the platform account.</p>
 
     <?php if (!empty($migrationNeeded)): ?>
-        <div class="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm">
-            <strong>Database setup required.</strong> Run
-            <code class="bg-white px-1 rounded">php database/migrations/run_company_holiday_sms_migration.php</code>
-            (or open that script on localhost) to create the holiday tables.
+        <div class="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm max-w-3xl">
+            <strong>Database setup required.</strong> A system administrator can create the tables in one step:
+            <a href="<?= htmlspecialchars($base) ?>/dashboard/tools" class="font-medium text-amber-950 underline hover:no-underline">Migration tools</a>
+            → <span class="font-medium">Holiday &amp; broadcast SMS (tables)</span> → Run migration. You can also run
+            <code class="bg-white px-1 rounded">php database/migrations/run_company_holiday_sms_migration.php</code> on the server.
         </div>
     <?php endif; ?>
 
