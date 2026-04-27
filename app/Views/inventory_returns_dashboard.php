@@ -8,30 +8,27 @@ $canProcessReturns = $canProcessReturns ?? false;
 $returnStats = $returnStats ?? ['total' => 0, 'last_30_days' => 0];
 $returnsTableOk = $returnsTableOk ?? true;
 ?>
-<div class="w-full max-w-6xl mx-auto px-4 sm:px-6 py-8">
-    <div class="mb-6">
-        <a href="<?= BASE_URL_PATH ?>/dashboard/pos/sales-history" class="text-sm text-blue-600 hover:text-blue-800">← Sales history</a>
+<div class="w-full max-w-full min-w-0">
+    <div class="mb-5 sm:mb-6">
+        <a href="<?= BASE_URL_PATH ?>/dashboard/pos/sales-history" class="text-sm text-blue-600 hover:text-blue-800">Back to sales history</a>
         <h1 class="text-2xl font-bold text-gray-900 mt-2"><?= htmlspecialchars($pageHeading) ?></h1>
         <?php if (!$returnsTableOk): ?>
-            <div class="mt-3 rounded-md border border-red-200 bg-red-50 text-red-800 px-3 py-2 text-sm">
-                The <code>returns</code> database table is missing. Run the POS / inventory migration (e.g. <code>database/migrations/run_pos_order_inventory_migration.php</code>) or contact support.
+            <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 px-3 py-2.5 text-sm">
+                This screen isn’t available yet. Please contact your administrator.
             </div>
         <?php endif; ?>
         <?php if ($readOnlyUi): ?>
-            <p class="mt-2 text-sm text-gray-600">Showing returns linked to <strong>your</strong> sales only.</p>
-            <p class="mt-2 text-sm rounded-md border border-amber-200 bg-amber-50 text-amber-900 px-3 py-2">
-                View only. A <strong>manager</strong> records returns on each sale’s detail page.
-            </p>
+            <p class="mt-2 text-sm text-gray-600">Only returns for your own sales are shown. To add a return, ask a manager.</p>
         <?php elseif ($canProcessReturns): ?>
-            <p class="mt-2 text-sm text-gray-600">Every return for your company. To record stock coming back, open a sale in <strong>Sales history</strong> and use <strong>Return items</strong> (or the sale detail API).</p>
+            <p class="mt-2 text-sm text-gray-600">Open a past sale in <a class="text-blue-600 hover:text-blue-800 font-medium" href="<?= BASE_URL_PATH ?>/dashboard/pos/sales-history">Sales history</a> and use <strong>Return items</strong> on the sale you need.</p>
         <?php endif; ?>
     </div>
 
     <?php if ($returnsTableOk && empty($rows)): ?>
-    <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm mb-6">
-        <h2 class="text-base font-semibold text-gray-900">No return records yet</h2>
-        <p class="text-sm text-gray-600 mt-2">You will see a log here as soon as returns are recorded. Managers process returns on the <strong>sale detail</strong> page: open a sale from Sales history → use <strong>Return items</strong> when the feature is enabled for your company.</p>
-        <a href="<?= BASE_URL_PATH ?>/dashboard/pos/sales-history" class="inline-block mt-4 text-sm font-medium text-blue-600 hover:text-blue-800">Open sales history</a>
+    <div class="rounded-lg border border-gray-200 bg-white p-5 sm:p-6 shadow-sm mb-6 w-full max-w-full">
+        <h2 class="text-base font-semibold text-gray-900">No returns yet</h2>
+        <p class="text-sm text-gray-600 mt-2 max-w-2xl">When someone records a return, it will show up in this list.</p>
+        <a href="<?= BASE_URL_PATH ?>/dashboard/pos/sales-history" class="inline-block mt-4 text-sm font-medium text-blue-600 hover:text-blue-800">Go to sales history</a>
     </div>
     <?php endif; ?>
 
@@ -49,12 +46,12 @@ $returnsTableOk = $returnsTableOk ?? true;
     <?php endif; ?>
 
     <?php if ($returnsTableOk && !empty($rows)): ?>
-        <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm mb-8">
-            <table class="min-w-full text-sm">
+        <div class="overflow-x-auto w-full min-w-0 rounded-lg border border-gray-200 bg-white shadow-sm mb-8">
+            <table class="w-full min-w-full text-sm">
                 <thead class="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-600">
                     <tr>
                         <th class="px-3 py-2">Return</th>
-                        <th class="px-3 py-2">POS sale</th>
+                        <th class="px-3 py-2">Sale</th>
                         <th class="px-3 py-2">Sold by</th>
                         <th class="px-3 py-2">Created</th>
                         <th class="px-3 py-2">Recorded by</th>
@@ -72,7 +69,7 @@ $returnsTableOk = $returnsTableOk ?? true;
                         <td class="px-3 py-2 whitespace-nowrap"><?= htmlspecialchars($r['created_at'] ?? '') ?></td>
                         <td class="px-3 py-2"><?= htmlspecialchars($r['created_by_username'] ?? '') ?> <span class="text-gray-500">(<?= htmlspecialchars($r['created_role'] ?? '') ?>)</span></td>
                         <td class="px-3 py-2 text-right">
-                            <a class="text-blue-600 text-sm hover:underline" href="?id=<?= (int)$r['id'] ?>">Lines</a>
+                            <a class="text-blue-600 text-sm hover:underline" href="?id=<?= (int)$r['id'] ?>">View items</a>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -80,16 +77,16 @@ $returnsTableOk = $returnsTableOk ?? true;
             </table>
         </div>
     <?php elseif (!$returnsTableOk): ?>
-        <p class="text-gray-600">Return log is not available until the database is updated.</p>
+        <p class="text-sm text-gray-600">This list is not available right now.</p>
     <?php endif; ?>
 
     <?php if ($detail): ?>
-        <h2 class="text-lg font-semibold text-gray-900 mb-2">Return #<?= (int)$detail['id'] ?> — lines</h2>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Return #<?= (int)$detail['id'] ?> · Items</h2>
         <?php if (!empty($detail['notes'])): ?>
             <p class="text-sm text-gray-700 mb-3 rounded-md border border-gray-100 bg-gray-50 px-3 py-2">Notes: <?= nl2br(htmlspecialchars((string)$detail['notes'])) ?></p>
         <?php endif; ?>
-        <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-            <table class="min-w-full text-sm">
+        <div class="overflow-x-auto w-full min-w-0 rounded-lg border border-gray-200 bg-white shadow-sm">
+            <table class="w-full min-w-full text-sm">
                 <thead class="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-600">
                     <tr>
                         <th class="px-3 py-2">Description</th>
