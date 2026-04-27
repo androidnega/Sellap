@@ -7,25 +7,49 @@ require_once __DIR__ . '/EmailService.php';
 
 /**
  * Monthly Report Service
- * Generates and sends monthly sales reports to clients
+ * Generates and sends monthly sales reports to clients.
+ * Entry point for the cron: {@see self::sendMonthlyReports()} (there is no separate generateReports()).
  */
 class MonthlyReportService {
     private $db;
     private $emailService;
+
+    /** @var null|callable(string): void CLI/cron line logger; set from run_monthly_reports.php */
+    private static $stepLog = null;
+
+    public static function setStepLog(?callable $fn): void
+    {
+        self::$stepLog = $fn;
+    }
+
+    private function step(string $message): void
+    {
+        if (self::$stepLog !== null) {
+            (self::$stepLog)($message);
+        }
+    }
     
     public function __construct() {
+        $this->step('MonthlyReportService: constructor start');
         try {
+            $this->step('MonthlyReportService: Database::getInstance()...');
             $this->db = \Database::getInstance()->getConnection();
+            $this->step('MonthlyReportService: PDO ready');
         } catch (\Throwable $e) {
             error_log('MonthlyReportService: database connection failed: ' . $e->getMessage());
+            $this->step('MonthlyReportService: database FAILED — ' . $e->getMessage());
             throw $e;
         }
         try {
+            $this->step('MonthlyReportService: new EmailService()...');
             $this->emailService = new EmailService();
+            $this->step('MonthlyReportService: EmailService ready');
         } catch (\Throwable $e) {
             error_log('MonthlyReportService: EmailService init failed: ' . $e->getMessage());
+            $this->step('MonthlyReportService: EmailService FAILED — ' . $e->getMessage());
             throw $e;
         }
+        $this->step('MonthlyReportService: constructor end');
     }
     
     /**
@@ -33,10 +57,12 @@ class MonthlyReportService {
      */
     public function sendMonthlyReports() {
         try {
+            $this->step('sendMonthlyReports: start');
             error_log('[MonthlyReportService] sendMonthlyReports: start');
             // Get all active companies
             $stmt = $this->db->query("SELECT id, name, email FROM companies WHERE status = 'active'");
             $companies = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            $this->step('sendMonthlyReports: loaded ' . count($companies) . ' active compan' . (count($companies) === 1 ? 'y' : 'ies'));
             
             $results = [
                 'sent' => 0,
@@ -55,13 +81,14 @@ class MonthlyReportService {
                     // Send to individual users based on their roles
                     $this->sendUserMonthlyReports($company['id'], $company['name']);
                     
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $results['failed']++;
                     $results['errors'][] = "Company {$company['id']} ({$company['name']}): " . $e->getMessage();
                     error_log("Failed to send monthly report to company {$company['id']}: " . $e->getMessage());
                 }
             }
             
+            $this->step('sendMonthlyReports: end (sent=' . (int) $results['sent'] . ', failed=' . (int) $results['failed'] . ')');
             error_log('[MonthlyReportService] sendMonthlyReports: end (sent=' . (int) $results['sent'] . ', failed=' . (int) $results['failed'] . ')');
             return $results;
         } catch (\Throwable $e) {
