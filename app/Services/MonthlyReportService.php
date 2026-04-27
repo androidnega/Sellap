@@ -3,6 +3,7 @@
 namespace App\Services;
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/EmailService.php';
 
 /**
  * Monthly Report Service
@@ -13,8 +14,18 @@ class MonthlyReportService {
     private $emailService;
     
     public function __construct() {
-        $this->db = \Database::getInstance()->getConnection();
-        $this->emailService = new EmailService();
+        try {
+            $this->db = \Database::getInstance()->getConnection();
+        } catch (\Throwable $e) {
+            error_log('MonthlyReportService: database connection failed: ' . $e->getMessage());
+            throw $e;
+        }
+        try {
+            $this->emailService = new EmailService();
+        } catch (\Throwable $e) {
+            error_log('MonthlyReportService: EmailService init failed: ' . $e->getMessage());
+            throw $e;
+        }
     }
     
     /**
@@ -22,6 +33,7 @@ class MonthlyReportService {
      */
     public function sendMonthlyReports() {
         try {
+            error_log('[MonthlyReportService] sendMonthlyReports: start');
             // Get all active companies
             $stmt = $this->db->query("SELECT id, name, email FROM companies WHERE status = 'active'");
             $companies = $stmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -50,9 +62,10 @@ class MonthlyReportService {
                 }
             }
             
+            error_log('[MonthlyReportService] sendMonthlyReports: end (sent=' . (int) $results['sent'] . ', failed=' . (int) $results['failed'] . ')');
             return $results;
-        } catch (\Exception $e) {
-            error_log("MonthlyReportService error: " . $e->getMessage());
+        } catch (\Throwable $e) {
+            error_log('MonthlyReportService sendMonthlyReports: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
             throw $e;
         }
     }
